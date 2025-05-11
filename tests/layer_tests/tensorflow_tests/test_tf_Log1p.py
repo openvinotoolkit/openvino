@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestLog1p(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-0.9, 5, x_shape).astype(np.float32)
+        inputs_data['x:0'] = np.random.randint(-0.9, 5, x_shape).astype(np.float32)
 
         return inputs_data
 
@@ -34,10 +34,8 @@ class TestLog1p(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_log1p_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
+    def test_log1p_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_log1p_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

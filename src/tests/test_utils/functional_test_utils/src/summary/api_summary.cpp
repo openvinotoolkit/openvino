@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,6 @@ const std::map<ov_entity, std::string> ApiSummary::apiInfo({
     {ov_entity::ov_infer_request, "ov_infer_request"},
     {ov_entity::ov_plugin, "ov_plugin"},
     {ov_entity::ov_compiled_model, "ov_compiled_model"},
-    {ov_entity::ie_infer_request, "ie_infer_request"},
-    {ov_entity::ie_plugin, "ie_plugin"},
-    {ov_entity::ie_executable_network, "ie_executable_network"},
     {ov_entity::undefined, "undefined"},
 });
 
@@ -36,8 +33,6 @@ void ApiSummaryDestroyer::initialize(ApiSummary* p) {
 
 ApiSummary::ApiSummary() : apiStats() {
     reportFilename = ov::test::utils::API_REPORT_FILENAME;
-    isCrashReported = false;
-    isHangReported = false;
 }
 
 ApiSummary& ApiSummary::getInstance() {
@@ -71,14 +66,14 @@ void ApiSummary::updateStat(ov_entity entity,
     if (cur_stat.find(real_device) == cur_stat.end()) {
         cur_stat.insert({real_device, PassRate()});
     }
-    if (isCrashReported) {
+    if (cur_stat[real_device].isCrashReported) {
         cur_stat[real_device].crashed--;
-        isCrashReported = false;
+        cur_stat[real_device].isCrashReported = false;
     } else {
         cur_stat[real_device].rel_all += rel_influence_coef;
     }
-    if (isHangReported) {
-        isHangReported = false;
+    if (cur_stat[real_device].isHangReported) {
+        cur_stat[real_device].isHangReported = false;
         return;
     }
     switch (status) {
@@ -96,7 +91,7 @@ void ApiSummary::updateStat(ov_entity entity,
     }
     case PassRate::Statuses::HANGED: {
         cur_stat[real_device].hanged++;
-        isHangReported = true;
+        cur_stat[real_device].isHangReported = true;
         break;
     }
     case PassRate::Statuses::FAILED: {
@@ -105,7 +100,7 @@ void ApiSummary::updateStat(ov_entity entity,
     }
     case PassRate::Statuses::CRASHED:
         cur_stat[real_device].crashed++;
-        isCrashReported = true;
+        cur_stat[real_device].isCrashReported = true;
         break;
     }
 }
@@ -156,8 +151,8 @@ void ApiSummary::saveReport() {
     }
     filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!ov::test::utils::directoryExists(outputFolder)) {
-        ov::test::utils::createDirectoryRecursive(outputFolder);
+    if (!ov::util::directory_exists(outputFolder)) {
+        ov::util::create_directory_recursive(outputFolder);
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,8 @@ ov::Strides& ov::Strides::operator=(const Strides& v) {
 }
 
 ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
+
+ov::AttributeAdapter<ov::Strides>::~AttributeAdapter() = default;

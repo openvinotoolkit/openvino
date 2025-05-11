@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/convolution.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/convolution.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/avg_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/avg_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -25,16 +25,16 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationEnd;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationEnd;
     };
 
     TestTransformationParams params;
@@ -43,7 +43,7 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, AvgPoolWithChildTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, AvgPoolWithChildTransformationTestValues>
     AvgPoolWithChildTransformationParams;
 
 class AvgPoolWithChildTransformation : public LayerTransformation,
@@ -51,11 +51,11 @@ class AvgPoolWithChildTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
-        actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(precision,
+        actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
                                                                                  testValues.actual.inputPrecision,
                                                                                  shape,
                                                                                  false,
@@ -63,13 +63,13 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::AvgPoolFunction::getReference(precision,
+            ov::builder::subgraph::AvgPoolFunction::getReference(precision,
                                                                      testValues.expected.inputPrecision,
                                                                      shape,
                                                                      false,
@@ -82,7 +82,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
@@ -115,7 +115,7 @@ TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
 
 const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
 
 const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
     // U8 per tensor quantization

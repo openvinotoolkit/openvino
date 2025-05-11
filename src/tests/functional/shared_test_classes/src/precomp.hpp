@@ -1,15 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <gtest/gtest.h>
-
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 
 #include <algorithm>
 #include <functional>

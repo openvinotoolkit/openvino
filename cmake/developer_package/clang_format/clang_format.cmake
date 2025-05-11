@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_REQUIRED_VERSION 9 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_REQUIRED_VERSION 15 CACHE STRING "Clang-format version to use")
     set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
     if(CLANG_FORMAT)
@@ -14,7 +14,7 @@ if(ENABLE_CLANG_FORMAT)
         else()
             string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
             if(NOT CLANG_FORMAT_MAJOR_VERSION EQUAL CLANG_FORMAT_REQUIRED_VERSION)
-                message(WARNING "Supported clang-format version is 9! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
+                message(WARNING "Supported clang-format version is ${CLANG_FORMAT_REQUIRED_VERSION}! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
         endif()
@@ -32,10 +32,10 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
 endif()
 
 #
-# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
-#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+# ov_add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                            [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
 #
-function(add_clang_format_target TARGET_NAME)
+function(ov_add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
     endif()
@@ -88,10 +88,10 @@ function(add_clang_format_target TARGET_NAME)
             -D "CLANG_FORMAT=${CLANG_FORMAT}"
             -D "INPUT_FILE=${source_file}"
             -D "OUTPUT_FILE=${output_file}"
-            -P "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             DEPENDS
             "${source_file}"
-            "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             COMMENT
             "[clang-format] ${source_file}"
             VERBATIM)
@@ -110,10 +110,10 @@ function(add_clang_format_target TARGET_NAME)
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
         -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
-        -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
         "${all_input_sources}"
-        "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"
         VERBATIM)

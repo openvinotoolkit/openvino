@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
@@ -41,13 +43,15 @@ class TestDiv(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_div_pt_spec(self, input_array, other_array, rounding_mode, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = np.float32
         self.other_array = other_array
         self.other_type = np.float32
         self._test(*self.create_model(rounding_mode),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestDivTypes(PytorchLayerTest):
@@ -98,6 +102,12 @@ class TestDivTypes(PytorchLayerTest):
                               [torch.float32, torch.int32],
                               [torch.float32, torch.int64],
                               [torch.float32, torch.float64],
+                              [torch.float16, torch.uint8],
+                              [torch.uint8, torch.float16],
+                              [torch.float16, torch.int32],
+                              [torch.int32, torch.float16],
+                              [torch.float16, torch.int64],
+                              [torch.int64, torch.float16]
                               ])
     @pytest.mark.parametrize(("lhs_shape", "rhs_shape"), [([2, 3], [2, 3]),
                                                           ([2, 3], []),
@@ -110,6 +120,11 @@ class TestDivTypes(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122715')
     def test_div_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

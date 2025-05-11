@@ -1,12 +1,12 @@
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine all plugins excludes
+#       OpenVINO all plugins excludes
 #
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 #
-#       nGraph ONNX C++ Importer unit tests
+#       OpenVINO ONNX C++ FrontEnd unit tests
 #
 #-------------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_logsoftmax_0D
 
-# nGraph function's output number 0 was not found in the CNNNetwork built from it.
+# Model's output number 0 was not found in the ov::Model.
 onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
@@ -121,9 +121,6 @@ onnx_model_lp_norm_default_dynamic
 onnx_instance_normalization_dynamic
 
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
-# Peepholes input unsupported
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid is not supported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
@@ -167,7 +164,7 @@ IE_CPU.onnx_roi_align_f32
 
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine CPU plugin excludes
+#       OpenVINO CPU plugin excludes
 #
 #-------------------------------------------------------------------------------
 
@@ -175,7 +172,7 @@ IE_CPU.onnx_roi_align_f32
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 
-# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# OpenVINO Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
 # Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
@@ -193,7 +190,7 @@ IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
 # Axes has zero dimension which is not allowed
 IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
-# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+# OpenVINO test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
 IE_CPU.onnx_constant_sparse_tensor_float16_3x4
 IE_CPU.onnx_float16_tensor_as_int32
 
@@ -205,9 +202,12 @@ IE_CPU.onnx_constant_sparse_tensor_double_3x4
 IE_CPU.onnx_constant_sparse_tensor_int16_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
+# Unsupported op NMSRotated
+onnx_model_mm_nms_rotated
+
 #-------------------------------------------------------------------------------
 #
-#       Inference Engine GPU plugin excludes
+#       OpenVINO GPU plugin excludes
 #
 #-------------------------------------------------------------------------------
 
@@ -389,3 +389,15 @@ IE_CPU.onnx_model_top_k_repeating_unsorted
 
 # Accuracy regression - Ticket 105909
 IE_CPU.onnx_model_attention_qkv_hidden_sizes
+
+# Accuracy issues on ARM CPU - Ticket 122663
+IE_CPU.onnx_model_bias_gelu
+IE_CPU.onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len
+IE_CPU.onnx_model_embed_layer_normalization_with_position_ids
+IE_CPU.onnx_resize10_down_scales_const_linear
+IE_CPU.onnx_resize11_down_scales_linear_asymmetric
+IE_CPU.onnx_model_softplus
+IE_CPU.onnx_model_instance_normalization
+IE_CPU.quant_dequant_pattern_axis
+IE_CPU/GRUSequenceOp.onnx_model_gru_reverse_mixed_seq_len_const
+IE_CPU/RNNSequenceOp.onnx_model_rnn_fwd_bias_initial_h_const

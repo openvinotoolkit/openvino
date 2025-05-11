@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/op/scatter_elements_update.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -22,13 +22,11 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
     const auto& updates_shape = input_shapes[2];
     const auto& axis_shape = input_shapes[3];
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(axis_shape.rank(), {0, 1}),
+                          ov::util::is_rank_compatible_any_of(axis_shape.rank(), {0, 1}),
                           "Axis input shape are required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& data_rank = data_shape.rank();
     const auto& indices_rank = indices_shape.rank();
@@ -51,9 +49,7 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
 
     if (data_shape.rank().is_static()) {
         if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::normalize_axis(op, (*axis_input)[0], data_rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::validate_axis((*axis_input)[0], data_rank, *op);
         }
     }
     return {data_shape};

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,15 +37,15 @@ foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
 
     if(NOT BUILD_SHARED_LIBS)
         # common
-        set(_OV_CREATE_PLUGIN_FUNC "CreatePluginEngine${actual_dev_name}")
-        set(_OV_CREATE_EXTENSION_FUNC "CreateExtensionShared${actual_dev_name}")
+        set(_OV_CREATE_PLUGIN_FUNC "create_plugin_engine_${actual_dev_name}")
+        set(_OV_CREATE_EXTENSION_FUNC "create_extensions_${actual_dev_name}")
 
         # declarations
         set(OV_PLUGINS_DECLARATIONS "${OV_PLUGINS_DECLARATIONS}
-        IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(${_OV_CREATE_PLUGIN_FUNC});")
+        OV_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(${_OV_CREATE_PLUGIN_FUNC});")
         if(${actual_dev_name}_AS_EXTENSION)
             set(OV_PLUGINS_DECLARATIONS "${OV_PLUGINS_DECLARATIONS}
-            IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_OV_CREATE_EXTENSION_FUNC});")
+            OV_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_OV_CREATE_EXTENSION_FUNC});")
         else()
             set(_OV_CREATE_EXTENSION_FUNC "nullptr")
         endif()

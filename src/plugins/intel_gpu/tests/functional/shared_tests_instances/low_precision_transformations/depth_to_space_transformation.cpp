@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,21 +8,19 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
-using namespace ngraph::opset1;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
+const std::vector<ov::op::v0::DepthToSpace::DepthToSpaceMode> modes = {
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<ngraph::PartialShape> inputShapesBS2 = {
+const std::vector<ov::PartialShape> inputShapesBS2 = {
         {1, 4, 3, 3}, {2, 16, 5, 4}
 };
 
@@ -36,7 +34,7 @@ const auto DepthToSpaceBS2 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
 
-const std::vector<ngraph::PartialShape> inputShapesBS3 = {
+const std::vector<ov::PartialShape> inputShapesBS3 = {
         {1, 9, 3, 3}, {2, 27, 5, 4}
  };
 

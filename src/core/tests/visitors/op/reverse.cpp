@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, reverse_op_enum_mode) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Reverse>();
+    NodeBuilder::opset().insert<ov::op::v1::Reverse>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto reversed_axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
 
@@ -25,7 +25,7 @@ TEST(attributes, reverse_op_enum_mode) {
 }
 
 TEST(attributes, reverse_op_string_mode) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Reverse>();
+    NodeBuilder::opset().insert<ov::op::v1::Reverse>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto reversed_axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
 

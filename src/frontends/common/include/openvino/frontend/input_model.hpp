@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ public:
     InputModel& operator=(const InputModel&) = delete;
     InputModel& operator=(InputModel&&) = delete;
 
-    virtual ~InputModel() = default;
+    virtual ~InputModel();
 
     /////  Searching for places  /////
 
@@ -81,6 +81,11 @@ public:
     /// \param tensor_name Name of tensor
     /// \return Tensor place corresponding to specified tensor name or nullptr if not exists
     virtual Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
+
+    /// \brief Returns a tensor place by an input index.
+    /// \param input_idx Index of model input
+    /// \return Tensor place corresponding to specified input index or nullptr
+    virtual Place::Ptr get_place_by_input_index(size_t input_idx) const;
 
     /// \brief Returns an operation place by an operation name following framework
     /// conventions, or nullptr if an operation with this name doesn't exist.

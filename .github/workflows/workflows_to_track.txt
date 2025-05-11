@@ -1,0 +1,75 @@
+==> ./stale_prs_and_issues.yml <==
+name: 'Close stale issues and PRs'
+==> ./build_doc.yml <==
+name: Documentation
+==> ./ovc.yml <==
+name: OVC
+==> ./ubuntu_22.yml <==
+name: Linux (Ubuntu 22.04, Python 3.11)
+==> ./windows_conditional_compilation.yml <==
+name: Windows Conditional Compilation (VS 2022, Python 3.11)
+==> ./send_workflows_to_opentelemetry.yml <==
+name: Export workflow metrics (BETA)
+==> ./ubuntu_22_dpcpp.yml <==
+name: Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
+==> ./coverage.yml <==
+name: Code coverage
+==> ./linux_conditional_compilation.yml <==
+name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
+==> ./workflows_scans.yml <==
+name: GitHub Actions Workflows Scans
+==> ./check_pr_commits.yml <==
+name: PR Commits
+==> ./windows_vs2022_debug.yml <==
+name: Windows (VS 2022, Python 3.11, Debug)
+==> ./files_size.yml <==
+name: Files Size
+==> ./cleanup_caches.yml <==
+name: Cleanup caches
+==> ./mac.yml <==
+name: macOS (Python 3.11)
+==> ./merge_queue_stub.yml <==
+==> ./debian_10_arm.yml <==
+name: Debian 10 ARM
+==> ./android_arm64.yml <==
+name: Android ARM64 with vcpkg
+==> ./code_style.yml <==
+name: Code Style
+==> ./manylinux_2014.yml <==
+name: Manylinux 2014
+==> ./linux_arm64.yml <==
+name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+==> ./dev_cpu_linux_snippets_libxsmm.yml <==
+name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)
+==> ./labeler.yml <==
+name: "Pull Request Labeler"
+==> ./mac_arm64.yml <==
+name: macOS ARM64 (Python 3.11)
+==> ./dependency_review.yml <==
+name: 'Dependency Review'
+==> ./fedora_29.yml <==
+name: Fedora 29 (RHEL 8.4), Python 3.9
+==> ./code_snippets.yml <==
+name: Code snippets
+==> ./ubuntu_20.yml <==
+name: Linux (Ubuntu 20.04, Python 3.9)
+==> ./linux_riscv.yml <==
+name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+==> ./android_x64.yml <==
+name: Android x64
+==> ./workflow_rerunner.yml <==
+name: Rerun Workflow with Known Errors
+==> ./linux_sanitizers.yml <==
+name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
+==> ./py_checks.yml <==
+name: Python API Checks
+==> ./webassembly.yml <==
+name: Webassembly
+==> ./ubuntu_24.yml <==
+name: Linux (Ubuntu 24.04, Python 3.12)
+==> ./assign_issue.yml <==
+name: Take Issue
+==> ./windows_vs2022_release.yml <==
+name: Windows (VS 2022, Python 3.11, Release)
+==> ./coverity.yml <==
+name: Coverity (Ubuntu 20.04, Python 3.11)

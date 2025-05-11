@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ ParamsKey ConvolutionKernel_bfyx_GEMMLike::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_broadcast();
 
     return k;
@@ -44,7 +44,7 @@ std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_par
 
 JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_params& params,
                                                               const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
@@ -90,14 +90,14 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     return p.outputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
-bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
+    if (!Parent::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -107,6 +107,13 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_p
         return false;
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
+        return false;
+    }
+
+    // Limit filter_x_size to 32 because convolution ref kernel is faster than GEMMLike kernel when filter size is bigger.
+    // 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
+    const size_t acceptable_filter_x_size = 32;
+    if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
     }
 
@@ -122,8 +129,7 @@ WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(
     }
 }
 
-KernelsData ConvolutionKernel_bfyx_GEMMLike::GetKernelsData(const Params& params,
-                                                            const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_GEMMLike::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

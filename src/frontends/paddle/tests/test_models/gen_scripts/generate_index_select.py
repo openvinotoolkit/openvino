@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
 # index_select paddle model generator
 #
 import numpy as np
-from paddle.fluid import param_attr
 from save_model import saveModel
 import paddle
 import sys
@@ -37,7 +36,7 @@ def index_select(name: str, x, index, axis):
         saveModel(
             name,
             exe,
-            feedkeys=["x", "index"],
+            feed_vars=[data, tensor_index],
             fetchlist=[out],
             inputs=[x, index],
             outputs=[outs[0]],

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +8,7 @@ set(PLUGIN_FILES "" CACHE INTERNAL "")
 
 function(ov_plugin_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
-    set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
+    set(LIB_SUFFIX "${OV_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
     get_target_property(LIB_NAME ${target_name} OUTPUT_NAME)
     if (LIB_NAME STREQUAL "LIB_NAME-NOTFOUND")
@@ -34,10 +34,11 @@ endif()
 #               [SKIP_INSTALL]
 #               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
+#               [ADD_CLANG_TIDY]
 #               )
 #
 function(ov_add_plugin)
-    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -71,16 +72,15 @@ function(ov_add_plugin)
             ov_add_version_defines(${OV_PLUGIN_VERSION_DEFINES_FOR} ${OV_PLUGIN_NAME})
         endif()
 
-        target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+        target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
         if(NOT BUILD_SHARED_LIBS)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                IE_CREATE_PLUGIN=CreatePluginEngine${OV_PLUGIN_DEVICE_NAME}
-                OV_CREATE_PLUGIN=CreatePluginEngine${OV_PLUGIN_DEVICE_NAME})
+                OV_CREATE_PLUGIN=create_plugin_engine_${OV_PLUGIN_DEVICE_NAME})
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                    IE_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
+                    OV_CREATE_EXTENSION=create_extensions_${OV_PLUGIN_DEVICE_NAME})
             endif()
         endif()
 
@@ -89,12 +89,12 @@ function(ov_add_plugin)
 
         target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-        if(WIN32)
-            set_target_properties(${OV_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${OV_PLUGIN_NAME})
-        endif()
-
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
-            target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            if (APPLE)
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
+            else()
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            endif()
         endif()
 
         set(custom_filter "")
@@ -102,8 +102,15 @@ function(ov_add_plugin)
             string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
         endforeach()
 
+        if (OV_PLUGIN_ADD_CLANG_TIDY)
+            if (ENABLE_CLANG_TIDY)
+                set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
+                    CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
+            endif()
+        endif()
+
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
-            add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
+            ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
         else()
             add_cpplint_target(${OV_PLUGIN_NAME}_cpplint FOR_TARGETS ${OV_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
@@ -117,6 +124,10 @@ function(ov_add_plugin)
         # install rules
         if(NOT OV_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${OV_PLUGIN_DEVICE_NAME}" install_component)
+            if(NOT BUILD_SHARED_LIBS)
+                # in case of static libs everything is installed to 'core'
+                set(install_component ${OV_CPACK_COMP_CORE})
+            endif()
 
             if(OV_PLUGIN_PSEUDO_DEVICE)
                 set(plugin_hidden HIDDEN)
@@ -131,9 +142,8 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
-                install(TARGETS ${OV_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
-                        COMPONENT ${install_component})
+
+                ov_install_pdb(${TARGET_NAME})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()
@@ -161,10 +171,6 @@ function(ov_add_plugin)
         set(${OV_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${OV_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
         set(${OV_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${OV_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
     endif()
-endfunction()
-
-function(ie_add_plugin)
-    ov_add_plugin(${ARGN})
 endfunction()
 
 #
@@ -199,7 +205,7 @@ macro(ov_register_in_plugins_xml)
                     -D "OV_CONFIG_OUTPUT_FILE=${config_output_file}"
                     -D "OV_PLUGIN_NAME=${device_name}"
                     -D "OV_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                    -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
+                    -P "${OpenVINODeveloperScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
                     "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
@@ -228,7 +234,7 @@ macro(ov_register_in_plugins_xml)
               -D "OV_DEVICE_NAME=${device_name}"
               -D "OV_PLUGIN_PROPERTIES=${${device_name}_CONFIG}"
               -D "OV_PLUGIN_LIBRARY_NAME=${library_name}"
-              -P "${IEDevScripts_DIR}/plugins/create_plugin_file.cmake"
+              -P "${OpenVINODeveloperScripts_DIR}/plugins/create_plugin_file.cmake"
           COMMENT "Register ${device_name} device as ${library_name}"
           VERBATIM)
 
@@ -243,7 +249,7 @@ macro(ov_register_in_plugins_xml)
                           -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
                           -D "OV_CONFIG_OUTPUT_FILE=${config_output_file}"
                           -D "OV_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
-                          -P "${IEDevScripts_DIR}/plugins/register_plugin_cmake.cmake"
+                          -P "${OpenVINODeveloperScripts_DIR}/plugins/register_plugin_cmake.cmake"
                         COMMENT
                           "Registering plugins to plugins.xml config file"
                         VERBATIM)
@@ -256,13 +262,6 @@ macro(ov_register_plugins)
     if(BUILD_SHARED_LIBS AND ENABLE_PLUGINS_XML)
         ov_register_in_plugins_xml(${ARGN})
     endif()
-endmacro()
-
-#
-# ie_register_plugins()
-#
-macro(ie_register_plugins)
-    ov_register_plugins(${ARGN})
 endmacro()
 
 #
@@ -333,16 +332,17 @@ function(ov_generate_plugins_hpp)
 
     # add plugins to libraries including ov_plugins.hpp
     ov_target_link_plugins(openvino)
-    if(TARGET inference_engine_s)
-        ov_target_link_plugins(inference_engine_s)
+    if(TARGET openvino_runtime_s)
+        ov_target_link_plugins(openvino_runtime_s)
     endif()
 
+    get_target_property(OV_RUNTIME_OBJ_BINARY_DIR openvino_runtime_obj BINARY_DIR)
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/$<CONFIG>/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/$<CONFIG>/ov_plugins.hpp")
     else()
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/ov_plugins.hpp")
     endif()
-    set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
+    set(plugins_hpp_in "${OpenVINODeveloperScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ov_plugins_hpp}"
                        COMMAND
@@ -353,16 +353,16 @@ function(ov_generate_plugins_hpp)
                         -D "OV_PLUGINS_HPP_HEADER=${ov_plugins_hpp}"
                         ${device_configs}
                         ${as_extension}
-                        -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                        -P "${OpenVINODeveloperScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        DEPENDS
                          "${plugins_hpp_in}"
-                         "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                         "${OpenVINODeveloperScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
                          "Generate ov_plugins.hpp"
                        VERBATIM)
 
     # for some reason dependency on source files does not work
-    # so, we have to use explicit target and make it dependency for inference_engine_obj
+    # so, we have to use explicit target and make it dependency for openvino_runtime_obj
     add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
-    add_dependencies(inference_engine_obj _ov_plugins_hpp)
+    add_dependencies(openvino_runtime_obj _ov_plugins_hpp)
 endfunction()

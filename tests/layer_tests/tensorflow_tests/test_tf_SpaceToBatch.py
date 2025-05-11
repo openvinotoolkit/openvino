@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import pytest
 
@@ -31,13 +33,13 @@ class TestSpaceToBatch(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_space_to_batch_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
+    def test_space_to_batch_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_space_to_batch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_4D = [
         dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]]),
@@ -46,11 +48,9 @@ class TestSpaceToBatch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_space_to_batch_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+    def test_space_to_batch_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_space_to_batch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_5D = [
         dict(in_shape=[3, 3, 4, 5, 2], block_shape_value=[3, 4, 2],
@@ -61,8 +61,6 @@ class TestSpaceToBatch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_space_to_batch_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+    def test_space_to_batch_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_space_to_batch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

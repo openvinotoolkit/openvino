@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,10 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
     create_pattern<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
-        true,
         {0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         // remove Transpose on 1st input:
         auto transpose_parent = main_node->input_value(0).get_node()->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
@@ -87,7 +86,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

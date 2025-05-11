@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
                      const input_info& input,
                      const input_info& seq_lengths,
                      const int32_t seq_axis,
-                     const int32_t batch_axis = 0,
-                     const padding& output_padding = padding())
-        : primitive_base(id, {input, seq_lengths}, {output_padding}), seq_axis(seq_axis), batch_axis(batch_axis) {
-        const int32_t number_of_dims = 4;
+                     const int32_t batch_axis = 0)
+        : primitive_base(id, {input, seq_lengths}), seq_axis(seq_axis), batch_axis(batch_axis) {
+        const int32_t number_of_dims = 5;
 
         int32_t batch_a = batch_axis;
         int32_t seq_a = seq_axis;

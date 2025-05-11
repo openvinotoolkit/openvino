@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,7 +15,26 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
+function(ov_create_acl_version_file)
+    set(ACL_ROOT_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
+    set(ACL_SCONSCRIPT_FILE_PATH "${ACL_ROOT_DIR}/SConscript")
+    file(READ ${ACL_SCONSCRIPT_FILE_PATH} ACL_SCONSCRIPT_FILE_CONTENT)
+    string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
+    set(ACL_VERSION "${CMAKE_MATCH_1}")
+
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
+    file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
+endfunction()
+
+function(ov_build_kleidiai_static)
+    set(BUILD_SHARED_LIBS OFF)
+    set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
+endfunction()
+
 function(ov_add_onednn)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+    set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
         set(DNNL_ENABLE_ITT_TASKS ON CACHE BOOL "" FORCE)
@@ -31,6 +50,7 @@ function(ov_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
+    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "SSE41" CACHE STRING "" FORCE)
     # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
     # select needed primitives
@@ -58,10 +78,10 @@ function(ov_add_onednn)
     endif()
 
     if(AARCH64 OR ARM)
-        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Conpute Library kernels in oneDNN" FORCE)
+        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
     endif()
 
-    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
@@ -77,31 +97,35 @@ function(ov_add_onednn)
         link_libraries(TBB::tbb)
     endif()
 
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-undef)
-        ie_add_compiler_flags(-Wno-missing-declarations)
-        if(ARM OR AARCH64)
-            ie_add_compiler_flags(-Wno-macro-redefined)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+        ov_add_compiler_flags(-Wno-error)
+        ov_add_compiler_flags(-Wno-undef)
+        ov_add_compiler_flags(-Wno-missing-declarations)
+        if(NOT CMAKE_COMPILER_IS_GNUCXX AND (ARM OR AARCH64))
+            ov_add_compiler_flags(-Wno-macro-redefined)
         endif()
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-array-bounds)
-            ie_add_compiler_flags(-Wno-stringop-overflow)
+            ov_add_compiler_flags(-Wno-array-bounds)
+            ov_add_compiler_flags(-Wno-stringop-overflow)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-overloaded-virtual")
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
-                ie_add_compiler_flags(-Wno-restrict)
+                ov_add_compiler_flags(-Wno-restrict)
             endif()
         endif()
-    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
+        if(OV_COMPILER_IS_INTEL_LLVM)
+            ov_add_compiler_flags(-Wno-deprecated-this-capture)
+            ov_add_compiler_flags(-Wno-deprecated-enum-enum-conversion)
+        endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
-        ie_add_compiler_flags(/wd4849)
+        ov_add_compiler_flags(/wd4849)
         # C4661 no suitable definition provided for explicit template instantiation request
-        ie_add_compiler_flags(/wd4661)
+        ov_add_compiler_flags(/wd4661)
         # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
-        ie_add_compiler_flags(/wd4267)
-        ie_add_compiler_flags(/wd4244)
+        ov_add_compiler_flags(/wd4267)
+        ov_add_compiler_flags(/wd4244)
         # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
-        ie_add_compiler_flags(/wd4334)
+        ov_add_compiler_flags(/wd4334)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -112,12 +136,15 @@ function(ov_add_onednn)
     # to find our FindACL.cmake
     if(DNNL_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+        # oneDNN needs arm_compute_version.embed file to detect ACL version
+        # since the file has not been generated yet, it is created manually
+        ov_create_acl_version_file()
     endif()
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries
-    ov_install_static_lib(dnnl cpu)
+    ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
     if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
@@ -125,16 +152,42 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT cpu)
+                COMPONENT ${OV_CPACK_COMP_CORE}
+                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT core_dev)
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+                ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endfunction()
 
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    # This flag is to suppress "warning as error" in libxsmm compilation, such as
+    # "generator_common_aarch64.c:60:6: error: no previous declaration for ‘libxsmm_generator_vcvt_f32i8_aarch64_sve’ [-Werror=missing-declarations]"
+    ov_add_compiler_flags(-Wno-missing-declarations)
+    add_subdirectory(libxsmm)
+    ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
+endif()
+
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
-    ov_install_static_lib(mlas cpu)
+    ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_SHL_FOR_CPU)
+    add_subdirectory(shl)
+    ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    ov_build_kleidiai_static()
+    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+endif()
+
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

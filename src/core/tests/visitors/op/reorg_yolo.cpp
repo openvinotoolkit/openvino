@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, reorg_yolo_op_stride) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::ReorgYolo>();
+    NodeBuilder::opset().insert<ov::op::v0::ReorgYolo>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
@@ -24,7 +24,7 @@ TEST(attributes, reorg_yolo_op_stride) {
 }
 
 TEST(attributes, reorg_yolo_op_strides) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::ReorgYolo>();
+    NodeBuilder::opset().insert<ov::op::v0::ReorgYolo>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});

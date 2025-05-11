@@ -40,12 +40,12 @@ TEST(add_required_reorders, input_reorder_inside_shape_of_subgraph) {
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
-    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(eltwise("eltwise0", {input_info("gather0"), input_info("data_1")}, eltwise_mode::prod, data_types::f32));
     topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
                          ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
-    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(eltwise("eltwise1", {input_info("gather1"), input_info("data_1")}, eltwise_mode::prod, data_types::f32));
     topology.add(reshape("reshape1", input_info("eltwise1"), false, {},
                          ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
@@ -66,54 +66,6 @@ TEST(add_required_reorders, input_reorder_inside_shape_of_subgraph) {
     auto eltwise_in_layout = eltwise_node.get_input_layout();
 
     ASSERT_EQ(eltwise_in_layout.data_type, data_types::f32);
-}
-
-TEST(add_required_reorders, eltwise_input_reorder) {
-    // Topology:
-    //  (bfyx)input  weights
-    //            \  /
-    //            conv1  irdft_input(bfzyx)
-    //            / | \  /
-    // (bfzyx)rdft  |  irdft(bfyx)
-    //              |  /
-    //           eltwise
-    //              |
-    //            conv2
-    //
-    // Expectation:
-    // The selected format of eltwise should be selected as bfzyx (reorder_inputs)
-    // A new reorder that converts from b_fs_yx_fsv16 to bfzyx should be inserted after convolution (reorder_inputs)
-    // If the input format of eltwise is different from the output format, reorder(bfyx->bfzyx) should be added (add_required_reorders)
-
-    auto& engine = get_test_engine();
-
-    auto conv1_weight_mem = engine.allocate_memory(layout{ { 192, 384, 1, 1 }, data_types::f16, format::bfyx });
-    auto conv2_weight_mem = engine.allocate_memory(layout{ { 384, 192, 1, 1 }, data_types::f16, format::bfyx });
-
-    topology topology;
-    topology.add(data("conv1_weights", conv1_weight_mem));
-    topology.add(data("conv2_weights", conv2_weight_mem));
-    topology.add(input_layout("input", layout{ { 1, 384, 36, 64 }, data_types::f16, format::bfyx }));
-    topology.add(input_layout("irdft_input", layout{ { 1, 192, 36, 33, 2 }, data_types::f16, format::bfzyx }));
-    topology.add(convolution("conv1", input_info("input"), "conv1_weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    topology.add(dft("rdft", input_info("conv1"), {2, 3}, {36, 64}, {1, 192, 36, 33, 2}, dft_direction::forward, dft_mode::real));
-    topology.add(dft("irdft", input_info("irdft_input"), {2, 3}, {36, 64}, {1, 192, 36, 64}, dft_direction::inverse, dft_mode::real));
-    topology.add(eltwise("eltwise", input_info("conv1"), input_info("irdft"), eltwise_mode::sum));
-    topology.add(convolution("conv2", input_info("eltwise"), "conv2_weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv1_impl = { format::b_fs_yx_fsv16, "" };
-    ov::intel_gpu::ImplementationDesc conv2_impl = { format::b_fs_yx_fsv16, "" };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl }, { "conv2", conv2_impl } }));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    program::ptr prog = nullptr;
-    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
-    ASSERT_NE(prog, nullptr);
-    auto prog_impl = prog.get();
-    auto& eltwise_node = prog_impl->get_node("eltwise");
-    ASSERT_EQ(eltwise_node.get_input_layouts()[1].format, format::bfzyx);
-    ASSERT_EQ(eltwise_node.get_output_layout().format, format::bfzyx);
 }
 
 TEST(add_required_reorders, prevent_input_dt_changing_for_convs) {
@@ -170,7 +122,7 @@ TEST(add_required_reorders, prevent_users_invalidation) {
     const auto& conv_node = prog->get_node("conv");
 
     // Force OneDNN impl type to insert padded_layout -> non_padded_layout reorder
-    prog->get_node("conv").set_preferred_impl_type(impl_types::onednn);
+    prog->get_node("conv").set_forced_impl_type(impl_types::onednn);
 
     program_wrapper::apply_opt_pass<add_required_reorders>(*prog);
 
@@ -198,7 +150,7 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     topology.add(crop("crop2", input_info("reorder_input"), tensor{1, 6, 2, 2, 2}, tensor(2, 0, 0, 0, 0)));
     topology.add(reorder("crop2_reorder", input_info("crop2"), reorder_layout));
     topology.add(reshape("reshape2", input_info("crop2_reorder"), tensor(6, 2, 2, 2)));
-    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 1, data_types::f32, padding{{0, 0, 0, 0}, 0}));
+    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 1, data_types::f32));
     topology.add(reorder("reorder_output", input_info("concat"), format::bfyx, data_types::i8));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -240,9 +192,9 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     crop_prim = network.get_primitive("crop2");
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
     auto reorder_prim = network.get_primitive("crop1_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     reorder_prim = network.get_primitive("crop2_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto concate = network.get_primitive("concat");
     ASSERT_EQ(concate->can_be_optimized(), false);
 }

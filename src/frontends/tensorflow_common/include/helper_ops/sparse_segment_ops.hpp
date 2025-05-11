@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,9 +56,7 @@ public:
         // num_segments input is optional so it is not always possible to deduce the first dimension of the output shape
         if (get_input_size() > 3) {
             ov::PartialShape num_segments_value;
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (output_rank.is_static() && ov::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (output_rank.is_static() && ov::util::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
                 FRONT_END_OP_CONVERSION_CHECK(output_rank.get_length() >= 1,
                                               "Data input of SparseSegmentSum must be of rank >= 1.");
                 output_shape[0] = num_segments_value[0];
@@ -66,6 +64,19 @@ public:
         }
 
         set_output_type(0, get_input_element_type(0), output_shape);
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        size_t input_size = inputs.size();
+        FRONT_END_OP_CONVERSION_CHECK(
+            input_size == 3 || input_size == 4,
+            "[TensorFlow Frontend] internal error: SparseSegmentSum expects three or four inputs");
+        auto sparse_segment_sum_node =
+            (input_size == 3)
+                ? std::make_shared<SparseSegmentSum>(inputs[0], inputs[1], inputs[2], m_decoder)
+                : std::make_shared<SparseSegmentSum>(inputs[0], inputs[1], inputs[2], inputs[3], m_decoder);
+        sparse_segment_sum_node->set_attrs(get_attrs());
+        return sparse_segment_sum_node;
     }
 };
 }  // namespace tensorflow

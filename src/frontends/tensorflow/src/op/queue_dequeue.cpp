@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
 #include "helper_ops/fifo_queue.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/parameter.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -51,7 +51,7 @@ OutputVector translate_queue_dequeue_base(const ov::frontend::tensorflow::NodeCo
             output_shape = output_shapes[output_ind];
         }
         auto output_type = output_types[output_ind];
-        auto parameter = make_shared<Parameter>(output_type, output_shape);
+        auto parameter = make_shared<v0::Parameter>(output_type, output_shape);
         if (output_num == 1) {
             set_node_name(node_name, parameter);
         } else {
@@ -84,9 +84,7 @@ OutputVector translate_queue_dequeue_many_op(const ov::frontend::tensorflow::Nod
     // compute batch dimension for outputs
     // this is a number of batch objects emitted from QueueDequeue
     Dimension batch_dim = Dimension::dynamic();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto n_const = get_constant_from_source(n)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto n_const = ov::util::get_constant_from_source(n)) {
         auto n_value = n_const->cast_vector<int64_t>();
         if (n_value.size() > 0 && n_value[0] > 0) {
             batch_dim = n_value[0];

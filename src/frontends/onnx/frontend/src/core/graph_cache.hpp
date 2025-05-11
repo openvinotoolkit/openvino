@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,11 @@
 #include <memory>
 #include <string>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 /// \brief      GraphCache stores and provides access to ONNX graph initializers.
 class GraphCache {
 public:
@@ -21,7 +22,7 @@ public:
     ///
     /// \param[in]  name       The name of node added to the cache.
     /// \param[in]  node       The node added to the cache.
-    void emplace_node(const std::string& name, Output<ngraph::Node>&& node);
+    void emplace_node(const std::string& name, ov::Output<ov::Node>&& node);
 
     /// \brief      Remove node from the cache
     ///
@@ -30,12 +31,12 @@ public:
 
     /// \brief      Get the node from the cache
     ///
-    /// \note       If the node is not found the ngraph_error exception is thrown.
+    /// \note       If the node is not found the ov::Exception is thrown.
     ///
     /// \param[in]  name       The name of the node.
     ///
     /// \return     The node named `name`.
-    virtual Output<ngraph::Node> get_node(const std::string& name) const;
+    virtual ov::Output<ov::Node> get_node(const std::string& name) const;
 
     /// \brief      Return true if the node named `name` exist in the cache.
     ///
@@ -47,7 +48,8 @@ public:
     virtual ~GraphCache() = default;
 
 private:
-    std::map<std::string, Output<ngraph::Node>> m_graph_cache_map;
+    std::map<std::string, ov::Output<ov::Node>> m_graph_cache_map;
 };
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

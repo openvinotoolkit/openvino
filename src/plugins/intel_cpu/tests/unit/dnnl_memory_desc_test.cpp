@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 using namespace testing;
 
 TEST(MemDescTest, Conversion) {
@@ -46,7 +46,7 @@ TEST(MemDescTest, Conversion) {
 }
 
 TEST(MemDescTest, UndefinedStateConversion) {
-    ngraph::PartialShape ngraphUndefinedShape({{16}, {7, 15}, {-1, -1}, {3}});
+    ov::PartialShape ngraphUndefinedShape({{16}, {7, 15}, {-1, -1}, {3}});
     Shape cpuShape(ngraphUndefinedShape);
 
     const std::vector<dnnl::memory::format_tag> vecTags = {
@@ -192,7 +192,7 @@ TEST(MemDescTest, KeepOrder) {
     using dnnl::memory;
     Shape dims(VectorDims{7, 3, 1, 5});
     memory::data_type dataType = memory::data_type::u8;
-    DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToIEPrecision(dataType), dims);
+    DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToElementType(dataType), dims);
     ASSERT_THAT(descPalanar.getOrder(), ElementsAre(0, 1, 2, 3));
 
     DnnlBlockedMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
@@ -220,30 +220,30 @@ TEST(MemDescTest, KeepOrder) {
 }
 
 TEST(MemDescTest, UndefinedState) {
-    ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
+    ov::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
     ov::intel_cpu::Shape pluginShape(ngraphShape);
     DnnlBlockedMemoryDesc memDesc(pluginShape, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nChw8c);
 
     ASSERT_FALSE(memDesc.isDefined());
 
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), ov::Exception);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), ov::Exception);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), ov::Exception);
 
     auto definedDesc = memDesc.cloneWithNewDims({16, 15, 25, 7});
 
     ASSERT_TRUE(definedDesc->isDefined());
 
     auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nCsp8c);
-    auto cpuBlockedDesc = creator->createSharedDesc(Precision::FP32, pluginShape);
+    auto cpuBlockedDesc = creator->createSharedDesc(ov::element::f32, pluginShape);
 
     ASSERT_FALSE(cpuBlockedDesc->isDefined());
 
     ASSERT_TRUE(cpuBlockedDesc->isCompatible(memDesc));
 
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 40, 7}), ov::Exception);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25}), ov::Exception);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25, 5}), ov::Exception);
 
     auto definedBlockedDesc = cpuBlockedDesc->cloneWithNewDims({16, 15, 25, 7});
 
@@ -258,10 +258,10 @@ TEST(MemDescTest, UndefinedState) {
 TEST(MemDescTest, MemSize) {
     constexpr size_t undefSize = MemoryDesc::UNDEFINED_SIZE;
     static const auto dnnlDataType = dnnl::memory::data_type::f32;
-    static const Precision iePrc = Precision::FP32;
+    static const ov::element::Type iePrc = ov::element::f32;
 
 
-    ngraph::PartialShape ngraphShapeUndef({{16}, {-1, -1}, {20, 30}, {7}});
+    ov::PartialShape ngraphShapeUndef({{16}, {-1, -1}, {20, 30}, {7}});
     ov::intel_cpu::Shape pluginShapeUndef(ngraphShapeUndef);
 
     auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
@@ -275,7 +275,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(memDescUndef.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescUndef.getMaxMemSize(), undefSize);
 
-    ngraph::PartialShape ngraphShapeDefUpperBound({{16}, {7, 14}, {20, 30}, {7}});
+    ov::PartialShape ngraphShapeDefUpperBound({{16}, {7, 14}, {20, 30}, {7}});
     ov::intel_cpu::Shape pluginShapeDefUpperBound(ngraphShapeDefUpperBound);
 
     auto blockedDescDefUpper = creator->createDesc(iePrc, pluginShapeDefUpperBound);
@@ -283,7 +283,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(blockedDescDefUpper.getCurrentMemSize(), undefSize);
     auto maxElementsCount = std::accumulate(pluginShapeDefUpperBound.getMaxDims().begin(),
                                             pluginShapeDefUpperBound.getMaxDims().end(),
-                                            1, std::multiplies<size_t>());
+                                            1, std::multiplies<>());
     ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
 
     DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, dnnl::memory::format_tag::nhwc);
@@ -291,7 +291,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(memDescDefUpper.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * DnnlExtensionUtils::sizeOfDataType(dnnlDataType));
 
-    ngraph::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
+    ov::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
     ov::intel_cpu::Shape pluginShapeDefined(ngraphShapeDefined);
 
     auto blockedDescDefined = creator->createDesc(iePrc, pluginShapeDefined);
@@ -317,12 +317,12 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
     const memory::data_type dataType = memory::data_type::u8;
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
-    ov::intel_cpu::Shape pluginShapeWrongRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
-    ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), InferenceEngine::ParameterMismatch);
+    ov::intel_cpu::Shape pluginShapeWrongRank(ov::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
+    ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), ov::Exception);
 
-    ov::intel_cpu::Shape pluginShapeRightRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
+    ov::intel_cpu::Shape pluginShapeRightRank(ov::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     MemoryDescPtr memDesc;
-    ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
+    OV_ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
     ASSERT_FALSE(memDesc->isDefined());
 }
 
@@ -331,11 +331,11 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
     const memory::data_type dataType = memory::data_type::u8;
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
-    ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
+    ov::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     for (size_t i = 0; i < fullyUndef.size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {3}; // just a number which is not equal to any origin dims
-        ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
+        ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), ov::Exception);
     }
 
     const auto dims = origin.get_dims();
@@ -343,7 +343,7 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
         auto partialShape = fullyUndef;
         partialShape[i] = {dims[i]};
         MemoryDescPtr memDesc;
-        ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
+        OV_ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
         ASSERT_FALSE(memDesc->isDefined());
     }
 }
@@ -362,7 +362,7 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
             payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 }, "BAcd16a16b" },  // blocked and permuted outer dims
     };
 
-    ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
+    ov::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
 
     for (const auto& item : payload) {
         dnnl::memory::format_tag fmt;
@@ -396,7 +396,7 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
             payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 } },  // blocked and permuted outer dims
     };
 
-    ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
+    ov::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
 
     for (const auto& item : payload) {
         dnnl::memory::format_tag fmt;
@@ -435,12 +435,12 @@ TEST(isSameMethodTest, CheckTensorWithSameStrides) {
 }
 
 TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {
-    Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
+    Shape shape(ov::PartialShape{1, 3, 85, {144, 1444}});
     auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nchw);
     ASSERT_FALSE(desc->isDefined());
 
     MemoryDescPtr definedDesc;
-    ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
+    OV_ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
 
     ASSERT_TRUE(definedDesc->isDefined());
     ASSERT_EQ((VectorDims{1, 3, 85, 144}), definedDesc->getShape().getStaticDims());

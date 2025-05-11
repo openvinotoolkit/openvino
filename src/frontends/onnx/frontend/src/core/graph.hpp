@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,20 +12,19 @@
 
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "onnx_import/core/operator_set.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "openvino/op/parameter.hpp"
 #include "ops_bridge.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::string& model_dir,
-          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          const std::shared_ptr<ModelProto>& model_proto,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
@@ -35,9 +34,9 @@ public:
 
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = default;
-    std::shared_ptr<Function> decode();
-    virtual std::shared_ptr<Function> convert();
-    OutputVector get_ng_outputs();
+    std::shared_ptr<ov::Model> decode();
+    virtual std::shared_ptr<ov::Model> convert();
+    ov::OutputVector get_ov_outputs();
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
@@ -47,14 +46,14 @@ public:
     detail::MappedMemoryHandles get_mmap_cache() const {
         return m_mmap_cache;
     }
-    const ParameterVector& get_ng_parameters() const {
+    const ov::ParameterVector& get_ng_parameters() const {
         return m_parameters;
     }
-    virtual bool is_ng_node_in_cache(const std::string& name) const;
-    virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OutputVector make_ng_nodes(const Node& onnx_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    virtual bool is_ov_node_in_cache(const std::string& name) const;
+    virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
+
+    ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
+
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
@@ -64,34 +63,30 @@ public:
 
 protected:
     Graph(const std::string& model_dir,
-          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
+          const std::shared_ptr<ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    void set_friendly_names(const Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
 
 protected:
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OutputVector make_framework_nodes(const Node& onnx_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::OutputVector make_framework_nodes(const ov::frontend::onnx::Node& onnx_node);
+
     void decode_to_framework_nodes();
-    void convert_to_ngraph_nodes();
+    void convert_to_ov_nodes();
     void remove_dangling_parameters();
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
-    std::shared_ptr<Function> create_function();
+    std::shared_ptr<ov::Model> create_model();
 
-    ParameterVector m_parameters;
+    ov::ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
     std::unique_ptr<GraphCache> m_cache;
     ov::frontend::ExtensionHolder m_extensions = {};
 
 private:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<Node> m_nodes;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
     OperatorsBridge m_ops_bridge;
@@ -106,13 +101,13 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model, Graph* parent_graph);
+    Subgraph(const std::shared_ptr<ModelProto>& model, Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
-    const std::vector<Output<ngraph::Node>> get_inputs_from_parent() const;
+    const std::vector<ov::Output<ov::Node>> get_inputs_from_parent() const;
 
-    std::shared_ptr<Function> convert() override;
+    std::shared_ptr<ov::Model> convert() override;
 
     Subgraph() = delete;
 
@@ -122,14 +117,14 @@ public:
     Subgraph& operator=(const Subgraph&) = delete;
     Subgraph& operator=(Subgraph&&) = default;
 
-    bool is_ng_node_in_cache(const std::string& name) const override;
-    Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) override;
+    bool is_ov_node_in_cache(const std::string& name) const override;
+    ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name) override;
     void infer_inputs_from_parent();
 
 private:
     Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
-    std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
+    std::unordered_map<std::shared_ptr<ov::op::v0::Parameter>, std::string> m_parameter_to_parent_node_map;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
@@ -138,6 +133,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
 
 static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

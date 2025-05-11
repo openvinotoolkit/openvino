@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,11 @@ void ocl_event::set_ocl_callback() {
 
 void ocl_event::wait_impl() {
     if (_event.get() != nullptr) {
-        _event.wait();
+        try {
+            _event.wait();
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
@@ -59,8 +63,12 @@ void ocl_event::set_impl() {
 }
 
 bool ocl_event::is_set_impl() {
-    if (_event.get() != nullptr) {
-        return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+    try {
+        if (_event.get() != nullptr) {
+            return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
 }
@@ -94,8 +102,12 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         cl_ulong start;
         cl_ulong end;
 
-        _event.getProfilingInfo(period.start, &start);
-        _event.getProfilingInfo(period.stop, &end);
+        try {
+            _event.getProfilingInfo(period.start, &start);
+            _event.getProfilingInfo(period.stop, &end);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
 
         info.push_back(get_profiling_interval(period.stage, start, end));
     }
@@ -105,7 +117,11 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
 
 void ocl_events::wait_impl() {
     if (_last_ocl_event.get() != nullptr) {
-        _last_ocl_event.wait();
+        try {
+            _last_ocl_event.wait();
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
@@ -114,8 +130,12 @@ void ocl_events::set_impl() {
 }
 
 bool ocl_events::is_set_impl() {
-    if (_last_ocl_event.get() != nullptr) {
-        return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+    try {
+        if (_last_ocl_event.get() != nullptr) {
+            return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
 }
@@ -127,15 +147,27 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
-        auto be = downcast<ocl_event>(_events[i].get());
+        ocl_event *be = nullptr;
+
+        try {
+            be = downcast<ocl_event>(_events[i].get());
+        } catch (const ov::Exception &err) {
+            GPU_DEBUG_LOG << "WARNING: failed to downcast event to ocl_event - " << err.what() << std::endl;
+            continue;
+        }
+
         if (!is_event_profiled(be->_event))
             continue;
 
         for (auto& period : profiling_periods) {
             cl_ulong ev_start;
             cl_ulong ev_end;
-            be->_event.getProfilingInfo(period.start, &ev_start);
-            be->_event.getProfilingInfo(period.stop, &ev_end);
+            try {
+                be->_event.getProfilingInfo(period.start, &ev_start);
+                be->_event.getProfilingInfo(period.stop, &ev_end);
+            } catch (cl::Error const& err) {
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+            }
             auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
                                               static_cast<unsigned long long>(ev_end));
 
@@ -185,16 +217,6 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         unsigned long long sum = 0;
         for (auto& duration : all_durations[period.stage]) {
             sum += (duration.second - duration.first);
-        }
-
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->print_multi_kernel_perf) {
-            if (period.stage == instrumentation::profiling_stage::executing) {
-                GPU_DEBUG_TRACE << "Multi-kernel time: ";
-                for (auto& duration : all_durations[period.stage])
-                    GPU_DEBUG_TRACE << "  " << (duration.second - duration.first) / 1000;
-                GPU_DEBUG_TRACE << " Total " << sum / 1000 << std::endl;
-            }
         }
 
         info.push_back(get_profiling_interval(period.stage, 0, sum));

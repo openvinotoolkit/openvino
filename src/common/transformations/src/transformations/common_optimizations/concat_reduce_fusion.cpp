@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -44,7 +45,7 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     auto squeeze_axes_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto squeeze_pattern = pattern::wrap_type<ov::op::v0::Squeeze>({eltwise_pattern, squeeze_axes_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto& eltwise = pattern_map.at(eltwise_pattern);
         const auto& squeeze = pattern_map.at(squeeze_pattern);
@@ -91,7 +92,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     auto reduce_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ReduceMin, ov::op::v1::ReduceMax>(
         {concat_pattern, reduce_axes_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());

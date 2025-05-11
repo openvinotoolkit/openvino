@@ -1,19 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

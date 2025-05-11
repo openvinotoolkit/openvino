@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "mutable_data_inst.h"
@@ -41,6 +41,11 @@ void mutable_data_node::attach_memory(memory::ptr new_mem, bool invalidate_users
     recalc_output_layout(invalidate_users_if_changed);
 }
 
+void mutable_data_node::replace_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
+    mem = new_mem;
+    recalc_output_layout(invalidate_users_if_changed);
+}
+
 std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     auto node_info = node.desc_to_json();
 
@@ -52,7 +57,7 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
 
 event::ptr mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     event::ptr input_ev = nullptr;
-    if (_node != nullptr) {
+    if (has_node()) {
         auto& eng = _network.get_engine();
         auto& mem_node = const_cast<program_node*>(_node)->as<mutable_data>();
         auto& mem_attached = mem_node.get_attached_memory();
@@ -80,48 +85,6 @@ mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node cons
     const auto& users = get_users();
     for (const auto& usr : users) {
         _user_ids.emplace_back(usr->id());
-    }
-}
-
-void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    size_t data_size = _outputs[0]->size();
-    ob << make_data(&data_size, sizeof(size_t));
-
-    if (data_size == 0)
-        return;
-
-    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
-
-    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-        ob << make_data(_outputs[0]->buffer_ptr(), data_size);
-    } else {
-        mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
-        ob << make_data(lock.data(), data_size);
-    }
-}
-
-void mutable_data_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    size_t data_size = 0;
-    ib >> make_data(&data_size, sizeof(size_t));
-
-    if (data_size == 0)
-        return;
-
-    OPENVINO_ASSERT(_outputs[0] != nullptr, "Output memory should be allocated before importing data.");
-
-    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
-
-    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-        ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
-    } else {
-        std::vector<uint8_t> _buf;
-        _buf.resize(data_size);
-        ib >> make_data(_buf.data(), data_size);
-        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
     }
 }
 

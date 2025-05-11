@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,54 +14,8 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 
 namespace ov {
-
-/**
- * @interface AllocatorImpl
- * @deprecated This class will be removed in 2024.0 release
- * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
- */
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct OPENVINO_DEPRECATED("Do not inherit from AllocatorImpl. This class will be removed in 2024.0 release. Pass "
-                           "std::pmr::memory_resource like object directly to ov::Allocator") AllocatorImpl
-    : public std::enable_shared_from_this<AllocatorImpl> {
-    /**
-     * @brief A smart pointer containing AllocatorImpl object
-     */
-    using Ptr = std::shared_ptr<AllocatorImpl>;
-
-    /**
-     * @brief Allocates memory
-     *
-     * @param bytes The size in bytes at least to allocate
-     * @param alignment The alignment of storage
-     * @return Handle to the allocated resource
-     * @throw Exception if specified size and alignment is not supported
-     */
-    virtual void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) = 0;
-
-    /**
-     * @brief Releases the handle and all associated memory resources which invalidates the handle.
-     * @param handle The handle to free
-     * @param bytes The size in bytes that was passed into allocate() method
-     * @param alignment The alignment of storage that was passed into allocate() method
-     */
-    virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) = 0;
-
-    /**
-     * @brief Compares with other AllocatorImpl
-     * @param other Other instance of allocator
-     * @return `true` if and only if memory allocated from one AllocatorImpl can be deallocated from the other and vice
-     * versa
-     */
-    virtual bool is_equal(const AllocatorImpl& other) const = 0;
-
-protected:
-    virtual ~AllocatorImpl() = default;
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 class Tensor;
 
@@ -83,18 +37,18 @@ class OPENVINO_API Allocator {
 
     friend class ov::Tensor;
 
-    struct Base : public std::enable_shared_from_this<Base> {
+    struct OPENVINO_API Base : public std::enable_shared_from_this<Base> {
         virtual void* addressof() = 0;
         const void* addressof() const {
             return const_cast<Base*>(this)->addressof();
         }
         virtual const std::type_info& type_info() const = 0;
         virtual void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) = 0;
-        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) = 0;
+        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) noexcept = 0;
         virtual bool is_equal(const Base& other) const = 0;
 
     protected:
-        virtual ~Base() = default;
+        virtual ~Base();
     };
 
     template <typename A>
@@ -110,7 +64,7 @@ class OPENVINO_API Allocator {
         void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
             return a.allocate(bytes, alignment);
         }
-        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
+        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) noexcept override {
             a.deallocate(handle, bytes, alignment);
         }
         bool is_equal(const Base& other) const override {
@@ -121,6 +75,22 @@ class OPENVINO_API Allocator {
         }
         A a;
     };
+
+    template <typename T, typename = void>
+    struct HasNoexceptDeallocate : std::false_type {};
+
+    template <typename T>
+    struct HasNoexceptDeallocate<
+        T,
+        std::void_t<decltype(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                        std::declval<const size_t>(),
+                                                                        std::declval<const size_t>()))>>
+        : std::bool_constant<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                                 std::declval<const size_t>(),
+                                                                                 std::declval<const size_t>()))> {};
+
+    template <typename T>
+    static constexpr auto has_noexcept_deallocate_v = HasNoexceptDeallocate<T>::value;
 
     std::shared_ptr<Base> _impl;
     std::shared_ptr<void> _so;
@@ -152,12 +122,6 @@ public:
     /// @return reference to the current object
     Allocator& operator=(Allocator&& other) = default;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /**
-     * @brief Constructs Allocator from the initialized std::shared_ptr
-     * @param impl Initialized shared pointer
-     */
-    Allocator(const AllocatorImpl::Ptr& impl);
     /**
      * @brief Initialize allocator using any allocator like object
      * @tparam A Type of allocator
@@ -165,13 +129,22 @@ public:
      */
     template <
         typename A,
-        typename std::enable_if<!std::is_convertible<A, AllocatorImpl::Ptr>::value &&
-                                    !std::is_same<typename std::decay<A>::type, Allocator>::value &&
-                                    !std::is_abstract<typename std::decay<A>::type>::value &&
-                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value,
-                                bool>::type = true>
-    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        typename std::enable_if_t<
+            !std::is_same_v<typename std::decay_t<A>, Allocator> && !std::is_abstract_v<typename std::decay_t<A>> &&
+                !std::is_convertible_v<typename std::decay_t<A>, std::shared_ptr<Base>> && has_noexcept_deallocate_v<A>,
+            bool> = true>
+    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
+
+    template <typename A,
+              typename std::enable_if_t<!std::is_same_v<typename std::decay_t<A>, Allocator> &&
+                                            !std::is_abstract_v<typename std::decay_t<A>> &&
+                                            !std::is_convertible_v<typename std::decay_t<A>, std::shared_ptr<Base>> &&
+                                            !has_noexcept_deallocate_v<A>,
+                                        bool> = true>
+    OPENVINO_DEPRECATED("Please annotate your allocator's deallocate method with noexcept. This method will be "
+                        "removed in 2026.0.0 release")
+    Allocator(A&& a)
+        : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
 
     /**
      * @brief Allocates memory
@@ -189,7 +162,7 @@ public:
      * @param bytes The size in bytes that was passed into allocate() method
      * @param alignment The alignment of storage that was passed into allocate() method
      */
-    void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t));
+    void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t)) noexcept;
 
     /**
      * @brief Compares with other Allocator
@@ -211,12 +184,5 @@ public:
      */
     explicit operator bool() const noexcept;
 };
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace runtime {
-using ov::Allocator;
-using ov::AllocatorImpl;
-}  // namespace runtime
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov

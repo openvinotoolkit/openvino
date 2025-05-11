@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,16 +30,9 @@
 #include "classification_sample_async.h"
 // clang-format on
 
-constexpr auto N_TOP_RESULTS = 10;
-
 using namespace ov::preprocess;
 
-/**
- * @brief Checks input args
- * @param argc number of args
- * @param argv list of input arguments
- * @return bool status true(Success) or false(Fail)
- */
+namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
@@ -61,6 +54,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
     return true;
 }
+}  // namespace
 
 int main(int argc, char* argv[]) {
     try {
@@ -100,7 +94,7 @@ int main(int argc, char* argv[]) {
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
         input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
-        // 3) Here we suppose model has 'NCHW' layout for input
+        // 3) Suppose model has 'NCHW' layout for input
         input_info.model().set_layout("NCHW");
         // 4) output() with no args assumes a model has a single result
         // - output() with no args assumes a model has a single result
@@ -136,8 +130,7 @@ int main(int argc, char* argv[]) {
         if (images_data.empty() || valid_image_names.empty())
             throw std::logic_error("Valid input images were not found!");
 
-        // -------- Step 5. Loading model to the device --------
-        // Setting batch size using image count
+        // -------- Step 5. Setting batch size using image count --------
         const size_t batchSize = images_data.size();
         slog::info << "Set batch size " << std::to_string(batchSize) << slog::endl;
         ov::set_batch(model, batchSize);
@@ -223,6 +216,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Prints formatted classification results
+        constexpr size_t N_TOP_RESULTS = 10;
         ClassificationResult classificationResult(output, valid_image_names, batchSize, N_TOP_RESULTS, labels);
         classificationResult.show();
     } catch (const std::exception& ex) {

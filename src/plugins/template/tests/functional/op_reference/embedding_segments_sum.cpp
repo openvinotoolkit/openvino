@@ -1,23 +1,23 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/embedding_segments_sum.hpp"
+
 #include <gtest/gtest.h>
 
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 struct EmbeddingSegmentsSumParams {
     template <class IT>
-    EmbeddingSegmentsSumParams(const ov::PartialShape& iShape,
+    EmbeddingSegmentsSumParams(const ov::Shape& iShape,
                                const ov::element::Type& iType,
                                const std::vector<IT>& iValues,
-                               const ov::PartialShape& oShape,
+                               const ov::Shape& oShape,
                                const ov::element::Type& oType,
                                const std::vector<IT>& oValues,
                                const std::shared_ptr<ov::op::v0::Constant>& indices,
@@ -27,10 +27,10 @@ struct EmbeddingSegmentsSumParams {
                                const std::shared_ptr<ov::op::v0::Constant>& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
-          _iData(CreateTensor(iType, iValues)),
+          _iData(CreateTensor(iShape, iType, iValues)),
           _refShape(oShape),
           _refType(oType),
-          _refData(CreateTensor(oType, oValues)) {
+          _refData(CreateTensor(oShape, oType, oValues)) {
         _segmentIds = segment_ids;
         _indices = indices;
         _numSegments = num_segments;
@@ -38,11 +38,11 @@ struct EmbeddingSegmentsSumParams {
         _perSampleWeights = per_sample_weights;
     }
 
-    ov::PartialShape _iShape;
+    ov::Shape _iShape;
     ov::element::Type _iType;
     ov::Tensor _iData;
 
-    ov::PartialShape _refShape;
+    ov::Shape _refShape;
     ov::element::Type _refType;
     ov::Tensor _refData;
 
@@ -79,14 +79,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(
-        const PartialShape& input_shape,
-        const element::Type& input_type,
-        const std::shared_ptr<ov::op::v0::Constant> indices,
-        const std::shared_ptr<ov::op::v0::Constant> segment_ids,
-        const std::shared_ptr<ov::op::v0::Constant> num_segments,
-        const std::shared_ptr<ov::op::v0::Constant> default_index,
-        const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const std::shared_ptr<ov::op::v0::Constant> indices,
+                                                 const std::shared_ptr<ov::op::v0::Constant> segment_ids,
+                                                 const std::shared_ptr<ov::op::v0::Constant> num_segments,
+                                                 const std::shared_ptr<ov::op::v0::Constant> default_index,
+                                                 const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (default_index) {
@@ -97,18 +96,18 @@ private:
                                                                                 num_segments,
                                                                                 default_index,
                                                                                 per_sample_weights);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             } else {
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
                                                                                 indices,
                                                                                 segment_ids,
                                                                                 num_segments,
                                                                                 default_index);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             }
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in, indices, segment_ids, num_segments);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };
@@ -122,10 +121,10 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceEmbeddingSegmentsSumLayerTest,
     ::testing::Values(
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::f32,
             std::vector<float>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::f32,
             {-1.05f, -1.2f, -0.2f, -0.6f, -0.1f, 0.4f},
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
@@ -133,13 +132,13 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{3}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0}),
             std::make_shared<ov::op::v0::Constant>(element::f32,
-                                                       ov::Shape({4}),
-                                                       std::vector<float>{0.5, 0.5, 0.5, 0.5})),
+                                                   ov::Shape({4}),
+                                                   std::vector<float>{0.5, 0.5, 0.5, 0.5})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::f64,
             std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::f64,
             std::vector<double>{-2.1, -2.4, -0.2, -0.6, -0.2, 0.8},
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
@@ -147,20 +146,20 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{3}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::i32,
             std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::i32,
             std::vector<int32_t>{-6, -4, 0, 0, 2, 18},
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 0, 2, 2}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{3})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::u32,
             std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::u32,
             std::vector<uint32_t>{6, 8, 3, 4, 16, 18},
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
@@ -168,20 +167,20 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{3}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{1})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::f16,
             std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::f16,
             std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 0, 2, 2}),
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{3})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::i64,
             std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::i64,
             std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
@@ -189,10 +188,10 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{3}),
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{0})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::i8,
             std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::i8,
             std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
@@ -201,10 +200,10 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{0}),
             std::make_shared<ov::op::v0::Constant>(element::i8, ov::Shape({4}), std::vector<int8_t>{2, 2, 2, 2})),
         EmbeddingSegmentsSumParams(
-            ov::PartialShape{5, 2},
+            ov::Shape{5, 2},
             ov::element::u8,
             std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-            ov::PartialShape{3, 2},
+            ov::Shape{3, 2},
             ov::element::u8,
             std::vector<uint8_t>{6, 8, 1, 2, 16, 18},
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),

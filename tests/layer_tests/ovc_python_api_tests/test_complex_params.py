@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,12 +6,12 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import PartialShape, Type, Dimension
+from openvino import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 class TestComplexParams(CommonMOConvertTest):
@@ -71,86 +71,25 @@ class TestComplexParams(CommonMOConvertTest):
         return save_to_pb(tf_net, tmp_dir)
 
     test_data = [
-        {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
-         'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
-        {'params_test': {'output': ["Sigmoid_0"]},
-         'params_ref': {'output': "Sigmoid_0"}},
-        {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': [PartialShape([1, 3, -1, -1]), [1, 3, -1, -1]]},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
-        {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': {"Input1": PartialShape([2, 3, 4]), "Input2": [2, 3, 4],
-                                   "Input3": [Dimension(2), Dimension(3), Dimension(4)]}},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': {"Input2": [1, -1, -1, -1],
-                                   "Input3": [Dimension(1), Dimension(-1), Dimension(-1), Dimension(-1)]}},
-         'params_ref': {'input_shape': "[1,?,?,?],[1,?,?,?]", 'input': 'Input2,Input3'}},
-        {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
-         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
-        {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
-        {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
-         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}},
-        {'params_test': {'input': (PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)])},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': (PartialShape([1, 3, -1, -1]), [1, 3, -1, -1])},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
-        {'params_test': {'input': ((2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4)))},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': (np.int32, Type(np.int32), np.int32)},
-         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
-        {'params_test': {'input': (ov.Type.f32, ov.Type.f32)},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
-        {'params_test': {'input': (([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32)},
-         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}}
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.nightly
-    def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
-        tf_net_path = self.create_tf_model(temp_dir)
-
-        test_params = params['params_test']
-        ref_params = params['params_ref']
-        test_params.update({'input_model': tf_net_path})
-        ref_params.update({'input_model': tf_net_path})
-        self._test(temp_dir, test_params, ref_params)
-
-    test_data = [
-        {'params_test': {'input': {"Input": ([3, 2], ov.Type.i32)}},
-         'params_ref': {'input': "Input[3,2]{i32}"}},
-        {'params_test': {'input': {"Input": ov.Type.i32}},
-         'params_ref': {'input': "Input{i32}"}},
-        {'params_test': {'input': {"Input": [3, 2]}},
-         'params_ref': {'input': "Input[3,2]"}},
+        {'params_test': {'input': {"Input:0": [3, 2]}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, 2)},
-         'params_ref': {'input': "Input[3,2]"}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, Dimension(2))},
-         'params_ref': {'input': "Input[3,2]"}},
-        {'params_test': {'input': [3, 2]},
-         'params_ref': {'input': "Input[3 2]"}},
-        {'params_test': {'input': [Dimension(3, 10), 2]},
-         'params_ref': {'input': "Input[3..10 2]"}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (-1, 10)},
-         'params_ref': {'input': "Input[?,10]"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
-         'params_ref': {'input': "Input[?,10]"}},
-        {'params_test': {'input': np.int32},
-         'params_ref': {'input': "Input{i32}"}},
-        {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input[1,2,3]{i32}"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
-         'params_ref': {'input': 'Input[3..10,10,?]'}},
+         'params_ref': {'input': 'Input:0[3..10,10,?]'}},
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_new_frontend, use_old_api):
+                                                     temp_dir):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
 
         test_params = params['params_test']
@@ -201,8 +140,8 @@ class TestComplexParams(CommonMOConvertTest):
 
     @staticmethod
     def create_ref_graph_with_comma_in_names():
-        from openvino.runtime.opset12 import relu, concat
-        from openvino.runtime.op import Parameter
+        from openvino.opset12 import relu, concat
+        from openvino.op import Parameter
         import openvino as ov
 
         parameter1 = Parameter(ov.Type.f32, ov.Shape([1, 3, 2, 2]))
@@ -259,7 +198,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_ovc_convert_model_with_comma_in_names(self, ie_device, precision, ir_version,
-                                                  temp_dir, use_new_frontend, use_old_api):
+                                                  temp_dir):
         onnx_net_path = self.create_onnx_model_with_comma_in_names(temp_dir)
         ref_model = self.create_ref_graph_with_comma_in_names()
         test_params = {'input_model': onnx_net_path, 'output': 'relu_1,relu_2'}
@@ -269,13 +208,34 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_ovc_convert_model_with_several_output(self, ie_device, precision, ir_version,
-                                                  temp_dir, use_new_frontend, use_old_api):
+                                                  temp_dir):
         onnx_net_path = self.create_onnx_model_with_several_outputs(temp_dir)
         convert_model_params = {'input_model': onnx_net_path, 'output': ['Relu_1_data', 'concat']}
         cli_tool_params = {'input_model': onnx_net_path, 'output': 'Relu_1_data,concat'}
 
         self._test(temp_dir, convert_model_params, cli_tool_params)
 
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_non_numpy_types(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        def func(a, b):
+            return [a, b]
+        model = tf.function(func, input_signature=[tf.TensorSpec([2], tf.float32, "a"),
+                                                   tf.TensorSpec([2], tf.float32, "b")])
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        bf16_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        string_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.bf16, tf.bfloat16]}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.bf16, 'b': tf.bfloat16}}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.string, tf.string]}, string_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.string, 'b': tf.string}}, string_ref, compare_tensor_names=False)
 
 class NegativeCases(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))

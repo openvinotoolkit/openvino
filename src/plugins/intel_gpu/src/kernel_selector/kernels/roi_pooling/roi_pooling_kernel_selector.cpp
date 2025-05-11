@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ roi_pooling_kernel_selector::roi_pooling_kernel_selector() {
     Attach<PSROIPoolingKernelRef>();
 }
 
-KernelsData roi_pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ROI_POOLING);
+KernelsData roi_pooling_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ROI_POOLING);
 }
 }  // namespace kernel_selector

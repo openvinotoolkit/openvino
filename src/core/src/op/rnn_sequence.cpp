@@ -1,21 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/rnn_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset4.hpp"
+#include "openvino/op/util/recurrent_sequence.hpp"
 #include "rnn_sequence_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v5::RNNSequence::RNNSequence() : m_direction(op::RecurrentSequenceDirection::FORWARD) {}
 
 op::v5::RNNSequence::RNNSequence(const Output<Node>& X,
@@ -53,9 +50,7 @@ void op::v5::RNNSequence::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     auto output_shapes = shape_infer(this, input_shapes);
 
     // Mark inputs which are relevant to output parameters
@@ -73,19 +68,20 @@ bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor) {
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::v5::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<Node> op::v5::RNNSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_RNNSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v5::RNNSequence>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            new_args.at(3),
-                                            new_args.at(4),
-                                            new_args.at(5),
-                                            m_hidden_size,
-                                            m_direction,
-                                            m_activations,
-                                            m_activations_alpha,
-                                            m_activations_beta,
-                                            m_clip);
+    return std::make_shared<op::v5::RNNSequence>(new_args.at(0),
+                                                 new_args.at(1),
+                                                 new_args.at(2),
+                                                 new_args.at(3),
+                                                 new_args.at(4),
+                                                 new_args.at(5),
+                                                 m_hidden_size,
+                                                 m_direction,
+                                                 m_activations,
+                                                 m_activations_alpha,
+                                                 m_activations_beta,
+                                                 m_clip);
 }
+}  // namespace ov

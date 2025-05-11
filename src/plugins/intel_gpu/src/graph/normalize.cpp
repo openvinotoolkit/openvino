@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ layout normalize_inst::calc_output_layout(normalize_node const& node, kernel_imp
     auto output_type = input_node_layout.data_type;
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
         output_type = data_types::f32;
     }
@@ -55,7 +55,7 @@ normalize_inst::typed_primitive_inst(network& network, normalize_node const& nod
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.get_tensor();
     auto scale_feature_size = scale_size.feature[0];
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto input_feature_size = input_layout.feature();
 
     if (scale_feature_size != 1) {

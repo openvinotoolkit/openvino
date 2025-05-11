@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -23,6 +23,9 @@ public:
                                     const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                       const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -58,7 +61,7 @@ private:
     mutable std::mutex m_plugin_mutex;
     mutable std::mutex m_init_devs_mutex;
     mutable std::vector<std::vector<std::string>> m_hidden_devices;
-    mutable bool m_init_devs{false};
+    mutable std::atomic_bool m_init_devs{false};
 };
 
 }  // namespace proxy

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -21,8 +22,8 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMS9ToNMSIEInternal);
     auto nms = ov::pass::pattern::wrap_type<ov::op::v9::NonMaxSuppression>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms_9 = std::dynamic_pointer_cast<ov::op::v9::NonMaxSuppression>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto nms_9 = ov::as_type_ptr<ov::op::v9::NonMaxSuppression>(m.get_match_root());
         if (!nms_9 || transformation_callback(nms_9)) {
             return false;
         }
@@ -109,14 +110,18 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_9->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_9->output(0).get_element_type());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             output_0.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_9->output(0)));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_9->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_9->output(2).get_element_type());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_9->output(2)));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

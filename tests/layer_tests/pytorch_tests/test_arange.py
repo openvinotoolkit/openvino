@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_check, skip_if_export
 
 
 class TestArange(PytorchLayerTest):
@@ -108,9 +108,16 @@ class TestArange(PytorchLayerTest):
         return model_class, ref_net, "aten::arange"
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dtype", [None,
+                                       skip_if_export("float32"),
+                                       skip_if_export("float64"),
+                                       skip_if_export("int32"),
+                                       "int64",
+                                       skip_if_export("int8"),
+                                       skip_if_export("uint8")])
     @pytest.mark.parametrize("end", [1, 2, 3])
-    @pytest.mark.parametrize("use_out", [True, False])
+    @pytest.mark.parametrize("use_out", [skip_check(True), False])
     def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 1, use_out), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"end": end})
@@ -131,7 +138,14 @@ class TestArange(PytorchLayerTest):
                    kwargs_to_prepare_input={"end": end, "start": start, "step": step, "dtype": dtype})
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8", "uint8"])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dtype", [skip_check(None),
+                                       skip_if_export("float32"),
+                                       skip_if_export("float64"),
+                                       skip_if_export("int32"),
+                                       "int64",
+                                       skip_if_export("int8"),
+                                       skip_if_export("uint8")])
     @pytest.mark.parametrize("end", [1, 2, 3])
     def test_arange_end_only_with_prim_dtype(self, dtype, end, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 1, False, True), ie_device, precision, ir_version,
@@ -150,4 +164,4 @@ class TestArange(PytorchLayerTest):
     @pytest.mark.parametrize("start,end,step", [(0, 1, 1), (-2, 1, 1.25), (1, -5, -1), (1, 10, 2), (-1, -5, -2)])
     def test_arange_start_end_step_with_prim_dtype(self, dtype, end, start, step, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 3, ref_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"end": end, "start": start, "step": step, "ref_dtype":dtype})
+                   kwargs_to_prepare_input={"end": end, "start": start, "step": step, "ref_dtype": dtype})

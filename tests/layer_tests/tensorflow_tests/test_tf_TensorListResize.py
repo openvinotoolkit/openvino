@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from sys import platform
 
 import numpy as np
 import pytest
@@ -9,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTensorListResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_tensor_list_resize(self, input_shape, input_type, new_size):
@@ -40,10 +42,9 @@ class TestTensorListResize(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_tensor_list_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    def test_tensor_list_resize_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tensor_list_resize(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

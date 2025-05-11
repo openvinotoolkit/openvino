@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,7 +168,7 @@ struct gather_tree_test
     : public ::testing::TestWithParam<ParamsWithLayout<T> > {
 public:
     void test() {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         Params<T> params;
         format::type plain_layout;
         format::type target_layout;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, matmul_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{0, 2});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 0});
 
@@ -29,7 +29,7 @@ TEST(attributes, matmul_op) {
 }
 
 TEST(attributes, matmul_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{10, 2});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1});
 
@@ -45,7 +45,7 @@ TEST(attributes, matmul_op2) {
 }
 
 TEST(attributes, matmul_op3) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1});
 
@@ -61,7 +61,7 @@ TEST(attributes, matmul_op3) {
 }
 
 TEST(attributes, matmul_op4) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 2});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 2, 1});
 
@@ -74,7 +74,7 @@ TEST(attributes, matmul_op4) {
 }
 
 TEST(attributes, matmul_op5) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10});
 
@@ -87,7 +87,7 @@ TEST(attributes, matmul_op5) {
 }
 
 TEST(attributes, matmul_op6) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MatMul>();
+    NodeBuilder::opset().insert<ov::op::v0::MatMul>();
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2048});
     auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2048, 1000});
 

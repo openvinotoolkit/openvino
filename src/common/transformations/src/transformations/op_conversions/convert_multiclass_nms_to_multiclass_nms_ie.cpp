@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -20,8 +21,8 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
     auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<op::util::MulticlassNmsBase>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto nms = ov::as_type_ptr<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
@@ -60,13 +61,11 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

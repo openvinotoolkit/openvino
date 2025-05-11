@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 import xml.etree.ElementTree as ET
 
 from . import conformance_utils
@@ -21,7 +22,8 @@ def update_passrates(results: ET.SubElement, rel_weights={}):
             passed_tests = 0
             total_tests = 0
             rel_passed_tests = None
-            rel_all_tests = None
+            rel_all_tests_expected = None
+            rel_all_tests_actual = None
             for attrib in op.attrib:
                 if attrib == "passrate" or attrib == "relative_passrate":
                     continue
@@ -34,16 +36,17 @@ def update_passrates(results: ET.SubElement, rel_weights={}):
                     continue
                 elif attrib == "relative_all":
                     if op.tag in rel_weights.keys():
-                        rel_all_tests = rel_weights[op.tag]
-                    else:
-                        rel_all_tests = float(op.attrib.get(attrib))
+                        rel_all_tests_expected = rel_weights[op.tag]
+                    rel_all_tests_actual = float(op.attrib.get(attrib))
                     continue
                 total_tests += int(float(op.attrib.get(attrib)))
             passrate = float(passed_tests * 100 / total_tests) if total_tests != 0 else 0
-            rel_passrate = float(rel_passed_tests * 100 / rel_all_tests) if rel_all_tests != None and rel_all_tests != 0 else 0
-            op.set("passrate", "%.2f"%passrate)
+            rel_all_tests = rel_all_tests_actual if rel_all_tests_expected is None else rel_all_tests_expected
+            k = 1 if rel_all_tests_expected is None else round(rel_all_tests_actual / rel_all_tests_expected)
+            rel_passrate = float(rel_passed_tests * 100 / (k * rel_all_tests)) if rel_all_tests != None and rel_all_tests != 0 else 0
+            op.set("passrate", f"{math.floor(passrate * 100) / 100}")
             if rel_all_tests != None and rel_passed_tests != None:
-                op.set("relative_passrate", "%.2f"%rel_passrate)
+                op.set("relative_passrate", f"{math.floor(rel_passrate * 100) / 100}")
 
 
 

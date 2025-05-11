@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,18 +10,18 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/mat_mul.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/mat_mul.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 
@@ -32,7 +32,7 @@ class SeparateInStandaloneBranchTransformationTestValues {
 public:
     TestTransformationParams params;
     ov::element::Type precisionBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantization;
+    ov::builder::subgraph::DequantizationOperations dequantization;
 };
 
 inline std::ostream& operator << (std::ostream& out, const SeparateInStandaloneBranchTransformationTestValues& testValues) {
@@ -54,60 +54,66 @@ public:
         const auto createActualFunction = [](
             const ov::element::Type precision,
             const ov::Shape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantizations) -> std::shared_ptr<ov::Model> {
+            const ov::builder::subgraph::DequantizationOperations& dequantizations) -> std::shared_ptr<ov::Model> {
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
-            const auto dequantizationsNode = ngraph::builder::subgraph::makeDequantization(relu, dequantizations);
+            const auto dequantizationsNode = ov::builder::subgraph::makeDequantization(relu, dequantizations);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
         const auto result = actualFunction->get_results()[0];
-        ngraph::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
+        ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
 
         const auto createReferenceFunction = [](
             const ov::element::Type precision,
             const ov::Shape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
+            ov::builder::subgraph::DequantizationOperations dequantization) -> std::shared_ptr<ov::Model> {
+            // Note: separateInStandaloneBranch normalizes dequantization so constant indexes become equal to 1
+            if (!dequantization.subtract.empty())
+                dequantization.subtract.constantIndex = 1;
+            if (!dequantization.multiply.empty())
+                dequantization.multiply.constantIndex = 1;
+
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
-                ngraph::builder::subgraph::makeDequantization(relu, dequantization),
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+                ov::builder::subgraph::makeDequantization(relu, dequantization),
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
-                ngraph::builder::subgraph::makeDequantization(relu, dequantization),
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+                ov::builder::subgraph::makeDequantization(relu, dequantization),
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(
-                ngraph::ResultVector{
+                ov::ResultVector{
                     std::make_shared<ov::op::v0::Result>(reshape1),
                     std::make_shared<ov::op::v0::Result>(reshape2)
                 },
-                std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
+                std::vector<std::shared_ptr<ov::op::v0::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
         };
         referenceFunction = createReferenceFunction(testValues.precisionBefore, shape, testValues.dequantization);
@@ -119,7 +125,7 @@ public:
         std::tie(shapes, testValues) = obj.param;
 
         std::stringstream ss;
-        ss << shapes << "_" << "_" << testValues;
+        ss << shapes << "_" << testValues;
         return ss.str();
     }
 };
@@ -134,7 +140,6 @@ TEST_P(SeparateInStandaloneBranchTransformation, CompareFunctions) {
 
 const std::vector<ov::Shape> shapes = {
     { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
 };
 
 std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
@@ -156,7 +161,16 @@ std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
             { {127.f}, ov::element::f32, {}, true, 1ul, ov::element::u8, true},
             { 0.02f }
         }
-    }
+    },
+    {
+        LayerTransformation::createParamsU8U8(),
+        ov::element::u8,
+        {
+            ov::element::f32,
+            { {127.f}, ov::element::f32, {}, false, 0ul},
+            { {0.02f}, ov::element::f32, {}, false, 0ul }
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

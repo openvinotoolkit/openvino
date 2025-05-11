@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,7 @@ endif()
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-set(DEPENDENCIES openvino::runtime::dev openvino::frontend::common)
+set(DEPENDENCIES openvino::runtime::dev)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)
@@ -47,7 +47,7 @@ add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

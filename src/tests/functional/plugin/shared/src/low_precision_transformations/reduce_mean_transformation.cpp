@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,16 +20,16 @@ ReduceMeanOperation::ReduceMeanOperation(const std::vector<int64_t>& constantVal
 }
 
 std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize <<
         param.convert <<
         param.dequantizationBefore <<
         (param.reduceMean.keepDims ? "_keepDims_" : "");
@@ -43,13 +43,15 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 }
 
 void ReduceMeanTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
@@ -60,17 +62,17 @@ void ReduceMeanTransformation::SetUp() {
         param.dequantizationAfter);
 }
 
-void ReduceMeanTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceMeanTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
+    const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(ReduceMeanTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

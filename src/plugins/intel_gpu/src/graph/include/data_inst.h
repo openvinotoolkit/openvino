@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,11 @@ class typed_primitive_inst<data> : public typed_primitive_inst_base<data> {
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(data_node const& node, const kernel_impl_params& impl_param) {
+        return { node.get_attached_memory().get_layout() };
+    }
+
     static layout calc_output_layout(data_node const& node, kernel_impl_params const& impl_param) {
         return node.get_attached_memory().get_layout();
     }
@@ -40,8 +45,6 @@ public:
     static std::string to_string(data_node const& node);
 
     typed_primitive_inst(network& network, data_node const& node);
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
 };
 
 using data_inst = typed_primitive_inst<data>;

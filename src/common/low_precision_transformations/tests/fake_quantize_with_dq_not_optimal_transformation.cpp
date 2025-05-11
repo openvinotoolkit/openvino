@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,17 +11,18 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -31,13 +32,13 @@ class FakeQuantizeWithNotOptimalTransformationTestValues {
 public:
     class Values {
     public:
-        ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
-        ngraph:: builder::subgraph::DequantizationOperations::Convert convertOnData;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnData;
-        ngraph:: builder::subgraph::Constant constantOnWeights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph:: builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+        ov::builder::subgraph::DequantizationOperations::Convert convertOnData;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::Constant constantOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
     TestTransformationParams params;
     Values actual;
@@ -68,7 +69,7 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(updatePrecision);
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
             shape,
             testValues.actual.fqOnData,
@@ -80,24 +81,24 @@ public:
             testValues.actual.dequantizationOnWeights,
             testValues.actual.dequantizationAfter);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, {ov::element::u8}},
                 {{1}, {ov::element::i8}}
             })
         });
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
+        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+            ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
-        transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
+        transformer.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
             shape,
             testValues.expected.fqOnData,

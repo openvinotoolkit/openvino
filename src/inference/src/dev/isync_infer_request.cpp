@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 
@@ -17,6 +18,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
 void check_batched_tensors(const ov::Output<const ov::Node>& input,
@@ -93,14 +95,18 @@ ov::IInferRequest::~IInferRequest() = default;
 ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
     : m_compiled_model(compiled_model) {
     OPENVINO_ASSERT(m_compiled_model);
-    // Create map of empty tensors
-    for (const auto& input : get_inputs()) {
-        if (m_tensors.find(input.get_tensor_ptr()) == m_tensors.end())
-            m_tensors[input.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
-    }
-    for (const auto& output : get_outputs()) {
-        if (m_tensors.find(output.get_tensor_ptr()) == m_tensors.end())
-            m_tensors[output.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
+    // Create map of empty tensors and cache ports from the compiled model
+    auto port_type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
+    for (const auto& ports : {get_inputs(), get_outputs()}) {
+        for (size_t i = 0; i < ports.size(); i++) {
+            const auto& port = ports[i];
+            if (m_tensors.find(port.get_tensor_ptr()) == m_tensors.end())
+                m_tensors[port.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
+            size_t port_hash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()),
+                                                                          std::hash<size_t>()(port.get_index())});
+            m_cached_ports[port_hash] = {i, port_type};
+        }
+        port_type = ov::ISyncInferRequest::FoundPort::Type::OUTPUT;
     }
 }
 
@@ -115,21 +121,44 @@ const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_comp
 }
 
 ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
+    // check if the tensor names of target port is a subset of source port's tensor names
+    auto check_tensor_names = [](const std::unordered_set<std::string>& source,
+                                 const std::unordered_set<std::string>& target) {
+        for (auto const& name : target) {
+            if (source.find(name) == source.end())
+                return false;
+        }
+        return true;
+    };
+
     // This function is hotspot, need optimization.
     auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
         return node1 == node2 ||
-               (node1->get_friendly_name() == node2->get_friendly_name() &&
-                node1->get_type_info() == node2->get_type_info() &&
-                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
+               (node1->outputs().size() == node2->outputs().size() &&
+                node1->inputs().size() == node2->inputs().size() && node1->get_type_info() == node2->get_type_info() &&
+                node1->get_friendly_name() == node2->get_friendly_name());
     };
+    // Find port without caching work slow because we need each time iterate over all ports and compare different
+    // strings So use WA with caching in order to make 2+ calls for the same ports faster.
+    // Calculate hash for the port
+    size_t port_hash =
+        ov::util::hash_combine({std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    {
+        std::lock_guard<std::mutex> lock(m_cache_mutex);
+        auto itr = m_cached_ports.find(port_hash);
+        if (itr != m_cached_ports.end()) {
+            // Cached port for the hash was found
+            return itr->second;
+        }
+    }
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
-            // TODO: Fix port comparison
-            // if (ports[i] == port) {
-            if (ports[i].get_index() == port.get_index() && ports[i].get_names() == port.get_names() &&
-                check_nodes(ports[i].get_node(), port.get_node())) {
-                return {i, type};
+            if (ports[i].get_index() == port.get_index() && check_nodes(ports[i].get_node(), port.get_node()) &&
+                check_tensor_names(ports[i].get_names(), port.get_names())) {
+                std::lock_guard<std::mutex> lock(m_cache_mutex);
+                m_cached_ports[port_hash] = {i, type};
+                return m_cached_ports[port_hash];
             }
         }
         type = ov::ISyncInferRequest::FoundPort::Type::OUTPUT;
@@ -177,7 +206,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
 ov::SoPtr<ov::ITensor>& ov::ISyncInferRequest::get_tensor_ptr(const ov::Output<const ov::Node>& port) const {
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
-    auto ports = found_port.is_input() ? get_inputs() : get_outputs();
+    const auto& ports = found_port.is_input() ? get_inputs() : get_outputs();
     auto it = m_tensors.find(ports.at(found_port.idx).get_tensor_ptr());
     OPENVINO_ASSERT(it != m_tensors.end(), "Cannot find tensor for port: ", port);
 
@@ -231,11 +260,7 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
 void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                              const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                           "",
-                           false,
-                           "Not Implemented",
-                           "set_input_tensors/set_tensors are not supported by this plugin");
+    OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented set_input_tensors/set_tensors are not supported by this plugin");
 }
 
 void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
@@ -275,10 +300,10 @@ void ov::ISyncInferRequest::allocate_tensor(
 void ov::ISyncInferRequest::check_tensors() const {
     const auto& inputs = m_compiled_model->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], get_tensor_ptr(inputs[i]));
+        check_tensor(inputs[i], m_tensors.at(inputs[i].get_tensor_ptr()));
     }
     const auto& outputs = m_compiled_model->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], get_tensor_ptr(outputs[i]));
+        check_tensor(outputs[i], m_tensors.at(outputs[i].get_tensor_ptr()));
     }
 }

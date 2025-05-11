@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Resolves transpose_b key from MatMul operation if corresponding input is constant or FakeQuantize by inserting
  * Transpose
  */
@@ -18,7 +18,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API MatMulConstTransposesExtraction : public MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulConstTransposesExtraction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MatMulConstTransposesExtraction");
     MatMulConstTransposesExtraction();
 };
 

@@ -7,14 +7,12 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class ConvertShapeOf1To3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertShapeOf1To3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertShapeOf1To3");
     ConvertShapeOf1To3();
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

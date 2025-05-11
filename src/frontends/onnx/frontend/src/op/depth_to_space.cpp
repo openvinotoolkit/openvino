@@ -1,38 +1,38 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/depth_to_space.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
-#include "default_opset.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector depth_to_space(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     const auto& shape = data.get_partial_shape();
-    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
+    FRONT_END_GENERAL_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
 
     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
-    default_opset::DepthToSpace::DepthToSpaceMode ngraph_mode;
+    v0::DepthToSpace::DepthToSpaceMode ov_mode;
     if (mode == "DCR")
-        ngraph_mode = default_opset::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+        ov_mode = v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
     else if (mode == "CRD")
-        ngraph_mode = default_opset::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
+        ov_mode = v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
     else
-        NGRAPH_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
+        FRONT_END_GENERAL_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
 
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
-    return OutputVector{std::make_shared<default_opset::DepthToSpace>(data, ngraph_mode, block_size)};
+    return ov::OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
 }
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("DepthToSpace", OPSET_SINCE(1), ai_onnx::opset_1::depth_to_space);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

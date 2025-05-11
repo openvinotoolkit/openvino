@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,41 +6,39 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng(435435)
+
 
 class TestLogSoftmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        # this test is still under for the legacy frontend
-        # but the input name with :0 for the legacy
-        input_name = list(inputs_info.keys())[0]
-        logits_shape = inputs_info[input_name]
+        assert 'logits:0' in inputs_info, "Test error: inputs_info must contain `logits`"
+        logits_shape = inputs_info['logits:0']
         inputs_data = {}
-        inputs_data[input_name] = np.random.randint(1, 5, logits_shape).astype(np.float32)
-
+        inputs_data['logits:0'] = rng.uniform(-5.0, 5.0, logits_shape).astype(self.input_type)
         return inputs_data
 
-    def create_log_softmax_net(self, logits_shape):
+    def create_log_softmax_net(self, input_shape, input_type):
         tf.compat.v1.reset_default_graph()
+        self.input_type = input_type
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            logits = tf.compat.v1.placeholder(tf.float32, logits_shape, 'logits')
+            logits = tf.compat.v1.placeholder(input_type, input_shape, 'logits')
             tf.raw_ops.LogSoftmax(logits=logits)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
         return tf_net, None
 
-    test_data_basic = [
-        dict(logits_shape=[1, 1]),
-        dict(logits_shape=[3, 10]),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.parametrize('input_shape', [[2, 6], [1, 3]])
+    @pytest.mark.parametrize('input_type', [np.float16, np.float32, np.float64])
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_log_softmax_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        self._test(*self.create_log_softmax_net(**params),
+    def test_log_softmax_basic(self, input_shape, input_type,
+                               ie_device, precision, ir_version, temp_dir):
+        custom_eps = None
+        if input_type == np.float16:
+            custom_eps = 1e-3
+        self._test(*self.create_log_softmax_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   custom_eps=custom_eps)

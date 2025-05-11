@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,19 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ov;
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
 QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned) :
     SharedAttribute(hasToBeAligned) {
 }
 
 ov::Any QuantizationAlignmentAttribute::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
     if (!getAttribute<QuantizationAlignmentAttribute>(node).empty()) {
         return {};

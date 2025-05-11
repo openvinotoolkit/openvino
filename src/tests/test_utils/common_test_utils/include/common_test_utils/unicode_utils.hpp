@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,8 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/w_dirent.h"
-#include "file_utils.h"
 #include "gtest/gtest.h"
+#include "openvino/util/file_util.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -95,7 +95,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     _WDIR* dir = _wopendir(path.c_str());
     if (dir != nullptr) {
         while ((ent = _wreaddir(dir)) != NULL) {
-            auto file = ::FileUtils::makePath(path, std::wstring(ent->wd_name));
+            auto file = ov::util::make_path(path, std::wstring(ent->wd_name));
             struct _stat64i32 stat_path;
             _wstat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, L"." + ext)) {
@@ -116,7 +116,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     DIR* dir = opendir(path_mb.c_str());
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
-            std::string file = ::FileUtils::makePath(path_mb, std::string(ent->d_name));
+            std::string file = ov::util::make_path(path_mb, std::string(ent->d_name));
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext_mb)) {
@@ -144,22 +144,6 @@ inline int removeDir(std::wstring path) {
 #    endif
     }
     return result;
-}
-
-inline bool directoryExists(const std::wstring& path) {
-#    ifdef _WIN32
-    struct _stat64i32 sb;
-    if (_wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-#    else
-    struct stat sb;
-    if (stat(ov::util::wstring_to_string(path).c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-#    endif
-
-    return false;
 }
 
 extern const std::vector<std::wstring> test_unicode_postfix_vector;

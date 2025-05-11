@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 // DeformablePSROIPooling implementation was inspired by
@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "clamp.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {

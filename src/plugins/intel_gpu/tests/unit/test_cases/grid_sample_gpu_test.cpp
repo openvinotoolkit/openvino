@@ -41,7 +41,7 @@ float getError<float>() {
 }
 
 template <>
-float getError<FLOAT16>() {
+float getError<ov::float16>() {
     return 0.5f;
 }
 
@@ -55,8 +55,8 @@ public:
         std::tie(p, fmt, is_caching_test) = testing::TestWithParam<grid_sample_test_params<TD, TG>>::GetParam();
 
         auto& engine = get_test_engine();
-        const auto data_data_type = type_to_data_type<TD>::value;
-        const auto grid_data_type = type_to_data_type<TG>::value;
+        const auto data_data_type = ov::element::from<TD>();
+        const auto grid_data_type = ov::element::from<TG>();
         const auto plane_format = format::bfyx;
 
         const layout data_layout(data_data_type, plane_format, tensor(plane_format, p.data_shape));
@@ -674,7 +674,7 @@ TEST_P(grid_sample_gpu_test_float_float, test) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-using grid_sample_gpu_test_FLOAT16_FLOAT16 = grid_sample_gpu_test<FLOAT16, FLOAT16>;
+using grid_sample_gpu_test_FLOAT16_FLOAT16 = grid_sample_gpu_test<ov::float16, ov::float16>;
 TEST_P(grid_sample_gpu_test_FLOAT16_FLOAT16, test) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
@@ -688,7 +688,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_float_float,
 
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
-                         testing::Combine(testing::ValuesIn(getParamsToCheckLogic<FLOAT16, FLOAT16>()),
+                         testing::Combine(testing::ValuesIn(getParamsToCheckLogic<ov::float16, ov::float16>()),
                                           testing::Values(format::bfyx),
                                           testing::Values(RUN_CACHING_TEST)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
@@ -696,7 +696,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
-                         testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<FLOAT16, FLOAT16>()),
+                         testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<ov::float16, ov::float16>()),
                                           testing::Values(format::bfyx),
                                           testing::Values(true)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);

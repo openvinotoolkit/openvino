@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "visitors/visitors.hpp"
 
 TEST(attributes, assign_v3_op) {
-    ov::test::NodeBuilder::get_ops().register_factory<ov::op::v3::Assign>();
+    ov::test::NodeBuilder::opset().insert<ov::op::v3::Assign>();
     const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     const std::string variable_id = "v0";
     const auto read_value = std::make_shared<ov::op::v3::ReadValue>(in, variable_id);
@@ -22,7 +22,7 @@ TEST(attributes, assign_v3_op) {
 }
 
 TEST(attributes, assign_v6_op) {
-    ov::test::NodeBuilder::get_ops().register_factory<ov::op::v6::Assign>();
+    ov::test::NodeBuilder::opset().insert<ov::op::v6::Assign>();
     const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     const auto variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, "v0"});

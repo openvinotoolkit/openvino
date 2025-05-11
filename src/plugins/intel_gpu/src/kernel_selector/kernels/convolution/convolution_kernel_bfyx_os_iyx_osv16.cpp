@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -196,12 +196,15 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_3;
+KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& params) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+    auto input_dt = GetUnitType(p);
+
+    return (p.groups > 1 || input_dt == Datatype::F32) ? FORCE_PRIORITY_3 : FORCE_PRIORITY_4;
 }
 
-bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -218,7 +221,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
@@ -234,6 +237,12 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
 
+    const size_t large_filter_size = 1024;     // This acceptable size was decided by heuristics
+    auto filter_size = params.filterSize.x * params.filterSize.y;
+    if (filter_size >= large_filter_size) {
+        jit.AddConstant(MakeJitConstant("DISABLE_MANUAL_UNROLL", 1));
+    }
+
     if (leftovers) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", leftovers));
     }
@@ -246,21 +255,19 @@ WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
     return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
 }
 
-KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params,
-                                                                const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
-KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsDataForAutoTune(const Params& params,
-                                                                           const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsDataForAutoTune(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

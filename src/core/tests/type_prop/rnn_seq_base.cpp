@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset12.hpp"
 
 namespace rnn_seq_test {
 using namespace std;
@@ -83,10 +85,7 @@ public:
         return std::make_shared<T>(X, H_t, sequence_lengths, W, R, B, p.hidden_size.get_max_length(), p.direction);
     }
 
-    template <
-        typename T = TOp,
-        typename std::enable_if<std::is_same<T, v0::LSTMSequence>::value || std::is_same<T, v5::LSTMSequence>::value,
-                                bool>::type = true>
+    template <typename T = TOp, typename std::enable_if<std::is_same<T, v5::LSTMSequence>::value, bool>::type = true>
     std::shared_ptr<T> make_rnn_seq_based_op(RNNSeqParams& p, bool use_default_ctor = false) {
         p.gates_count = 4;
         p.outputs_size = 3;
@@ -108,12 +107,6 @@ public:
             op->set_direction(p.direction);
             op->set_hidden_size(p.hidden_size.get_max_length());
             auto inputs = OutputVector{X, H_t, C_t, sequence_lengths, W, R, B};
-            if (ov::is_type<v0::LSTMSequence>(op)) {
-                const auto P =
-                    make_shared<v0::Parameter>(p.et,
-                                               PartialShape{p.num_directions, p.hidden_size * (p.gates_count - 1)});
-                inputs.push_back(P);
-            }
             op->set_arguments(inputs);
             op->validate_and_infer_types();
             return op;
@@ -131,10 +124,10 @@ TYPED_TEST_P(RNNSeqBaseTest, basic_shape_infer) {
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 1, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 1, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), Each(nullptr));
     }
 }
 
@@ -145,10 +138,10 @@ TYPED_TEST_P(RNNSeqBaseTest, default_ctor) {
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 1, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 1, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), Each(nullptr));
     }
 }
 
@@ -162,71 +155,74 @@ TYPED_TEST_P(RNNSeqBaseTest, default_ctor_BIDIRECTIONAL) {
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 2, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 2, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), Each(nullptr));
     }
 }
 
-TYPED_TEST_P(RNNSeqBaseTest, static_labels_dims_shape_infer) {
+TYPED_TEST_P(RNNSeqBaseTest, static_symbols_dims_shape_infer) {
     RNNSeqParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>(), D = make_shared<Symbol>();
     params.batch_size = Dimension(8);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64);
-    ov::DimensionTracker::set_label(params.seq_length, 11);
+    params.seq_length.set_symbol(B);
     params.hidden_size = Dimension(128);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
     params.num_directions = Dimension(1);
-    ov::DimensionTracker::set_label(params.num_directions, 13);
+    params.num_directions.set_symbol(D);
 
     auto op = this->make_rnn_seq_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
 
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 1, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 13, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(A, D, B, C));
 
     for (size_t i = 1; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 1, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 13, 12));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, D, C));
     }
 }
 
-TYPED_TEST_P(RNNSeqBaseTest, interval_labels_dims_shape_infer_FORWARD) {
+TYPED_TEST_P(RNNSeqBaseTest, interval_symbols_dims_shape_infer_FORWARD) {
     RNNSeqParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>(), D = make_shared<Symbol>();
     params.batch_size = Dimension(8, 16);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64, 128);
-    ov::DimensionTracker::set_label(params.seq_length, 11);
+    params.seq_length.set_symbol(B);
     params.hidden_size = Dimension(128, 256);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
     params.num_directions = Dimension(1, 2);
-    ov::DimensionTracker::set_label(params.num_directions, 13);
+    params.num_directions.set_symbol(D);
 
     auto op = this->make_rnn_seq_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
 
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 1, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 13, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(A, D, B, C));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         // For backward compatibility, hidden_size attribute is ignored
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 1, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 13, 12));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, D, C));
     }
 }
 
-TYPED_TEST_P(RNNSeqBaseTest, interval_labels_dims_shape_infer_REVERSE) {
+TYPED_TEST_P(RNNSeqBaseTest, interval_symbols_dims_shape_infer_REVERSE) {
     RNNSeqParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>(), D = make_shared<Symbol>();
     params.batch_size = Dimension(8, 16);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64, 128);
-    ov::DimensionTracker::set_label(params.seq_length, 11);
+    params.seq_length.set_symbol(B);
     params.hidden_size = Dimension(128, 256);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
     params.num_directions = Dimension(1, 2);
-    ov::DimensionTracker::set_label(params.num_directions, 13);
+    params.num_directions.set_symbol(D);
 
     params.direction = op::RecurrentSequenceDirection::REVERSE;
 
@@ -235,24 +231,25 @@ TYPED_TEST_P(RNNSeqBaseTest, interval_labels_dims_shape_infer_REVERSE) {
 
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 1, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 13, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(A, D, B, C));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         // For backward compatibility, hidden_size attribute is ignored
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 1, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 13, 12));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, D, C));
     }
 }
 
-TYPED_TEST_P(RNNSeqBaseTest, interval_labels_dims_shape_infer_BIDIRECTIONAL) {
+TYPED_TEST_P(RNNSeqBaseTest, interval_symbols_dims_shape_infer_BIDIRECTIONAL) {
     RNNSeqParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>(), D = make_shared<Symbol>();
     params.batch_size = Dimension(8, 16);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64, 128);
-    ov::DimensionTracker::set_label(params.seq_length, 11);
+    params.seq_length.set_symbol(B);
     params.hidden_size = Dimension(128, 256);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
     params.num_directions = Dimension(1, 2);
-    ov::DimensionTracker::set_label(params.num_directions, 13);
+    params.num_directions.set_symbol(D);
 
     params.direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
 
@@ -261,11 +258,11 @@ TYPED_TEST_P(RNNSeqBaseTest, interval_labels_dims_shape_infer_BIDIRECTIONAL) {
 
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{params.batch_size, 2, params.seq_length, params.hidden_size}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 13, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(A, D, B, C));
     for (size_t i = 1; i < params.outputs_size; ++i) {
         // For backward compatibility, hidden_size attribute is ignored
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, 2, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 13, 12));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, D, C));
     }
 }
 
@@ -273,12 +270,12 @@ REGISTER_TYPED_TEST_SUITE_P(RNNSeqBaseTest,
                             default_ctor,
                             default_ctor_BIDIRECTIONAL,
                             basic_shape_infer,
-                            static_labels_dims_shape_infer,
-                            interval_labels_dims_shape_infer_FORWARD,
-                            interval_labels_dims_shape_infer_REVERSE,
-                            interval_labels_dims_shape_infer_BIDIRECTIONAL);
+                            static_symbols_dims_shape_infer,
+                            interval_symbols_dims_shape_infer_FORWARD,
+                            interval_symbols_dims_shape_infer_REVERSE,
+                            interval_symbols_dims_shape_infer_BIDIRECTIONAL);
 
-using RNNSeqBaseTypes = Types<op::v5::RNNSequence, op::v5::GRUSequence, op::v0::LSTMSequence, op::v5::LSTMSequence>;
+using RNNSeqBaseTypes = Types<op::v5::RNNSequence, op::v5::GRUSequence, op::v5::LSTMSequence>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, RNNSeqBaseTest, RNNSeqBaseTypes);
 
 }  // namespace rnn_seq_test

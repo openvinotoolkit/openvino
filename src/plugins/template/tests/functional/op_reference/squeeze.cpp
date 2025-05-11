@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/squeeze.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -28,8 +29,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(output_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, output_type, expected_value)),
           m_axes_shape(axes_shape),
           m_axes_type(axes_type),
           m_axes_value(CreateTensor(axes_type, axes_value)),
@@ -46,8 +47,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(input_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, input_type, expected_value)),
           m_axes_node(false) {}
 
     Shape m_input_shape;
@@ -62,7 +63,7 @@ struct SqueezeParams {
     bool m_axes_node;
 };
 
-class ReferenceSqueezeLayerTest : public testing::TestWithParam<SqueezeParams>, public CommonReferenceTest {
+class ReferenceSqueezeLayerTestBase : public testing::TestWithParam<SqueezeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         const auto params = GetParam();
@@ -89,12 +90,18 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) {
+    virtual std::shared_ptr<Model> CreateFunction(const SqueezeParams&) = 0;
+};
+
+class ReferenceSqueezeLayerTest : public ReferenceSqueezeLayerTestBase {
+private:
+    std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) override {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         std::shared_ptr<op::v0::Constant> axes_node = NULL;
         std::shared_ptr<op::v0::Squeeze> squeeze = NULL;
         if (params.m_axes_node) {
-            axes_node = std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
+            axes_node =
+                std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
             squeeze = std::make_shared<op::v0::Squeeze>(in, axes_node);
         } else {
             squeeze = std::make_shared<op::v0::Squeeze>(in);
@@ -120,7 +127,16 @@ std::vector<SqueezeParams> generateParamsForSqueeze() {
                       IO_T,
                       std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
                       std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
-                      Shape {2},
+                      Shape{4},
+                      Axes_T,
+                      std::vector<T2>{0, 1, 3, -1}),
+        SqueezeParams(Shape{1, 4, 1, 1, 2},
+                      Shape{4, 1, 2},
+                      IO_T,
+                      IO_T,
+                      std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
+                      std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
+                      Shape{2},
                       Axes_T,
                       std::vector<T2>{0, 2}),
         SqueezeParams(Shape{1, 4, 1, 1, 2},
@@ -153,8 +169,7 @@ std::vector<SqueezeParams> generateCombinedParamsForSqueeze() {
         generateParamsForSqueeze<element::Type_t::u64, element::Type_t::i64>(),
         generateParamsForSqueeze<element::Type_t::u32, element::Type_t::i64>(),
         generateParamsForSqueeze<element::Type_t::u16, element::Type_t::i64>(),
-        generateParamsForSqueeze<element::Type_t::u8, element::Type_t::i64>()
-    };
+        generateParamsForSqueeze<element::Type_t::u8, element::Type_t::i64>()};
 
     std::vector<SqueezeParams> combinedParams;
 
@@ -165,10 +180,63 @@ std::vector<SqueezeParams> generateCombinedParamsForSqueeze() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Squeeze_With_Hardcoded_Refs,
-    ReferenceSqueezeLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
-    ReferenceSqueezeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Squeeze_With_Hardcoded_Refs,
+                         ReferenceSqueezeLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
+                         ReferenceSqueezeLayerTest::getTestCaseName);
+
+class ReferenceSqueezeV15LayerTest : public ReferenceSqueezeLayerTestBase {
+private:
+    std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) override {
+        const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
+        std::shared_ptr<op::v0::Constant> axes_node = NULL;
+        std::shared_ptr<op::v15::Squeeze> squeeze = NULL;
+        if (params.m_axes_node) {
+            axes_node =
+                std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
+            squeeze = std::make_shared<op::v15::Squeeze>(in, axes_node);
+        } else {
+            squeeze = std::make_shared<op::v15::Squeeze>(in);
+        }
+
+        return std::make_shared<ov::Model>(squeeze, ParameterVector{in});
+    }
+};
+
+TEST_P(ReferenceSqueezeV15LayerTest, CompareWithHardcodedRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Squeeze_With_Hardcoded_Refs,
+                         ReferenceSqueezeV15LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
+                         ReferenceSqueezeV15LayerTest::getTestCaseName);
+
+class ReferenceSqueezeV15AttributeSetLayerTest : public ReferenceSqueezeLayerTestBase {
+private:
+    std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) override {
+        const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
+        std::shared_ptr<op::v0::Constant> axes_node = NULL;
+        std::shared_ptr<op::v15::Squeeze> squeeze = NULL;
+        if (params.m_axes_node) {
+            axes_node =
+                std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
+            squeeze = std::make_shared<op::v15::Squeeze>(in, axes_node, true);
+        } else {
+            squeeze = std::make_shared<op::v15::Squeeze>(in, true);
+        }
+
+        return std::make_shared<ov::Model>(squeeze, ParameterVector{in});
+    }
+};
+
+TEST_P(ReferenceSqueezeV15AttributeSetLayerTest, CompareWithHardcodedRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Squeeze_With_Hardcoded_Refs,
+                         ReferenceSqueezeV15AttributeSetLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForSqueeze()),
+                         ReferenceSqueezeV15AttributeSetLayerTest::getTestCaseName);
 
 }  // namespace

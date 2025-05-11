@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +23,11 @@ public:
     ConvertLike(const Output<Node>& data, const Output<Node>& like);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 };
 }  // namespace v1
 }  // namespace op

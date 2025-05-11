@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,11 +51,11 @@ JitConstants PoolingKernelGPURef::GetJitConstants(const pooling_params& params, 
     return jit;
 }
 
-KernelsData PoolingKernelGPURef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPURef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPURef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

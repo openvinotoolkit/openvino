@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,10 @@ public:
 
     std::vector<std::string> get_names() const override {
         return m_names;
+    }
+
+    int64_t get_version() const {
+        return dynamic_cast<const ov::frontend::paddle::InputModel&>(m_input_model).get_version();
     }
 
 private:

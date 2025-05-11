@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 #include <cmath>
 #include <numeric>
 #include <vector>
-
-#include "ngraph/shape.hpp"
 
 namespace ov {
 namespace reference {

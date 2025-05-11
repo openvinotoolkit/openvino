@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,6 +144,27 @@ Output<Node> quantize(const NodeContext& context,
                       const Output<Node>& zero_point,
                       const Output<Node>& quantized_node);
 
+/**
+ * Quantizes input node with the given parameters. Returns a shared pointer to the new QuantizedPtNode.
+ */
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type);
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         const Output<Node>& axis,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type);
+
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 
 namespace op {
@@ -165,6 +186,12 @@ OutputVector quantizable_op(const NodeContext& context) {
     return translation_res;
 }
 }  // namespace op
+
+/**
+ * Captures aten::stack([aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))], dim=-1).
+ * This pattern is transformed to a single Constant with element_type=u4.
+ */
+std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
 }  // namespace pytorch
 }  // namespace frontend

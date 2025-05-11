@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -40,17 +41,13 @@ public:
           const Output<Node>& axes);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     bool has_evaluate() const override;
-    // TODO: Update to use new evaluate with TensorVector
-    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector&, const TensorVector&) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     std::shared_ptr<v0::Constant> get_default_const_axes(const Output<Node>& start) const;
 };

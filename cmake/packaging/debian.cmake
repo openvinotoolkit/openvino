@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -47,21 +47,20 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}")
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # because in case of .deb package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           # because in case of .deb package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # see ticket # 82605
-           NOT item STREQUAL "gna" AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
+           # don't install node_addon
+           NOT item MATCHES "node_addon" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
-           # even for case of system TBB we have installation rules for wheels packages
-           # so, need to skip this explicitly
-           NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml")
+           NOT item STREQUAL "pugixml" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
@@ -91,7 +90,21 @@ macro(ov_cpack_settings)
         # - 2022.3 is the first release where Debian updated packages are introduced, others 2022.3.X are LTS
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
+        2023.1.0
+        2023.2.0
+        2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
+        2024.0.0
+        2024.1.0
+        2024.2.0
+        2024.3.0
+        2024.4.0
+        2024.5.0 2024.5.1
+        2024.6.0
+        2025.0.0 2025.0.1
+        2025.1.0
         )
+
+    ov_check_conflicts_versions(conflicting_versions)
 
     #
     # core: base dependency for each component
@@ -183,21 +196,25 @@ macro(ov_cpack_settings)
         set(gpu_copyright "generic")
     endif()
 
-    # intel-gna
-    if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator inference plugin")
-        set(CPACK_COMPONENT_GNA_DEPENDS "${OV_CPACK_COMP_CORE}")
-        set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-plugin-${cpack_name_ver}")
-        # since we have libgna.so we need to call ldconfig and have `def_triggers` here
-        set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+    # intel-npu
+    if(ENABLE_INTEL_NPU)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_COMPONENT_NPU_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        _ov_add_plugin(npu OFF)
+        set(npu_copyright "generic")
 
-        ov_debian_add_lintian_suppression(gna
-            # package name matches libopenvino_intel_gna_plugin.so
-            # but lintian looks at libgna.so.2 since it's a versioned library
-            "package-name-doesnt-match-sonames")
-        set(gna_copyright "generic")
-
-        _ov_add_plugin(gna OFF)
+        # NPU plugin also builds level-zero as thirdparty
+        # let's add it to the list of dependency search directories to avoid missing dependncy on libze_loader.so.1
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib/${config}")
+            endforeach()
+        else()
+            list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib")
+        endif()
     endif()
 
     # # add pseudo plugins are recommended to core component
@@ -223,6 +240,20 @@ macro(ov_cpack_settings)
             "package-must-activate-ldconfig-trigger")
         list(APPEND frontends ir)
         set(ir_copyright "generic")
+    endif()
+
+    # It was decided not to distribute JAX as C++ component
+    if(ENABLE_OV_JAX_FRONTEND AND OFF)
+        set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
+        set(CPACK_COMPONENT_JAX_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
+        # since we JAX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_JAX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(jax
+            # we have different package name strategy; it suggests libopenvino-jax-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends jax)
+        set(jax_copyright "generic")
     endif()
 
     if(ENABLE_OV_ONNX_FRONTEND)
@@ -315,9 +346,9 @@ macro(ov_cpack_settings)
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${installed_plugins})
         list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${frontends})
 
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino-${cpack_name_ver}")
         set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy, python3-packaging")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions
         ov_debian_generate_conflicts(${python_component} ${conflicting_versions})
@@ -326,8 +357,6 @@ macro(ov_cpack_settings)
         ov_debian_add_lintian_suppression(${python_component}
             # usr/lib/python3/dist-packages/requirements.txt
             "unknown-file-in-python-module-directory"
-            # usr/lib/python3/dist-packages/openvino/inference_engine/__init__.py
-            "executable-not-elf-or-script"
             # all directories
             "non-standard-dir-perm"
             # usr/bin/benchmark_app
@@ -343,21 +372,15 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkgconf")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
-    # Ubuntu 18.04, Debian 9 cases have nlohmann-json-dev
-    # newer systems have nlohmann-json3-dev
-    # according to https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
-    # we can use | (pipe) to provide alternative package names
-    set(json_library "nlohmann-json3-dev | nlohmann-json-dev")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
@@ -372,6 +395,7 @@ macro(ov_cpack_settings)
         set(python_samples_package "${CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME} (= ${cpack_full_ver})")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3, ${python_package}")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+        ov_debian_generate_conflicts(${OV_CPACK_COMP_PYTHON_SAMPLES} ${conflicting_versions})
         set(python_samples_copyright "generic")
     endif()
 

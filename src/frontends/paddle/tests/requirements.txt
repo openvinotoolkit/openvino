@@ -1,6 +1,5 @@
 # PaddlePaddle - generate test models
--c ../../../../src/bindings/python/constraints.txt
+-c ../../../bindings/python/constraints.txt
 protobuf
 numpy
-six
-paddlepaddle; python_version<'3.11'
+paddlepaddle

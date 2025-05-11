@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "low_precision/eltwise_base_transformation.hpp"
 
-#include <ie_data.h>
-
 using namespace ::testing;
 using namespace std;
 
 using namespace ov;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 class EltwiseTransformationIsBroadcastedTests : public ::testing::Test {
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,9 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/fake_quantize.hpp"
 
-#include <ie_data.h>
-
 using namespace ::testing;
 using namespace std;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 class PrecisionDetailsTests : public ::testing::Test {
 protected:
@@ -35,7 +33,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels255WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithZeroPoint);
-    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::dynamic, precisionDetails.precision);
     ASSERT_TRUE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }
@@ -62,7 +60,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsU8levels256WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithZeroPoint);
-    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::dynamic, precisionDetails.precision);
     ASSERT_FALSE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }

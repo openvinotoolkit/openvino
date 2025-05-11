@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -61,9 +62,10 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
+    bool evaluate(ov::TensorVector& outputs,
+                  const ov::TensorVector& inputs,
+                  const EvaluationContext& evaluation_context) const override;
     bool has_evaluate() const override;
 
 protected:
@@ -85,6 +87,7 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

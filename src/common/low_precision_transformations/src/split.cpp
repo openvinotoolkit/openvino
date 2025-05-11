@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/split.hpp"
-#include "ngraph/node.hpp"
-
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "low_precision/split.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -24,15 +26,15 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SplitTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -47,9 +49,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     ov::copy_runtime_info(split, newSplit);
 
     const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const size_t normalizedAxis = ngraph::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const size_t normalizedAxis = ov::util::try_normalize_axis(axis, split->get_input_partial_shape(0).rank(), *split);
     const size_t outputSize = newSplit->get_output_size();
 
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {
@@ -122,18 +122,18 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
     }
 
-    updateOutputs(context, lastNodes, newSplit);
+    updateOutputs(lastNodes, newSplit);
+
+    OPENVINO_DEBUG("LPT: done: ", newSplit);
     return true;
 }
 
 
 void SplitTransformation::updateOutputs(
-    TransformationContext& context,
-    std::vector<std::shared_ptr<ngraph::Node>> lastNodes,
-    std::shared_ptr<ngraph::Node> originalNode) const {
-    //TODO: LPT: during refactoring update is not tested
+    std::vector<std::shared_ptr<ov::Node>> lastNodes,
+    std::shared_ptr<ov::Node> originalNode) const {
     if (lastNodes.size() == 1ul) {
-        updateOutput(context, lastNodes[0], originalNode);
+        updateOutput(lastNodes[0], originalNode);
     } else {
         const std::string originalName = originalNode->get_friendly_name();
         for (size_t i = 0; i < lastNodes.size(); ++i) {
@@ -155,10 +155,10 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
     return true;
 }
 
-bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool SplitTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

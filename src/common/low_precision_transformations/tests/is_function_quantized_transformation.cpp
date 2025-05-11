@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,10 @@
 #include <sstream>
 #include <memory>
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
 #include <gtest/gtest.h>
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -21,7 +21,7 @@ class IsFunctionQuantizedTransformationValues {
 public:
     ov::Shape shape;
     ov::element::Type precision;
-    ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
     bool constantSubgraphOnParameters;
     bool inputOnParameters;
 
@@ -34,7 +34,7 @@ public:
         const auto testValues = GetParam();
 
         const auto input = std::make_shared<ov::op::v0::Parameter>(testValues.precision, ov::Shape(testValues.shape));
-        const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(
+        const auto fakeQuantize = ov::builder::subgraph::makeFakeQuantize(
             input,
             testValues.precision,
             testValues.fakeQuantize,
@@ -44,8 +44,8 @@ public:
             replace_node(fakeQuantize->get_input_node_shared_ptr(3), input);
         }
 
-        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
-        model = std::make_shared<ov::Model>(results, ngraph::ParameterVector{ input }, "IsFunctionQuantizedFunction");
+        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
+        model = std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "IsFunctionQuantizedFunction");
         model->validate_nodes_and_infer_types();
     }
 
@@ -68,7 +68,7 @@ protected:
 };
 
 TEST_P(IsFunctionQuantizedTransformation, Run) {
-    const bool isQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model);
+    const bool isQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(model);
 
     const auto testValues = GetParam();
     ASSERT_EQ(testValues.isQuantized, isQuantized);

@@ -6,8 +6,9 @@
 
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <assert.h>
 #include <memory>
@@ -29,20 +30,11 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
 
     bool was_updated = false;
     for (const auto& op : f->get_ordered_ops()) {
-        auto type_info = op->get_type_info();
-        std::set<ov::element::TypeVector> supported_precisions;
-        // TODO: At the moment Softmax is decomposed on Linear IR level.
-        //       When Softmax will be decomposed on NGraph level, remove it
-        if (type_info.is_castable(ov::op::v1::Softmax::get_type_info_static())) {
-            supported_precisions = {{ov::element::f32}};
-        } else {
-            OPENVINO_ASSERT(
-                target_machine->has(type_info),
-                "operation '" + std::string(type_info.version_id) + "::" + std::string(type_info.name) + "' was not found in target machine");
+        ov::op::util::process_subgraph(*this, op);
 
-            auto exec = target_machine->get_supported_precisions(type_info);
-            supported_precisions = exec(op);
-        }
+        auto type_info = op->get_type_info();
+        auto exec = target_machine->get_supported_precisions(type_info);
+        const auto& supported_precisions = exec(op);
 
         if (supported_precisions.empty()) {
             continue;
@@ -179,7 +171,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         if (actual_type != it->second) {
             was_updated = true;
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                result->get_input_node_shared_ptr(0),
+                result->input_value(0),
                 expected_type);
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
@@ -252,10 +244,9 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
     return was_updated;
 }
 
-bool ov::snippets::pass::PropagatePrecision::can_be_removed(
-    const element::Type& actual_before,
-    const element::Type& actual_after,
-    const element::Type& required_after) noexcept {
+bool ov::snippets::pass::PropagatePrecision::can_be_removed(const element::Type& actual_before,
+                                                            const element::Type& actual_after,
+                                                            const element::Type& required_after) {
     if (actual_before != required_after) {
         return false;
     }
@@ -263,9 +254,7 @@ bool ov::snippets::pass::PropagatePrecision::can_be_removed(
     return can_be_fused(actual_after, actual_before);
 }
 
-bool ov::snippets::pass::PropagatePrecision::can_be_fused(
-    const element::Type& actual,
-    const element::Type& required) noexcept {
+bool ov::snippets::pass::PropagatePrecision::can_be_fused(const element::Type& actual, const element::Type& required) {
     if (actual == required) {
         return true;
     }
@@ -289,7 +278,7 @@ bool ov::snippets::pass::PropagatePrecision::can_be_fused(
 
 std::vector<ov::element::Type> ov::snippets::pass::PropagatePrecision::get_precisions(
     const std::vector<element::Type>& input_precisions,
-    const std::set<std::vector<element::Type>>& supported_precisions_pack) noexcept {
+    const std::set<std::vector<element::Type>>& supported_precisions_pack) {
     bool was_found = false;
     for (const auto& supported_precisions : supported_precisions_pack) {
         for (size_t i = 0; i < supported_precisions.size(); ++i) {

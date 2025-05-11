@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ namespace kernel_selector {
 
 strided_slice_kernel_selector::strided_slice_kernel_selector() { Attach<StridedSliceKernelRef>(); }
 
-KernelsData strided_slice_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::STRIDED_SLICE);
+KernelsData strided_slice_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::STRIDED_SLICE);
 }
 }  // namespace kernel_selector

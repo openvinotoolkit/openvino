@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,6 @@
 #include <sstream>
 
 #include "int_backend.hpp"
-#include "ngraph/file_util.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 

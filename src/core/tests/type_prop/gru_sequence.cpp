@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@
 
 using namespace std;
 using namespace ov;
+
+namespace {
 
 struct gru_sequence_parameters {
     Dimension batch_size = 8;
@@ -79,6 +81,8 @@ shared_ptr<ov::op::v5::GRUSequence> gru_seq_direction_initialization(const gru_s
 
     return gru_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, gru_sequence_forward) {
     const size_t batch_size = 8;

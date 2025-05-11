@@ -3,35 +3,38 @@
 #
 import numpy as np
 from save_model import saveModel
-import paddle as pdpd
+import paddle
 import sys
 
 
 def less_than(name: str, x, y, data_type, cast_to_fp32=False):
-    pdpd.enable_static()
+    paddle.enable_static()
 
-    with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
-        node_x = pdpd.static.data(
+    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+        node_x = paddle.static.data(
             name='input_x', shape=x.shape, dtype=data_type)
-        node_y = pdpd.static.data(
+        node_y = paddle.static.data(
             name='input_y', shape=y.shape, dtype=data_type)
-        out = pdpd.fluid.layers.less_than(x=node_x, y=node_y, name='less_than')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.less_than(x=node_x, y=node_y, name='less_than')
+        else:
+            out = paddle.fluid.layers.less_than(x=node_x, y=node_y, name='less_than')
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:
             data_type = "float32"
 
-        out = pdpd.cast(out, data_type)
-        cpu = pdpd.static.cpu_places(1)
-        exe = pdpd.static.Executor(cpu[0])
+        out = paddle.cast(out, data_type)
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
-        exe.run(pdpd.static.default_startup_program())
+        exe.run(paddle.static.default_startup_program())
 
         outs = exe.run(
             feed={'input_x': x, 'input_y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x', 'input_y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                   inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,13 @@
 
 #include <algorithm>
 
-#include "ngraph/check.hpp"
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/frontend/exception.hpp"
 
 using namespace ov;
-using namespace ov::onnx_editor;
+using namespace ov::frontend::onnx;
 
-onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
+EdgeMapper::EdgeMapper(const GraphProto& graph_proto)
     : m_node_inputs(graph_proto.node().size()),
       m_node_outputs(graph_proto.node().size()) {
     int topological_index = 0;
@@ -36,8 +36,7 @@ onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_prot
     }
 }
 
-std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& node_name,
-                                                            const std::string& output_name) const {
+std::vector<int> EdgeMapper::find_node_indexes(const std::string& node_name, const std::string& output_name) const {
     if (!output_name.empty()) {
         const auto& index_iter = m_node_output_name_to_index.find(output_name);
         if (index_iter != std::end(m_node_output_name_to_index)) {
@@ -57,11 +56,11 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
     return result;
 };
 
-int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::string& output_name) const {
-    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_outputs.size()),
-                 "Node with index: ",
-                 std::to_string(node_index),
-                 "is out of scope outputs list");
+int EdgeMapper::get_node_output_idx(int node_index, const std::string& output_name) const {
+    FRONT_END_GENERAL_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_outputs.size()),
+                            "Node with index: ",
+                            std::to_string(node_index),
+                            "is out of scope outputs list");
 
     const auto& node_outputs = m_node_outputs[node_index];
     const auto out_port_idx = std::find(std::begin(node_outputs), std::end(node_outputs), output_name);
@@ -73,11 +72,11 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::stri
     return static_cast<int>(out_port_idx - std::begin(node_outputs));
 }
 
-std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index, const std::string& input_name) const {
-    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
-                 "Node with index: ",
-                 std::to_string(node_index),
-                 "is out of scope outputs list");
+std::vector<int> EdgeMapper::get_node_input_indexes(int node_index, const std::string& input_name) const {
+    FRONT_END_GENERAL_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
+                            "Node with index: ",
+                            std::to_string(node_index),
+                            "is out of scope outputs list");
 
     const auto& node_inputs = m_node_inputs[node_index];
     std::vector<int> node_inputs_indexes;
@@ -96,7 +95,7 @@ std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index,
     return node_inputs_indexes;
 }
 
-InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const EditorInput& in) const {
+InputEdge EdgeMapper::find_input_edge(const EditorNode& node, const EditorInput& in) const {
     int node_index = node.m_node_index;
     if (node_index == -1) {  // the node index is not provided
         // identification can be both based on node name and output name (if the node index is not provided)
@@ -160,7 +159,7 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
     }
 }
 
-OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, const EditorOutput& out) const {
+OutputEdge EdgeMapper::find_output_edge(const EditorNode& node, const EditorOutput& out) const {
     int node_index = node.m_node_index;
     if (node_index == -1) {  // the node index is not provided
         // identification can be both based on node name and output name (if the node index is not provided)
@@ -210,11 +209,11 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
     return OutputEdge{node_index, output_idx};
 }
 
-OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const {
+OutputEdge EdgeMapper::find_output_edge(const std::string& output_name) const {
     return find_output_edge(EditorNode{EditorOutput{output_name}}, EditorOutput{output_name});
 }
 
-std::vector<InputEdge> onnx_editor::EdgeMapper::find_output_consumers(const std::string& output_name) const {
+std::vector<InputEdge> EdgeMapper::find_output_consumers(const std::string& output_name) const {
     const auto matched_nodes_range = m_output_consumers_index.equal_range(output_name);
     std::vector<InputEdge> input_edges;
     for (auto it = matched_nodes_range.first; it != matched_nodes_range.second; ++it) {
@@ -233,7 +232,7 @@ std::vector<InputEdge> onnx_editor::EdgeMapper::find_output_consumers(const std:
     return input_edges;
 }
 
-bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& node) const {
+bool EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& node) const {
     if (node.m_node_index >= 0 && node.m_node_index < static_cast<int>(m_node_inputs.size())) {
         return true;
     }
@@ -242,15 +241,15 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
 
 namespace {
 void check_node(bool condition, const EditorNode& node) {
-    NGRAPH_CHECK(condition,
-                 "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                     ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                     ", node_index: " + (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) +
-                     " is ambiguous");
+    FRONT_END_GENERAL_CHECK(
+        condition,
+        "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) + ", node_index: " +
+            (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) + " is ambiguous");
 }
 }  // namespace
 
-int onnx_editor::EdgeMapper::get_node_index(const EditorNode& node) const {
+int EdgeMapper::get_node_index(const EditorNode& node) const {
     if (node.m_node_index != -1) {  // the node index provided
         check_node_index(node.m_node_index);
         return node.m_node_index;
@@ -260,7 +259,7 @@ int onnx_editor::EdgeMapper::get_node_index(const EditorNode& node) const {
     return indexes[0];
 }
 
-bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) const {
+bool EdgeMapper::is_correct_tensor_name(const std::string& name) const {
     if (m_node_output_name_to_index.find(name) != std::end(m_node_output_name_to_index)) {
         return true;
     }
@@ -270,7 +269,7 @@ bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) co
     return false;
 }
 
-std::vector<std::string> onnx_editor::EdgeMapper::get_input_ports(const EditorNode& node) const {
+std::vector<std::string> EdgeMapper::get_input_ports(const EditorNode& node) const {
     check_node(is_correct_and_unambiguous_node(node), node);
     auto node_index = node.m_node_index;
     if (node_index == -1) {  // the node index is provided
@@ -281,7 +280,7 @@ std::vector<std::string> onnx_editor::EdgeMapper::get_input_ports(const EditorNo
     return m_node_inputs[node_index];
 }
 
-std::vector<std::string> onnx_editor::EdgeMapper::get_output_ports(const EditorNode& node) const {
+std::vector<std::string> EdgeMapper::get_output_ports(const EditorNode& node) const {
     check_node(is_correct_and_unambiguous_node(node), node);
     auto node_index = node.m_node_index;
     if (node_index == -1)  // the node index is provided
@@ -293,7 +292,7 @@ std::vector<std::string> onnx_editor::EdgeMapper::get_output_ports(const EditorN
     return m_node_outputs[node_index];
 }
 
-std::string onnx_editor::EdgeMapper::get_source_tensor_name(const InputEdge& edge) const {
+std::string EdgeMapper::get_source_tensor_name(const InputEdge& edge) const {
     if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_inputs.size()) && edge.m_port_idx >= 0 &&
         edge.m_port_idx < static_cast<int>(m_node_inputs[edge.m_node_idx].size())) {
         return m_node_inputs[edge.m_node_idx][edge.m_port_idx];
@@ -301,7 +300,7 @@ std::string onnx_editor::EdgeMapper::get_source_tensor_name(const InputEdge& edg
     return "";
 }
 
-std::string onnx_editor::EdgeMapper::get_target_tensor_name(const OutputEdge& edge) const {
+std::string EdgeMapper::get_target_tensor_name(const OutputEdge& edge) const {
     if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_outputs.size()) && edge.m_port_idx >= 0 &&
         edge.m_port_idx < static_cast<int>(m_node_outputs[edge.m_node_idx].size())) {
         return m_node_outputs[edge.m_node_idx][edge.m_port_idx];
@@ -309,7 +308,7 @@ std::string onnx_editor::EdgeMapper::get_target_tensor_name(const OutputEdge& ed
     return "";
 }
 
-void onnx_editor::EdgeMapper::check_node_index(int node_index) const {
-    NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
-                 "Provided node index: " + std::to_string(node_index) + " is out of scope");
+void EdgeMapper::check_node_index(int node_index) const {
+    FRONT_END_GENERAL_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
+                            "Provided node index: " + std::to_string(node_index) + " is out of scope");
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,27 +9,24 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
+#include "ov_lpt_models/move_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
-    ngraph::element::Type netPrecision;
-    std::vector<ngraph::PartialShape> inputShape;
+    ov::element::Type netPrecision;
+    std::vector<ov::PartialShape> inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape[0], targetDevice, params) <<
-        "SPLIT:" << oneInputWithSplit << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape[0], targetDevice, params) <<
+           "SPLIT:" << oneInputWithSplit << "_" <<
         "OP:" << param.operation << "_" <<
         "FQ:" << param.fakeQuantizeAfter << "_" <<
         "DQ:" << param.dequantizationAfter;
@@ -37,14 +34,33 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    std::vector<ngraph::PartialShape> inputShapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    std::vector<ov::PartialShape> inputShapes;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool oneInputWithSplit;
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MoveFakeQuantize::get(
+    if (oneInputWithSplit) {
+        auto newInputShape = inputShapes[0];
+        int channels = 0;
+        bool channelsWasIdentified = false;
+        for (const auto inputShape : inputShapes) {
+            if (inputShape[param.axis].is_static()) {
+                channels += inputShape[param.axis].get_length();
+                channelsWasIdentified = true;
+            }
+        }
+
+        if (channelsWasIdentified) {
+            newInputShape[param.axis] = channels;
+        }
+        init_input_shapes(newInputShape);
+    } else {
+        init_input_shapes(inputShapes);
+    }
+
+    function = ov::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShapes,
         param.concatInputsCount,
@@ -61,13 +77,13 @@ void MoveFakeQuantizeTransformation::SetUp() {
         oneInputWithSplit);
 }
 
-void MoveFakeQuantizeTransformation::Run() {
-    LayerTestsCommon::Run();
+void MoveFakeQuantizeTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
-    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
@@ -75,7 +91,7 @@ void MoveFakeQuantizeTransformation::Run() {
 
 TEST_P(MoveFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

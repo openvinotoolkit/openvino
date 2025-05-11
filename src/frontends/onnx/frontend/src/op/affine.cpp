@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/affine.hpp"
-
-#include "default_opset.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector affine(const Node& node) {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // Affine is an obsolete experimental ONNX operation.
     // It takes one input tensor and produces one output tensor where
     // the affine function, y = alpha * x + beta, is applied to the input
     // elementwise.
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
 
     CHECK_VALID_NODE(node, inputs.size() == 1, "Affine expects 1 input tensor. Got: ", inputs.size());
     CHECK_VALID_NODE(node, node.has_attribute("alpha"), "\"alpha\" attribute is required.");
@@ -29,15 +28,12 @@ OutputVector affine(const Node& node) {
     const auto alpha_const = node.get_attribute_as_constant<float>("alpha", data.get_element_type());
     const auto beta_const = node.get_attribute_as_constant<float>("beta", data.get_element_type());
 
-    return {
-        std::make_shared<default_opset::Add>(std::make_shared<default_opset::Multiply>(data, alpha_const), beta_const)};
+    return {std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(data, alpha_const), beta_const)};
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("Affine", OPSET_SINCE(1), ai_onnx::opset_1::affine);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

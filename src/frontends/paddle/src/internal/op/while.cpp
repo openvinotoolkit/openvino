@@ -1,14 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "internal/op/while.hpp"
 
 #include <algorithm>
-#include <ngraph/validation_util.hpp>
-
-#include "ngraph/op/constant.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ov;

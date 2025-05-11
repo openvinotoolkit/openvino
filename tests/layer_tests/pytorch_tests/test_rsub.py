@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -34,25 +34,35 @@ class TestRsub(PytorchLayerTest):
 
         return model(), ref_net, "aten::rsub"
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.array(5).astype(np.float32),
-                                             np.random.randn(1)),])
-    
+    @pytest.mark.parametrize('input_data',
+    [
+        [[2, 3, 4], np.array(5).astype(np.float32), [1]]
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data):
-        self.input_data = input_data
-        self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version)
+    def test_rsub1(self, ie_device, precision, ir_version, input_data):
+        self.input_data = []
+        for input in input_data:
+            if type(input) is list:
+                self.input_data.append(np.random.randn(*input).astype(np.float32))
+            else:
+                self.input_data.append(input)
+        self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_convert_model=True)
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.array(5).astype(int),
-                                             np.random.randn(1)),])
-    
+    @pytest.mark.parametrize('input_data',
+    [
+        [[2, 3, 4], np.array(5).astype(int), [1]]
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data):
-        self.input_data = input_data
-        self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
+    def test_rsub2(self, ie_device, precision, ir_version, input_data):
+        self.input_data = []
+        for input in input_data:
+            if type(input) is list:
+                self.input_data.append(np.random.randn(*input).astype(np.float32))
+            else:
+                self.input_data.append(input)
+        self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestRsubTypes(PytorchLayerTest):
@@ -93,6 +103,8 @@ class TestRsubTypes(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_shape"), [[2, 3], [3], [2, 3, 4]])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

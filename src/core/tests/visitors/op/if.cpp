@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, if_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::If>();
+    NodeBuilder::opset().insert<ov::op::v8::If>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);

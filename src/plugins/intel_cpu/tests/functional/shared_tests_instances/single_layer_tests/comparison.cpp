@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,18 +37,18 @@ std::vector<ov::element::Type> model_type = {
         ov::element::boolean,
 };
 
-std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
-        ngraph::helpers::ComparisonTypes::EQUAL,
-        ngraph::helpers::ComparisonTypes::NOT_EQUAL,
-        ngraph::helpers::ComparisonTypes::GREATER,
-        ngraph::helpers::ComparisonTypes::GREATER_EQUAL,
-        ngraph::helpers::ComparisonTypes::LESS,
-        ngraph::helpers::ComparisonTypes::LESS_EQUAL,
+std::vector<ov::test::utils::ComparisonTypes> comparisonOpTypes = {
+        ov::test::utils::ComparisonTypes::EQUAL,
+        ov::test::utils::ComparisonTypes::NOT_EQUAL,
+        ov::test::utils::ComparisonTypes::GREATER,
+        ov::test::utils::ComparisonTypes::GREATER_EQUAL,
+        ov::test::utils::ComparisonTypes::LESS,
+        ov::test::utils::ComparisonTypes::LESS_EQUAL,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<ov::test::utils::InputLayerType> secondInputTypes = {
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -81,15 +81,15 @@ std::vector<std::vector<ov::Shape>> input_shapes_is_ops_static = {
         {{2, 17, 3, 4}, {1}}
 };
 
-std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
-        ngraph::helpers::ComparisonTypes::IS_FINITE,
-        ngraph::helpers::ComparisonTypes::IS_NAN
+std::vector<ov::test::utils::ComparisonTypes> comparisonOpTypesIs = {
+        ov::test::utils::ComparisonTypes::IS_FINITE,
+        ov::test::utils::ComparisonTypes::IS_NAN
 };
 
 const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_is_ops_static)),
         ::testing::ValuesIn(comparisonOpTypesIs),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
         ::testing::Values(ov::element::f32),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));

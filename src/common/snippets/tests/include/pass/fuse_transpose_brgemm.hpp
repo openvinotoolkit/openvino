@@ -16,7 +16,6 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<PartialShape>, // Input shapes
-        PartialShape,              // Master shape
         size_t                     // Transpose position
 > fuseTransposeBrgemmParams;
 

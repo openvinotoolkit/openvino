@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/reshape.hpp>
+#include "low_precision/reshape.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/reshape_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/reshape.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -28,18 +28,18 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<int> reshapeConstValues;  // if empty then create shapeOf
     TestTransformationParams params;
     Actual actual;
@@ -53,17 +53,17 @@ public:
         const ReshapeTransformationTestValues testValues = GetParam();
 
         actualFunction =
-            ngraph::builder::subgraph::ReshapeFunction::getOriginal(testValues.inputShape,
+            ov::builder::subgraph::ReshapeFunction::getOriginal(testValues.inputShape,
                                                                     testValues.reshapeConstValues,
                                                                     testValues.actual.precisionBeforeDequantization,
                                                                     testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
+        transformer.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::ReshapeFunction::getReference(testValues.inputShape,
+            ov::builder::subgraph::ReshapeFunction::getReference(testValues.inputShape,
                                                                      testValues.reshapeConstValues,
                                                                      testValues.expected.precisionBeforeDequantization,
                                                                      testValues.expected.dequantizationBefore,
@@ -91,7 +91,6 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
-
 const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 3D -> 4D: channels are not affected
     {{1, 384, 1024},
@@ -170,11 +169,11 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
      {1, 2, 2, 10, 10},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {1, 4, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 4, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}}}},
     // U8: with subtract 3D -> 4D: channels are not affected, dynamic batch
     {{-1, 3, 20},
      {0, 3, 4, 5},

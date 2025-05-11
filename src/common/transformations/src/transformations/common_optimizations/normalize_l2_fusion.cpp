@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -49,23 +50,21 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, reversed_pow_as_sqrt);
     auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto exp_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const auto axes_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto exp_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
+        const auto axes_input = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         const auto exp2_input =
             pattern_to_output.count(exp2)
-                ? std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
                 : nullptr;
         const auto exp3_input =
             pattern_to_output.count(exp3)
-                ? std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
                 : nullptr;
 
         if (exp_input && !op::util::has_constant_value<float>(exp_input, 2.0f)) {

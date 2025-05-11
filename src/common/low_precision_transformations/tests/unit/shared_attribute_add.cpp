@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 using LPT_ReshapeTransformation = ::testing::Test;
 
 TEST(LPT_SharedAttribute, assign) {
-    const auto attribute1 = ngraph::PrecisionPreservedAttribute();
+    const auto attribute1 = ov::PrecisionPreservedAttribute();
     ASSERT_EQ(1ul, attribute1.attribute->sharedValue->getAttributes().size());
 
-    const auto attribute2 = ngraph::AvgPoolPrecisionPreservedAttribute();
+    const auto attribute2 = ov::AvgPoolPrecisionPreservedAttribute();
     ASSERT_EQ(1ul, attribute2.attribute->sharedValue->getAttributes().size());
 
-    ngraph::pass::low_precision::NetworkHelper::reassign<ngraph::AvgPoolPrecisionPreservedAttribute>(
+    ov::pass::low_precision::NetworkHelper::reassign<ov::AvgPoolPrecisionPreservedAttribute>(
         attribute1.attribute->sharedValue,
         { attribute1.attribute, attribute2.attribute });
 

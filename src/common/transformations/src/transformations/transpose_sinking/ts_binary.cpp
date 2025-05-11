@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -26,7 +30,7 @@ TSBinaryForward::TSBinaryForward() : TSForwardBase() {
                    op::util::BinaryElementwiseComparison,
                    op::util::BinaryElementwiseLogical,
                    ov::op::v0::PRelu,
-                   ov::op::v0::FakeQuantize>(true);
+                   ov::op::v0::FakeQuantize>();
     transpose_sinking(matcher_name);
 }
 
@@ -97,7 +101,7 @@ TSBinaryBackward::TSBinaryBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

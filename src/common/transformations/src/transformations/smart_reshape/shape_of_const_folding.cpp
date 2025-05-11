@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/smart_reshape/shape_of_const_folding.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,9 +19,7 @@ ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         auto node = m.get_match_root();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = get_constant_from_source(node)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto constant = ov::util::get_constant_from_source(node)) {
             constant->set_friendly_name(node->get_friendly_name());
             copy_runtime_info(node, constant);
             replace_node(node, constant);

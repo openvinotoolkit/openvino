@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,6 +6,7 @@
 # Google Tests framework
 #
 
+set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
 set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
 
 set(BUILD_SHARED_LIBS OFF)
@@ -13,35 +14,44 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
-get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gtest_include_dirs}")
+function(_ov_gtest_filter_install_interface TARGET TYPE)
+    set(final_include_dirs "$<INSTALL_INTERFACE:developer_package/include/${TYPE}>")
 
-get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
-    "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
-
-set(gtest_targets gtest gtest_main gmock gmock_main)
-
-foreach(target IN LISTS gtest_targets)
-    # If we have specified /Z7 option, remove -Zi option which comes from gtest
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        get_target_property(_target_cxx_flags ${target} COMPILE_OPTIONS)
-        if(_target_cxx_flags)
-            if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
-                string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
-                message(STATUS "Removing -Zi flag from target " ${target})
-                set_target_properties(${target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
-            endif()
+    get_target_property(include_dirs ${TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+    foreach(include_dir IN LISTS include_dirs)
+        if(NOT include_dir MATCHES ".*INSTALL_INTERFACE.*")
+            # remove leading and trailing parts of generator expressions
+            string(REPLACE "$<BUILD_INTERFACE:" "" include_dir "${include_dir}")
+            string(REPLACE ">" "" include_dir "${include_dir}")
+            # wrap to BUILD_INTERFACE again
+            list(APPEND final_include_dirs "$<BUILD_INTERFACE:${include_dir}>")
         endif()
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR
-        CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    endforeach()
+
+    set_target_properties(${TARGET} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${final_include_dirs}"
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${final_include_dirs}")
+endfunction()
+
+_ov_gtest_filter_install_interface(gtest gtest)
+_ov_gtest_filter_install_interface(gtest_main gtest)
+_ov_gtest_filter_install_interface(gmock gmock)
+_ov_gtest_filter_install_interface(gmock_main gmock)
+
+foreach(target gtest gtest_main gmock gmock_main)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        get_target_property(_target_cxx_flags ${target} COMPILE_FLAGS)
+        if(_target_cxx_flags)
+            string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
+            set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${_target_cxx_flags}")
+        endif()
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         target_compile_options(${target} PRIVATE -Wno-undef)
         if(CMAKE_COMPILER_IS_GNUCXX)
             target_compile_options(${target} PRIVATE -Wno-deprecated-copy)
         endif()
     endif()
+    # disable warnings
     ov_disable_all_warnings(${target})
+    set_target_properties(${target} PROPERTIES FOLDER thirdparty)
 endforeach()
-
-set_target_properties(${gtest_targets}
-                      PROPERTIES FOLDER thirdparty)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     if (opsets.find(opset_name) != opsets.end())
         return opsets.at(opset_name)();
     if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset12();
+        return ov::get_opset15();  // TODO (ticket: 156877): Update to 16 at the end of opset16 development
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
@@ -484,6 +484,7 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
 #define MAKE_MAP_onnx(...)            MAKE_MAP_COMMON(onnx, __VA_ARGS__)
 #define MAKE_MAP_tensorflow(...)      MAKE_MAP_COMMON(tensorflow, __VA_ARGS__)
 #define MAKE_MAP_tensorflow_lite(...) MAKE_MAP_COMMON(tensorflow_lite, __VA_ARGS__)
+#define MAKE_MAP_pytorch(...)         MAKE_MAP_COMMON(pytorch, __VA_ARGS__)
 // make paddle OpExtension
 #define MAKE_MAP_paddle(...)                                                         \
     FRONTEND_EXPAND(GEN_VAR_PADDLE(__VA_ARGS__))                                     \

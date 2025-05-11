@@ -1,38 +1,33 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "input_model.hpp"
 
-#include <openvino/frontend/exception.hpp>
-#include <openvino/util/file_util.hpp>
-
-#include "ngraph/log.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 #endif
 
 InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
 InputModel::InputModel(std::istream& model_stream,
                        const std::string& path,
                        const bool enable_mmap,
                        frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {
-}
+    : m_editor{std::make_shared<ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModel::InputModel(std::istream& model_stream,
@@ -41,6 +36,9 @@ InputModel::InputModel(std::istream& model_stream,
                        frontend::ExtensionHolder extensions)
     : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
+
+InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
@@ -69,10 +67,14 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
     return nullptr;
 }
 
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
+}
+
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
-        const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
-        onnx_editor::EditorNode node{node_index};
+        const auto node_index = m_editor->get_node_index(EditorNode{operation_name});
+        EditorNode node{node_index};
         node.m_node_name = operation_name;
         return std::make_shared<PlaceOp>(node, m_editor);
     }
@@ -98,6 +100,8 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
 }
 
 void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     const auto original_name = onnx_tensor->get_names().at(0);
@@ -115,6 +119,8 @@ void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
 }
 
 void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(operation, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_operation = std::dynamic_pointer_cast<PlaceOp>(operation);
     FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
     onnx_operation->set_name(new_name);
@@ -127,12 +133,15 @@ void InputModel::free_name_for_operation(const std::string& name) {
 void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
                                         size_t shape_dim_index,
                                         const std::string& dim_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
+
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
 void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(tensor, __FUNCTION__, " expects a pointer to place.");
     FRONT_END_GENERAL_CHECK(!new_name.empty(), "The additional tensor name cannot be empty.");
 
     ov::frontend::Place::Ptr tensor_place = tensor;
@@ -154,7 +163,9 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& shape) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -174,7 +185,9 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
         m_inputs_to_reshape[input_name] = shape;
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -195,14 +208,17 @@ ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Pt
     return m_editor->get_tensor_shape(tensor_name);
 }
 
-void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
-    std::map<std::string, ngraph::element::Type_t> m;
+void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
+    std::map<std::string, ov::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
 
 ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
-    OPENVINO_ASSERT(place, "Cannot return a type for nullptr Place.");
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string tensor_name;
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -225,7 +241,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return element::undefined;
+    return ov::element::dynamic;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -265,32 +281,33 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << output->get_names().at(0)
-                          << " of output node is not a correct node name. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          output->get_names().at(0),
+                          " of output node is not a correct node name. Ignoring this parameter.");
         else
             expected_valid_outputs.push_back(output);
     }
 
     extract_subgraph({}, expected_valid_outputs);
 
-    NGRAPH_CHECK(std::all_of(std::begin(expected_valid_outputs),
-                             std::end(expected_valid_outputs),
-                             [](const ov::frontend::Place::Ptr& place) {
-                                 return place->is_output();
-                             }),
-                 "Not all provided arguments of override_all_outputs are new outputs of the model");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(expected_valid_outputs),
+                                        std::end(expected_valid_outputs),
+                                        [](const ov::frontend::Place::Ptr& place) {
+                                            return place->is_output();
+                                        }),
+                            "Not all provided arguments of override_all_outputs are new outputs of the model");
 
     const auto current_outputs = get_outputs();
-    NGRAPH_CHECK(std::all_of(std::begin(current_outputs),
-                             std::end(current_outputs),
-                             [&](const Place::Ptr& current_out) {
-                                 return std::find_if(std::begin(expected_valid_outputs),
-                                                     std::end(expected_valid_outputs),
-                                                     [&](const Place::Ptr& expected_out) {
-                                                         return expected_out->is_equal(current_out);
-                                                     }) != std::end(current_outputs);
-                             }),
-                 "Some other than expected outputs were created during override_all_outputs");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(current_outputs),
+                                        std::end(current_outputs),
+                                        [&](const Place::Ptr& current_out) {
+                                            return std::find_if(std::begin(expected_valid_outputs),
+                                                                std::end(expected_valid_outputs),
+                                                                [&](const Place::Ptr& expected_out) {
+                                                                    return expected_out->is_equal(current_out);
+                                                                }) != std::end(current_outputs);
+                                        }),
+                            "Some other than expected outputs were created during override_all_outputs");
 }
 
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
@@ -298,8 +315,9 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << input->get_names().at(0)
-                          << " of input node is not a correct node. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          input->get_names().at(0),
+                          " of input node is not a correct node. Ignoring this parameter.");
         else
             expected_valid_inputs.push_back(input);
     }
@@ -307,34 +325,36 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({expected_valid_inputs}, {});
 
-    NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
-                            std::end(outputs_before_extraction),
-                            std::begin(m_editor->model_outputs())),
-                 "All outputs should be preserved after override_all_inputs. Provided inputs does "
-                 "not satisfy all outputs");
+    FRONT_END_GENERAL_CHECK(std::equal(std::begin(outputs_before_extraction),
+                                       std::end(outputs_before_extraction),
+                                       std::begin(m_editor->model_outputs())),
+                            "All outputs should be preserved after override_all_inputs. Provided inputs does "
+                            "not satisfy all outputs");
 
     const auto current_inputs = get_inputs();
-    NGRAPH_CHECK(std::all_of(std::begin(current_inputs),
-                             std::end(current_inputs),
-                             [&](const Place::Ptr& current_in) {
-                                 return std::find_if(std::begin(expected_valid_inputs),
-                                                     std::end(expected_valid_inputs),
-                                                     [&](const Place::Ptr& expected_in) {
-                                                         return expected_in->is_equal(current_in);
-                                                     }) != std::end(current_inputs);
-                             }),
-                 "Some other than expected inputs were created during override_all_inputs");
+    FRONT_END_GENERAL_CHECK(std::all_of(std::begin(current_inputs),
+                                        std::end(current_inputs),
+                                        [&](const Place::Ptr& current_in) {
+                                            return std::find_if(std::begin(expected_valid_inputs),
+                                                                std::end(expected_valid_inputs),
+                                                                [&](const Place::Ptr& expected_in) {
+                                                                    return expected_in->is_equal(current_in);
+                                                                }) != std::end(current_inputs);
+                                        }),
+                            "Some other than expected inputs were created during override_all_inputs");
 }
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    std::vector<onnx_editor::InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
-    std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
+    std::vector<InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
+    std::vector<OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
 
     m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
 }
 
 ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& place) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string name = place->get_names().at(0);
 
     const auto& outputs = m_editor->model_outputs();
@@ -356,7 +376,7 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
     } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port)) {
-        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
+        FRONT_END_GENERAL_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
         return nullptr;
@@ -366,6 +386,8 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
 }
 
 void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
+
     std::string name = place->get_names().at(0);
     std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
     const auto& output_names = m_editor->model_outputs();
@@ -375,7 +397,7 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&place](ov::frontend::Place::Ptr const& output) {
+                                     [&place](const ov::frontend::Place::Ptr& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());
@@ -385,11 +407,13 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
 }
 
 void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, const std::string& new_name_optional) {
-    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
-    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
 
     if (place->is_input())
         return;
+
+    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
 
     const auto edge_place = convert_place_to_input_edge({place});
     const auto edge_outputs = convert_place_to_output_edge(outputs);
@@ -406,15 +430,17 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, co
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
-    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
+    FRONT_END_GENERAL_CHECK(place, __FUNCTION__, " expects a pointer to place.");
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
+        std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> map;
+
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
 
-        std::shared_ptr<ngraph::op::Constant> constant =
-            ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        std::shared_ptr<ov::op::v0::Constant> constant =
+            ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
 
         constant->set_friendly_name(name);
         map.emplace(name, constant);
@@ -422,9 +448,8 @@ void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const v
     }
 }
 
-std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
-    const std::vector<ov::frontend::Place::Ptr>& inputs) {
-    std::vector<onnx_editor::InputEdge> onnx_inputs;
+std::vector<InputEdge> InputModel::convert_place_to_input_edge(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    std::vector<InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdge>(input)) {
@@ -436,7 +461,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
             std::transform(std::begin(consumers),
                            std::end(consumers),
                            std::back_inserter(onnx_inputs),
-                           [](const onnx_editor::InputEdge& edge) {
+                           [](const InputEdge& edge) {
                                return edge;
                            });
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(input)) {
@@ -449,7 +474,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
                            std::end(op_inputs),
                            std::back_inserter(onnx_inputs),
                            [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::InputEdge{node_idx, port_idx++};
+                               return InputEdge{node_idx, port_idx++};
                            });
         }
     }
@@ -457,9 +482,8 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
     return onnx_inputs;
 }
 
-std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
-    const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    std::vector<onnx_editor::OutputEdge> onnx_outputs;
+std::vector<OutputEdge> InputModel::convert_place_to_output_edge(const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    std::vector<OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
         if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdge>(output)) {
@@ -468,7 +492,8 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output)) {
             const auto output_port = tensor->get_producing_port();
             const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port);
-            NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
+            FRONT_END_GENERAL_CHECK(onnx_output_edge,
+                                    "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(output)) {
             op->check_if_valid();
@@ -480,7 +505,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
                            std::end(op_outputs),
                            std::back_inserter(onnx_outputs),
                            [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::OutputEdge{node_idx, port_idx++};
+                               return OutputEdge{node_idx, port_idx++};
                            });
         }
     }
@@ -489,11 +514,13 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
 }
 
 void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
+    FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
+
     auto model_inputs = model->inputs();
     const auto find_input_by_tensor_name = [&model_inputs](const std::string& name) {
         return std::find_if(std::begin(model_inputs),
                             std::end(model_inputs),
-                            [&name](const OutputVector::value_type& input) {
+                            [&name](const ov::OutputVector::value_type& input) {
                                 return input.get_names().count(name) > 0;
                             });
     };
@@ -509,9 +536,11 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
 }
 
 void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
+    FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
+
     const auto& inputs = model->inputs();
     const auto is_input_name = [&inputs](const std::string& name) {
-        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {
+        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const ov::OutputVector::value_type& input) {
                    return input.get_names().count(name) > 0;
                }) != std::end(inputs);
     };

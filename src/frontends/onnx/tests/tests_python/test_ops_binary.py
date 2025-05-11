@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,7 +21,7 @@ def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **no
     output_tensors = [make_tensor_value_info(name, onnx.TensorProto.FLOAT, ()) for name in onnx_node.output]
 
     graph = make_graph([onnx_node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="ngraph ONNX Importer")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     model.opset_import[0].version = opset
     inputs = [i.astype(np.float32) for i in inputs]  # WA for new Python API
     return run_model(model, inputs)[0]

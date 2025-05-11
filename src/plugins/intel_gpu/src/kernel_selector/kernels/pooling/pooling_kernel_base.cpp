@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #include <algorithm>
 
 namespace kernel_selector {
-bool PoolingKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::POOLING || o.GetType() != KernelType::POOLING) {
+bool PoolingKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::POOLING) {
         return false;
     }
 
@@ -183,9 +183,8 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
     return dispatchData;
 }
 
-KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
-                                                    const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -196,16 +195,15 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<pooling_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT, false, false, 1,
                      GetFusedPrimitiveInputsCount(params));
-    uint32_t param_idx = 1;
 
     if (orgParams.maxPoolOpset8Features) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, param_idx++});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
     }
 
     return {kd};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct primitive_db {
     primitive_db();
 
     std::vector<code> get(const primitive_id& id) const;
-    std::vector<code> get_batch_header_str() const { return std::move(batch_header_str); }
+    std::map<std::string, code> get_batch_headers() const { return std::move(batch_headers); }
 
 private:
     struct case_insensitive_compare {
@@ -35,7 +35,7 @@ private:
         }
     };
     std::multimap<primitive_id, code, case_insensitive_compare> primitives;
-    std::vector<code> batch_header_str;
+    std::map<std::string, code> batch_headers;
 };
 
 }  // namespace cache

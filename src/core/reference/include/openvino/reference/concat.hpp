@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace reference {
@@ -15,6 +16,8 @@ void concat(const std::vector<const char*>& args,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
-            size_t elem_size);
-}
+            size_t elem_size,
+            const ov::element::Type& elem_type = ov::element::Type_t::dynamic);
+
+}  // namespace reference
 }  // namespace ov

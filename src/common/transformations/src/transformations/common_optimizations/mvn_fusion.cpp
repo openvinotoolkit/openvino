@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -28,7 +30,7 @@ template <class T>
 std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ov::Output<ov::Node> output) -> bool {
         auto node = output.get_node_shared_ptr();
-        if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
+        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
             return const_node->template cast_vector<T>() == ref_values;
         }
         return false;
@@ -60,14 +62,12 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
-
-    auto cast = pattern::wrap_type<ov::op::v0::Convert>({reuseSub1OrNot});
-    const auto hasConvertOrNot = std::make_shared<pattern::op::Or>(OutputVector{cast, reuseSub1OrNot});
+    const auto optionalConvert = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
     auto const_2 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({2.0}));
-    auto power = pattern::wrap_type<ov::op::v1::Power>({hasConvertOrNot, const_2});
+    auto power = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //     `---mean3--------------------------------'
@@ -114,17 +114,16 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
-        auto const_eps_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
         if (!op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
         auto axes_1_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
         auto axes_3_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
 
         if (!axes_1_node || !axes_3_node) {
             return false;
@@ -138,7 +137,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         }
         if (pattern_to_output.count(mean2_axes)) {
             auto axes_2_node =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
             }
@@ -180,8 +179,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             nodes_to_copy_info.push_back(pattern_to_output.at(sub2).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.count(cast)) {
-            nodes_to_copy_info.push_back(pattern_to_output.at(cast).get_node_shared_ptr());
+        if (pattern_to_output.count(optionalConvert)) {
+            auto cast = pattern_to_output.at(optionalConvert).get_node_shared_ptr();
+            nodes_to_copy_info.push_back(cast);
         }
 
         if (pattern_to_output.count(div_alt)) {
@@ -260,13 +260,11 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         auto x_output = pattern_to_output.at(x);
 
         auto const_0_5_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
         auto const_gamma_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
-        auto const_beta_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
-        auto const_eps_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
+        auto const_beta_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         if (!const_0_5_node || !const_beta_node || !const_gamma_node || !const_eps_node) {
             return false;
         }
@@ -279,9 +277,9 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         auto axes_1_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
         auto axes_2_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
         if (!axes_1_node || !axes_2_node) {
             return false;
         }

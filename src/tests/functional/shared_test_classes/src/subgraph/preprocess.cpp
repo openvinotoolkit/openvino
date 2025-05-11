@@ -1,18 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/preprocess.hpp"
-#include "ngraph_functions/preprocess/preprocess_builders.hpp"
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
 using namespace ov::builder::preprocess;
 
-namespace SubgraphTestsDefinitions {
-std::string PrePostProcessTest::getTestCaseName(
-        const testing::TestParamInfo<preprocessParamsTuple> &obj) {
+namespace ov {
+namespace test {
+
+std::string PrePostProcessTest::getTestCaseName(const testing::TestParamInfo<preprocessParamsTuple>& obj) {
     std::string targetName;
     preprocess_func func;
 
@@ -29,7 +31,7 @@ void PrePostProcessTest::SetUp() {
     std::tie(func, targetDevice) = GetParam();
     function = func.m_function();
     rel_threshold = func.m_accuracy;
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
     abs_threshold = func.m_accuracy;
     if (func.m_shapes.empty()) {
         for (const auto& input : function->inputs()) {
@@ -43,4 +45,5 @@ TEST_P(PrePostProcessTest, CompareWithRefs) {
     run();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

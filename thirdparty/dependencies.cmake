@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,23 +9,28 @@ elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
 endif()
 
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+set(_old_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+set(_old_CMAKE_COMPILE_WARNING_AS_ERROR ${CMAKE_COMPILE_WARNING_AS_ERROR})
 
-# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
-# build system pkg-config executable, which finds packages on build system. Such
-# libraries cannot be linked into Android binaries.
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
-    # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
-    # so, we have to use 'IMPORTED_GLOBAL' property
-    if(CMAKE_VERSION VERSION_LESS 3.18)
-        set(OV_PkgConfig_VISILITY GLOBAL)
-    endif()
+find_package(PkgConfig QUIET)
+# see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+# cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
+# so, we have to use 'IMPORTED_GLOBAL' property
+if(CMAKE_VERSION VERSION_LESS 3.18)
+    set(OV_PkgConfig_VISIBILITY GLOBAL)
 endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
+# temporarily remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
+if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
+        ov_add_compiler_flags(/WX-)
+    endif()
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 endif()
 
 if(ENABLE_LTO)
@@ -47,7 +52,7 @@ if(ENABLE_PROFILING_ITT)
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
-    add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/itt_collector)
 endif()
 
 if(X86_64 OR X86 OR UNIVERSAL2)
@@ -56,9 +61,28 @@ if(X86_64 OR X86 OR UNIVERSAL2)
         # conan creates alias xbyak::xbyak, no extra steps are required
     else()
         add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
-        # export and install xbyak
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak::xbyak)
-        ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+    endif()
+endif()
+
+#
+# LevelZero
+#
+
+if(ENABLE_INTEL_NPU)
+    if(ENABLE_SYSTEM_LEVEL_ZERO)
+        pkg_search_module(level_zero QUIET
+                          IMPORTED_TARGET
+                          ${OV_PkgConfig_VISIBILITY}
+                          level-zero)
+        if(level_zero_FOUND)
+            add_library(LevelZero::LevelZero ALIAS PkgConfig::level_zero)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: level_zero (${level_zero_VERSION}) is found at ${level_zero_PREFIX}")
+        endif()
+    endif()
+
+    if(NOT level_zero_FOUND)
+        add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+        add_library(LevelZero::LevelZero ALIAS ze_loader)
     endif()
 endif()
 
@@ -132,26 +156,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    find_package(ZLIB QUIET)
-    if(ZLIB_FOUND)
-        # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
-    endif()
-
-    # cmake has failed to find zlib, let's try pkg-config
-    if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET
-                          zlib)
-        if(zlib_FOUND)
-            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
-            set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-        endif()
-    endif()
-
-    if(NOT (zlib_FOUND OR ZLIB_FOUND))
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
 #
@@ -197,7 +202,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         # Ubuntu 18.04 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
-                          ${OV_PkgConfig_VISILITY}
+                          ${OV_PkgConfig_VISIBILITY}
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
@@ -256,7 +261,7 @@ if(ENABLE_SYSTEM_PUGIXML)
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
@@ -274,12 +279,13 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
+            set(PUGIXML_INSTALL OFF CACHE BOOL "" FORCE)
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
+        ov_developer_package_export_targets(TARGET openvino::pugixml)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -287,95 +293,12 @@ if(NOT TARGET openvino::pugixml)
 endif()
 
 #
-# Fluid, G-API, OpenCV HAL
-#
-
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(ocv_hal INTERFACE)
-    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocv")
-
-    # ade
-    find_package(ade 0.1.0 QUIET)
-    if(ade_FOUND)
-        # conan and vcpkg create 'ade' target
-        # we just need to remove non-numerical symbols from version,
-        # because conan defines it as 0.1.2a, which is invalid in cmake
-        string(REGEX REPLACE "[a-z]" "" ade_VERSION "${ade_VERSION}")
-    else()
-        add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
-
-        set_target_properties(ade PROPERTIES FOLDER thirdparty)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade)
-
-        ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
-    endif()
-
-    # fluid
-    add_subdirectory(thirdparty/fluid/modules/gapi EXCLUDE_FROM_ALL)
-
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
-    endif()
-    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-        target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
-    endif()
-
-    set_target_properties(fluid PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS fluid)
-
-    ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
-endif()
-
-#
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
-        # vcpkg contains only libs compiled with threads
-        # conan case
-        find_package(gflags QUIET)
-    elseif(APPLE OR WIN32)
-        # on Windows and macOS we don't use gflags, because will be dynamically linked
-    elseif(CMAKE_HOST_LINUX AND LINUX)
-        if(OV_OS_RHEL)
-            set(gflag_component nothreads_shared)
-        elseif(OV_OS_DEBIAN)
-            set(gflag_component nothreads_static)
-        endif()
-        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
-    endif()
-
-    if(gflags_FOUND)
-        if(TARGET gflags)
-            # no extra steps
-        elseif(TARGET gflags_nothreads-static)
-            # Debian 9: gflag_component is ignored
-            set(gflags_target gflags_nothreads-static)
-        elseif(TARGET gflags_nothreads-shared)
-            # CentOS / RHEL / Fedora case
-            set(gflags_target gflags_nothreads-shared)
-        elseif(TARGET ${GFLAGS_TARGET})
-            set(gflags_target ${GFLAGS_TARGET})
-        else()
-            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
-        endif()
-
-        if(gflags_target)
-            if(OV_PkgConfig_VISILITY)
-                # need to set GLOBAL visibility in order to create ALIAS for this target
-                set_target_properties(${gflags_target} PROPERTIES IMPORTED_GLOBAL ON)
-            endif()
-            add_library(gflags ALIAS ${gflags_target})
-        endif()
-
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflag_component}' component")
-    endif()
-
-    if(NOT TARGET gflags)
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
-    endif()
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    ov_developer_package_export_targets(TARGET gflags)
 endif()
 
 #
@@ -388,7 +311,7 @@ if(ENABLE_TESTS)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
-            if(OV_PkgConfig_VISILITY)
+            if(OV_PkgConfig_VISIBILITY)
                 # need to set GLOBAL visibility in order to create ALIAS for this target
                 set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
             endif()
@@ -396,8 +319,14 @@ if(ENABLE_TESTS)
         endforeach()
     else()
         add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT tests
-                                          TARGETS gmock gmock_main gtest gtest_main)
+        # install & export
+        set(googletest_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest")
+        ov_developer_package_export_targets(TARGET gtest_main
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googletest/include/")
+        ov_developer_package_export_targets(TARGET gtest
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googletest/include/")
+        ov_developer_package_export_targets(TARGET gmock
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googlemock/include/")
     endif()
 endif()
 
@@ -415,20 +344,43 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        if(OV_VCPKG_BUILD)
-            set(protobuf_config CONFIG)
-        endif()
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET ${protobuf_config})
+        find_package(Protobuf 5.26.0 QUIET CONFIG)
         if(NOT Protobuf_FOUND)
+            find_package(Protobuf 4.22.0 QUIET CONFIG)
+        endif()
+        if(Protobuf_FOUND)
+            # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
+            set(protobuf_config CONFIG)
+        else()
+            if(OV_VCPKG_BUILD)
+                set(protobuf_config CONFIG)
+            endif()
             # otherwise, fallback to existing default
             find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
         endif()
-        set(PROTOC_EXECUTABLE protobuf::protoc)
+
+        # with newer protobuf versions (4.22 and newer), we use CONFIG first
+        # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
+        # because it's not used in this case (oppositely to MODULE case)
+        if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
+            set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
+        else()
+            set(PROTOC_EXECUTABLE protobuf::protoc)
+        endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
+        # protobuf fails to build with -fsanitize=thread by clang
+        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
+            foreach(proto_target protoc libprotobuf libprotobuf-lite)
+                if(TARGET ${proto_target})
+                    target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                    target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                endif()
+            endforeach()
+        endif()
     endif()
 
     # forward additional variables used in the other places
@@ -440,7 +392,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET ${original_name})
                 # during build protobuf's cmake creates aliased targets
@@ -462,25 +414,13 @@ endif()
 
 if(ENABLE_OV_TF_LITE_FRONTEND)
     if(ENABLE_SYSTEM_FLATBUFFERS)
-        if(CMAKE_HOST_LINUX)
-            set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
-            # without this WA cmake does not search in <triplet> subfolder
-            # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
-            if(HOST_X86_64)
-                set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-            elseif(HOST_AARCH64)
-                set(CMAKE_LIBRARY_ARCHITECTURE "aarch64-linux-gnu")
-            endif()
-        endif()
+        ov_cross_compile_define_debian_arch()
 
         # on new Ubuntu versions like 23.04 we have config called FlatBuffersConfig.cmake
         # so, we need to provide alternative names
         find_host_package(Flatbuffers QUIET NAMES Flatbuffers FlatBuffers NO_CMAKE_FIND_ROOT_PATH)
 
-        if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
-            set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
-            unset(_old_flat_CMAKE_LIBRARY_ARCHITECTURE)
-        endif()
+        ov_cross_compile_define_debian_arch_reset()
     endif()
 
     if(Flatbuffers_FOUND)
@@ -495,6 +435,10 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
+
+        # used by NPU repo
+        set(flatc_COMMAND flatc)
+        set(flatc_TARGET flatc)
     endif()
 
     # set additional variables, used in other places of our cmake scripts
@@ -516,7 +460,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(ov_snappy_lib Snappy::snappy-static)
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
@@ -530,23 +474,24 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
             set(INSTALL_GTEST OFF)
-            set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4018)
+                ov_add_compiler_flags(/wd4018)
                 # conditional expression is constant
-                ie_add_compiler_flags(/wd4127)
+                ov_add_compiler_flags(/wd4127)
                 # 'conversion' conversion from 'type1' to 'type2', possible loss of data
-                ie_add_compiler_flags(/wd4244)
+                ov_add_compiler_flags(/wd4244)
                 # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4245)
+                ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
-                ie_add_compiler_flags(/wd4267)
-            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+                ov_add_compiler_flags(/wd4267)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
-                ie_add_compiler_flags(-Wextra)
-                ie_add_compiler_flags(-Wno-sign-compare)
+                ov_add_compiler_flags(-Wextra)
+                ov_add_compiler_flags(-Wno-sign-compare)
+            elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+                ov_add_compiler_flags(/WX-)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
@@ -569,10 +514,17 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.13.1 EXACT QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
+        # newer versions of ONNX in vcpkg has ONNX:: prefix, let's create aliases
+        if(TARGET ONNX::onnx)
+            add_library(onnx ALIAS ONNX::onnx)
+        endif()
+        if(TARGET ONNX::onnx_proto)
+            add_library(onnx_proto ALIAS ONNX::onnx_proto)
+        endif()
     else()
         add_subdirectory(thirdparty/onnx)
     endif()
@@ -582,24 +534,23 @@ endif()
 # nlohmann json
 #
 
-if(ENABLE_SAMPLES)
-    # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
-    find_package(nlohmann_json 3.9.0 QUIET)
-    if(nlohmann_json_FOUND)
-        # conan and vcpkg create imported target nlohmann_json::nlohmann_json
-    else()
-        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+# Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+find_package(nlohmann_json 3.9.0 QUIET)
+if(nlohmann_json_FOUND)
+    # conan and vcpkg create imported target nlohmann_json::nlohmann_json
+else()
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of NPU plugin reused this
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+    # this is required only because of NPU plugin reused this: export & install
+    ov_developer_package_export_targets(TARGET nlohmann_json
+                                        INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
 
-        # for nlohmann library versions older than v3.0.0
-        if(NOT TARGET nlohmann_json::nlohmann_json)
-            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-                INTERFACE_LINK_LIBRARIES nlohmann_json
-                INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
-        endif()
+    # for nlohmann library versions older than v3.0.0
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+        set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+            INTERFACE_LINK_LIBRARIES nlohmann_json
+            INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
     endif()
 endif()
 
@@ -607,80 +558,55 @@ endif()
 # Install
 #
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
-    # These libraries are dependencies for openvino-samples package
-    if(ENABLE_SAMPLES OR ENABLE_TESTS)
-        if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-            message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
-        endif()
-        if(NOT (zlib_FOUND OR ZLIB_FOUND))
-            message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
-        endif()
-    endif()
-
-    if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
-    endif()
-elseif(APPLE OR WIN32)
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
-            PATTERN bazel EXCLUDE
-            PATTERN doc EXCLUDE
-            PATTERN .git EXCLUDE
-            PATTERN appveyor.yml EXCLUDE
-            PATTERN AUTHORS.txt EXCLUDE
-            PATTERN BUILD EXCLUDE
-            PATTERN ChangeLog.txt EXCLUDE
-            PATTERN .gitattributes EXCLUDE
-            PATTERN .gitignore EXCLUDE
-            PATTERN .gitmodules EXCLUDE
-            PATTERN test EXCLUDE
-            PATTERN INSTALL.md EXCLUDE
-            PATTERN README.md EXCLUDE
-            PATTERN .travis.yml EXCLUDE
-            PATTERN WORKSPACE EXCLUDE)
-
-    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
-                           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
-    install(FILES ${zlib_sources}
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
-            PATTERN ChangeLog.md EXCLUDE
-            PATTERN CITATION.cff EXCLUDE
-            PATTERN .clang-format EXCLUDE
-            PATTERN .clang-tidy EXCLUDE
-            PATTERN docs EXCLUDE
-            PATTERN .git EXCLUDE
-            PATTERN .github EXCLUDE
-            PATTERN .gitignore EXCLUDE
-            PATTERN .lgtm.yml EXCLUDE
-            PATTERN Makefile EXCLUDE
-            PATTERN meson.build EXCLUDE
-            PATTERN README.md EXCLUDE
-            PATTERN .reuse EXCLUDE
-            PATTERN tests EXCLUDE
-            PATTERN tools EXCLUDE
-            PATTERN wsjcpp.yml EXCLUDE)
-endif()
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN bazel EXCLUDE
+        PATTERN doc EXCLUDE
+        PATTERN .git EXCLUDE
+        PATTERN appveyor.yml EXCLUDE
+        PATTERN AUTHORS.txt EXCLUDE
+        PATTERN BUILD EXCLUDE
+        PATTERN ChangeLog.txt EXCLUDE
+        PATTERN .gitattributes EXCLUDE
+        PATTERN .gitignore EXCLUDE
+        PATTERN .gitmodules EXCLUDE
+        PATTERN test EXCLUDE
+        PATTERN INSTALL.md EXCLUDE
+        PATTERN README.md EXCLUDE
+        PATTERN .travis.yml EXCLUDE
+        PATTERN src/gflags_completions.sh EXCLUDE
+        PATTERN WORKSPACE EXCLUDE)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN BUILD.bazel EXCLUDE
+        PATTERN ChangeLog.md EXCLUDE
+        PATTERN CITATION.cff EXCLUDE
+        PATTERN .cirrus.yml EXCLUDE
+        PATTERN .clang-format EXCLUDE
+        PATTERN .clang-tidy EXCLUDE
+        PATTERN docs EXCLUDE
+        PATTERN .git EXCLUDE
+        PATTERN .github EXCLUDE
+        PATTERN .gitignore EXCLUDE
+        PATTERN .lgtm.yml EXCLUDE
+        PATTERN Makefile EXCLUDE
+        PATTERN meson.build EXCLUDE
+        PATTERN Package.swift EXCLUDE
+        PATTERN README.md EXCLUDE
+        PATTERN .reuse EXCLUDE
+        PATTERN tests EXCLUDE
+        PATTERN tools EXCLUDE
+        PATTERN WORKSPACE.bazel EXCLUDE
+        PATTERN wsjcpp.yml EXCLUDE)
 
 # restore state
 
 set(CMAKE_CXX_FLAGS "${_old_CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "${_old_CMAKE_C_FLAGS}")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+set(CMAKE_COMPILE_WARNING_AS_ERROR ${_old_CMAKE_COMPILE_WARNING_AS_ERROR})

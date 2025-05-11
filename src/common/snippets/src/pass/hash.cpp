@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,20 +10,18 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {
 namespace snippets {
 namespace pass {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 // helper
 namespace {
 template <typename Container>
@@ -62,7 +60,7 @@ static uint64_t hash_combine(uint64_t seed, const T &v) {
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -152,7 +150,6 @@ public:
 
 void ovfunction_2_hash(uint64_t& hash, const ov::Model& model);
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 class SnippetsHasher : public ov::AttributeVisitor {
     uint64_t& m_hash;
     const std::string& m_node_type_name;
@@ -169,10 +166,10 @@ public:
           m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_hash = hash_combine(hash_combine(m_hash, name), a->get()->get_info().variable_id);
         } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && m_node_type_name == "Constant") {
                 m_hash = hash_combine(m_hash, AttrType::constant);
                 const int64_t size = a->get()->size();
@@ -237,7 +234,6 @@ public:
         ovfunction_2_hash(m_hash, *adapter.get());
     }
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
     std::unordered_map<ov::Node*, int> layer_ids;

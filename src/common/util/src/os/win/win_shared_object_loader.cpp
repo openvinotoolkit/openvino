@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,9 @@
 namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    return ov::util::load_shared_object(ov::util::string_to_wstring(path).c_str());
+#else
     void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
@@ -92,15 +95,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
         IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
         // GetDirname
-        auto dirname = [path] {
-            auto pos = strchr(path, '\\');
-            if (pos == nullptr) {
-                return std::string{path};
-            }
-            std::string original(path);
-            original[pos - path] = 0;
-            return original;
-        }();
+        auto dirname = get_directory(path);
 
         SetDllDirectoryA(dirname.c_str());
         shared_object = LoadLibraryA(path);
@@ -121,6 +116,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
     return {shared_object, [](void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
+#endif
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

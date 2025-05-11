@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,7 @@ public:
              const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v1

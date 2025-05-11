@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/space_to_depth.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -14,7 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_space_to_depth_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"SpaceToDepth"});
+    default_op_checks(node, 1, {"SpaceToDepth", "SPACE_TO_DEPTH"});
     auto input_data = node.get_input(0);
 
     // retrieve attributes
@@ -27,8 +28,8 @@ OutputVector translate_space_to_depth_op(const NodeContext& node) {
     bool is_nhwc = (data_format == "NHWC");
 
     convert_nhwc_to_nchw(is_nhwc, input_data);
-    auto mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-    auto space_to_depth = make_shared<SpaceToDepth>(input_data, mode, block_size)->output(0);
+    auto mode = v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    auto space_to_depth = make_shared<v0::SpaceToDepth>(input_data, mode, block_size)->output(0);
     convert_nchw_to_nhwc(is_nhwc, space_to_depth);
     set_node_name(node.get_name(), space_to_depth.get_node_shared_ptr());
     return {space_to_depth};

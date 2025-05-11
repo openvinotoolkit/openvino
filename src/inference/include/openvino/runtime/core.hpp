@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <filesystem>
 #include <istream>
 #include <map>
 #include <memory>
@@ -24,10 +25,6 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
-
-namespace InferenceEngine {
-class IExtension;
-}  // namespace InferenceEngine
 
 namespace ov {
 
@@ -50,8 +47,9 @@ public:
      * 1. (default) Use XML configuration file in case of dynamic libraries build;
      * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
-     * specified, default OpenVINO Runtime plugins are loaded from:
+     * @param xml_config_file Path to the .xml file with plugins to load from. If path contains only file name
+     * with extension, file will be searched in a folder with OpenVINO runtime shared library.
+     * If the XML configuration file is not specified, default OpenVINO Runtime plugins are loaded from:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
@@ -78,11 +76,14 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
      */
-    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
+                                          const std::wstring& bin_path = {},
+                                          const ov::AnyMap& properties = {}) const;
 #endif
 
     /**
@@ -95,11 +96,53 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
+     * @{
      */
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
+                                          const std::string& bin_path = {},
+                                          const ov::AnyMap& properties = {}) const;
+
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
+        return read_model(model_path.string(), bin_path.string(), properties);
+    }
+    /// @}
+
+    /**
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
+     *
+     * @param model_path Path to a model.
+     * @param bin_path Path to a data file.
+     * For IR format (*.bin):
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
+     *  * if the bin file with the same name is not found, will load IR without weights.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb, *.meta, SavedModel directory)
+     *  * TFLite (*.tflite)
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this read operation.
+     * @return A model.
+     * @{
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> read_model(const std::string& model_path,
+                                                                        const std::string& bin_path,
+                                                                        Properties&&... properties) const {
+        return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <class Path,
+              class... Properties,
+              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
+    auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
+        return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+    }
+    /// @}
 
     /**
      * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
@@ -200,6 +243,11 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
+        return compile_model(model_path.string(), properties);
+    }
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
 #endif
@@ -224,6 +272,11 @@ public:
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
                                                                            Properties&&... properties) {
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto compile_model(const Path& model_path, Properties&&... properties) {
+        return compile_model(model_path.string(), std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -253,6 +306,11 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
+        return compile_model(model_path.string(), device_name, properties);
+    }
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path,
                                 const std::string& device_name,
@@ -280,6 +338,11 @@ public:
                                                                            const std::string& device_name,
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
+        return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -359,21 +422,18 @@ public:
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated This method is deprecated. Please use other Core::add_extension methods.
-     * @brief Registers OpenVINO 1.0 extension to a Core object.
-     * @param extension Pointer to the already loaded extension.
-     */
-    OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     /**
      * @brief Registers an extension to a Core object.
      * @param library_path Path to the library with ov::Extension.
+     * @{
      */
     void add_extension(const std::string& library_path);
+
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    void add_extension(const Path& model_path) {
+        add_extension(model_path.string());
+    }
+    /// @}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
@@ -667,7 +727,7 @@ public:
      * @brief Returns devices available for inference.
      * Core objects go over all registered plugins and ask about available devices.
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }.
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }.
      * If there is more than one device of a specific type, they are enumerated with the .# suffix.
      * Such enumerated device can later be used as a device name in all Core methods like Core::compile_model,
      * Core::query_model, Core::set_property and so on.

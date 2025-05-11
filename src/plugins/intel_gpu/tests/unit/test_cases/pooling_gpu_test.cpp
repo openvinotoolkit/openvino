@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -229,7 +231,7 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr (output_prim, get_test_stream());
     ASSERT_EQ(4.0f, output_ptr[3]);
 }
 
@@ -275,11 +277,16 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
 TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 3, 3 } };
+    layout out_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 1, 1 } };
+    layout byte_layout = { ov::element::from<int8_t>(), format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
     std::list<float> final_results = { 9.0f };
+
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 10.0f };
+    }
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -299,6 +306,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     );
 
     ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder2" }));
     network network(engine, topology, cfg);
 
@@ -318,9 +326,9 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
 
     auto& engine = get_test_engine();
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 3, 3 } };
+    layout out_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 1, 1 } };
+    layout byte_layout = { ov::element::from<int8_t>(), format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 2.0f, -2.5f, 5.1f, -4.0f, 8.03f, -6.99f, 17.0f, -8.0f, 19.5f };
     // Average pooling returns fp32 by default for int8 inputs
     auto final_result = 0.0f;
@@ -717,9 +725,13 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
     topology.add(input_layout("input_prim", input_prim->get_layout()));
     topology.add(pooling("pool_prim", input_info("input_prim"), pooling_mode::average, { 3, 3 }, { 3, 3 }, {1, 1}));
 
-    network network(engine, topology, get_test_default_config(engine));
+    auto cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool_prim", {format::any, "", impl_types::ocl}}}));
+    network network(engine, topology, cfg);
 
-    std::vector<float> input_vec = { 1.5f, -0.5f, -1.0f, 0.5f, 0.1f, 0.2f, 0.9f, 1.1f, 2.2f };
+    std::vector<float> input_vec = { 1.5f, -0.5f, -1.0f,
+                                     0.5f, 0.1f, 0.2f,
+                                     0.9f, 1.1f, 2.2f };
     set_values(input_prim, input_vec);
 
     network.set_input_data("input_prim", input_prim);
@@ -818,7 +830,9 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_out
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(pooling("pool_prim", input_info("input_prim"), pooling_mode::average, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 2, 2}, 0}));
+        auto pool = pooling("pool_prim", input_info("input_prim"), pooling_mode::average, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 2, 2}, 0} };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
         set_values(input_prim, { 1.5f, -0.5f, -1.0f, 0.5f });
@@ -879,7 +893,9 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(pooling("pool_prim", input_info("input_prim"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 1, 1}, 0}));
+        auto pool = pooling("pool_prim", input_info("input_prim"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 1, 1}, 0} };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
 
@@ -904,7 +920,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -949,8 +965,10 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inp
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ {0,0,1,2}, 0 })));
-        topology.add(pooling("pool_prim", input_info("reorder"), pooling_mode::average, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 2, 2}, 0}));
+        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ {0,0,2,1}, 0 })));
+        auto pool = pooling("pool_prim", input_info("reorder"), pooling_mode::average, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 2, 2}, 0} };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
         set_values(input_prim, { 1.5f, -0.5f, -1.0f, 0.5f });
@@ -1012,8 +1030,10 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
-        topology.add(pooling("pool_prim", input_info("reorder"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 1, 1}, 0}));
+        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
+        auto pool = pooling("pool_prim", input_info("reorder"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 1, 1}, 0} };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
 
@@ -1038,7 +1058,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -1083,8 +1103,10 @@ TEST(pooling_forward_gpu, avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inpad2x1_ou
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
-        topology.add(pooling("pool_prim", input_info("reorder"), pooling_mode::average, { 2, 2 }, { 2, 2 }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{ { 0, 0, 2, 2 }, 0 }));
+        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
+        auto pool = pooling("pool_prim", input_info("reorder"), pooling_mode::average, { 2, 2 }, { 2, 2 }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{ { 0, 0, 2, 2 }, 0 } };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
         set_values(input_prim, {
@@ -1151,8 +1173,10 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
 
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
-        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
-        topology.add(pooling("pool_prim", input_info("reorder"), pooling_mode::max, { 2, 2}, { 2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 1, 1}, 0}));
+        topology.add(reorder("reorder", input_info("input_prim"), input_prim->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
+        auto pool = pooling("pool_prim", input_info("reorder"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 1, 1}, 0} };
+        topology.add(pool);
 
         network network(engine, topology, get_test_default_config(engine));
 
@@ -1180,7 +1204,7 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 9);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 25);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -1220,9 +1244,11 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
         tpl.add(reorder("reorder", input_info("in"), input_mem->get_layout().with_padding((padding) off.sizes())));
         pool_in = "reorder";
     }
-    tpl.add(pooling("pool", input_info(pool_in), pooling_mode::average_no_padding, window, stride, offset));
+    tpl.add(pooling("pool", input_info(pool_in), pooling_mode::average_no_padding, window, stride, offset, offset));
 
-    network net(engine, tpl);
+    auto cfg = get_test_default_config(get_test_engine());
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool", {format::any, "", impl_types::ocl}}}));
+    network net(engine, tpl, cfg);
     net.set_input_data("in", input_mem);
     auto output_mem = net.execute().at("pool").get_memory();
 
@@ -1258,22 +1284,22 @@ TEST(pooling_forward_gpu, bfyx_average_without_padding_i1x1_w3x3_s1x1_o1x1)
 //bfyx fp16
 TEST(pooling_forward_gpu, bfyx_average_without_padding_i3x3_w2x2_s2x2_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {0, 0});
+    generic_average_wo_padding_test<ov::float16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {0, 0});
 }
 
 TEST(pooling_forward_gpu, bfyx_average_without_padding_i3x3_w2x2_s2x2_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {1, 1});
 }
 
 TEST(pooling_forward_gpu, bfyx_average_without_padding_i3x3_w2x2_s3x3_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {3, 3}, {2, 2}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfyx, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {3, 3}, {2, 2}, {1, 1});
 }
 
 TEST(pooling_forward_gpu, bfyx_average_without_padding_i1x1_w3x3_s1x1_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfyx, (tensor) spatial(1, 1), (tensor) spatial(1, 1), {3, 3}, {1, 1}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfyx, (tensor) spatial(1, 1), (tensor) spatial(1, 1), {3, 3}, {1, 1}, {1, 1});
 }
 
 //yxfb fp32
@@ -1300,22 +1326,22 @@ TEST(pooling_forward_gpu, yxfb_average_without_padding_i1x1_w3x3_s1x1_o1x1)
 //yxfb fp16
 TEST(pooling_forward_gpu, yxfb_average_without_padding_i3x3_w2x2_s2x2_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {0, 0});
+    generic_average_wo_padding_test<ov::float16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {0, 0});
 }
 
 TEST(pooling_forward_gpu, yxfb_average_without_padding_i3x3_w2x2_s2x2_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {2, 2}, {2, 2}, {1, 1});
 }
 
 TEST(pooling_forward_gpu, yxfb_average_without_padding_i3x3_w2x2_s3x3_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {3, 3}, {2, 2}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::yxfb, (tensor) spatial(2, 2), (tensor) spatial(3, 3), {3, 3}, {2, 2}, {1, 1});
 }
 
 TEST(pooling_forward_gpu, yxfb_average_without_padding_i1x1_w3x3_s1x1_o1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::yxfb, (tensor) spatial(1, 1), (tensor) spatial(1, 1), {3, 3}, {1, 1}, {1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::yxfb, (tensor) spatial(1, 1), (tensor) spatial(1, 1), {3, 3}, {1, 1}, {1, 1});
 }
 
 //bfzyx fp32
@@ -1347,27 +1373,27 @@ TEST(pooling_forward_gpu, bfzyx_average_without_padding_i3x3x3_w3x3x3_s3x3x3)
 //bfzyx fp16
 TEST(pooling_forward_gpu, bfzyx_average_without_padding_i3x3x3_w2x2x2_s2x2x2_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {2, 2, 2}, {2, 2, 2}, {0, 0, 0});
+    generic_average_wo_padding_test<ov::float16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {2, 2, 2}, {2, 2, 2}, {0, 0, 0});
 }
 
 TEST(pooling_forward_gpu, bfzyx_average_without_padding_i3x3x3_w2x2x2_s2x2x2_o1x1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {2, 2, 2}, {2, 2, 2}, {1, 1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {2, 2, 2}, {2, 2, 2}, {1, 1, 1});
 }
 
 TEST(pooling_forward_gpu, bfzyx_average_without_padding_i3x3x3_w2x2x3_s3x3x3_o1x1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {3, 3, 3}, {2, 2, 2}, {1, 1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfzyx, (tensor) spatial(2, 2, 2), (tensor) spatial(3, 3, 3), {3, 3, 3}, {2, 2, 2}, {1, 1, 1});
 }
 
 TEST(pooling_forward_gpu, bfzyx_average_without_padding_i1x1x1_w3x3x3_s1x1x1_o1x1x1_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfzyx, (tensor) spatial(1, 1, 1), (tensor) spatial(1, 1, 1), {3, 3, 3}, {1, 1, 1}, {1, 1, 1});
+    generic_average_wo_padding_test<ov::float16>(format::bfzyx, (tensor) spatial(1, 1, 1), (tensor) spatial(1, 1, 1), {3, 3, 3}, {1, 1, 1}, {1, 1, 1});
 }
 
 TEST(pooling_forward_gpu, bfzyx_average_without_padding_i3x3x3_w3x3x3_s3x3x3_fp16)
 {
-    generic_average_wo_padding_test<FLOAT16>(format::bfzyx, (tensor) spatial(1, 1, 1), (tensor) spatial(3, 3, 3), {3, 3, 3}, {3, 3, 3}, {0, 0, 0});
+    generic_average_wo_padding_test<ov::float16>(format::bfzyx, (tensor) spatial(1, 1, 1), (tensor) spatial(3, 3, 3), {3, 3, 3}, {3, 3, 3}, {0, 0, 0});
 }
 
 TEST(pooling_forward_gpu, b_fs_yx_fsv4)
@@ -1428,7 +1454,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
             auto searchC = outputs.find("pool_GOLD");
             ASSERT_FALSE(searchC == outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vGoldOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vGoldOutput.push_back(output_ptr[i]);
@@ -1477,7 +1503,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
             auto searchC = outputs.find("reorder_UnSwizzelled");
             ASSERT_FALSE(searchC == outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vTestOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vTestOutput.push_back(output_ptr[i]);
@@ -1525,7 +1551,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_1x1_stride_2x2_ou
     topology.add(reorder("reorder_after_pooling", input_info("avg_pooling"), layout(data_types::f16, format::bfyx, { 1, 1, 2, 2 })));
 
     network network(engine, topology, get_test_default_config(engine));
-    set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f) });
+    set_values(input_prim, { ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f) });
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1534,7 +1560,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_1x1_stride_2x2_ou
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ(1.0f, float(output_ptr[0]));
     ASSERT_EQ(0.625f, float(output_ptr[1]));
@@ -1577,7 +1603,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_2x2_stride)
     topology.add(reorder("reorder_after_pooling", input_info("avg_pooling"), layout(data_types::f16, format::bfyx, { 1, 1, 3, 3 })));
 
     network network(engine, topology, get_test_default_config(engine));
-    set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f) });
+    set_values(input_prim, { ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f) });
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1585,7 +1611,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_2x2_stride)
     ASSERT_EQ(outputs.begin()->first, "reorder_after_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ(1.0f, float(output_ptr[0]));
     ASSERT_EQ(0.f, float(output_ptr[1]));
@@ -1643,10 +1669,10 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
     topology.add(reorder("reorder_after_pooling", input_info("avg_pooling"), layout(data_types::f16, format::bfyx, { batch_count, features_count, out_y, out_x })));
 
     network network(engine, topology, get_test_default_config(engine));
-    set_values(input_prim, { FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f),   //B0F0
-                             FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f),   //B0F1
-                             FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f),   //B1F0
-                             FLOAT16(-0.5f), FLOAT16(1.0f), FLOAT16(0.5f), FLOAT16(2.0f), FLOAT16(1.5f), FLOAT16(-0.5f), FLOAT16(4.0f), FLOAT16(-1.0f), FLOAT16(3.5f) });//B1F1
+    set_values(input_prim, { ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f),   //B0F0
+                             ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f),   //B0F1
+                             ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f),   //B1F0
+                             ov::float16(-0.5f), ov::float16(1.0f), ov::float16(0.5f), ov::float16(2.0f), ov::float16(1.5f), ov::float16(-0.5f), ov::float16(4.0f), ov::float16(-1.0f), ov::float16(3.5f) });//B1F1
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1655,7 +1681,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ((int)output_ptr.size(), batch_count * features_count*out_x*out_y);
 
@@ -1710,15 +1736,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         topology topology;
         topology.add(input_layout("input_prim", input_prim->get_layout()));
         topology.add(reorder("reorder_input", input_info("input_prim"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
-        topology.add(pooling("pool_prim", input_info("reorder_input"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 1, 1}, 0}));
+        auto pool = pooling("pool_prim", input_info("reorder_input"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{{0, 0, 1, 1}, 0} };
+        topology.add(pool);
         topology.add(reorder("reorder_pooling", input_info("pool_prim"), layout(data_types::f16, format::bfyx, { 1,1,4,4 }, padding{ { 0, 0, 1, 1 }, 0 })));
 
         network network(engine, topology, get_test_default_config(engine));
 
         set_values(input_prim, {
-            FLOAT16(1.50f), FLOAT16(-1.00f), FLOAT16(-0.50f),
-            FLOAT16(1.00f), FLOAT16(-1.00f), FLOAT16(-1.00f),
-            FLOAT16(-1.00f), FLOAT16(-1.00f), FLOAT16(-0.50f)
+            ov::float16(1.50f), ov::float16(-1.00f), ov::float16(-0.50f),
+            ov::float16(1.00f), ov::float16(-1.00f), ov::float16(-1.00f),
+            ov::float16(-1.00f), ov::float16(-1.00f), ov::float16(-0.50f)
             });
 
         network.set_input_data("input_prim", input_prim);
@@ -1736,9 +1764,9 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
-        cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
         for (size_t i = 0; i < expected.size(); ++i) {
             ASSERT_EQ(expected[i], float(output_ptr[i]));
@@ -1782,18 +1810,20 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
 
     topology topology;
     topology.add(input_layout("input_prim", input_prim->get_layout()));
-    topology.add(reorder("reorder_input", input_info("input_prim"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ { 0, 0, 2, 1 } , 0 })));
-    topology.add(pooling("pool_prim", input_info("reorder_input"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{{0, 0, 1, 1}, 0}));
+    topology.add(reorder("reorder_input", input_info("input_prim"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ { 0, 0, 1, 2 } , 0 })));
+    auto pool = pooling("pool_prim", input_info("reorder_input"), pooling_mode::max, {2, 2}, {2, 2}, {1, 1}, {1, 1}, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+    pool.output_paddings = { padding{{0, 0, 1, 1}, 0} };
+    topology.add(pool);
     topology.add(reorder("reorder_pooling", input_info("pool_prim"), layout(data_types::f16, format::bfyx, input_tensor, padding{ { 0, 0, 1, 1 }, 0 })));
 
     network network(engine, topology, get_test_default_config(engine));
 
     set_values(input_prim, {
-        FLOAT16(1.f),  FLOAT16(2.f),    FLOAT16(3.f),    FLOAT16(4.f),    FLOAT16(5.f),
-        FLOAT16(6.f),  FLOAT16(1.50f),  FLOAT16(-1.00f), FLOAT16(-0.50f), FLOAT16(7.f),
-        FLOAT16(8.f),  FLOAT16(1.00f),  FLOAT16(-1.00f), FLOAT16(-1.00f), FLOAT16(9.f),
-        FLOAT16(10.f), FLOAT16(-1.00f), FLOAT16(-1.00f), FLOAT16(-0.50f), FLOAT16(11.f),
-        FLOAT16(12.f), FLOAT16(13.f),   FLOAT16(14.f),   FLOAT16(15.f),   FLOAT16(16.f)
+        ov::float16(1.f),  ov::float16(2.f),    ov::float16(3.f),    ov::float16(4.f),    ov::float16(5.f),
+        ov::float16(6.f),  ov::float16(1.50f),  ov::float16(-1.00f), ov::float16(-0.50f), ov::float16(7.f),
+        ov::float16(8.f),  ov::float16(1.00f),  ov::float16(-1.00f), ov::float16(-1.00f), ov::float16(9.f),
+        ov::float16(10.f), ov::float16(-1.00f), ov::float16(-1.00f), ov::float16(-0.50f), ov::float16(11.f),
+        ov::float16(12.f), ov::float16(13.f),   ov::float16(14.f),   ov::float16(15.f),   ov::float16(16.f)
         });
 
     network.set_input_data("input_prim", input_prim);
@@ -1812,9 +1842,9 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
 
     auto output_prim = outputs.begin()->second.get_memory();
     ASSERT_EQ((int)output_prim->get_layout().count(), 9);
-    ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+    ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 25);
 
-    cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i], float(output_ptr[i]));
@@ -1844,10 +1874,10 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
 
     const tensor input_tensor(batches, features, x_input, y_input);
 
-    std::vector<FLOAT16> input_data(batches*features*x_input*y_input);
+    std::vector<ov::float16> input_data(batches*features*x_input*y_input);
     for (size_t i = 0; i < input_data.size(); i++)
     {
-        input_data[i] = FLOAT16((float)i/float(input_data.size()));
+        input_data[i] = ov::float16((float)i/float(input_data.size()));
     }
 
     auto input_prim = engine.allocate_memory({ data_types::f16,format::bfyx,input_tensor });
@@ -1859,14 +1889,15 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
     { //GOLDEN TOPOLOGY
         topology golden_topology;
         golden_topology.add(input_layout("input", input_prim->get_layout()));
-        golden_topology.add(reorder("reorder_input", input_info("input"), input_prim->get_layout().with_padding(padding{ {0,0,x_in_pad,y_in_pad},0 })));
-        golden_topology.add(pooling("golden_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{ { 0, 0, x_out_pad, y_out_pad }, 0 }));
-
+        golden_topology.add(reorder("reorder_input", input_info("input"), input_prim->get_layout().with_padding(padding{ {0,0,y_in_pad,x_in_pad},0 })));
+        auto pool = pooling("golden_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{ { 0, 0, y_out_pad, x_out_pad }, 0 }};
+        golden_topology.add(pool);
         network golden_network(engine, golden_topology, get_test_default_config(engine));
         golden_network.set_input_data("input", input_prim);
 
         auto outputs = golden_network.execute();
-        cldnn::mem_lock<FLOAT16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++)
         {
             golden_results.push_back(float(output_ptr[i]));
@@ -1876,15 +1907,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
     { //FSV32 TOPOLOGY
         topology golden_topology;
         golden_topology.add(input_layout("input", input_prim->get_layout()));
-        golden_topology.add(reorder("reorder_input", input_info("input"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0, 0, x_in_pad, y_in_pad}, 0 })));
-        golden_topology.add(pooling("fsv32_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, padding{ { 0, 0, x_out_pad, y_out_pad }, 0 }));
-        golden_topology.add(reorder("reorder_pooling", input_info("fsv32_pooling"), layout(data_types::f16, format::bfyx, input_tensor, padding{ { 0,0,x_out_pad,y_out_pad },0 })));
+        golden_topology.add(reorder("reorder_input", input_info("input"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0, 0, y_in_pad, x_in_pad}, 0 })));
+        auto pool = pooling("fsv32_pooling", input_info("reorder_input"), pooling_mode::average, { pool_size, pool_size }, { stride_size, stride_size }, { 0, 0 }, { 0, 0 }, ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+        pool.output_paddings = { padding{ { 0, 0, y_out_pad, x_out_pad }, 0 }};
+        golden_topology.add(pool);
+        golden_topology.add(reorder("reorder_pooling", input_info("fsv32_pooling"), layout(data_types::f16, format::bfyx, input_tensor, padding{ { 0,0,y_out_pad,x_out_pad },0 })));
 
         network fsv32_network(engine, golden_topology, get_test_default_config(engine));
         fsv32_network.set_input_data("input", input_prim);
 
         auto outputs = fsv32_network.execute();
-        cldnn::mem_lock<FLOAT16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++)
         {
             fsv32_results.push_back(float(output_ptr[i]));
@@ -1920,7 +1953,7 @@ public:
             pad.insert(pad.begin(), offset_z());
         }
 
-        topo.add(pooling("pool", input_info("input"), pool_mode(), kernel, stride, pad));
+        topo.add(pooling("pool", input_info("input"), pool_mode(), kernel, stride, pad, pad));
         return topo;
     }
 
@@ -2007,11 +2040,11 @@ public:
 
     format::type input_format() { return _input_fmt; }
     data_types input_type() {
-        return type_to_data_type<InputT>::value;
+        return ov::element::from<InputT>();
     }
 
     data_types output_type() {
-        return type_to_data_type<output_t>::value;
+        return ov::element::from<output_t>();
     }
 
     pooling_mode pool_mode() { return Mode; }
@@ -2243,15 +2276,49 @@ private:
     VF<output_t> _shift;
 };
 
+using pooling_random_test_int8_uint8 = pooling_random_test;
+
+TEST_P(pooling_random_test_int8_uint8, avg_int8) {
+    auto test_case = pooling_random_test_base<int8_t, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, max_int8) {
+    auto test_case = pooling_random_test_base<int8_t, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, avg_uint8) {
+    auto test_case = pooling_random_test_base<uint8_t, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, max_uint8) {
+    auto test_case = pooling_random_test_base<uint8_t, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_low_precision,
+    pooling_random_test_int8_uint8,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::fs_b_yx_fsv32)),
+    testing::internal::DefaultParamName<pooling_random_test_params>);
+
 using pooling_random_test_fp16_fp32 = pooling_random_test;
 
 TEST_P(pooling_random_test_fp16_fp32, avg_fp16) {
-    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
+    auto test_case = pooling_random_test_base<ov::float16, pooling_mode::average>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test_fp16_fp32, max_fp16) {
-    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
+    auto test_case = pooling_random_test_base<ov::float16, pooling_mode::max>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
@@ -2924,10 +2991,14 @@ public:
                     all_layer_params.emplace_back(new pooling("pooling", input_info("reorder0"), pooling_mode, size, stride));
 
                     // Output padding
-                    all_layer_params.emplace_back(new pooling("pooling", input_info("input0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, { { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }));
+                    auto p1 = std::make_shared<pooling>("pooling", input_info("input0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+                    p1->output_paddings = {{ { 0, 0, 5, 1 }, { 0, 0, 4, 19 } }};
+                    all_layer_params.emplace_back(p1);
 
                     // Input + output padding
-                    all_layer_params.emplace_back(new pooling("pooling", input_info("reorder0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR, { { 0, 0, 2, 1 }, { 0, 0, 3, 4 } }));
+                    auto p2 = std::make_shared<pooling>("pooling", input_info("reorder0"), pooling_mode, size, stride, generate_pad(2, 3, size), generate_pad(2, 3, size), ov::op::PadType::EXPLICIT, ov::op::RoundingType::FLOOR);
+                    p2->output_paddings = {{ { 0, 0, 1, 2 }, { 0, 0, 4, 3 } }};
+                    all_layer_params.emplace_back(p2);
                 }
             }
         }
@@ -2960,7 +3031,7 @@ public:
         }
         else
         {
-            prepare_input_for_test_typed<FLOAT16>(inputs);
+            prepare_input_for_test_typed<ov::float16>(inputs);
         }
     }
 
@@ -3040,8 +3111,8 @@ public:
         cldnn::mem_lock<Type> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
 
-        int output_width = output->get_layout().get_buffer_size().spatial[0];
-        int output_height = output->get_layout().get_buffer_size().spatial[1];
+        int output_width = output->get_layout().get_padded_dims()[2 + 1];   // x
+        int output_height = output->get_layout().get_padded_dims()[2 + 0];  // y
 
         const auto input_desc = get_linear_memory_desc(inputs[0]->get_layout());
         const auto output_desc = get_linear_memory_desc(output->get_layout());
@@ -3050,7 +3121,7 @@ public:
         {
             case cldnn::pooling_mode::max:
             {
-                for (int i = 0; i < (int)output->get_layout().get_buffer_size().count(); i++)
+                for (int i = 0; i < (int)output->get_layout().get_linear_size(); i++)
                 {
                     output_mem[i] = (generic_params->data_type == data_types::f32) ? -FLT_MAX : -65504;
                 }
@@ -3117,7 +3188,7 @@ public:
                     return y*x;
                 };
 
-                for (int i = 0; i < (int)output->get_layout().get_buffer_size().count(); i++)
+                for (int i = 0; i < (int)output->get_layout().get_linear_size(); i++)
                 {
                     output_mem[i] = 0;
                 }
@@ -3138,8 +3209,8 @@ public:
                                 pad_y_start = std::max(pad_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
-                                tensor lower_padding = pooling->output_paddings[0].lower_size();
-                                output_index += (lower_padding.spatial[1] + h) * output_width + lower_padding.spatial[0] + w;
+                                const auto& lower_padding = pooling->output_paddings[0]._lower_size;
+                                output_index += (lower_padding[2 + 0] + h) * output_width + lower_padding[2 + 1] + w;
 
                                 int num_of_elements = 0;
                                 for (int y = pad_y_start; y < pad_y_end; y++)
@@ -3188,7 +3259,7 @@ public:
         }
         else
         {
-            return generate_reference_typed<FLOAT16>(inputs);
+            return generate_reference_typed<ov::float16>(inputs);
         }
     }
 
@@ -3219,11 +3290,16 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
-    layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
-    layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
-    layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
+    layout in_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 3, 3 } };
+    layout out_layout = { ov::element::from<float>(), format::byxf, { 1, 1, 1, 1 } };
+    layout byte_layout = { ov::element::from<int8_t>(), format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
     std::list<float> final_results = { 9.0f };
+
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 10.0f };
+    }
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -3288,12 +3364,12 @@ TEST_P(pooling_random_test, avg_u8_cached) {
 }
 
 TEST_P(pooling_random_test_fp16_fp32, avg_fp16_cached) {
-    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
+    auto test_case = pooling_random_test_base<ov::float16, pooling_mode::average>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
 }
 
 TEST_P(pooling_random_test_fp16_fp32, max_fp16_cached) {
-    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
+    auto test_case = pooling_random_test_base<ov::float16, pooling_mode::max>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
 }
 

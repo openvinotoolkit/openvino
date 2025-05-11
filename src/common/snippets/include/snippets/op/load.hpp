@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@ namespace op {
  *        and memory offset for loading is determined by "offset" (Default value is "0" - to load starting from the first element)
  * @ingroup snippets
  */
-class Load : public MemoryAccess {
+class Load : public modifier::MemoryAccess, public ov::op::Op {
 public:
-    OPENVINO_OP("Load", "SnippetsOpset", MemoryAccess);
+    OPENVINO_OP("Load", "SnippetsOpset");
 
     Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Load() = default;
@@ -34,23 +34,24 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     void validate_memory_access_params() const;
 };
 
 /**
- * @interface LoadReshape
+ * @interface LoadReorder
  * @brief It's just Load operation (and it's mapped on LoadEmitter during code generation) that allows to tweak
  *        shape propagation. We need it to keep correct shape propagation  when Transpose is decomposed to
  *        Load and Store. This is a temporary solution until tokenization of Reshape operation is supported.
  * @ingroup snippets
  */
-class LoadReshape : public Load {
+class LoadReorder : public Load {
 public:
-    OPENVINO_OP("LoadReshape", "SnippetsOpset", Load);
-    LoadReshape(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
-    LoadReshape() = default;
+    OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
+    LoadReorder(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
+    LoadReorder() = default;
 
     void set_offset(size_t offset) { set_output_offset(offset, 0); }
     void set_count(size_t count) { set_output_count(count, 0); }

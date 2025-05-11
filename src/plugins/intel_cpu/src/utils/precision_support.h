@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "ie_precision.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-bool hasHardwareSupport(const InferenceEngine::Precision& precision);
+bool hasHardwareSupport(const ov::element::Type& precision);
+ov::element::Type defaultFloatPrecision();
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestLSTM(OnnxRuntimeLayerTest):
@@ -131,7 +131,7 @@ class TestLSTM(OnnxRuntimeLayerTest):
             )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_{}_model'.format(cell_type))
+        onnx_net = onnx_make_model(graph_def, producer_name='test_{}_model'.format(cell_type))
 
         # We do not create reference graph, as it's too complicated to construct it
         # Moreover, IR reader do not support TensorIterator layers
@@ -144,24 +144,23 @@ class TestLSTM(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
-                                   temp_dir, use_old_api):
+                                   temp_dir):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
-                   temp_dir=temp_dir, infer_timeout=150, use_old_api=use_old_api)
+                   temp_dir=temp_dir, infer_timeout=150)
 
     # LSTM/RNN/GRU Sequence Generation
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
     def test_lstm_sequence_generate(self, direction, cell_type, ie_device, precision, ir_version,
-                                    temp_dir, use_old_api):
+                                    temp_dir):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
                    disabled_transforms='lstm_to_tensor_iterator,gru_and_rnn_to_tensor_iterator',
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     # TODO: add more params for nightly
     @pytest.mark.nightly
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])
     @pytest.mark.parametrize('cell_type', ["LSTM", "GRU", "RNN"])
-    def test_lstm_nightly(self, direction, cell_type, ie_device, precision, ir_version, temp_dir,
-                          use_old_api):
+    def test_lstm_nightly(self, direction, cell_type, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

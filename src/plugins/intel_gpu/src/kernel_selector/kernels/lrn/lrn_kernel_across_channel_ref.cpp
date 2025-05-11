@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,11 +58,11 @@ JitConstants LRNKernelAcrossChannelRef::GetJitConstants(const lrn_params& params
     return jit;
 }
 
-KernelsData LRNKernelAcrossChannelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LRNKernelAcrossChannelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LRNKernelAcrossChannelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelAcrossChannelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

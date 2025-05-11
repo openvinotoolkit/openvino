@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <chrono>
 #include <mutex>
+#include <thread>
 
 #include "ov_test.hpp"
 
@@ -203,8 +205,8 @@ public:
     ov_preprocess_input_model_info_t* input_model;
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_test, ::testing::Values("CPU"));
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, ov_infer_request_test, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, ov_infer_request_ppp, ::testing::Values("CPU"));
 
 TEST_P(ov_infer_request_test, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
@@ -298,8 +300,11 @@ TEST_P(ov_infer_request_test, infer) {
 
 TEST_P(ov_infer_request_test, cancel) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
-
+    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
     OV_EXPECT_OK(ov_infer_request_cancel(infer_request));
+    ov_status_e return_status = ov_infer_request_wait(infer_request);
+    if (return_status == ov_status_e::UNKNOW_EXCEPTION || return_status == ov_status_e::GENERAL_ERROR)
+        GTEST_FAIL();
 }
 
 TEST_P(ov_infer_request_ppp, infer_ppp) {
@@ -334,11 +339,34 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
-        OV_EXPECT_OK(ov_infer_request_wait_for(infer_request, 10));
+        ov_status_e ret = ov_status_e::OK;
+        // Set enough timeout duration to avoid timeout due to CPU is busying sometimes
+        EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 3000));
+        EXPECT_EQ(ret, ov_status_e::OK);
 
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
+}
+
+TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
+
+    ov_callback_t callback;
+    callback.callback_func = [](void* args) {
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    };
+    OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
+
+    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
+
+    if (!HasFatalFailure()) {
+        EXPECT_EQ(ov_status_e::REQUEST_BUSY, ov_infer_request_get_tensor(infer_request, in_tensor_name, &input_tensor));
+    }
+}
+
+TEST_P(ov_infer_request_test, infer_async_wait_for_return_fail) {
+    OV_EXPECT_NOT_OK(ov_infer_request_wait_for(infer_request, 10));
 }
 
 TEST_P(ov_infer_request_ppp, infer_async_ppp) {

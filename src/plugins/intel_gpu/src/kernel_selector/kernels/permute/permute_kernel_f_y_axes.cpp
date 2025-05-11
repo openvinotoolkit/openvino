@@ -19,12 +19,12 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, /*2,*/ 1};
-    auto is_divided = [input_size](size_t i) {
-        return input_size % i == 0;
-    };
-    auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    for (size_t d : {16, 8, 4, 2}) {
+        if (input_size % d == 0)
+            return d;
+    }
+
+    return 1; // Fallback: Any integer divides evenly by 1
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
@@ -65,7 +65,7 @@ size_t GetTileWidth(const permute_params& params) {
 
     // i64 only supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        min_divisor = min_divisor / 2;
+        min_divisor = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;
@@ -77,7 +77,7 @@ size_t GetTileWidth(const permute_params& params) {
     if (params.inputs[0].X().v == 1) {
         return std::min(params.inputs[0].Y().v, min_divisor);
     }
-    return std::min(params.inputs[0].X().v, min_divisor);
+    return std::min(GetDivisor(params.inputs[0].X().v), min_divisor);
 }
 
 size_t GetTileSize(const permute_params& params) {
@@ -129,9 +129,9 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     }
 
     const size_t tile_width = GetTileWidth(params);
-    const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t tile_size = GetTileSize(params);
-    const size_t j_times = tile_size / vector_size;
+    const size_t vector_size = IsSimpleMemCopyOperation(params) ? std::min(tile_width, static_cast<size_t>(4)): std::min(tile_size, static_cast<size_t>(4));
+    const size_t j_times = IsSimpleMemCopyOperation(params) ? tile_width / vector_size : tile_size / vector_size;
     const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
@@ -145,10 +145,15 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     }
 
+    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+
     if (!params.fused_ops.empty()) {
-        const std::vector<std::string> original_output_order = {"b_idx", "f_idx", "y_idx", "x_idx"};
+        const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
-        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size};
+        Tensor::DataChannelName channel = (IsSimpleMemCopyOperation(params) || Is3DTranspose(params)) ? Tensor::DataChannelName::X \
+                                          : Tensor::DataChannelName::Y;
+        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size, LoadType::LT_UNALIGNED, \
+                                                BoundaryCheck::ENABLED, IndexType::TENSOR_COORD, channel};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vec}));
     }
     return jit;
@@ -190,8 +195,8 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
     return dispatchData;
 }
 
-bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -211,6 +216,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     const auto& params = dynamic_cast<const permute_params&>(p);
     const auto& in = params.inputs[0];
     const auto in_layout = in.GetLayout();
+    const auto& out = params.outputs[0];
+    const auto& out_layout = out.GetLayout();
 
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
@@ -221,6 +228,10 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
         return false;
     }
     if (!is_swapping_f_with_y(params.order)) {
+        return false;
+    }
+
+    if (in_layout != out_layout) {
         return false;
     }
 
@@ -238,9 +249,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/,
-                                                           const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
-
 }  // namespace kernel_selector

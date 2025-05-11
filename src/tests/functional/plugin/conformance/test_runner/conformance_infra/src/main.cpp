@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,19 +10,22 @@
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"
 
+
 void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
     std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::get_ext_test_names();
 
-    std::string testName("checkPluginImplementationCompileModel");
+    std::string testName("checkPluginImplementation");
     extTestQueries[testName + "_ON_START"] =
         "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$config', $__is_temp)";
@@ -74,7 +77,8 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::is_print_rel_influence_coef = true;
+    ov::test::utils::disable_tests_skipping = false;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
@@ -98,18 +102,14 @@ int main(int argc, char* argv[]) {
     ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
-    ov::test::conformance::targetDevice = FLAGS_device.c_str();
+    ov::test::utils::target_device = FLAGS_device.c_str();
     ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
-        ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
-    }
-    if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests =
-            ov::test::utils::readListFiles(ov::test::utils::splitStringByDelimiter(FLAGS_skip_config_path));
+        ov::test::utils::target_plugin_name = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_config_path.empty()) {
-        ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);
+        ov::test::utils::global_plugin_config = ov::test::conformance::read_plugin_config(FLAGS_config_path);
     }
 
     ::testing::InitGoogleTest(&argc, argv);

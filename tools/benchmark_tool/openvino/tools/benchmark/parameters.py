@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys, argparse
@@ -40,7 +40,9 @@ class HelpFormatterWithLines(argparse.HelpFormatter):
         return lines
 
 def parse_args():
-    parser = argparse.ArgumentParser(add_help=False, formatter_class=HelpFormatterWithLines)
+    parser = argparse.ArgumentParser(
+        conflict_handler='resolve',  # Allow dla_benchmark for FPGA to override show_available_devices() for --help
+        add_help=False, formatter_class=HelpFormatterWithLines)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action=print_help, nargs='?', default=argparse.SUPPRESS,
                       help='Show this help message and exit.')
@@ -70,6 +72,10 @@ def parse_args():
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
+    args.add_argument('-max_irate', '--maximum_inference_rate', type=float, required=False, default=0,
+                      help='Optional. Maximum inference rate by frame per second. '
+                           'If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. '
+                           'Tweaking this value allow better accuracy in power usage measurement by limiting the execution.')
     args.add_argument('-t', '--time', type=check_positive, required=False, default=None,
                       help='Optional. Time in seconds to execute topology.')
 
@@ -102,8 +108,9 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     advs.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_model.")
-    args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
-                      help='Optional. Enable using sync/async API. Default value is async.')
+    args.add_argument('-api', '--api_type', type=str, required=False, default='', choices=['sync', 'async'],
+                      help='Optional. Enable using sync/async API. When hint is throughput, default value is async. '
+                           'When hint is latency, default value is sync.')
     advs.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     advs.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
@@ -141,14 +148,10 @@ def parse_args():
 
     devp = parser.add_argument_group('Device-specific performance options')
     devp.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU, GNA '
+                      help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
-    devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
-                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
-                           'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
-                           'or completely disable (\'NO\') '
-                           'CPU threads pinning for CPU-involved inference.')
+    devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO'],
+                      help='Optional. Enable threads->cores pinning for CPU-involved inference.')
 
     stat = parser.add_argument_group('Statistics dumping options')
     stat.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,
@@ -194,6 +197,4 @@ def parse_args():
                            "                     \"DEVICE_PROPERTIES\": \"{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}\"\n"
                            "                }\n"
                            "             }")
-    parsed_args = parser.parse_args()
-
-    return parsed_args, parser
+    return parser

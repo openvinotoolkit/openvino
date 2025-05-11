@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,23 @@ bool Place::is_output() const {
 
 OpPlace::OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
     : Place(input_model, {op_decoder->get_op_name()}),
-      m_op_decoder(op_decoder) {}
+      m_op_decoder(op_decoder),
+      m_back_edge_set(false) {}
+
+void OpPlace::set_next_iteration_back_edge(const std::string& next_iteration_producer_name,
+                                           size_t next_iteration_producer_output_port_idx) {
+    m_next_iteration_producer_name = next_iteration_producer_name;
+    m_next_iteration_producer_output_port_idx = next_iteration_producer_output_port_idx;
+    m_back_edge_set = true;
+}
+
+void OpPlace::get_next_iteration_back_edge(std::string& next_iteration_producer_name,
+                                           size_t& next_iteration_producer_output_port_idx) const {
+    FRONT_END_GENERAL_CHECK(m_back_edge_set,
+                            "[TensorFlow Frontend] internal error: back edge for NextIteration is not set");
+    next_iteration_producer_name = m_next_iteration_producer_name;
+    next_iteration_producer_output_port_idx = m_next_iteration_producer_output_port_idx;
+}
 
 const std::vector<std::shared_ptr<OutPortPlace>>& OpPlace::get_output_ports() const {
     return m_output_ports;
@@ -166,7 +182,19 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
                          const std::vector<std::string>& names)
     : Place(input_model, names),
       m_pshape(pshape),
-      m_type(type) {}
+      m_type(type) {
+    m_operation_name = (names.size() > 0) ? names[0] : m_operation_name;
+}
+
+TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
+                         const ov::PartialShape& pshape,
+                         ov::element::Type type,
+                         const std::vector<std::string>& names,
+                         const std::string& operation_name)
+    : Place(input_model, names),
+      m_pshape(pshape),
+      m_type(type),
+      m_operation_name(operation_name) {}
 
 std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> consuming_ports;

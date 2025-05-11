@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
                          ::testing::Combine(
                              ::testing::ValuesIn(inShapesStatic1),
                              ::testing::ValuesIn(inShapesStatic2),
-                             ::testing::Values(ov::element::f32),
+                             ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                              ::testing::Values(1), // Add
                              ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_Add, Add,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inShapesDynamic1),
                                  ::testing::ValuesIn(inShapesDynamic2),
-                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -68,16 +68,25 @@ std::vector<std::vector<InputShape>> inShapesAddPair {
         {{{}, {{1, 128, 9, 30}}}, {{}, {{1, 128, 1, 30}}}},
         {{{}, {{1, 128, 9, 1}}}, {{}, {{1, 128, 1, 30}}}},
         {{{}, {{1, 128, 9, 16}}}, {{}, {{1, 128, 9, 1}}}},
+        // Test Canonicalization and Dimension collapsing
+        {{{}, {{2, 17, 3, 4}}}, {{}, {{1, 3, 4}}}},
+        {{{}, {{2, 17, 3, 4}}}, {{}, {{1, 4}}}},
+        {{{}, {{32, 5, 10}}}, {{}, {{5, 10}}}},
+        {{{}, {{32, 5, 10}}}, {{}, {{10}}}},
+        {{{}, {{30}}}, {{}, {{10, 30}}}},
+        {{{}, {{5}}}, {{}, {{5}}}},
         // DS
         {{{1, -1, {1, 10}, {1, 33}}, {{1, 128, 1, 1}, {1, 128, 1, 9}, {1, 128, 1, 17}, {1, 128, 1, 29}, {1, 128, 9, 1}, {1, 128, 1, 1}}},
          {{{1, 1}, {128, 128}, {1, 10}, {1, 33}}, {{1, 128, 1, 1}, {1, 128, 1, 9}, {1, 128, 1, 17}, {1, 128, 1, 29}, {1, 128, 1, 30}, {1, 128, 1, 1}}}},
         {{{1, -1, 1, {1, 32}}, {{1, 16, 1, 32}, {1, 16, 1, 32}, {1, 16, 1, 32}, {1, 16, 1, 32}}},
          {{1, -1, 1, {1, 32}}, {{1, 16, 1, 32}, {1, 16, 1, 32}, {1, 16, 1, 32}, {1, 16, 1, 32}}}},
+        {{{-1, 39}, {{1, 39}, {2, 39}, {1, 39}, {5, 39}, {2, 39}}},
+         {{-1, 39}, {{1, 39}, {1, 39}, {10, 39}, {5, 39}, {1, 39}}}},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inShapesAddPair),
-                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -100,6 +109,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddConst,
                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddConst::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_FP16, AddConst,
+        ::testing::Combine(
+                ::testing::ValuesIn(inShapesAddConst),
+                ::testing::ValuesIn(inShapesConstAddConst),
+                ::testing::Values(ov::element::f16),
+                ::testing::Values(1), // Add
+                ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+        AddConst::getTestCaseName);
 // ===================================AddRollConst=========================================================//
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
         ::testing::Combine(

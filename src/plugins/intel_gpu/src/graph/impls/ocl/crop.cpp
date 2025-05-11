@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
 
+#include "openvino/core/validation_util.hpp"
+
 namespace cldnn {
 namespace ocl {
 
@@ -15,18 +17,26 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::eltwise_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::eltwise_params, kernel_selector::eltwise_optional_params>;
+    using kernel_params_t = kernel_selector::eltwise_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::crop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<crop_impl>(*this);
+        return make_deep_copy<crop_impl, kernel_params_t>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
         if (impl_param.is_dynamic() || is_shape_agnostic) {
@@ -37,18 +47,45 @@ public:
         } else {
             params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
         }
-        return {params, optional_params};
+        return params;
     }
-        void update_dispatch_data(const kernel_impl_params& impl_param) override {
-            auto kernel_params = get_kernel_params(impl_param, true);
-            auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
-            kernel_selector::ScalarDescriptor s;
-            s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
-            s.v.u32 = static_cast<uint32_t>(runtime_offset);
-            OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
-                    "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
-            _kernel_data.kernels[0].params.scalars[0] = s;
-            (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+
+        // The padding sizes are reset to 0 up to crop_axis, as kernel reads data using
+        // "input[GET_INDEX(INPUT, order) + runtime_offset]", where GET_INDEX handles all paddings before
+        // specified axis. However, for proper runtime offset calculation, we have to consider paddings
+        // after the crop_axis, which requires subtracting input_offset from the runtime buffer, since
+        // padding for the first element is already included in the GET_INDEX() call.
+        // For example, for input shape like: [1, 32, 128 (pad_before=512, pad_after=0), 8 (pad_before=4, pad_after=4)]
+        // with crop_axis=2 and split_lengths = {64, 64},
+        // runtime_offset should be set in terms of [1, 32, 128 (pad_before=0, pad_after=0), 8 (pad_before=4, pad_after=4)] shape.
+        // So crop.out0's runtime_offset=0 and crop.out1's runtime_offset=1024.
+
+        auto input_layout = impl_param.get_input_layout();
+        auto crop_axis = ov::util::normalize(impl_param.typed_desc<crop>()->axis, static_cast<int64_t>(input_layout.get_partial_shape().size()));
+
+        input_layout.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        for (size_t i = 0; i <= static_cast<size_t>(crop_axis); i++) {
+            input_layout.data_padding._lower_size[i] = 0;
+            input_layout.data_padding._upper_size[i] = 0;
+        }
+
+        auto input_offset = convert_data_tensor(input_layout).GetFirstElementOffset();
+        auto runtime_offset = convert_data_tensor(input_layout, impl_param.input_offsets[0]).GetFirstElementOffset() - input_offset;
+        kernel_selector::ScalarDescriptor s;
+        s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+        s.v.u32 = static_cast<uint32_t>(runtime_offset);
+        OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
+                "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
+        _kernel_data.kernels[0].params.scalars[0] = s;
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

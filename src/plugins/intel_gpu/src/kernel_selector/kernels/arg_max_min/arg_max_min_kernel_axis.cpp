@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    DimensionAccessHelper dims(output);
+    DimensionAccessHelperJit dims(output);
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
         case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
@@ -52,6 +52,7 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
@@ -83,8 +84,8 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     return k;
 }
 
-bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) const {
-    if (!ArgMaxMinKernelBase::Validate(p, o)) {
+bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
+    if (!ArgMaxMinKernelBase::Validate(p)) {
         return false;
     }
 
@@ -113,15 +114,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
     return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
-    bool is_dynamic = orgParams.has_dynamic_tensors();
-
-    auto dispatchData = SetDefault(orgParams);
-    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -137,15 +130,27 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
         const size_t group_num = ((sort_size - 1) / group_size) + 1;
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(iav_type_size * sort_size * ops_size * 2);
-        kd.internalBufferSizes.push_back(4 * group_num * ops_size * 2);
-        kd.internalBufferSizes.push_back(ops_size * elem_size);
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
+        kd.internalBuffers.push_back(4 * group_num * ops_size * 2);
+        kd.internalBuffers.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
+}
+
+KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+    bool is_dynamic = orgParams.has_dynamic_tensors();
+
+    auto dispatchData = SetDefault(orgParams);
+    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+    GetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -160,26 +165,23 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params),
-                     orgParams.use_multiple_outputs ? 2 : 1,
-                     is_dynamic);
-
-    if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+                     orgParams.outputs_num,
+                     orgParams.is_shape_agnostic);
 
     if (is_dynamic) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = orgParams.inputs[0].GetDType();
     }
 
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 
@@ -197,13 +199,6 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
     else
         jit.AddConstant(MakeJitConstant("SORT_BY_INDEX", 1));
-
-    if (params.has_second_output) {
-        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_EXIST", 1));
-        if (params.use_multiple_outputs) {
-            jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
-        }
-    }
 
     if (params.values_first)
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));

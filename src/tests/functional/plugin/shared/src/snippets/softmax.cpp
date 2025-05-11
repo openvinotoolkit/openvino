@@ -5,9 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/softmax.hpp"
 #include "subgraph_softmax.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -42,9 +40,8 @@ void Softmax::SetUp() {
     auto f = ov::test::snippets::SoftmaxFunction(inputDynamicShapes, axis);
     function = f.getOriginal();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -82,9 +79,8 @@ void AddSoftmax::SetUp() {
     auto f = ov::test::snippets::AddSoftmaxFunction(inputDynamicShapes, axis);
     function = f.getOriginal();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 

@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
-#include "single_layer_tests/eltwise.hpp"
+#include "single_op_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
 
 namespace {
+using ov::test::EltwiseLayerTest;
+using ov::test::utils::InputLayerType;
+using ov::test::utils::OpType;
+using ov::test::utils::EltwiseTypes;
+
 std::vector<std::vector<ov::Shape>>  inShapes = {
         {{2}},
         {{}, {34100}},
@@ -36,9 +40,9 @@ std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::i64,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<InputLayerType> secondaryInputTypes = {
+        InputLayerType::CONSTANT,
+        InputLayerType::PARAMETER,
 };
 
 std::vector<ov::test::utils::OpType> opTypes = {
@@ -46,23 +50,48 @@ std::vector<ov::test::utils::OpType> opTypes = {
         ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> smoke_eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
+std::vector<EltwiseTypes> smoke_eltwiseOpTypes = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+std::vector<EltwiseTypes> eltwiseOpTypes = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
+        EltwiseTypes::SUBTRACT,
+        EltwiseTypes::DIVIDE,
+        EltwiseTypes::FLOOR_MOD,
+        EltwiseTypes::SQUARED_DIFF,
+        EltwiseTypes::POWER,
+        EltwiseTypes::MOD
+};
+
+std::vector<EltwiseTypes> smoke_intOnly_eltwiseOpTypes = {
+        EltwiseTypes::RIGHT_SHIFT,
+        EltwiseTypes::BITWISE_AND
+};
+
+std::vector<ov::test::ElementType> intOnly_netPrecisions = {
+        ov::element::i32,
+        ov::element::i16,
+        ov::element::u16
 };
 
 ov::AnyMap additional_config = {};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_intOnly_CompareWithRefs,
+    EltwiseLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                       ::testing::ValuesIn(smoke_intOnly_eltwiseOpTypes),
+                       ::testing::ValuesIn(secondaryInputTypes),
+                       ::testing::ValuesIn(opTypes),
+                       ::testing::ValuesIn(intOnly_netPrecisions),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::Values(additional_config)),
+    EltwiseLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_CompareWithRefs,
@@ -72,8 +101,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
@@ -86,8 +115,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);

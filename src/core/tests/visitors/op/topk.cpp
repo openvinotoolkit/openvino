@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, topk_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::TopK>();
+    NodeBuilder::opset().insert<ov::op::v1::TopK>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto k = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
 
@@ -32,7 +32,7 @@ TEST(attributes, topk_op) {
 }
 
 TEST(attributes, topk_v3_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::TopK>();
+    NodeBuilder::opset().insert<ov::op::v3::TopK>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto k = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
 
@@ -51,7 +51,7 @@ TEST(attributes, topk_v3_op) {
 }
 
 TEST(attributes, topk_v11_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v11::TopK>();
+    NodeBuilder::opset().insert<ov::op::v11::TopK>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 1, 3, 7});
     const auto k = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
 

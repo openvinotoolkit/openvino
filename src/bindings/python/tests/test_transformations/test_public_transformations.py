@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 import pytest
 import numpy as np
 
-from openvino.runtime import Model, PartialShape, Shape, Core
-from openvino.runtime import opset10
-from openvino.runtime.passes import (
+from openvino import Model, PartialShape, Shape, Core
+from openvino import opset13 as ops
+from openvino.passes import (
     Manager,
     ConstantFolding,
     MakeStateful,
@@ -17,25 +17,25 @@ from openvino.runtime.passes import (
 )
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
 
 
 def get_model():
-    param = opset10.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     param.get_output_tensor(0).set_names({"parameter"})
-    relu = opset10.relu(param)
-    reshape = opset10.reshape(relu, opset10.shape_of(relu), False)
-    res = opset10.result(reshape, name="result")
+    relu = ops.relu(param)
+    reshape = ops.reshape(relu, ops.shape_of(relu), False)
+    res = ops.result(reshape, name="result")
     res.get_output_tensor(0).set_names({"result"})
     return Model([res], [param], "test")
 
 
 def test_make_stateful():
-    param = opset10.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param = ops.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     param.get_output_tensor(0).set_names({"parameter"})
-    relu = opset10.relu(param)
-    reshape = opset10.reshape(relu, opset10.shape_of(relu), False)
-    res = opset10.result(reshape, name="result")
+    relu = ops.relu(param)
+    reshape = ops.reshape(relu, ops.shape_of(relu), False)
+    res = ops.result(reshape, name="result")
     res.get_output_tensor(0).set_names({"result"})
     model = Model([res], [param], "test")
 
@@ -87,20 +87,20 @@ def test_convert_precision():
 
 
 def test_low_latency2():
-    param_x = opset10.parameter(Shape([32, 40, 10]), np.float32, "X")
-    param_y = opset10.parameter(Shape([32, 40, 10]), np.float32, "Y")
-    param_m = opset10.parameter(Shape([32, 2, 10]), np.float32, "M")
+    param_x = ops.parameter(Shape([32, 40, 10]), np.float32, "X")
+    param_y = ops.parameter(Shape([32, 40, 10]), np.float32, "Y")
+    param_m = ops.parameter(Shape([32, 2, 10]), np.float32, "M")
 
-    x_i = opset10.parameter(Shape([32, 2, 10]), np.float32, "X_i")
-    y_i = opset10.parameter(Shape([32, 2, 10]), np.float32, "Y_i")
-    m_body = opset10.parameter(Shape([32, 2, 10]), np.float32, "M_body")
+    x_i = ops.parameter(Shape([32, 2, 10]), np.float32, "X_i")
+    y_i = ops.parameter(Shape([32, 2, 10]), np.float32, "Y_i")
+    m_body = ops.parameter(Shape([32, 2, 10]), np.float32, "M_body")
 
-    add = opset10.add(x_i, y_i)
-    zo = opset10.multiply(add, m_body)
+    add = ops.add(x_i, y_i)
+    zo = ops.multiply(add, m_body)
 
     body = Model([zo], [x_i, y_i, m_body], "body_function")
 
-    ti = opset10.tensor_iterator()
+    ti = ops.tensor_iterator()
     ti.set_body(body)
     ti.set_sliced_input(x_i, param_x.output(0), 0, 2, 2, 39, 1)
     ti.set_sliced_input(y_i, param_y.output(0), 0, 2, 2, -1, 1)
@@ -109,8 +109,8 @@ def test_low_latency2():
     out0 = ti.get_iter_value(zo.output(0), -1)
     out1 = ti.get_concatenated_slices(zo.output(0), 0, 2, 2, 39, 1)
 
-    result0 = opset10.result(out0)
-    result1 = opset10.result(out1)
+    result0 = ops.result(out0)
+    result1 = ops.result(out1)
 
     model = Model([result0, result1], [param_x, param_y, param_m])
 
@@ -132,10 +132,10 @@ def test_low_latency2():
 )
 def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
 
     model = get_relu_model()
 
@@ -153,3 +153,14 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+@pytest.mark.parametrize(("transformation", "arguments"),
+                         [(ConstantFolding, []),
+                          (MakeStateful, [{"parameter": "result"}]),
+                          (ConvertFP32ToFP16, []),
+                          (LowLatency2, [])])
+def test_run_on_model_transformations(transformation, arguments):
+    model = get_model()
+    transformation(*arguments).run_on_model(model)
+    assert model is not None

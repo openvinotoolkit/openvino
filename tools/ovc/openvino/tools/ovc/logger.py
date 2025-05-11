@@ -1,18 +1,16 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib.util
 import logging as log
 import os
 import re
-import sys
-from argparse import Namespace
 from copy import copy
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
 if importlib.util.find_spec('absl') is not None:
-    import absl.logging
+    import absl.logging # pylint: disable=import-error
 
     log.root.removeHandler(absl.logging._absl_handler)
 
@@ -64,7 +62,10 @@ class TagFilter(log.Filter):
         return True  # if regex wasn't set print all logs
 
 
-def init_logger(lvl: str, verbose: bool):
+def init_logger(lvl: str, verbose: bool, python_api_used: bool):
+    if verbose and python_api_used:
+        # We need to not override logger in case of verbose=True to allow user set a log level
+        return
     global handler_num
     log_exp = os.environ.get('MO_LOG_PATTERN')
     if not verbose:
@@ -79,9 +80,11 @@ def init_logger(lvl: str, verbose: bool):
         logger.addHandler(handler)
         handler_num += 1
 
+
 def get_logger_state():
     logger = log.getLogger()
     return logger.level, copy(logger.filters), copy(logger.handlers)
+
 
 def restore_logger_state(state: tuple):
     level, filters, handlers = state

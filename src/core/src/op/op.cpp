@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <sstream>
 
-#include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
-
-using namespace std;
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 ov::op::Op::Op(const ov::OutputVector& args) : Node(args) {}

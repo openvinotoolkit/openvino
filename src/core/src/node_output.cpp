@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/node_output.hpp"
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/parameter.hpp"
@@ -68,28 +69,10 @@ void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
 
 void Output<Node>::replace(const Output<Node>& replacement) {
     for (auto& input : get_target_inputs()) {
-        input.replace_source_output(replacement);
+        if (input.get_node() != replacement.get_node())
+            input.replace_source_output(replacement);
     }
     replacement.get_tensor_ptr()->add_names(get_tensor_ptr()->get_names());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    // In legacy API we rely on output port tensor name and use it as an input or output name for the model
-    // Due to m_name is just a string, and we can't store multiple aliases for single output port we have to
-    // handle two situations during replacement:
-    // 1. When we replace consumers to Parameter output port we can't change its name, so we skip this part
-    // 2. In other cases when we replace consumers to another output port we should set name. For example:
-    //    if we eliminate Node2 from Node1->Node2->Result we have to set Node2 output port name to Node1
-    //    output port name, so the output name for model won't be changed.
-    // But there are some cases when output name can not be preserved, so the replacement shouldn't be used:
-    // 1. Parameter->Node->Result - if we eliminate Node we will lose output name
-    // 2. Node1-->Node2->Result - if we eliminate Node2 we will lose Result output name
-    //         `->Result
-    // In both of these cases please use replace_output_update_name() method which automatically prevents the
-    // replacement for cases when we can not preserve input/output names of model.
-    if (!is_type<ov::op::v0::Parameter>(replacement.get_node())) {
-        ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(),
-                                                  ov::descriptor::get_ov_tensor_legacy_name(get_tensor()));
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::copy_output_runtime_info({*this, replacement}, {replacement});
 }
@@ -137,10 +120,12 @@ bool Output<Node>::operator!=(const Output& other) const {
     return !(*this == other);
 }
 bool Output<Node>::operator<(const Output& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return m_node->get_instance_id() < other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index < other.m_index);
 }
 bool Output<Node>::operator>(const Output& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return m_node->get_instance_id() > other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index > other.m_index);
 }
 bool Output<Node>::operator<=(const Output& other) const {
     return !(*this > other);
@@ -211,10 +196,12 @@ bool Output<const Node>::operator!=(const Output& other) const {
     return !(*this == other);
 }
 bool Output<const Node>::operator<(const Output& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return m_node->get_instance_id() < other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index < other.m_index);
 }
 bool Output<const Node>::operator>(const Output& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return m_node->get_instance_id() > other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index > other.m_index);
 }
 bool Output<const Node>::operator<=(const Output& other) const {
     return !(*this > other);

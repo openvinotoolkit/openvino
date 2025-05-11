@@ -1,65 +1,77 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/batch_norm.hpp"
+#include "openvino/op/batch_norm.hpp"
 
 #include <sstream>
 
+#include "batch_norm_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace batch_norm {
+namespace {
+element::Type infer_output_element_type(const Op* const op,
+                                        element::Type data_et,
+                                        const std::vector<element::Type>& inputs_element_types) {
+    for (const auto& input_et : inputs_element_types) {
+        NODE_VALIDATION_CHECK(op,
+                              element::Type::merge(data_et, data_et, input_et),
+                              "Input element types do not match.");
+    }
 
-op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                               const Output<Node>& gamma,
-                                               const Output<Node>& beta,
-                                               const Output<Node>& mean,
-                                               const Output<Node>& variance,
-                                               double epsilon)
+    NODE_VALIDATION_CHECK(op,
+                          data_et.is_dynamic() || data_et.is_real(),
+                          "Input element types must be floating-point. Got: ",
+                          data_et);
+
+    return data_et;
+}
+}  // namespace
+}  // namespace batch_norm
+
+namespace v0 {
+
+BatchNormInference::BatchNormInference(const Output<Node>& input,
+                                       const Output<Node>& gamma,
+                                       const Output<Node>& beta,
+                                       const Output<Node>& mean,
+                                       const Output<Node>& variance,
+                                       double epsilon)
     : Op({gamma, beta, input, mean, variance}),
       m_epsilon(epsilon) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
+bool BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_BatchNormInference_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::v0::BatchNormInference::validate_and_infer_types() {
+void BatchNormInference::validate_and_infer_types() {
     OV_OP_SCOPE(v0_BatchNormInference_validate_and_infer_types);
-    element::Type result_et;
-    ov::PartialShape result_batch_shape;
-    ov::PartialShape result_channel_shape;  // unused here
 
-    NODE_VALIDATION_CHECK(this,
-                          m_epsilon >= 0,
-                          "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
-                          m_epsilon);
+    NODE_VALIDATION_CHECK(this, m_epsilon >= 0, "Attribute 'epsilon' must be non negative value. Got: ", m_epsilon);
 
-    set_output_size(1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, result_et, result_batch_shape);
+    const auto output_et = batch_norm::infer_output_element_type(this,
+                                                                 get_input_element_type(INPUT_DATA),
+                                                                 {get_input_element_type(INPUT_GAMMA),
+                                                                  get_input_element_type(INPUT_BETA),
+                                                                  get_input_element_type(INPUT_MEAN),
+                                                                  get_input_element_type(INPUT_VARIANCE)});
+
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+
+    set_output_type(0, output_et, output_shapes[0]);
 }
 
-std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_BatchNormInference_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(new_args.at(2),
@@ -69,54 +81,44 @@ std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const Ou
                                                 new_args.at(4),
                                                 m_epsilon);
 }
+}  // namespace v0
 
-op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                               const Output<Node>& gamma,
-                                               const Output<Node>& beta,
-                                               const Output<Node>& mean,
-                                               const Output<Node>& variance,
-                                               double epsilon)
+namespace v5 {
+BatchNormInference::BatchNormInference(const Output<Node>& input,
+                                       const Output<Node>& gamma,
+                                       const Output<Node>& beta,
+                                       const Output<Node>& mean,
+                                       const Output<Node>& variance,
+                                       double epsilon)
     : Op({input, gamma, beta, mean, variance}),
       m_epsilon(epsilon) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
+bool BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v5_BatchNormInference_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::v5::BatchNormInference::validate_and_infer_types() {
+void BatchNormInference::validate_and_infer_types() {
     OV_OP_SCOPE(v5_BatchNormInference_validate_and_infer_types);
-    element::Type result_et;
-    ov::PartialShape result_batch_shape;
-    ov::PartialShape result_channel_shape;  // unused here
 
-    NODE_VALIDATION_CHECK(this,
-                          m_epsilon >= 0,
-                          "Attribute 'epsilon' must be a floating-point value greater than or equal to zero. Got: ",
-                          m_epsilon);
+    NODE_VALIDATION_CHECK(this, m_epsilon >= 0, "Attribute 'epsilon' must be non negative value. Got: ", m_epsilon);
 
-    set_output_size(1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, result_et, result_batch_shape);
+    const auto output_et = batch_norm::infer_output_element_type(this,
+                                                                 get_input_element_type(INPUT_DATA),
+                                                                 {get_input_element_type(INPUT_GAMMA),
+                                                                  get_input_element_type(INPUT_BETA),
+                                                                  get_input_element_type(INPUT_MEAN),
+                                                                  get_input_element_type(INPUT_VARIANCE)});
+
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+
+    set_output_type(0, output_et, output_shapes[0]);
 }
 
-std::shared_ptr<Node> op::v5::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_BatchNormInference_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(new_args.at(0),
@@ -126,3 +128,6 @@ std::shared_ptr<Node> op::v5::BatchNormInference::clone_with_new_inputs(const Ou
                                                 new_args.at(4),
                                                 m_epsilon);
 }
+}  // namespace v5
+}  // namespace op
+}  // namespace ov

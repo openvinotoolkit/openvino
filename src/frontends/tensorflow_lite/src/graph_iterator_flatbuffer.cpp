@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ size_t GraphIteratorFlatBuffer::get_subgraph_size() const {
     return m_subgraphs.size();
 }
 
-std::shared_ptr<GraphIteratorFlatBuffer> GraphIteratorFlatBuffer::get_subgraph(const size_t& idx) const {
+std::shared_ptr<GraphIterator> GraphIteratorFlatBuffer::get_subgraph(size_t idx) const {
     FRONT_END_GENERAL_CHECK(m_subgraphs.size() > idx, "There is no subgraph with idx ", idx);
     auto iterator = std::make_shared<GraphIteratorFlatBuffer>();
     iterator->node_index = 0;
@@ -59,7 +59,7 @@ std::shared_ptr<GraphIteratorFlatBuffer> GraphIteratorFlatBuffer::get_subgraph(c
     return iterator;
 }
 
-std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const {
+std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
     auto any_item = m_nodes[node_index];
     bool is_op = any_item.is<const tflite::Operator*>();
     FRONT_END_GENERAL_CHECK(is_op || any_item.is<int32_t>());
@@ -96,7 +96,8 @@ std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const 
         if (type == "CUSTOM") {
             type = operator_code->custom_code()->str();
         }
-        return std::make_shared<DecoderFlatBuffer>(node, type, std::to_string(node_index), input_info, output_info);
+        auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
+        return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
     } else {
         auto tensor_id = m_nodes[node_index].as<int32_t>();
         auto tensor = (*tensors)[tensor_id];
@@ -113,3 +114,15 @@ std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const 
         return std::make_shared<DecoderFlatBufferTensors>(info, input_idx, output_idx);
     }
 }
+
+template <>
+std::basic_string<char> ov::frontend::tensorflow_lite::get_model_extension<char>() {
+    return ::tflite::ModelExtension();
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> ov::frontend::tensorflow_lite::get_model_extension<wchar_t>() {
+    return util::string_to_wstring(::tflite::ModelExtension());
+}
+#endif

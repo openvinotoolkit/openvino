@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_ref::SetDefault(c
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_imad_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_imad_ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 

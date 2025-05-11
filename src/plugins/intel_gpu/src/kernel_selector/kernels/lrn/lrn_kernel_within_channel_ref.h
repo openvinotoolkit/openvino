@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ public:
     LRNKernelWithinChannel() : LRNKernelBase("lrn_gpu_within_channel") {}
     virtual ~LRNKernelWithinChannel() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 private:
@@ -25,7 +25,7 @@ private:
                  FusedOpType::ELTWISE,
                  FusedOpType::ACTIVATION };
     }
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

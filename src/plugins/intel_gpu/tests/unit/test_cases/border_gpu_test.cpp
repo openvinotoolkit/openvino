@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,12 +165,12 @@ INSTANTIATE_TEST_SUITE_P(negative_pads,
                                           testing::Values(true),
                                           testing::Values(false)));
 
-using border_test_f16 = border_test<FLOAT16, data_types::f16>;
+using border_test_f16 = border_test<ov::float16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_f16,
 INSTANTIATE_TEST_SUITE_P(export_import,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
@@ -1684,12 +1684,12 @@ public:
         blt_size_f = p.lt[1];
         blt_size_y = p.lt[2];
         blt_size_x = p.lt[3];
-    
+
         brb_size_b = p.rb[0];
         brb_size_f = p.rb[1];
         brb_size_y = p.rb[2];
         brb_size_x = p.rb[3];
-    
+
         out_size_b = in_size_b + blt_size_b + brb_size_b;
         out_size_f = in_size_f + blt_size_f + brb_size_f;
         out_size_y = in_size_y + blt_size_y + brb_size_y;
@@ -1825,5 +1825,186 @@ TEST_P(border_dynamic_test, border_dynamic_test) {}
 INSTANTIATE_TEST_SUITE_P(border_dynamic_test,
                          border_dynamic_test,
                          ::testing::ValuesIn(dynamic_params));
-};  // namespace
 
+TEST(border_gpu, basic_zero_input_dynamic) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::dynamic, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    layout input_layout_dynamic = {ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+
+    ov::CoordinateDiff pads_begin = {4, 0};
+    ov::CoordinateDiff pads_end = {0, 0};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(border("border", {input_info("input")}, 0, pads_begin, pads_end, ov::op::PadMode::CONSTANT, 1.0f));
+
+    std::vector<float> ref_output = {
+        1, 1, 1, 1
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("border");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "border");
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+
+TEST(border_gpu, basic_zero_input) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::u8, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    std::vector<int> pads_begin = {4, 0};
+    ov::PartialShape pads_begin_shape = { ov::Dimension(pads_begin.size()) };
+    auto pads_begin_input = engine.allocate_memory({pads_begin_shape, data_types::i32, format::bfyx});
+    set_values(pads_begin_input, pads_begin);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("pads_begin", pads_begin_input->get_layout()));
+    topology.add(border("border", {input_info("input"), input_info("pads_begin")},
+                        border::PAD_NON_CONST_INPUT::BEGIN,
+                        /*pads_begin*/{}, /*pads_end*/{0, 0},
+                        ov::op::PadMode::CONSTANT,
+                        2.0f));
+
+    std::vector<float> ref_output = {
+        2, 2, 2, 2
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("pads_begin", pads_begin_input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+
+TEST(border_gpu, 3d_input) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT;
+    ov::float16 pad_value = 0;
+    format::type fmt = format::type::bfyx;
+    std::array<int, 3> sh_in = {2, 3, 4};
+    std::vector<int> cd_lt = {5, 6, 7};
+    std::vector<int> cd_rb = {1, 8, 9};
+    std::array<int, 3> sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
+                                 sh_in[1] + cd_lt[1] + cd_rb[1],
+                                 sh_in[2] + cd_lt[2] + cd_rb[2]};
+    bool allow_negative_pads = false;
+    auto& engine = get_test_engine();
+
+    auto input_data = rg.generate_random_1d<ov::float16>(mult(sh_in), -9, 9, 1);
+    auto input = engine.allocate_memory({{sh_in[0], sh_in[1], sh_in[2]}, data_types::f16, format::bfyx});
+    set_values(input, input_data);
+
+    auto begin = engine.allocate_memory({{3}, data_types::i32, format::bfyx});
+    set_values(begin, cd_lt);
+
+    auto end = engine.allocate_memory({{3}, data_types::i32, format::bfyx});
+    set_values(end, cd_rb);
+
+    topology target_topology;
+    const auto input_layout_dynamic = layout{ov::PartialShape::dynamic(3), data_types::f16, format::bfyx};
+
+    target_topology.add(input_layout("input", input_layout_dynamic));
+    target_topology.add(data("begin", begin));
+    target_topology.add(data("end", end));
+    target_topology.add(reorder("border_input", input_info("input"), fmt, data_types::f16),
+                        border("border",
+                               {input_info("border_input"), input_info("begin"), input_info("end")},
+                               cldnn::border::PAD_NON_CONST_INPUT::BEGIN | cldnn::border::PAD_NON_CONST_INPUT::END,
+                               std::vector<int64_t>{},
+                               std::vector<int64_t>{},
+                               pad_mode,
+                               pad_value,
+                               allow_negative_pads),
+                        reorder("output", input_info("border"), cldnn::format::bfyx, data_types::f16));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network target_network(engine, target_topology, config);
+    target_network.set_input_data("input", input);
+    auto target_output = target_network.execute().at("output").get_memory();
+    cldnn::mem_lock<ov::float16> target_output_ptr(target_output, get_test_stream());
+
+    topology base_topology;
+    base_topology.add(input_layout("input", input_layout_dynamic));
+    base_topology.add(data("begin", begin));
+    base_topology.add(data("end", end));
+    base_topology.add(border("border",
+                             {input_info("input"), input_info("begin"), input_info("end")},
+                             cldnn::border::PAD_NON_CONST_INPUT::BEGIN | cldnn::border::PAD_NON_CONST_INPUT::END,
+                             std::vector<int64_t>{},
+                             std::vector<int64_t>{},
+                             pad_mode,
+                             pad_value,
+                             allow_negative_pads));
+    network base_network(engine, base_topology, config);
+    base_network.set_input_data("input", input);
+    auto base_output = base_network.execute().at("border").get_memory();
+    cldnn::mem_lock<ov::float16> base_output_ptr(base_output, get_test_stream());
+
+    ASSERT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(ov::float16) * mult(sh_out)));
+
+    for (auto b = 0; b < sh_out[0]; ++b) {
+        for (auto f = 0; f < sh_out[1]; ++f) {
+            for (auto y = 0; y < sh_out[2]; ++y) {
+                const auto output_off = ((b * sh_out[1] + f) * sh_out[2] + y);
+                ASSERT_GE(output_off, 0);
+
+                if (b < cd_lt[0] || b >= sh_out[0] - cd_rb[0] ||
+                    f < cd_lt[1] || f >= sh_out[1] - cd_rb[1] ||
+                    y < cd_lt[2] || y >= sh_out[2] - cd_rb[2]) {
+                    ASSERT_EQ(target_output_ptr[output_off], pad_value);
+                } else {
+                    const auto input_off  = (((b - cd_lt[0]) * sh_in[1] + f - cd_lt[1]) * sh_in[2] + y - cd_lt[2]);
+                    ASSERT_GE(input_off, 0);
+                    ASSERT_EQ(target_output_ptr[output_off], input_data[input_off]);
+                }
+            }
+        }
+    }
+}
+};  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, non_max_suppression_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::NonMaxSuppression>();
+    NodeBuilder::opset().insert<ov::op::v1::NonMaxSuppression>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -29,7 +29,7 @@ TEST(attributes, non_max_suppression_op_custom_attributes) {
 }
 
 TEST(attributes, non_max_suppression_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::NonMaxSuppression>();
+    NodeBuilder::opset().insert<ov::op::v1::NonMaxSuppression>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -42,7 +42,7 @@ TEST(attributes, non_max_suppression_op_default_attributes) {
 }
 
 TEST(attributes, non_max_suppression_v3_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonMaxSuppression>();
+    NodeBuilder::opset().insert<ov::op::v3::NonMaxSuppression>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -61,7 +61,7 @@ TEST(attributes, non_max_suppression_v3_op_custom_attributes) {
 }
 
 TEST(attributes, non_max_suppression_v3_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonMaxSuppression>();
+    NodeBuilder::opset().insert<ov::op::v3::NonMaxSuppression>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 

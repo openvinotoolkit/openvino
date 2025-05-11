@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -35,7 +38,7 @@ void convert_broadcast3_test(std::shared_ptr<Model> f, std::shared_ptr<Model> f_
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::ConvertBroadcast3>();
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -58,7 +61,7 @@ public:
         auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
         auto broadcast = std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::NUMPY);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
@@ -66,7 +69,7 @@ public:
         auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
         auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 };
 
@@ -89,7 +92,7 @@ public:
         auto broadcast =
             std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
@@ -97,7 +100,7 @@ public:
         auto const_node = opset1::Constant::create(element::f32, Shape{target_shape}, {1});
         auto mul = std::make_shared<opset1::Multiply>(input, const_node);
 
-        return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 };
 
@@ -122,7 +125,7 @@ public:
         auto broadcast =
             std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape,
@@ -132,7 +135,7 @@ public:
             opset1::Constant::create(element::i64, Shape{aligned_target_shape.size()}, aligned_target_shape);
         auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 };
 
@@ -156,7 +159,7 @@ public:
         auto broadcast =
             std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input, target_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
@@ -166,7 +169,7 @@ public:
         auto broadcast =
             std::make_shared<opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
         auto mul = std::make_shared<opset1::Multiply>(input, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input, target_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input, target_shape_node});
     }
 };
 
@@ -190,7 +193,7 @@ public:
         auto broadcast =
             std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
-        return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input, target_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
@@ -200,7 +203,7 @@ public:
         auto broadcast =
             std::make_shared<opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
         auto mul = std::make_shared<opset1::LogicalAnd>(input, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input, target_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input, target_shape_node});
     }
 };
 
@@ -331,13 +334,13 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
         auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -346,7 +349,7 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
         auto broadcast = std::make_shared<opset1::Broadcast>(input1, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f_ref = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -367,13 +370,13 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
         auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -382,7 +385,7 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
         auto broadcast = std::make_shared<opset1::Broadcast>(input1, target_shape, op::AutoBroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f_ref = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -405,13 +408,13 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
             std::make_shared<opset3::Broadcast>(input1, target_shape, brodcast_axis, op::BroadcastType::EXPLICIT);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -421,7 +424,7 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
         auto broadcast =
             std::make_shared<opset1::Broadcast>(input1, target_shape, brodcast_axis, op::AutoBroadcastType::EXPLICIT);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f_ref = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -445,13 +448,13 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -460,7 +463,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -481,13 +484,13 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -496,7 +499,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});
+        f_ref = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -522,13 +525,13 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
             std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -540,7 +543,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
             std::make_shared<opset1::Multiply>(input, opset1::Constant::create(element::f32, target_shape, {1}));
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});
+        f_ref = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -566,13 +569,13 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
             std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
+        f = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -584,7 +587,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
             std::make_shared<opset1::LogicalAnd>(input, opset1::Constant::create(element::boolean, target_shape, {1}));
         broadcast->set_friendly_name("broadcast");
 
-        f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});
+        f_ref = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);

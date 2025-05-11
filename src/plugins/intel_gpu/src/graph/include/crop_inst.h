@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,6 @@ public:
 
 private:
     void on_execute() override;
-
-    void reuse_input();
 };
 
 using crop_inst = typed_primitive_inst<crop>;

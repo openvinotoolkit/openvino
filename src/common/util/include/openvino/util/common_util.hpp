@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstring>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -14,31 +16,67 @@
 namespace ov {
 namespace util {
 
-template <typename T>
-std::string join(const T& v, const std::string& sep = ", ") {
+/**
+ * @brief Join container's elements to string using user string as separator.
+ *
+ * @param container  Element to make joined string.
+ * @param sep        User string used as separator. Default ", ".
+ * @return Joined elements as string.
+ */
+template <typename Container>
+std::string join(const Container& container, const std::string& sep = ", ") {
     std::ostringstream ss;
-    size_t count = 0;
-    for (const auto& x : v) {
-        if (count++ > 0) {
-            ss << sep;
+    auto first = std::begin(container);
+    const auto last = std::end(container);
+    if (first != last) {
+        ss << *first;
+        ++first;
+        for (; first != last; ++first) {
+            ss << sep << *first;
         }
-        ss << x;
     }
     return ss.str();
 }
 
-template <typename T>
-std::string vector_to_string(const T& v) {
-    std::ostringstream os;
-    os << "[ " << ov::util::join(v) << " ]";
-    return os.str();
+/**
+ * @brief Stringify the input vector.
+ *
+ *  The vector is converted to the string as "[ element 0, element 1, ..., element N ]".
+ *  Examples:
+ *  - std::vector<int>{1,3,5} -> "[ 1, 3, 5 ]"
+ *  - std::vector<int>{}      -> "[  ]"
+ *
+ * @param v  Vector to be converted
+ * @return String contains
+ */
+template <typename T, typename A>
+std::string vector_to_string(const std::vector<T, A>& v) {
+    return "[ " + ov::util::join(v) + " ]";
 }
 
 std::string to_lower(const std::string& s);
 
 std::string to_upper(const std::string& s);
 
-size_t hash_combine(const std::vector<size_t>& list);
+inline size_t hash_combine(size_t val, const size_t seed) {
+    return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+inline size_t hash_combine(const std::vector<size_t>& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
+
+inline size_t hash_combine(std::initializer_list<size_t>&& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
 
 /**
  * @brief trim from start (in place)
@@ -112,11 +150,111 @@ T ceil_div(const T& x, const T& y) {
     return (x == 0 ? 0 : (1 + (x - 1) / y));
 }
 
-template <typename T, typename A, typename V>
-bool contains(const std::vector<T, A>& vec, const V& v) {
-    return std::any_of(vec.begin(), vec.end(), [&](const T& x) {
-        return x == v;
-    });
+/**
+ * @brief Checks if container contains the specific value.
+ *
+ * @param container  The container of elements to examine.
+ * @param value      Value to compare the elements to.
+ * @return True if value found in the container, false otherwise.
+ */
+template <typename R, typename V>
+bool contains(const R& container, const V& value) {
+    return std::find(std::begin(container), std::end(container), value) != std::end(container);
 }
+
+/**
+ * @brief multiply vector's values
+ * @param vec - vector with values
+ * @return result of multiplication
+ */
+template <typename T, typename A>
+T product(const std::vector<T, A>& vec) {
+    return vec.empty() ? T{0} : std::accumulate(vec.begin(), vec.end(), T{1}, std::multiplies<T>());
+}
+
+/**
+ * @brief Associative containers doesnt work with remove_if algorithm
+ * @tparam ContainerT
+ * @tparam PredicateT
+ * @param data An associative container
+ * @param predicate A predicate to remove values conditionally
+ */
+template <typename Container, typename PredicateT>
+inline void erase_if(Container& data, const PredicateT& predicate) {
+    for (auto it = std::begin(data); it != std::end(data);) {
+        if (predicate(*it)) {
+            it = data.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);
+
+template <class T = void, class... Args>
+constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Args...>, T>, sizeof...(Args)> make_array(
+    Args&&... args) {
+    return {std::forward<Args>(args)...};
+}
+
+#if defined(_WIN32)
+bool may_i_use_dynamic_code();
+#else
+constexpr bool may_i_use_dynamic_code() {
+    return true;
+}
+#endif
+
+/**
+ * @brief A custom stream buffer that provides read-only access to a string view.
+ *
+ * This class inherits from `std::streambuf` and is designed to facilitate
+ * input operations directly on a `std::string_view` without copying the
+ * underlying string data. It allows for efficient reading and seeking
+ * operations within the string view.
+ *
+ * @note This stream buffer is intended for input operations only.
+ * @see pyopenvino/utils/utils.hpp for a similar implementation
+ */
+class StringViewStreamBuf : public std::streambuf {
+public:
+    explicit StringViewStreamBuf(std::string_view sv) {
+        char* begin = const_cast<char*>(sv.data());
+        setg(begin, begin, begin + sv.size());
+    }
+
+protected:
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
+        if (which != std::ios_base::in) {
+            return off_type(-1);
+        }
+
+        switch (dir) {
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return off_type(-1);
+        }
+        if (gptr() < eback() || gptr() > egptr())
+            return off_type(-1);
+
+        return gptr() - eback();
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+};
+
 }  // namespace util
 }  // namespace ov

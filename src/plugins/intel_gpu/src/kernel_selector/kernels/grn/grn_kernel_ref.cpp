@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,11 +26,11 @@ ParamsKey GRNKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData GRNKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData GRNKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority GRNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GRNKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 

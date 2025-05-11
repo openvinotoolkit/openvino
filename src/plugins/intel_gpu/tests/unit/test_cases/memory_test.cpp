@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -555,9 +555,9 @@ public:
         auto input_data2 = engine.allocate_memory(input_actual_layout2);
         auto fc_weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
 
-        set_values(input_data1, { -0.5f, 2.0f, 0.5f });
-        set_values(input_data2, { 0.5f, -2.0f, -0.5f,
-                                -0.5f, 2.0f, 0.5f });
+        set_values(input_data1, { -0.5f, 2.0f, 0.5f, 
+                                   0.5f, -2.0f, -0.5f});
+        set_values(input_data2, { 0.5f, -2.0f, -0.5f });
         set_values(fc_weights_data, { 1.5f, 1.0f, 0.5f,
                                 -1.0f, 0.0f, 0.5f,
                                 0.5f, -0.5f, -2.0f,
@@ -623,7 +623,7 @@ public:
             // The 'grid_sample' layer should be dynamic, not 'shape agnostic kernel' and user of 'elt1'. This is a key condition of this test.
             grid_sample("grid_sample", { input_info("elt1"), input_info("input_dyn") }, attributes),
             data("fc_weights", fc_weights_data),
-            fully_connected("fc", input_info("grid_sample"), "fc_weights")
+            fully_connected("fc", input_info("grid_sample"), "fc_weights", "", 4, 4)
         };
 
         ExecutionConfig config = get_test_default_config(engine);

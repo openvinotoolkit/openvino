@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/roi_pooling.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "roi_pooling_shape_inference.hpp"
-
-using namespace std;
 
 namespace ov {
 namespace op {
@@ -17,7 +14,7 @@ ROIPooling::ROIPooling(const Output<Node>& input,
                        const Output<Node>& coords,
                        const ov::Shape& output_size,
                        const float spatial_scale,
-                       const string& method)
+                       const std::string& method)
     : Op({input, coords}),
       m_output_size(output_size),
       m_spatial_scale(spatial_scale),
@@ -43,9 +40,7 @@ void ROIPooling::validate_and_infer_types() {
                           " and: ",
                           coords_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, feat_maps_et, output_shapes[0]);
 
     const auto& feat_maps_ps = get_input_partial_shape(0);
@@ -64,15 +59,16 @@ void ROIPooling::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> ROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> ROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_ROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ROIPooling>(new_args.at(0), new_args.at(1), m_output_size, m_spatial_scale, m_method);
+    return std::make_shared<ROIPooling>(new_args.at(0), new_args.at(1), m_output_size, m_spatial_scale, m_method);
 }
 
 bool ROIPooling::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_ROIPooling_visit_attributes);
-    visitor.on_attribute("output_size", m_output_size);
+    visitor.on_attribute("output_size", m_output_size);  // TODO: to be deprecated with get_output_size() of ROIPooling
+    visitor.on_attribute("output_roi", m_output_size);   // same as output_size
     visitor.on_attribute("pooled_h", m_output_size[0]);
     visitor.on_attribute("pooled_w", m_output_size[1]);
     visitor.on_attribute("spatial_scale", m_spatial_scale);

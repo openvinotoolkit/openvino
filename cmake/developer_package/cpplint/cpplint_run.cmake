@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,7 +25,7 @@ set(FILTER "${DEFAULT_FILTER}${CUSTOM_FILTER}")
 
 execute_process(
     COMMAND
-        "${PYTHON_EXECUTABLE}"
+        "${Python3_EXECUTABLE}"
         "${CPPLINT_SCRIPT}"
         "--linelength=160"
         "--counting=detailed"

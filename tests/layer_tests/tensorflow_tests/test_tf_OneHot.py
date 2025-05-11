@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -30,13 +30,11 @@ class TestOneHot(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_one_hot_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                           use_old_api):
+    def test_one_hot_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_one_hot_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_complex = [
         dict(shape=[3, 4], depth=1, on_value=1.0, off_value=-5.0, axis=-2),
@@ -45,8 +43,6 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
-    def test_one_hot_complex(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                             use_old_api):
+    def test_one_hot_complex(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_one_hot_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

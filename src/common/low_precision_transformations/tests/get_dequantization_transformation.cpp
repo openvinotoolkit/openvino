@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,22 +11,22 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
-#include <low_precision/common/fake_quantize_dequantization.hpp>
+#include "ov_lpt_models/get_dequantization.hpp"
+#include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class GetDequantizationTestValues {
 public:
     FakeQuantizeOnData fakeQuantize;
-    // actual dequantization to create nGraph function to run NetworkHelper::getDequantization
+    // actual dequantization to create ov::Model to run NetworkHelper::getDequantization
     DequantizationOperations actualDequantization;
     DequantizationOperations expectedDequantization;
 };
@@ -66,7 +66,7 @@ public:
             testValues.actualDequantization);
 
         const auto output = actualFunction->get_output_op(0);
-        auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(output);
+        auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(output);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationParams> obj) {
@@ -85,7 +85,7 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
     const GetDequantizationTestValues testValues = std::get<2>(GetParam());
 
     const auto output = actualFunction->get_output_op(0);
-    const ngraph::pass::low_precision::FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(output);
+    const ov::pass::low_precision::FakeQuantizeDequantization dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(output);
     DequantizationOperations actualDequantization = toDequantizationOperations(dequantization);
     actualDequantization.subtract.constantShapeIsDefined = testValues.expectedDequantization.subtract.constantShapeIsDefined;
     actualDequantization.subtract.outPrecision = testValues.expectedDequantization.subtract.outPrecision;

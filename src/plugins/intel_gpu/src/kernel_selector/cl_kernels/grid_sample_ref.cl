@@ -7,7 +7,7 @@ typedef __global INPUT1_TYPE grid_t;
 typedef __global OUTPUT_TYPE output_t;
 
 typedef INPUT0_TYPE data_et;
-typedef INPUT1_TYPE grid_et;
+typedef float grid_et;
 typedef OUTPUT_TYPE output_et;
 
 inline const data_et FUNC(

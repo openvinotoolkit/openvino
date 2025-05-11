@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include "experimental_detectron_topkrois_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 
-using namespace std;
 namespace ov {
 op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
                                                                      const Output<Node>& rois_probs,
@@ -25,10 +23,10 @@ bool op::v6::ExperimentalDetectronTopKROIs::visit_attributes(AttributeVisitor& v
     return true;
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
+    return std::make_shared<op::v6::ExperimentalDetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
 }
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
@@ -40,9 +38,7 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
                               (out_et.is_dynamic() || out_et.is_real()),
                           "ROIs and probabilities of ROIs must same floating-point type.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_et, output_shapes[0]);

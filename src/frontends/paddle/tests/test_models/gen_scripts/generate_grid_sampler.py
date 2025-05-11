@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -28,7 +28,7 @@ def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", alig
         exe = paddle.static.Executor(place)
         exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x, "grid": grid}, fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'grid'], fetchlist=[out], inputs=[x, grid], outputs=[outs[0]],
+        saveModel(name, exe, feed_vars=[x_node, grid_node], fetchlist=[out], inputs=[x, grid], outputs=[outs[0]],
                   target_dir=sys.argv[1])
 
     return outs[0]
@@ -51,6 +51,8 @@ def main():
     x = np.random.randn(2, 3, 128, 128).astype(dtype)
     grid = np.random.uniform(-1, 1, [2, 130, 130, 2]).astype(dtype)
     padding_mode = "border"
+    grid_sampler(name='grid_sampler_3', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
+                 align_corners=align_corners)
     grid_sampler(name='grid_sampler_dyn', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
                  align_corners=align_corners, is_dynamic=True)
 

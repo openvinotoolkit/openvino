@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,13 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
+#include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
+#include "openvino/util/wstring_convert_util.hpp"
 
 namespace ov {
 namespace util {
@@ -77,25 +80,34 @@ struct FileTraits<wchar_t> {
     }
 };
 
+/**
+ * @brief Convert path as char string to to a single-byte chain.
+ * @param path Path as char string.
+ * @return Reference to input path (no conversion).
+ */
+template <class Path,
+          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::string>::value>::type* = nullptr>
+const std::string& path_to_string(const Path& path) {
+    return path;
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Conversion from wide character string to a single-byte chain.
- * @param wstr A wide-char string
- * @return A multi-byte string
+ * @brief Convert path as wide character string to a single-byte chain.
+ * @param path  Path as wide-char string.
+ * @return A char string
  */
-std::string wstring_to_string(const std::wstring& wstr);
-/**
- * @brief Conversion from single-byte chain to wide character string.
- * @param str A null-terminated string
- * @return A wide-char string
- */
-std::wstring string_to_wstring(const std::string& str);
+template <class Path,
+          typename std::enable_if<std::is_same<typename std::decay<Path>::type, std::wstring>::value>::type* = nullptr>
+std::string path_to_string(const Path& path) {
+    return ov::util::wstring_to_string(path);
+}
 
 #endif
 
 /// \brief Remove path components which would allow traversing up a directory tree.
 /// \param path A path to file
-/// \return A sanitiazed path
+/// \return A sanitized path
 std::string sanitize_path(const std::string& path);
 
 /// \brief Returns the name with extension for a given path
@@ -125,43 +137,39 @@ bool is_absolute_file_path(const std::string& path);
  */
 void create_directory_recursive(const std::string& path);
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @param path - path to file wide-string, can be relative to current working directory
+ * @throw runtime_error if any error occurred
+ */
+void create_directory_recursive(const std::wstring& path);
+#endif
+
 /**
  * @brief Interface function to check if directory exists for given path
  * @param path - path to directory
  * @return true if directory exists, false otherwise
  */
-bool directory_exists(const std::string& path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-/**
- * @brief Interface function to check if directory exists for given path
- * @param path - path to directory wide-string
- * @return true if directory exists, false otherwise
- */
-bool directory_exists(const std::wstring& path);
-#endif
+bool directory_exists(const ov::util::Path& path);
 
 /**
  * @brief      Returns file size for file
  * @param[in]  path  The file name
  * @return     file size
  */
-inline int64_t file_size(const char* path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* file_name = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string file_name = path;
-    std::string::size_type pos = file_name.find('!');
-    if (pos != std::string::npos) {
-        file_name = file_name.substr(0, pos);
-    }
-#else
-    const char* file_name = path;
-#endif
-    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
-    return in.tellg();
+
+inline int64_t file_size(const ov::util::Path& path) {
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    return ec ? -1 : static_cast<int64_t>(size);
 }
+
+#ifdef _MSC_VER
+inline int64_t file_size(const char* path) {
+    return file_size(ov::util::string_to_wstring(path));
+}
+#endif
 
 /**
  * @brief      Returns file size for file
@@ -188,15 +196,6 @@ inline bool file_exists(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::wstring& path) {
-    return file_size(wstring_to_string(path).c_str());
-}
-
-/**
  * @brief      Returns true if file exists
  * @param[in]  path  The file name
  * @return     true if file exists
@@ -205,15 +204,6 @@ inline bool file_exists(const std::wstring& path) {
     return file_exists(wstring_to_string(path).c_str());
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::string& path) {
-    return file_size(path.c_str());
-}
 
 /**
  * @brief      Returns true if file exists
@@ -225,8 +215,10 @@ inline bool file_exists(const std::string& path) {
 }
 
 std::string get_file_ext(const std::string& path);
-std::string get_directory(const std::string& path);
-std::string path_join(const std::vector<std::string>& paths);
+ov::util::Path get_directory(const ov::util::Path& path);
+
+ov::util::Path path_join(std::initializer_list<ov::util::Path>&& paths);
+std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,
@@ -237,34 +229,22 @@ void convert_path_win_style(std::string& path);
 
 std::string get_ov_lib_path();
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+// TODO: remove this using. replace with Path.
+using FilePath = ov::util::Path::string_type;
 
-using FilePath = std::wstring;
-
-inline std::string from_file_path(const FilePath& path) {
-    return wstring_to_string(path);
+// TODO: remove this function after get_plugin_path using Path
+inline std::string from_file_path(const ov::util::Path& path) {
+    return path.string();
 }
 
-inline FilePath to_file_path(const std::string& path) {
-    return string_to_wstring(path);
-}
-
-std::wstring get_directory(const std::wstring& path);
-std::wstring path_join_w(const std::vector<std::wstring>& paths);
-
+// TODO: remove this function after all calls use Path
+inline FilePath to_file_path(const ov::util::Path& path) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    return ov::util::string_to_wstring(path.string());
 #else
-
-using FilePath = std::string;
-
-inline std::string from_file_path(const FilePath& path) {
-    return path;
+    return path.native();
+#endif
 }
-
-inline FilePath to_file_path(const std::string& path) {
-    return path;
-}
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -354,6 +334,21 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @return Pointer to trimmed file name path.
  */
 const char* trim_file_name(const char* const fname);
+
+template <typename C>
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+
+template <typename C, typename = enableIfSupportedChar<C>>
+inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const std::basic_string<C>& file) {
+    if (folder.empty())
+        return file;
+    return folder + ov::util::FileTraits<C>::file_separator + file;
+}
+
+inline ov::util::Path make_path(const wchar_t* file) {
+    return {std::wstring(file)};
+}
 
 }  // namespace util
 }  // namespace ov

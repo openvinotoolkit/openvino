@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_subtract.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -17,7 +18,7 @@
 using namespace ov;
 
 static bool convert_subtract(const std::shared_ptr<Node>& node) {
-    auto sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(node);
+    auto sub = ov::as_type_ptr<ov::op::v1::Subtract>(node);
     if (!sub) {
         return false;
     }
@@ -34,9 +35,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         sub->input_value(1),
         ov::op::v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(neg)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(neg)) {
         neg = constant;
     } else {
         new_nodes.push_back(neg);

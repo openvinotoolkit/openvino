@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ std::vector<TRShape> shape_infer(const CTCLoss* op, const std::vector<TShape>& i
         " and: ",
         batch_size);
 
-    return {TRShape{batch_size}};
+    return {TRShape{std::move(batch_size)}};
 }
 }  // namespace v4
 }  // namespace op

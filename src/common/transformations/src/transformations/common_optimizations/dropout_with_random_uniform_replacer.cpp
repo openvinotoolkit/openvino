@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -14,6 +15,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -26,13 +28,11 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     const auto random_uniform_pattern = ov::pass::pattern::wrap_type<ov::op::v8::RandomUniform>(
         {shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
         pattern::consumers_count(1));
-    const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
-    const auto add_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto convert_or_random_uniform_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{convert_pattern, random_uniform_pattern});
 
-    const auto add_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Add>({convert_or_random_uniform_pattern, add_const_pattern});
+    const auto optional_convert = pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
+    const auto add_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+
+    const auto add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Add>({optional_convert, add_const_pattern});
 
     const auto floor_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Floor>({add_pattern});
 
@@ -40,18 +40,18 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto shape_of = pattern_map.at(shape_pattern);
-        const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
+        const auto ru = ov::as_type_ptr<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
         if (!ru->get_out_type().is_real())
             return false;
 
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ru_min_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(ru_min_const_pattern).get_node_shared_ptr());
         auto max_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<double>(min_const_value, 0.0) &&
                                      op::util::has_constant_value<double>(max_const_value, 1.0);

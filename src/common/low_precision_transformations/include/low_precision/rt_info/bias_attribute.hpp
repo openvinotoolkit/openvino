@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/node.hpp>
-#include <openvino/core/runtime_attribute.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 LP_TRANSFORMATIONS_API void mark_as_bias(const std::shared_ptr<Node>& node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(QuantMatMulTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

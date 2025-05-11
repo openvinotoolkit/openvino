@@ -5,9 +5,9 @@
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "validation_util.hpp"
 
 using MultiSubGraphOp = ov::op::util::MultiSubGraphOp;
 
@@ -15,7 +15,7 @@ static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
     const std::shared_ptr<MultiSubGraphOp>& op,
     const MultiSubGraphOp::InputDescription::Ptr& input_desc,
     std::map<ov::Output<ov::Node>, std::shared_ptr<ov::op::v0::Constant>>& cache) {
-    if (!std::dynamic_pointer_cast<MultiSubGraphOp::InvariantInputDescription>(input_desc)) {
+    if (!ov::as_type_ptr<MultiSubGraphOp::InvariantInputDescription>(input_desc)) {
         return nullptr;
     }
     const auto outer_input = op->input_value(input_desc->m_input_index);

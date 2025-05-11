@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,8 +87,8 @@ JitConstants ScatterNDUpdateKernelRef::GetJitConstants(const scatter_nd_update_p
     return jit;
 }
 
-bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: SCATTER_ND_UPDATE || o.GetType() != KernelType::SCATTER_ND_UPDATE) {
+bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: SCATTER_ND_UPDATE) {
         return false;
     }
 
@@ -152,15 +152,7 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
     return result;
 }
 
-KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    KernelData kd = KernelData::Default<scatter_nd_update_params>(params, 2);
-    scatter_nd_update_params& newParams = *static_cast<scatter_nd_update_params*>(kd.params.get());
-    auto cldnn_jit = GetJitConstants(newParams);
-
+void ScatterNDUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_nd_update_params&>(params);
         OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
@@ -170,14 +162,31 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+            // Do not skip copy stage if output buffer is not empty or requires modification
+            if (i == 0 && prim_params.outputs[0].LogicalSize() != 0 && prim_params.outputs[0] != prim_params.inputs[0])
+                kd.kernels[i].skip_execution = false;
         }
     };
+}
+
+KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+
+    KernelData kd = KernelData::Default<scatter_nd_update_params>(params, 2);
+    scatter_nd_update_params& newParams = *static_cast<scatter_nd_update_params*>(kd.params.get());
+    auto cldnn_jit = GetJitConstants(newParams);
+
+    GetUpdateDispatchDataFunc(kd);
 
     // First iter - copy input data to output data
     // Second iter - update values specified by updates at specific index position specified by indices
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
+        auto inputs_number = i == 0 ? 1 : 3;
 
         if (i == 1) {
             size_t input0_rank = newParams.inputs[0].LogicalDims().size();
@@ -213,7 +222,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         clKernelData& kernel = kd.kernels[i];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     }
 
     return {kd};

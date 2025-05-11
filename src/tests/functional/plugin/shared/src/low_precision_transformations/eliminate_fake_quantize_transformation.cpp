@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "openvino/util/common_util.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -32,10 +32,12 @@ void EliminateFakeQuantizeTransformation::SetUp() {
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     // Convolution is used in a model as operation with specific precision requirements on data branch
     // to test the transformation place in LPT pipeline:
     // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.precisionBefore,
         testValues.actual.fakeQuantizeOnData1,
@@ -47,12 +49,12 @@ void EliminateFakeQuantizeTransformation::SetUp() {
 
 TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    const auto& rtInfo = LayerTestsCommon::getRuntimeInfo();
+    const auto& rtInfo = LayerTransformation::get_runtime_info();
 
     auto exist = testValues.expected.exist;
     auto absent = testValues.expected.absent;
@@ -73,7 +75,7 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
         if (type == "Convolution") {
             const auto& precision_it = it.second.find("runtimePrecision");
             const auto& precision = precision_it->second.as<std::string>();
-            if (precision == "U8") {
+            if (precision == "u8") {
                 int8_convolutions++;
             }
         }

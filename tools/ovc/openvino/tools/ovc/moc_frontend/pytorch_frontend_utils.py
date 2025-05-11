@@ -1,22 +1,36 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import pathlib
 import sys
 
 import numpy as np
-# pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Tensor, PartialShape
 
+# pylint: disable=no-name-in-module,import-error
+from openvino import Tensor, PartialShape
+from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
+
+
+def extract_module_extensions(args):
+    from openvino.frontend.pytorch.module_extension import ModuleExtension
+    extensions = args.get('extension', []) or []
+    if not isinstance(extensions, (list, tuple)):
+        extensions = [extensions]
+    return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        from openvino.frontend.pytorch.module_extension import ModuleExtension
+        import torch
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
+
     if 'nncf' in sys.modules:
         is_good_version = True
         try:
@@ -29,17 +43,76 @@ def get_pytorch_decoder(model, example_inputs, args):
         except:
             pass
         if not is_good_version:
-            raise RuntimeError(
-                    "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
+            raise RuntimeError("NNCF models produced by nncf<2.6 are not "
+                               "supported directly. Please upgrade nncf or "
+                               "export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
-    if not isinstance(model, TorchScriptPythonDecoder):
-        decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
+    if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
+        if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
+            decoder = TorchFXPythonDecoder.from_exported_program(model)
+        else:
+            decoder = TorchScriptPythonDecoder(
+                model,
+                example_input=inputs,
+                shared_memory=args.get("share_weights", True),
+                module_extensions=extract_module_extensions(args))
     else:
         decoder = model
     args['input_model'] = decoder
-    args["example_input"] = inputs
+    ei = getattr(decoder, "_example_input", None)
+    if ei is not None:
+        args["example_input"] = ei
+    else:
+        args["example_input"] = inputs
 
     return args
+
+
+def get_pytorch_decoder_for_model_on_disk(argv, args):
+    try:
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        import torch
+    except:
+        return False
+
+    example_inputs = None
+    if 'example_input' in args and args['example_input'] is not None:
+        example_inputs = args['example_input']
+
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 1:
+        input_model = argv.input_model[0]
+    else:
+        input_model = argv.input_model
+
+    if not isinstance(input_model, (str, pathlib.Path)):
+        return False
+
+    # attempt to load scripted model
+    try:
+        inputs = prepare_torch_inputs(example_inputs)
+        model = torch.jit.load(input_model)
+        model.eval()
+        decoder = TorchScriptPythonDecoder(
+            model,
+            example_input=inputs,
+            shared_memory=args.get("share_weights", True),
+            module_extensions=extract_module_extensions(args))
+        argv.input_model = decoder
+        argv.framework = 'pytorch'
+        return True
+    except:
+        pass
+    # attempt to load exported model
+    try:
+        exported_program = torch.export.load(input_model)
+        if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
+            argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
+            argv.framework = 'pytorch'
+            return True
+    except:
+        pass
+    return False
 
 
 def update_list_or_dict(container, name, idx, value):
@@ -69,77 +142,89 @@ def get_value_from_list_or_dict(container, name, idx):
     return None
 
 
+def flatten_inputs(inputs, names=None):
+    flattened = []
+    if isinstance(inputs, dict):
+        # if names are provided we need to unpack in the same order
+        if names:
+            for name in names:
+                if isinstance(inputs[name], (list, tuple, dict)):
+                    flattened.extend(flatten_inputs(inputs[name]))
+                else:
+                    flattened.append((name, inputs[name]))
+        else:
+            for name, input_data in inputs.items():
+                if isinstance(input_data, (list, tuple, dict)):
+                    flattened.extend(flatten_inputs(input_data))
+                else:
+                    flattened.append((name, input_data))
+    else:
+        for input_data in inputs:
+            if isinstance(input_data, (list, tuple, dict)):
+                flattened.extend(flatten_inputs(input_data))
+            else:
+                flattened.append(input_data)
+    return flattened
+
+
 def extract_input_info_from_example(args, inputs):
     try:
         from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    example_inputs = args.example_input
-    data_types = args.placeholder_data_types or {}
-    input_shapes = args.placeholder_shapes or {}
+    example_inputs = args.input_model._example_input if args.input_model._example_input is not None else args.example_input
+    if example_inputs is None:
+        return
     is_dict_input = isinstance(example_inputs, dict)
-    list_inputs = list(example_inputs.values()) if is_dict_input else example_inputs
-    input_names = None
     if not isinstance(example_inputs, (list, tuple, dict)):
-        list_inputs = [list_inputs]
-    if args.input_model._input_is_list:
-        list_inputs[0] = list_inputs[0].unsqueeze(0)
-    if args.input_model._input_signature is not None and not is_dict_input:
-        input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[0] == "self" else args.input_model._input_signature
-        if not is_dict_input:
-            example_inputs = dict(zip(input_names, list_inputs))
-            is_dict_input = True
-    elif is_dict_input:
-        input_names = list(example_inputs)
-    if not data_types and input_names is None:
-        data_types = []
-    if not input_shapes and input_names is None:
-        input_shapes = []
-    if inputs:
-        for input_id, input_info in enumerate(inputs):
-            input_name = input_info.name
-            if is_dict_input and input_name in example_inputs:
-                example_input = example_inputs[input_name]
-            else:
-                example_input = list_inputs[input_id]
-                if is_dict_input and input_name is None:
-                    input_name = input_names[input_id]
-            dtype = getattr(example_input, "dtype", type(example_input))
-            example_dtype = pt_to_ov_type_map.get(str(dtype))
-            user_dtype = get_value_from_list_or_dict(data_types, input_name, input_id)
-            if user_dtype is not None and example_dtype is not None and example_dtype.to_dtype() != user_dtype:
-                raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}")
+        example_inputs = [example_inputs]
+    input_names = None
+    if args.input_model._input_signature is not None:
+        input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[
+                                                                   0] == "self" else args.input_model._input_signature
+    if input_names and not is_dict_input:
+        example_inputs = dict(zip(input_names, example_inputs))
+    example_inputs = flatten_inputs(example_inputs, input_names)
+    input_arg = []
+    for example in example_inputs:
+        name = None
+        if isinstance(example, tuple) and len(example) == 2:
+            name = example[0]
+            example = example[1]
+        shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
+        dtype = getattr(example, "dtype", type(example))
+        dtype = pt_to_ov_type_map.get(str(dtype))
+        if name:
+            input_arg.append(single_input_to_input_cut_info((name, shape, dtype)))
+        else:
+            input_arg.append(single_input_to_input_cut_info((shape, dtype)))
+    if inputs is not None and len(inputs) != 0:
+        if len(inputs) == len(input_arg):
+            # we can update input argument with info from examples
+            new_input = []
+            for i in range(len(input_arg)):
+                input_desc = args.input[i]
+                name = input_desc.name
+                dtype = input_desc.type
+                shape = input_desc.shape
+                if name is None:
+                    name = input_arg[i].name
+                if dtype is None:
+                    dtype = input_arg[i].type
+                if shape is None:
+                    shape = input_arg[i].shape
+                new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
+            input_arg = new_input
+        else:
+            # we can't update args.input
+            return
+    args.input = input_arg
 
-            data_rank = getattr(example_input, "ndim", 0)
-            user_input_shape = get_value_from_list_or_dict(input_shapes, input_name, input_id)
-            if user_input_shape.rank.is_static and user_input_shape.rank.get_length() != data_rank:
-                raise Error(
-                    f"Requested input shape {user_input_shape.rank.get_length()} rank"
-                    f" is not equal to provided example_input rank {data_rank}")
-
-            input_shape = user_input_shape if user_input_shape is not None else PartialShape([-1] * data_rank)
-            update_list_or_dict(data_types, input_name, input_id, example_dtype.to_dtype() if example_dtype is not None else None)
-            update_list_or_dict(input_shapes, input_name, input_id, input_shape)
-    else:
-        for input_id, example_input in enumerate(list_inputs):
-            dtype = getattr(example_input, "dtype", type(example_input))
-            ov_dtype = pt_to_ov_type_map.get(str(dtype))
-            data_rank = getattr(example_input, "ndim", 0)
-            input_shape =  PartialShape([-1] * data_rank)
-            input_name = input_names[input_id] if input_names else None
-            update_list_or_dict(input_shapes, input_name, input_id, input_shape)
-            update_list_or_dict(data_types, input_name, input_id, ov_dtype.to_dtype() if ov_dtype is not None else None)
-
-    args.placeholder_data_types = data_types
-    args.placeholder_shapes = input_shapes
-    if not args.input and input_names:
-        args.input_list = input_names
-        args.input = ",".join(input_names)
 
 # pylint: disable=no-member
 def to_torch_tensor(tensor):
-    import torch # pylint: disable=import-error
+    import torch  # pylint: disable=import-error
     if isinstance(tensor, torch.Tensor):
         return tensor
     if isinstance(tensor, np.ndarray):
@@ -151,13 +236,16 @@ def to_torch_tensor(tensor):
     if isinstance(tensor, (tuple, list)):
         # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
         return tuple(to_torch_tensor(x) for x in tensor)
+    if isinstance(tensor, dict) and all(isinstance(k, str) for k in tensor.keys()):
+        return dict((k, to_torch_tensor(x)) for k, x in tensor.items())
+    if tensor is None:
+        return None
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
 
 
 def prepare_torch_inputs(example_inputs):
-    import torch
     inputs = None
     if example_inputs is not None:
         inputs = example_inputs

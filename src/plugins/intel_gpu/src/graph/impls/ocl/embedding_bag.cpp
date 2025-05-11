@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,17 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     using parent = typed_primitive_impl_ocl<embedding_bag>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::embedding_bag_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::embedding_bag_params, kernel_selector::embedding_bag_optional_params>;
+    using kernel_params_t = kernel_selector::embedding_bag_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::embedding_bag_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<embedding_bag_impl>(*this);
+        return make_deep_copy<embedding_bag_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<embedding_bag>();
         auto params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::embedding_bag_optional_params>(impl_param.get_program());
 
         auto inputs_count = impl_param.input_layouts.size();
 
@@ -47,7 +46,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         }
 
         params.default_index = primitive->default_index;
-        return {params, optional_params};
+        return params;
     }
 };
 
@@ -57,6 +56,7 @@ attach_embedding_bag_impl::attach_embedding_bag_impl() {
     implementation_map<embedding_bag>::add(impl_types::ocl, typed_primitive_impl_ocl<embedding_bag>::create<embedding_bag_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
     });
 }
 

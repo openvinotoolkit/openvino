@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -23,7 +23,7 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
@@ -72,7 +72,12 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
 
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+    }
+
+    return { layout{output_shapes[0], output_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 } // namespace v4
 
@@ -119,8 +124,11 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_begin = desc->pads_begin;
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v11::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
-
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+    }
+    return { layout{output_shapes[0], output_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 } // namespace v11
 
@@ -195,8 +203,10 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("output padding lower size", desc->output_paddings[0].lower_size());
-    resample_info.add("output padding upper size", desc->output_paddings[0].upper_size());
+    resample_info.add("output padding lower size", std::vector<tensor::value_type>(desc->output_paddings[0]._lower_size.begin(),
+                                                                                   desc->output_paddings[0]._lower_size.end()));
+    resample_info.add("output padding upper size", std::vector<tensor::value_type>(desc->output_paddings[0]._upper_size.begin(),
+                                                                                   desc->output_paddings[0]._upper_size.end()));
 
     node_info->add("resample_info", resample_info);
     node_info->dump(primitive_description);

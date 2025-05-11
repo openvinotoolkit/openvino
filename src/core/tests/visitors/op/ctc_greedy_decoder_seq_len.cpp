@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, ctc_greedy_decoder_seq_len_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v6::CTCGreedyDecoderSeqLen>();
+    NodeBuilder::opset().insert<ov::op::v6::CTCGreedyDecoderSeqLen>();
     bool merge_repeated = false;
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 3});
     auto seq_len = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});

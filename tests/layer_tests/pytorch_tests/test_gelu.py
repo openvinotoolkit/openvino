@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -29,6 +29,7 @@ class TestGelu(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("approximate", ["none", "tanh"])
     def test_glu(self, approximate, ie_device, precision, ir_version):
         self._test(*self.create_model(approximate), ie_device, precision, ir_version)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ struct Builder : ParamsBuilder<AtanhParams> {
 class ReferenceAtanhLayerTest : public testing::TestWithParam<AtanhParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.input.shape, params.input.type);
         inputData = {params.input.data};
@@ -47,7 +48,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto out = std::make_shared<op::v3::Atanh>(in);
-        return std::make_shared<ov::Model>(NodeVector{out}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{in});
     }
 };
 

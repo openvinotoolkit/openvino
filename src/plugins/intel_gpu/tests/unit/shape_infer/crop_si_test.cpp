@@ -22,6 +22,7 @@ struct crop_si_test_params {
     tensor reference_input_size;
     std::vector<tensor> offsets;
     std::vector<std::vector<int64_t>> const_values;
+    int64_t axis;
     std::vector<layout> input_layouts;
     std::vector<layout> expected_layouts;
     size_t param_num_splits;
@@ -61,7 +62,7 @@ TEST_P(crop_si_test, shape_infer) {
 
     for (size_t output_idx = 0; output_idx < p.expected_layouts.size(); output_idx++) {
         auto prim_id = "crop.out" + std::to_string(output_idx);
-        auto crop_prim = std::make_shared<crop>(prim_id, input_prim_ids, p.reference_input_size, p.offsets[output_idx], op_mode, static_cast<int>(output_idx), p.param_num_splits);
+        auto crop_prim = std::make_shared<crop>(prim_id, input_prim_ids, p.reference_input_size, p.offsets[output_idx], op_mode, static_cast<int>(output_idx), p.axis, p.param_num_splits);
         auto& crop_node = prog.get_or_create(crop_prim);
 
         for (auto& prim : input_prims) {
@@ -83,6 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {{-1}, {1,1}},
+            -1,
             {{{1,32,2},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{2},data_types::i64,format::bfyx}},
             {{{1,32,1},data_types::f32,format::bfyx}, {{1,32,1},data_types::f32,format::bfyx}}, 0
         },
@@ -90,6 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {{-1}, {1,1}},
+            -1,
             {{ov::PartialShape::dynamic(),data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{2},data_types::i64,format::bfyx}},
             {{ov::PartialShape::dynamic(),data_types::f32,format::bfyx}, {ov::PartialShape::dynamic(),data_types::f32,format::bfyx}}, 0
         },
@@ -97,6 +100,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({3,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {},
+            -1,
             {{ov::PartialShape::dynamic(),data_types::f32,format::bfyx}},
             {{ov::PartialShape::dynamic(1),data_types::f32,format::bfyx}}, 0
         },
@@ -104,6 +108,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({3,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {},
+            -1,
             {{{4},data_types::f32,format::bfyx}},
             {{{3},data_types::f32,format::bfyx}}, 0
         },
@@ -111,6 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({-1,-1,-1,-1,-1,-1,-1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {},
+            -1,
             {{{4,3,2,5},data_types::f32,format::bfyx}},
             {{{3,2,1,4},data_types::f32,format::bfyx}}, 0
         },
@@ -118,6 +124,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,1,0,0,1,1,1}),tensor({0,2,0,0,1,1,1}),tensor({0,3,0,0,1,1,1})},
             {{1}, {1,1,1,1}},
+            1,
             {{{4819,4,1,1,4},data_types::f32,format::bfzyx}, {{},data_types::i64,format::bfzyx}, {{4},data_types::i64,format::bfzyx}},
             {{{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}, {{4819,1,1,1,4},data_types::f32,format::bfzyx}}, 0
         },
@@ -125,6 +132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({4507,1,1,1,1,1,1}),
             {tensor({0,2,0,0,1,1,1})},
             {},
+            -1,
             {{{4507,3,1,1},data_types::f32,format::bfyx}},
             {{{4507,1,1,1},data_types::f32,format::bfyx}}, 0
         },
@@ -132,6 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,0,0,0,1,1,1})},
             {{2}, {11,3}},
+            2,
             {{{1,14,14,384},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{2},data_types::i64,format::bfyx}},
             {{{1,14,11,384},data_types::f32,format::bfyx}, {{1,14,3,384},data_types::f32,format::bfyx}}, 0
         },
@@ -139,6 +148,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,2048,1,1,1,1}),
             {tensor({0,2,0,0,1,1,1})},
             {},
+            -1,
             {{{1,16,1,2048},data_types::f32,format::bfyx}},
             {{{1,1,1,2048},data_types::f32,format::bfyx}}, 0
         },
@@ -146,6 +156,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}),tensor({0,1320,0,0,1,1,1})},
             {{1},{1320,99}},
+            1,
             {{{1,1419},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{2},data_types::i64,format::bfyx}},
             {{{1,1320},data_types::f32,format::bfyx}, {{1,99},data_types::f32,format::bfyx}}, 0
         },
@@ -153,6 +164,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,128,2,64,1,1,1}),
             {tensor({0,0,8,0,1,1,1})},
             {},
+            -1,
             {{{1,128,64,10},data_types::f32,format::bfyx}},
             {{{1,128,64,2},data_types::f32,format::bfyx}}, 0
         },
@@ -160,6 +172,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}), tensor({0,1,0,0,1,1,1})},
             {{1}},
+            1,
             {{{4,2},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}},
             {{{4,1},data_types::f32,format::bfyx}, {{4,1},data_types::f32,format::bfyx}}, 2
         },
@@ -167,6 +180,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1}), tensor({0,0,2048,0,1,1,1})},
             {{2}},
+            2,
             {{{5,1,4096,1},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}},
             {{{5,1,2048,1},data_types::f32,format::bfyx}, {{5,1,2048,1},data_types::f32,format::bfyx}}, 2
         },
@@ -174,6 +188,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1400,1,1,1,1,1}),
             {tensor({0,100,0,0,1,1,1})},
             {},
+            -1,
             {{{1,1500,1,1},data_types::f32,format::bfyx}},
             {{{1,1400,1,1},data_types::f32,format::bfyx}}, 0
         },
@@ -181,6 +196,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({1,1,1,1,1,1,1}),
             {tensor({0,0,0,0,1,1,1})},
             {{2},{1}},
+            2,
             {{{7,1,1},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{1},data_types::i64,format::bfyx}},
             {{{7,1,1},data_types::f32,format::bfyx}}, 0
         },
@@ -188,6 +204,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             tensor({128,100,1,3,1,1,1}),
             {tensor({0,0,0,0,1,1,1})},
             {},
+            -1,
             {{{128,100,4},data_types::f32,format::bfyx}},
             {{{128,100,3},data_types::f32,format::bfyx}}, 0
         }

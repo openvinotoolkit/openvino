@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,12 @@
 #include <fstream>
 #include <iterator>
 #include <queue>
+#include <stack>
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
@@ -62,6 +63,8 @@ public:
                      const std::shared_ptr<VariablesIndex>& variables_index,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                     const HashTableKeysValuesMap hash_table_keys_map,
+                     const HashTableKeysValuesMap hash_table_values_map,
                      const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                      const bool native_format = false);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
@@ -79,7 +82,7 @@ public:
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places();
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const {
-        return m_tensor_places;
+        return m_default_places;
     }
     std::map<std::string, Output<Node>> get_tensor_values() const {
         return m_tensor_values;
@@ -90,6 +93,10 @@ public:
     std::shared_ptr<VariablesIndex> get_variables_index() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
+    HashTableKeysValuesMap get_hash_table_keys_map() const;
+    HashTableKeysValuesMap get_hash_table_values_map() const;
+    void set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable);
+    Variable::Ptr get_variable(const ov::frontend::Place::Ptr& place) const;
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
 private:
@@ -98,7 +105,7 @@ private:
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
-    mutable std::map<std::string, std::shared_ptr<TensorPlace>> m_tensor_places;
+    mutable std::map<std::string, std::shared_ptr<TensorPlace>> m_default_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
@@ -115,6 +122,9 @@ private:
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_input_names;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
+    HashTableKeysValuesMap m_hash_table_keys_map;
+    HashTableKeysValuesMap m_hash_table_values_map;
+    std::map<ov::frontend::Place::Ptr, Variable::Ptr> m_variables_map;
     std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     bool m_native_format;
@@ -137,6 +147,10 @@ void InputModel::InputModelTFImpl::load_places() {
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
 
+        if (op_type == "Placeholder" && op_name.rfind("unused_control_flow_input", 0) != std::string::npos) {
+            continue;
+        }
+
         if (m_telemetry) {
             op_statistics[op_type]++;
         }
@@ -145,69 +159,9 @@ void InputModel::InputModelTFImpl::load_places() {
         all_op_names.insert(op_name);
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
-        if (op_type == "Placeholder" || op_type == "PlaceholderWithDefault") {
-            // in case Placeholder we put created TensorPlace to both m_tensor_places container and m_inputs
-            // since they can be used if user does not override them
-            // in case PlaceholderWithDefault we put created TensorPlace only to m_tensor_places container
-            // so that we know its shape and type for a case of custom input
-            // by default, PlaceholderWithDefault is replaced by Constant with the default value
-            auto pshape = ov::PartialShape::dynamic();
-            auto shape_any = node_decoder->get_attribute("shape");
-            if (shape_any.is<ov::PartialShape>()) {
-                // sometimes shape attribute can be absent in the graph
-                // so we need to check if Any object is initialized first
-                pshape = shape_any.as<ov::PartialShape>();
-            } else {
-                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
-            }
-            auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
-            if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
-                output_shapes_any.is<std::vector<ov::PartialShape>>()) {
-                // we know some cases when Placeholder operation has empty scalar `shape` attribute value
-                // and non-empty `_output_shapes` attribute value.
-                // `_output_shapes` attribute value turns to be correct in this case
-                auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
-                if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
-                    pshape = output_shapes[0];
-                    OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name
-                                   << " has shape from '_output_shapes' attribute.";
-                }
-            }
-            auto dtype_any = node_decoder->get_attribute("dtype");
-            auto placeholder_name = node_decoder->get_op_name();
-            ov::element::Type type = ov::element::dynamic;
-            if (dtype_any.is<ov::element::Type>()) {
-                type = dtype_any.as<ov::element::Type>();
-            }
-            std::vector<std::string> names = {op_name};
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
 
-            // In Model Optimizer user can refer to model inputs by a name of Placeholder
-            // and its output port, for example, using `input_name` and `input_name:0`
-            // Also, SavedModel format contains a signature that maps external input names to internal ones with port
-            // index like `input_name` maps to `serving_default_input_name:0`.
-            // So we have to store with `:0` as well to get its tensor by `get_place_by_tensor_name` method
-            m_tensor_places[op_name] = tensor_place;
-            m_tensor_places[op_name + ":0"] = tensor_place;
-
-            if (op_type == "Placeholder") {
-                // by default, PlaceholderWithDefault is NOT used as input
-                m_inputs.push_back(tensor_place);
-            }
-        } else if (op_type == "input_arg") {
-            // create a tensor place for the body graph parameter node and save it in the m_inputs
-            // it allows to set shapes for the body graph InputModel for its more optimal conversion
-            auto param_type = node_decoder->get_attribute("type");
-            ov::element::Type type = ov::element::dynamic;
-            if (param_type.is<ov::element::Type>()) {
-                type = param_type.as<ov::element::Type>();
-            }
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
-                                                              ov::PartialShape::dynamic(),
-                                                              type,
-                                                              std::vector<std::string>{op_name});
-            m_inputs.push_back(tensor_place);
-        }
+        // compute non-terminating nodes in the graph
+        // and put such nodes into op_names_with_consumers
         for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_op_name;
             std::string producer_output_port_name;
@@ -233,6 +187,88 @@ void InputModel::InputModelTFImpl::load_places() {
                                 "', expected input port index: " + std::to_string(producer_output_port_idx));
             }
         }
+
+        // put places for all inputs of a model into m_inputs
+        if (op_type == "Placeholder" || op_type == "PlaceholderWithDefault") {
+            if (m_input_names.size() > 0 &&
+                std::find(m_input_names.begin(), m_input_names.end(), op_name + ":0") == m_input_names.end()) {
+                // this is a body graph since it contains non-empty m_input_names
+                // such node not included into m_input_names should be skipped
+                continue;
+            }
+
+            // in case Placeholder we put created TensorPlace to both m_default_places container and m_inputs
+            // since they can be used if user does not override them
+            // in case PlaceholderWithDefault we put created TensorPlace only to m_default_places container
+            // so that we know its shape and type for a case of custom input
+            // by default, PlaceholderWithDefault is replaced by Constant with the default value
+            auto pshape = ov::PartialShape::dynamic();
+            auto shape_any = node_decoder->get_attribute("shape");
+            if (shape_any.is<ov::PartialShape>()) {
+                // sometimes shape attribute can be absent in the graph
+                // so we need to check if Any object is initialized first
+                pshape = shape_any.as<ov::PartialShape>();
+            } else {
+                OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name, " does not have 'shape' attribute");
+            }
+            auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
+                output_shapes_any.is<std::vector<ov::PartialShape>>()) {
+                // we know some cases when Placeholder operation has empty scalar `shape` attribute value
+                // and non-empty `_output_shapes` attribute value.
+                // `_output_shapes` attribute value turns to be correct in this case
+                auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
+                if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
+                    pshape = output_shapes[0];
+                    OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ",
+                                   op_name,
+                                   " has shape from '_output_shapes' attribute.");
+                }
+            }
+            auto dtype_any = node_decoder->get_attribute("dtype");
+            auto placeholder_name = node_decoder->get_op_name();
+            ov::element::Type type = ov::element::dynamic;
+            if (dtype_any.is<ov::element::Type>()) {
+                type = dtype_any.as<ov::element::Type>();
+            }
+            std::string internal_tensor_name = op_name + ":0";
+            std::vector<std::string> names{internal_tensor_name};
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names, op_name);
+            m_default_places[internal_tensor_name] = tensor_place;
+
+            if (op_type == "Placeholder") {
+                if (m_saved_model_input_names && (m_saved_model_input_names->size() > 0)) {
+                    // if input signature is defined,
+                    // found input must present in this signature
+                    if (m_saved_model_input_names->find(internal_tensor_name) != m_saved_model_input_names->end()) {
+                        m_inputs.push_back(tensor_place);
+                    }
+                } else {
+                    m_inputs.push_back(tensor_place);
+                }
+            }
+        } else if (op_type == "input_arg") {
+            if (m_input_names.size() > 0 &&
+                std::find(m_input_names.begin(), m_input_names.end(), op_name) == m_input_names.end()) {
+                // this is a body graph since it contains non-empty m_input_names
+                // such node not included into m_input_names should be skipped
+                continue;
+            }
+
+            // create a tensor place for the body graph parameter node and save it in the m_inputs
+            // it allows to set shapes for the body graph InputModel for its more optimal conversion
+            auto param_type = node_decoder->get_attribute("type");
+            ov::element::Type type = ov::element::dynamic;
+            if (param_type.is<ov::element::Type>()) {
+                type = param_type.as<ov::element::Type>();
+            }
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape::dynamic(),
+                                                              type,
+                                                              std::vector<std::string>{op_name},
+                                                              op_name);
+            m_inputs.push_back(tensor_place);
+        }
     }
 
     if (m_telemetry) {
@@ -253,26 +289,38 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
                                                               std::vector<std::string>{output_internal_tensor_name});
-            m_tensor_places[output_internal_tensor_name] = output_place;
+            m_default_places[output_internal_tensor_name] = output_place;
             m_outputs.push_back(output_place);
         }
         return;
     }
 
-    // treat terminal nodes as the models outputs for the frozen TF1 format
-    std::set<std::string> op_names_without_consumers;
-    std::set_difference(all_op_names.begin(),
-                        all_op_names.end(),
-                        op_names_with_consumers.begin(),
-                        op_names_with_consumers.end(),
-                        std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-
-    for (const auto& output_name : op_names_without_consumers) {
+    auto out_names = m_graph_iterator->get_output_names();
+    if (!out_names.size()) {
+        // treat terminal nodes as the models outputs for the frozen TF1 format
+        std::set<std::string> op_names_without_consumers;
+        std::set_difference(all_op_names.begin(),
+                            all_op_names.end(),
+                            op_names_with_consumers.begin(),
+                            op_names_with_consumers.end(),
+                            std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
+        for (const auto& output_name : op_names_without_consumers) {
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_name + ":0"});
+            // TODO: Create tensor places for each ouput port, ticket-129464
+            m_default_places[output_name + ":0"] = output_place;
+            m_outputs.push_back(output_place);
+        }
+        return;
+    }
+    for (const auto& output_name : out_names) {
         auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                           ov::PartialShape({}),
                                                           ov::element::dynamic,
                                                           std::vector<std::string>{output_name});
-        m_tensor_places[output_name] = output_place;
+        m_default_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
 }
@@ -286,6 +334,22 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl
 
 std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl::get_saved_model_output_names() const {
     return m_saved_model_output_names;
+}
+
+HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_keys_map() const {
+    return m_hash_table_keys_map;
+}
+
+HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_values_map() const {
+    return m_hash_table_values_map;
+}
+
+void InputModel::InputModelTFImpl::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    m_variables_map[place] = variable;
+}
+
+Variable::Ptr InputModel::InputModelTFImpl::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return m_variables_map.count(place) > 0 ? m_variables_map.at(place) : nullptr;
 }
 
 std::shared_ptr<CheckpointV1Reader> InputModel::InputModelTFImpl::get_checkpoint_v1_reader() const {
@@ -309,10 +373,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
-    // TODO: implement logic to check direct cycles in the graph
-    // and break them
-    // probably not only NextIteration can generate cycles
-
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];
@@ -324,6 +384,33 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
+    }
+
+    for (const auto& op_place : m_op_places) {
+        auto op_decoder = op_place->get_decoder();
+        auto op_name = op_decoder->get_op_name();
+        if (op_decoder->get_op_type() == "NextIteration") {
+            // walk through all NextIteration nodes and put their producers into ops_to_do
+            // this is needed to avoid missed nodes in the body graph of TF1 While operation
+            std::string producer_name;
+            std::string producer_output_port_name;
+            size_t producer_output_port_idx;
+            op_decoder->get_input_node(0, producer_name, producer_output_port_name, producer_output_port_idx);
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
+                                    "[TensorFlow Frontend] internal error or inconsistent model: producer of "
+                                    "NextIteration is not found among operation places " +
+                                        producer_name);
+            ops_to_do.push(m_op_places_map.at(producer_name));
+        } else if (op_decoder->get_op_type() == "LookupTableImport" ||
+                   op_decoder->get_op_type() == "LookupTableImportV2") {
+            // all LookupTableImport nodes must be preserved in a graph for conversion because
+            // they can be terminating nodes and contain input values for HashTable initialization
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(op_name),
+                                    "[TensorFlow Frontend] internal error or inconsistent model: LookupTableImport "
+                                    "operation is not found among operation places " +
+                                        op_name);
+            ops_to_do.push(m_op_places_map.at(op_name));
+        }
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -340,6 +427,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
             if (current_operation_type == "NextIteration") {
                 // break the cycle created by NextIteration
                 input_count = 0;
+                std::string producer_name;
+                std::string producer_output_port_name;
+                size_t producer_output_port_idx;
+                current_operation_decoder->get_input_node(0,
+                                                          producer_name,
+                                                          producer_output_port_name,
+                                                          producer_output_port_idx);
+                current_operation_place->set_next_iteration_back_edge(producer_name, producer_output_port_idx);
             }
 
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
@@ -373,16 +468,16 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 // 1. check if the current node is pruned by its input port
                 bool is_input = false;
                 std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
-                if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
-                    const auto& tensor_place = m_tensor_places[input_port_name];
+                if (m_default_places.find(input_port_name) != m_default_places.end()) {
+                    const auto& tensor_place = m_default_places[input_port_name];
                     is_input |= tensor_place->is_input();
                     m_found_inputs.insert(input_port_name);
                 }
 
                 // 2. check if the producer node is pruned by its output port
                 std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
-                if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
-                    const auto& tensor_place = m_tensor_places[output_port_name];
+                if (m_default_places.find(output_port_name) != m_default_places.end()) {
+                    const auto& tensor_place = m_default_places[output_port_name];
                     is_input |= tensor_place->is_input();
                     m_found_inputs.insert(output_port_name);
                 }
@@ -391,8 +486,8 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                         "There is no operation node with name: " + producer_name);
                 const auto& producer_operation_place = m_op_places_map.at(producer_name);
-                if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
-                    const auto& tensor_place = m_tensor_places[producer_name];
+                if (m_default_places.find(producer_name) != m_default_places.end()) {
+                    const auto& tensor_place = m_default_places[producer_name];
                     is_input |= tensor_place->is_input();
                     m_found_inputs.insert(producer_name);
                 }
@@ -456,6 +551,8 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
     const std::shared_ptr<VariablesIndex>& variables_index,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+    const HashTableKeysValuesMap hash_table_keys_map,
+    const HashTableKeysValuesMap hash_table_values_map,
     const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
     const bool native_format)
     : m_graph_iterator(graph_iterator),
@@ -464,6 +561,8 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
       m_variables_index(variables_index),
       m_saved_model_input_names(saved_model_input_names),
       m_saved_model_output_names(saved_model_output_names),
+      m_hash_table_keys_map(hash_table_keys_map),
+      m_hash_table_values_map(hash_table_values_map),
       m_checkpoint_v1_reader(checkpoint_v1_reader),
       m_native_format(native_format) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
@@ -514,7 +613,7 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
     std::string internal_tensor_name = tensorName;
 
     // For SavedModel format, an user can work with external input names, namely, without `serving_default_` prefix
-    // so we have to map it into the internal name to find the tensor in the tensor pool m_tensor_places.
+    // so we have to map it into the internal name to find the tensor in the tensor pool m_default_places.
     // m_saved_model_input_names contains a map from external name to the internal name with port ':0'
     // for example, `input_mask` maps to `serving_default_input_mask:0`
     if (m_saved_model_input_names) {
@@ -535,8 +634,17 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
         }
     }
 
-    if (m_tensor_places.find(internal_tensor_name) != m_tensor_places.end()) {
-        return m_tensor_places.at(internal_tensor_name);
+    if (m_default_places.find(internal_tensor_name) != m_default_places.end()) {
+        return m_default_places.at(internal_tensor_name);
+    } else if (m_default_places.find(internal_tensor_name + ":0") != m_default_places.end()) {
+        auto default_place = m_default_places.at(internal_tensor_name + ":0");
+        std::vector<std::string> names = {internal_tensor_name};
+        auto new_place = std::make_shared<TensorPlace>(m_input_model,
+                                                       default_place->get_partial_shape(),
+                                                       default_place->get_element_type(),
+                                                       names);
+        m_default_places[internal_tensor_name] = new_place;
+        return new_place;
     }
 
     // check that operation node exists for which this place is specified
@@ -550,7 +658,7 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
         std::vector<std::string> names = {internal_tensor_name};
         auto m_var_place =
             std::make_shared<TensorPlace>(m_input_model, ov::PartialShape::dynamic(), ov::element::dynamic, names);
-        m_tensor_places[internal_tensor_name] = m_var_place;
+        m_default_places[internal_tensor_name] = m_var_place;
         return m_var_place;
     }
 
@@ -633,7 +741,7 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
                             "TensorFlow Frontend: specify static shape for " + name + " to be frozen.");
     FRONT_END_GENERAL_CHECK(type.is_static(),
                             "TensorFlow Frontend: define static size type for " + name + " to be frozen.");
-    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     m_tensor_values[name] = constant;
 }
@@ -643,6 +751,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<VariablesIndex>& variables_index,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                       const HashTableKeysValuesMap hash_table_keys_map,
+                       const HashTableKeysValuesMap hash_table_values_map,
                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                        const bool native_format)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator,
@@ -651,6 +761,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                                                variables_index,
                                                saved_model_input_names,
                                                saved_model_output_names,
+                                               hash_table_keys_map,
+                                               hash_table_values_map,
                                                checkpoint_v1_reader,
                                                native_format)} {}
 
@@ -664,6 +776,22 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_
 
 std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_output_names() const {
     return _impl->get_saved_model_output_names();
+}
+
+HashTableKeysValuesMap InputModel::get_hash_table_keys_map() const {
+    return _impl->get_hash_table_keys_map();
+}
+
+HashTableKeysValuesMap InputModel::get_hash_table_values_map() const {
+    return _impl->get_hash_table_values_map();
+}
+
+void InputModel::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    _impl->set_variable(place, variable);
+}
+
+Variable::Ptr InputModel::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return _impl->get_variable(place);
 }
 
 std::shared_ptr<CheckpointV1Reader> InputModel::get_checkpoint_v1_reader() const {
@@ -704,6 +832,10 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 
 ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {
     return _impl->get_place_by_tensor_name(tensorName);
+}
+
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
 }
 
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {

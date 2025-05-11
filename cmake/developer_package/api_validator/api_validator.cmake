@@ -1,35 +1,58 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(WIN32)
-    set(PROGRAMFILES_ENV "ProgramFiles(X86)")
+macro(ov_search_api_validator)
+    if(NOT ENABLE_API_VALIDATOR)
+        return()
+    endif()
 
-    # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
-    # we don't have such variable
-    if(DEFINED ENV{PROGRAMFILES_ENV})
+    # CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is only set when
+    # Visual Studio generators are used, but we need it
+    # when we use Ninja as well
+    if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
+        if(DEFINED ENV{WindowsSDKVersion})
+            string(REPLACE "\\" "" WINDOWS_SDK_VERSION $ENV{WindowsSDKVersion})
+            set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION ${WINDOWS_SDK_VERSION})
+            message(STATUS "Use ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} Windows SDK version")
+        else()
+            message(FATAL_ERROR "WindowsSDKVersion environment variable is not set,\
+can't find Windows SDK version. Try to use vcvarsall.bat script")
+        endif()
+    endif()
+
+    # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows we don't have such variable
+    set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
+    if(DEFINED ENV{${PROGRAMFILES_ENV}})
         file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
 
         set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
-                    "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+                      "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+    endif()
 
+    if(WDK_PATHS)
         message(STATUS "Trying to find apivalidator in: ")
         foreach(wdk_path IN LISTS WDK_PATHS)
             message("    * ${wdk_path}")
         endforeach()
 
         find_host_program(ONECORE_API_VALIDATOR
-                        NAMES apivalidator
-                        PATHS ${WDK_PATHS}
-                        DOC "ApiValidator for OneCore compliance")
+                          NAMES apivalidator
+                          PATHS ${WDK_PATHS}
+                          DOC "ApiValidator for OneCore compliance")
 
         if(ONECORE_API_VALIDATOR)
             message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
         endif()
     endif()
+endmacro()
+
+
+if(ENABLE_API_VALIDATOR)
+    ov_search_api_validator()
 endif()
 
-function(_ie_add_api_validator_post_build_step_recursive)
+function(_ov_add_api_validator_post_build_step_recursive)
     cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
 
     get_target_property(LIBRARY_TYPE ${API_VALIDATOR_TARGET} TYPE)
@@ -55,9 +78,9 @@ function(_ie_add_api_validator_post_build_step_recursive)
                 continue()
             endif()
             if(TARGET "${orig_library}")
-                _ie_add_api_validator_post_build_step_recursive(TARGET ${orig_library})
+                _ov_add_api_validator_post_build_step_recursive(TARGET ${orig_library})
             else()
-                _ie_add_api_validator_post_build_step_recursive(TARGET ${library})
+                _ov_add_api_validator_post_build_step_recursive(TARGET ${library})
             endif()
         endif()
     endforeach()
@@ -67,7 +90,10 @@ endfunction()
 
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
-function(_ov_add_api_validator_post_build_step)
+#
+# ov_add_api_validator_post_build_step(TARGET <name>)
+#
+function(ov_add_api_validator_post_build_step)
     if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
         return()
     endif()
@@ -113,10 +139,10 @@ function(_ov_add_api_validator_post_build_step)
     endif()
 
     # collect targets
-    _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
+    _ov_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
     if (API_VALIDATOR_EXTRA)
         foreach(target IN LISTS API_VALIDATOR_EXTRA)
-            _ie_add_api_validator_post_build_step_recursive(TARGET ${target})
+            _ov_add_api_validator_post_build_step_recursive(TARGET ${target})
         endforeach()
     endif()
 
@@ -171,7 +197,7 @@ function(_ov_add_api_validator_post_build_step)
                 -D ONECORE_API_VALIDATOR_EXCLUSION=${ONECORE_API_VALIDATOR_EXCLUSION}
                 -D ONECORE_API_VALIDATOR_OUTPUT=${output_file}
                 -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                -P "${IEDevScripts_DIR}/api_validator/api_validator_run.cmake")
+                -P "${OpenVINODeveloperScripts_DIR}/api_validator/api_validator_run.cmake")
         list(APPEND byproducts_files ${output_file})
 
         unset(target_name)
@@ -189,10 +215,3 @@ function(_ov_add_api_validator_post_build_step)
     list(APPEND VALIDATED_TARGETS ${API_VALIDATOR_TARGETS})
     set(VALIDATED_TARGETS "${VALIDATED_TARGETS}" CACHE INTERNAL "" FORCE)
 endfunction()
-
-#
-# ie_add_api_validator_post_build_step(TARGET <name>)
-#
-macro(ie_add_api_validator_post_build_step)
-    _ov_add_api_validator_post_build_step(${ARGV})
-endmacro()

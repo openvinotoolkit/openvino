@@ -1,24 +1,26 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/op.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace conv_factory {
-std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ngraph::Node>& data,
-                                                const Output<ngraph::Node>& filters,
-                                                const ngraph::Strides& strides,
-                                                const ngraph::Strides& dilations,
-                                                const ngraph::CoordinateDiff& padding_below,
-                                                const ngraph::CoordinateDiff& padding_above,
+std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data,
+                                                const ov::Output<ov::Node>& filters,
+                                                const ov::Strides& strides,
+                                                const ov::Strides& dilations,
+                                                const ov::CoordinateDiff& padding_below,
+                                                const ov::CoordinateDiff& padding_above,
                                                 int64_t groups,
-                                                const ngraph::op::PadType& auto_pad);
+                                                const ov::op::PadType& auto_pad);
 }  // namespace conv_factory
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

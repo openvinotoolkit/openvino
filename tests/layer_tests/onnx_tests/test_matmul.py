@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestMatMul(OnnxRuntimeLayerTest):
@@ -73,7 +73,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #
         #   Create reference IR net
@@ -127,7 +127,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #
         #   Create reference IR net
@@ -167,30 +167,30 @@ class TestMatMul(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_matmul(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_matmul(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
-    def test_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dual_matmul(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dual_matmul(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_dual_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
-    def test_dual_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dual_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_dual_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

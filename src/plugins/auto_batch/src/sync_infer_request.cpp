@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ namespace ov {
 namespace autobatch_plugin {
 
 inline ov::SoPtr<ov::ITensor> create_shared_tensor_on_batched_tensor(ov::SoPtr<ov::ITensor> batched_tensor,
-                                                                     std::string name,
-                                                                     const std::set<std::string>& batched_names,
+                                                                     std::size_t port,
+                                                                     const std::set<std::size_t>& batched_ports,
                                                                      size_t batch_id,
                                                                      size_t batch_num) {
     auto ptr = static_cast<uint8_t*>(batched_tensor->data());
     auto size_per_batch = batched_tensor->get_byte_size() / batch_num;
     auto batched_shape = batched_tensor->get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
-    if (batched_names.count(name)) {
+    if (batched_ports.count(port)) {
         batched_shape[0] = 1;
         return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr + size_per_batch * batch_id),
                 batched_tensor._so};
@@ -35,43 +35,47 @@ SyncInferRequest::SyncInferRequest(
     const std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>& worker_request,
     int batch_id,
     int num_batch,
-    const std::set<std::string>& batched_inputs,
-    const std::set<std::string>& batched_outputs)
+    const std::set<std::size_t>& batched_inputs,
+    const std::set<std::size_t>& batched_outputs)
     : ov::ISyncInferRequest(compiled_model),
       m_batched_request_wrapper(worker_request),
       m_batch_id(batch_id),
       m_batch_size(num_batch) {
-    share_tensors_with_batched_req(batched_inputs, batched_outputs);
+    if (m_batched_request_wrapper)
+        share_tensors_with_batched_req(batched_inputs, batched_outputs);
 }
 
-void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
-                                                      const std::set<std::string>& batched_outputs) {
-    for (const auto& it : get_inputs()) {
-        auto name = ov::op::util::get_ie_output_name(it);
+size_t SyncInferRequest::get_batch_size() const {
+    return m_batch_size;
+}
+
+void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t>& batched_inputs,
+                                                      const std::set<std::size_t>& batched_outputs) {
+    const auto inputs = get_inputs();
+    for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
+        const auto& input = inputs[input_id];
         ov::SoPtr<ov::ITensor> res;
-        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(input);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
-        res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(name),
-                                                     batched_inputs,
-                                                     m_batch_id,
-                                                     m_batch_size);
-        set_tensor(it, res);
+        res =
+            create_shared_tensor_on_batched_tensor(batched_tensor, input_id, batched_inputs, m_batch_id, m_batch_size);
+        set_tensor(input, res);
     }
 
-    for (const auto& it : get_outputs()) {
-        auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
+    const auto& outputs = get_outputs();
+    for (size_t output_id = 0; output_id < outputs.size(); output_id++) {
+        const auto& output = outputs[output_id];
         ov::SoPtr<ov::ITensor> res;
-        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(output);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(name),
+                                                     output_id,
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, res);
+        set_tensor(output, res);
     }
 }
 
@@ -81,7 +85,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }
@@ -90,7 +96,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }

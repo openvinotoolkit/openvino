@@ -1,14 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "reorder_inst.h"
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 #include <vector>
 #include <list>
 #include <memory>
@@ -69,11 +75,16 @@ void propagate_constants::run(program& p) {
     // replace all constant nodes which are relevant for inference (either used by non-const user or marked as output)
     // with recomputed cldnn::data
     for (auto& cout : to_replace) {
-        auto& id_to_replace = cout.first;
-        auto mem_impl = cout.second;
+        auto& id_to_replace = std::get<0>(cout);
+        auto mem_impl = std::get<1>(cout);
+        auto cache_info = std::get<2>(cout);
+        auto cache_manager = std::get<0>(cache_info);
+        auto in_layout = std::get<1>(cache_info);
+        auto reorder = std::get<2>(cache_info);
 
-        auto const_data =
-            std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, mem_impl /* <<< REMOVE ME WHEN POSSIBLE */);
+        auto const_data = std::make_shared<data>("_cldnn_const_prop_" + id_to_replace,
+                                                 mem_impl, /* <<< REMOVE ME WHEN POSSIBLE */
+                                                 cache_manager);
         auto& new_node = p.get_or_create(const_data);
         auto& curr_node = p.get_node(id_to_replace);
 
@@ -87,6 +98,10 @@ void propagate_constants::run(program& p) {
             }
         }
 
+        if (in_layout && reorder) {
+            new_node.as<data>().get_primitive()->cache_info->apply_reorder(in_layout, reorder);
+        }
+
         curr_node.dependencies.clear();
         // remove all constant users (as they will be either removed or replaced by cldnn::data which does not have any
         // dependencies)
@@ -95,6 +110,7 @@ void propagate_constants::run(program& p) {
                                              [](program_node* node) { return node->is_constant(); }),
                               curr_node.users.end());
         p.replace(curr_node, new_node);
+        new_node.recalc_output_layout(false);
     }
 }
 
@@ -108,25 +124,50 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
-                                                                               const ExecutionConfig& config,
-                                                                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+using cache_tuple =
+    std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
+
+std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
+propagate_constants::calculate(engine& engine,
+                               const ExecutionConfig& config,
+                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
-    ExecutionConfig cf_config = config;
+    ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.finalize(engine);
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
-    for (auto& cin : const_inputs)
+    std::map<primitive_id, cache_tuple> weightless_cache_map;
+    for (auto& cin : const_inputs) {
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
+
+        auto users = cin->get_users();
+        if (users.size() == 1 && users.front()->is_type<reorder>()) {
+            auto rprim = users.front()->as<reorder>().get_primitive();
+            auto copy = std::shared_ptr<reorder>(new reorder(*rprim));
+            auto id = rprim->id;
+            auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
+            auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
+            weightless_cache_map.emplace(id, std::make_tuple(cache_ptr, layout_ptr, copy));
+        }
+    }
 
     net->execute({});
     net->reset_execution(true);  // wait for computations to complete
     auto outputs = net->get_outputs();
 
-    std::list<std::pair<primitive_id, memory::ptr>> ret;
-    for (auto& out : outputs) ret.push_back({out->id(), out->output_memory_ptr()});
+    std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
+        ret;
+    for (auto& out : outputs) {
+        cache_tuple cache_info{};
+        auto it = weightless_cache_map.find(out->id());
+        if (it != weightless_cache_map.end()) {
+            cache_info = it->second;
+        }
+        ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
+    }
 
     return ret;
 }
@@ -151,6 +192,29 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
 
     // if a non-tirivial constant has a trivial input, add this input as an input for our network
     add_deps_to_tpl(prog, node.get_dependencies());
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Add reorder to transpose when the impl type of reorder is onednn and the weights for deconvolution should be transposed.
+    bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
+    if (is_reorder_weights) {
+        const auto& weights_params = node.as<reorder>().get_primitive()->weights_reorder_params;
+        auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_params);
+        if (onednn_weights_params != nullptr && onednn_weights_params->should_be_transposed()) {
+            auto& prev = node.get_dependency(0);
+            cldnn::primitive_id rotate_reorder_id = prev.id() + "_rotate_reorder";
+            auto grouped = weights_params->get_grouped();
+            auto layout = weights_params->get_input_layout().convert_to_weights_layout(grouped);
+            auto rotate_weights_params = std::make_shared<WeightsReorderParams>(layout, layout, true, grouped);
+            auto rotate_prim = std::make_shared<cldnn::reorder>(rotate_reorder_id, prev.id(), rotate_weights_params);
+            auto& rotate_node = prog.get_or_create(rotate_prim);
+            prog.add_intermediate(rotate_node, node, 0);
+            prog.get_or_create(rotate_prim).recalc_output_layouts(false);
+            nodes.insert(prog.get_node_ptr(rotate_node.id()));
+            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before "
+                << node.id() << std::endl;
+        }
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
 }
 
 void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps) {

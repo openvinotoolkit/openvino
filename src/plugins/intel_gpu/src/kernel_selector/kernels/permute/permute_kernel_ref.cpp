@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,7 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
 
 ParamsKey PermuteKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
@@ -150,8 +151,8 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
     return dispatchData;
 }
 
-bool PermuteKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool PermuteKernelRef::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
@@ -228,7 +229,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     return jit;
 }
 
-KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

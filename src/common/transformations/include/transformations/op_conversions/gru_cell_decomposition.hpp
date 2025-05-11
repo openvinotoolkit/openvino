@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API GRUCellDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GRUCellDecomposition transformation decomposes GRUCell layer with inputs X, H, W, R, B
  * to Add, Split, MatMul, Multiply and Subtract ops according to the formula:
                 (.) - Denotes element-wise multiplication.
@@ -36,6 +36,6 @@ class TRANSFORMATIONS_API GRUCellDecomposition;
 
 class ov::pass::GRUCellDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GRUCellDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GRUCellDecomposition");
     GRUCellDecomposition();
 };

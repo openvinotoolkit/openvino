@@ -28,7 +28,7 @@ float getError<float>() {
 }
 
 template <>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -70,7 +70,7 @@ public:
         format::type fmt;
         bool is_caching_test;
         std::tie(param, fmt, is_caching_test) = this->GetParam();
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
 
         auto& engine = get_test_engine();
 
@@ -197,7 +197,7 @@ public:
 };
 
 using experimental_detectron_detection_output_test_f32 = experimental_detectron_detection_output_test<float>;
-using experimental_detectron_detection_output_test_f16 = experimental_detectron_detection_output_test<half_t>;
+using experimental_detectron_detection_output_test_f16 = experimental_detectron_detection_output_test<ov::float16>;
 
 TEST_P(experimental_detectron_detection_output_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -442,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
 INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f16,
                          testing::Combine(
-                             ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<half_t>()),
+                             ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<ov::float16>()),
                              ::testing::ValuesIn(layouts),
                              ::testing::Values(false)
                          ));
@@ -450,7 +450,7 @@ INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
 INSTANTIATE_TEST_SUITE_P(export_import,
                          experimental_detectron_detection_output_test_f16,
                          testing::Combine(
-                             ::testing::Values(getExperimentalDetectronDetectionOutputParams<half_t>()[0]),
+                             ::testing::Values(getExperimentalDetectronDetectionOutputParams<ov::float16>()[0]),
                              ::testing::Values(layouts[0]),
                              ::testing::Values(true)
                          ));

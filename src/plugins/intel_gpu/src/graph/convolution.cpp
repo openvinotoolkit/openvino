@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -31,7 +31,7 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
     auto input_type = input_layout.data_type;
     auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto weights_layout = *impl_param.weights_layout;
@@ -166,8 +166,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string w_zp = desc->weights_zero_points.empty() ? "false" : "true";
-    std::string a_zp = desc->activations_zero_points.empty() ? "false" : "true";
+    std::string w_zp = desc->weights_zero_points.is_valid() ? "true" : "false";
+    std::string a_zp = desc->activations_zero_points.is_valid() ? "true" : "false";
 
     json_composite conv_info;
     conv_info.add("stride", cldnn::to_string(strd));
@@ -194,7 +194,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     OPENVINO_ASSERT(all_not_zeroes(argument->stride), "[GPU] Convolution strides must be positive numbers");
     OPENVINO_ASSERT(all_not_zeroes(argument->dilation), "[GPU] Convolution dilations must be positive numbers");
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     auto output_size = output_layout.get_tensor();
 
@@ -242,12 +242,6 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     }
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Convolution padding mode",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding value",
-                            0.0f,
-                            "Unknown padding mode.");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
                             "Output feature size",
                             output_size.feature.size(),
                             "expected feature size",
@@ -265,17 +259,5 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                             "input feature maps number",
                             input_layout.feature(),
                             "Weights/ifm mismatch");
-}
-
-void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << _deform_conv_dep_offset;
-}
-
-void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    ib >> _deform_conv_dep_offset;
 }
 }  // namespace cldnn

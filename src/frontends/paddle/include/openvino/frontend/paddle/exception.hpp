@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,9 @@ class NodeContext;
 
 class OpValidationFailure : public ov::frontend::OpValidationFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const NodeContext& node,
                                     const std::string& explanation);
 
@@ -32,7 +34,7 @@ private:
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::OpValidationFailure if `cond` is false.
 #define PADDLE_OP_CHECK(node_context, ...) \
     OPENVINO_ASSERT_HELPER(::ov::frontend::paddle::OpValidationFailure, (node_context), __VA_ARGS__)

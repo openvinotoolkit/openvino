@@ -32,13 +32,13 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         std::tie(p, fmt, is_caching_test) = testing::TestWithParam<bucketize_test_params<I, B, O>>::GetParam();
         auto& engine = get_test_engine();
 
-        const layout in_layout(type_to_data_type<I>::value,
+        const layout in_layout(ov::element::from<I>(),
                                format::bfyx,
                                tensor(format::bfyx, {1, 1, 1, static_cast<int>(p.input_values.size())}));
         auto input = engine.allocate_memory(in_layout);
         set_values(input, p.input_values);
 
-        const layout buckets_layout(type_to_data_type<B>::value,
+        const layout buckets_layout(ov::element::from<B>(),
                                     format::bfyx,
                                     tensor(format::bfyx, {static_cast<int>(p.buckets_values.size()), 1, 1, 1}));
         auto buckets = engine.allocate_memory(buckets_layout);
@@ -47,17 +47,17 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(input_layout("buckets", buckets->get_layout()));
-        topology.add(reorder("reordered_input", input_info("input"), fmt, type_to_data_type<I>::value));
-        topology.add(reorder("reordered_buckets", input_info("buckets"), fmt, type_to_data_type<B>::value));
+        topology.add(reorder("reordered_input", input_info("input"), fmt, ov::element::from<I>()));
+        topology.add(reorder("reordered_buckets", input_info("buckets"), fmt, ov::element::from<B>()));
 
         topology.add(
-            bucketize("bucketize_right_bound", { input_info("reordered_input"), input_info("buckets") }, type_to_data_type<O>::value, true));
+            bucketize("bucketize_right_bound", { input_info("reordered_input"), input_info("buckets") }, ov::element::from<O>(), true));
         topology.add(
-            bucketize("bucketize_left_bound", { input_info("reordered_input"), input_info("buckets") }, type_to_data_type<O>::value, false));
+            bucketize("bucketize_left_bound", { input_info("reordered_input"), input_info("buckets") }, ov::element::from<O>(), false));
         topology.add(
-            reorder("plane_bucketize_right_bound", input_info("bucketize_right_bound"), format::bfyx, type_to_data_type<O>::value));
+            reorder("plane_bucketize_right_bound", input_info("bucketize_right_bound"), format::bfyx, ov::element::from<O>()));
         topology.add(
-            reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, type_to_data_type<O>::value));
+            reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, ov::element::from<O>()));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -86,9 +86,9 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<bucketize_test_params<I, B, O>>& info) {
         std::ostringstream result;
-        result << "inType=" << data_type_traits::name(type_to_data_type<I>::value) << "_";
-        result << "bucketsType=" << data_type_traits::name(type_to_data_type<B>::value) << "_";
-        result << "outType=" << data_type_traits::name(type_to_data_type<O>::value) << "_";
+        result << "inType=" << ov::element::Type(ov::element::from<I>()) << "_";
+        result << "bucketsType=" << ov::element::Type(ov::element::from<B>()) << "_";
+        result << "outType=" << ov::element::Type(ov::element::from<O>()) << "_";
         result << "format=" << std::get<1>(info.param);
         result << "is_caching_test=" << std::get<2>(info.param);
         return result.str();
@@ -140,16 +140,17 @@ INSTANTIATE_BUCKETIZE_TEST_SUITE(int32_t, uint8_t, int32_t, getBucketizeParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(int64_t, int8_t, int64_t, getBucketizeParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(int64_t, int32_t, int32_t, getBucketizeParams)
 
-INSTANTIATE_BUCKETIZE_TEST_SUITE(float, FLOAT16, int64_t, getBucketizeFloatingPointParams)
-INSTANTIATE_BUCKETIZE_TEST_SUITE(FLOAT16, float, int32_t, getBucketizeFloatingPointParams)
+using ov::float16;
+INSTANTIATE_BUCKETIZE_TEST_SUITE(float, float16, int64_t, getBucketizeFloatingPointParams)
+INSTANTIATE_BUCKETIZE_TEST_SUITE(float16, float, int32_t, getBucketizeFloatingPointParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(float, float, int64_t, getBucketizeFloatingPointParams)
-INSTANTIATE_BUCKETIZE_TEST_SUITE(FLOAT16, FLOAT16, int32_t, getBucketizeFloatingPointParams)
+INSTANTIATE_BUCKETIZE_TEST_SUITE(float16, float16, int32_t, getBucketizeFloatingPointParams)
 INSTANTIATE_TEST_SUITE_P(export_import,
-                         bucketize_test_FLOAT16FLOAT16int32_t,
-                         testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<FLOAT16, FLOAT16, int32_t>()),
+                         bucketize_test_float16float16int32_t,
+                         testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<ov::float16, ov::float16, int32_t>()),
                                           testing::Values(layout_formats[0]),
                                           testing::Values(true)),
-                         bucketize_test_FLOAT16FLOAT16int32_t::PrintToStringParamName);
+                         bucketize_test_float16float16int32_t::PrintToStringParamName);
 
 #undef INSTANTIATE_BUCKETIZE_TEST_SUITE
 

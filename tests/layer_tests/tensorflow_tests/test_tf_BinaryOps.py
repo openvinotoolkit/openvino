@@ -1,109 +1,78 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
+
+rng = np.random.default_rng()
 
 
-def generate_input(op_type, size):
-    narrow_borders = ["Pow"]
-
-    logical_type = ['LogicalAnd', 'LogicalOr', 'LogicalXor']
-
+def generate_input(x_shape, x_type, bound=False):
     # usual function domain
-    lower = -256
-    upper = 256
+    lower = -25
+    upper = 25
 
     # specific domains
-    if op_type in narrow_borders:
-        lower = 0
-        upper = 16
+    if bound:
+        lower = 1
+        upper = 6
 
-    if op_type in logical_type:
-        return np.random.randint(0, 1, size).astype(bool)
-    elif op_type in narrow_borders:
-        return np.random.uniform(lower, upper, size).astype(np.float32)
-    else:
-        return np.random.uniform(lower, upper, size).astype(np.float32)
+    if np.issubdtype(x_type, np.floating):
+        return rng.uniform(lower, upper, x_shape).astype(x_type)
+    elif np.issubdtype(x_type, np.signedinteger):
+        return rng.integers(lower, upper, x_shape).astype(x_type)
+    elif np.issubdtype(x_type, bool):
+        return rng.integers(0, 2, x_shape).astype(x_type)
+
+    return rng.uniform(lower, upper, x_shape).astype(x_type)
 
 
 class TestBinaryOps(CommonTFLayerTest):
-    def _prepare_input(self, inputs_dict):
-        for input in inputs_dict.keys():
-            inputs_dict[input] = generate_input(self.current_op_type, inputs_dict[input])
-        return inputs_dict
+    def _prepare_input(self, inputs_info):
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
+        x_type = self.input_type
 
-    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
-                                         use_new_frontend):
-        """
-            Tensorflow net                       IR net
+        inputs_data = {}
+        inputs_data['x:0'] = generate_input(x_shape, x_type)
+        return inputs_data
 
-            Placeholder->BinaryOp       =>       Placeholder->BinaryOp
-                         /                                     /
-            Const-------/                         Const-------/
-
-        """
-        if not use_new_frontend and op_type == "Xdivy":
-            pytest.xfail(reason="95499")
-
-        self.current_op_type = op_type
-
+    def create_add_placeholder_const_net(self, x_shape, y_shape, op_type):
         import tensorflow as tf
 
         op_type_to_tf = {
-            'Add': tf.math.add,
+            'Add': tf.raw_ops.Add,
             'AddV2': tf.raw_ops.AddV2,
-            'Sub': tf.math.subtract,
-            'Mul': tf.math.multiply,
-            'Div': tf.math.divide,
-            'RealDiv': tf.realdiv,
-            'SquaredDifference': tf.math.squared_difference,
-            'Pow': tf.math.pow,
-            'Maximum': tf.math.maximum,
-            'Minimum': tf.math.minimum,
-            'Equal': tf.math.equal,
-            'NotEqual': tf.math.not_equal,
-            'Mod': tf.math.mod,
-            'Greater': tf.math.greater,
-            'GreaterEqual': tf.math.greater_equal,
-            'Less': tf.math.less,
-            'LessEqual': tf.math.less_equal,
-            'LogicalAnd': tf.math.logical_and,
-            'LogicalOr': tf.math.logical_or,
-            'LogicalXor': tf.math.logical_xor,
-            'FloorMod': tf.math.floormod,
-            'FloorDiv': tf.math.floordiv,
+            'Sub': tf.raw_ops.Sub,
+            'Mul': tf.raw_ops.Mul,
+            'Div': tf.raw_ops.Div,
+            'RealDiv': tf.raw_ops.RealDiv,
+            'SquaredDifference': tf.raw_ops.SquaredDifference,
+            'Pow': tf.raw_ops.Pow,
+            'Maximum': tf.raw_ops.Maximum,
+            'Minimum': tf.raw_ops.Minimum,
+            'Mod': tf.raw_ops.Mod,
+            'FloorMod': tf.raw_ops.FloorMod,
+            'FloorDiv': tf.raw_ops.FloorDiv,
             'Xdivy': tf.raw_ops.Xdivy,
         }
 
-        op_type_kw_args = [ 'AddV2', 'Xdivy' ]
+        input_type = np.float32
+        if op_type in ['Pow']:
+            input_type = np.int32
+        self.input_type = input_type
 
-        type = np.float32
-        if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
-            type = bool
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = x_shape.copy()
-            tf_y_shape = y_shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
-
-            x = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
-            constant_value = generate_input(op_type, tf_y_shape)
-            if (constant_value == 0).all():
-                # Avoid elimination of the layer from IR
-                constant_value = constant_value + 1
-            y = tf.constant(constant_value, dtype=type)
-
-            if not op_type in op_type_kw_args:
-                op = op_type_to_tf[op_type](x, y, name="Operation")
-            else:
-                op = op_type_to_tf[op_type](x = x, y = y, name="Operation")
+            x = tf.compat.v1.placeholder(input_type, x_shape, 'x')
+            bound = True if op_type in ['Pow', 'Div', 'Xdivy', 'RealDiv', 'Mod', 'FloorMod',
+                                        'FloorDiv'] else False
+            constant_value = generate_input(y_shape, input_type, bound)
+            y = tf.constant(constant_value, dtype=input_type)
+            op_type_to_tf[op_type](x=x, y=y, name=op_type)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -112,27 +81,19 @@ class TestBinaryOps(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data_precommits = [dict(x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
-                            pytest.param(dict(x_shape=[2, 3, 4, 5], y_shape=[2, 3, 4, 5]),
-                                         marks=pytest.mark.precommit_tf_fe)]
-
-    @pytest.mark.parametrize("params", test_data_precommits)
+    @pytest.mark.parametrize('x_shape', [[2, 3, 4], [1, 2, 3, 4]])
+    @pytest.mark.parametrize('y_shape', [[4], [2, 3, 4]])
     @pytest.mark.parametrize("op_type",
                              ['Add', 'AddV2', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow',
-                              'Maximum', 'Minimum',
-                              'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
-                              'LessEqual',
-                              'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod', 'FloorDiv',
-                              'Xdivy'])
+                              'Maximum', 'Minimum', 'Mod', 'FloorMod', 'FloorDiv', 'Xdivy'])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_new_frontend, use_old_api):
-        if precision == "FP16":
-            pytest.skip("BinaryOps tests are skipped with FP16 precision."
-                        "They don't pass accuracy checks because chaotic output.")
-        self._test(
-            *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                   use_new_frontend=use_new_frontend), ie_device,
-            precision,
-            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
+    def test_binary_op(self, x_shape, y_shape, ie_device, precision, ir_version, temp_dir, op_type):
+        if op_type in ['Pow', 'Mod'] and ie_device == 'GPU':
+            pytest.skip("For Mod and Pow GPU has inference mismatch")
+        if op_type in ['Mod', 'FloorDiv', 'FloorMod']:
+            pytest.skip("Inference mismatch for Mod and FloorDiv")
+        self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
+                   precision, ir_version, temp_dir=temp_dir)

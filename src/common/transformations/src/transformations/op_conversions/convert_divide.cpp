@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,7 +22,7 @@
 
 namespace {
 bool convert_divide(std::shared_ptr<ov::Node> node) {
-    auto div = std::dynamic_pointer_cast<ov::op::v1::Divide>(node);
+    auto div = ov::as_type_ptr<ov::op::v1::Divide>(node);
     // We can not apply this transformation in case with integer input data type
     if (!div || ov::divide_is_nonconvertible(div) || div->get_input_element_type(0).is_integral()) {
         return false;
@@ -31,15 +32,13 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
         div->input_value(1),
         ov::op::v0::Constant::create(div->get_input_element_type(1), ov::Shape{}, {-1}));
 
-    if (std::dynamic_pointer_cast<ov::op::v0::Constant>(div->get_input_node_shared_ptr(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto const_pow = ov::get_constant_from_source(pow)) {
+    if (ov::as_type_ptr<ov::op::v0::Constant>(div->get_input_node_shared_ptr(1))) {
+        if (auto const_pow = ov::util::get_constant_from_source(pow)) {
             pow = const_pow;
         } else {
-            OPENVINO_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
+            OPENVINO_DEBUG("ConvertDivide has failed due to unsupported evaluate type in ", pow.get());
             return false;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         ov::copy_runtime_info(div, pow);
     }

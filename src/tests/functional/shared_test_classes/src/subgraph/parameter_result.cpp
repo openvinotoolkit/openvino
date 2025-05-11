@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/parameter_result.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
+std::string ParameterResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
     ov::test::InputShape inShape;
     std::string targetDevice;
     std::tie(inShape, targetDevice) = obj.param;
@@ -21,21 +22,12 @@ std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::Test
     return result.str();
 }
 
-std::shared_ptr<ov::Model> ParameterResultSubgraphTestBase::createModel(const ov::PartialShape& shape) {
-    auto parameter = std::make_shared<ngraph::opset1::Parameter>(ov::element::f32, shape);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(parameter)};
-    ngraph::ParameterVector params = {parameter};
+std::shared_ptr<ov::Model> ParameterResultSubgraphTest::createModel(const ov::PartialShape& shape) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(parameter)};
+    ov::ParameterVector params = {parameter};
     auto model = std::make_shared<ov::Model>(results, params, "ParameterResult");
     return model;
-}
-
-void ParameterResultSubgraphTestLegacyApi::SetUp() {
-    ov::test::InputShape inShape;
-    std::tie(inShape, targetDevice) = this->GetParam();
-
-    IE_ASSERT(inShape.first.is_static());
-
-    function = createModel(inShape.first);
 }
 
 void ParameterResultSubgraphTest::SetUp() {
@@ -47,4 +39,5 @@ void ParameterResultSubgraphTest::SetUp() {
     function = createModel(inShape.first);
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

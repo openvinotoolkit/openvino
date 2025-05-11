@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,28 +22,26 @@ public:
     kernel_selector_base();
     virtual ~kernel_selector_base() {}
 
-    KernelData get_best_kernel(const Params& params, const optional_params& options) const;
+    KernelData get_best_kernel(const Params& params) const;
+    std::shared_ptr<KernelBase> GetImplementation(std::string& kernel_name) const;
 
 protected:
     template <typename T>
     inline void Attach() {
         implementations.push_back(std::make_shared<T>());
     }
-    virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const = 0;
+    virtual KernelsData GetBestKernels(const Params& params) const = 0;
 
     KernelsData GetNaiveBestKernel(const KernelList& all_impls,
-                                   const Params& params,
-                                   const optional_params& options) const;
+                                   const Params& params) const;
 
     KernelsData GetNaiveBestKernel(const Params& params,
-                                   const optional_params& options,
                                    KernelType kType) const;
 
     KernelsData GetAutoTuneBestKernel(const Params& params,
-                                      const optional_params& options,
                                       KernelType kType) const;
 
-    KernelList GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const;
+    KernelList GetAllImplementations(const Params& params, KernelType kType) const;
 
     KernelList implementations;
     ForceList forceKernels;

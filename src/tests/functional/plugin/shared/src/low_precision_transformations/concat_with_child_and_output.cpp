@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,29 +8,24 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithChildAndOutputTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        param.fqOnData1 << param.fqOnData2;
+           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           param.fqOnData1 << param.fqOnData2;
 
     return result.str();
 }
@@ -46,18 +41,20 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 */
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
+    init_input_shapes({ inputShapes, inputShapes });
+
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
 
 TEST_P(ConcatWithChildAndOutputTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

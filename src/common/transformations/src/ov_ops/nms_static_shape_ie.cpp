@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // clang-format off
-#include "openvino/op/ops.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 // clang-format on
 

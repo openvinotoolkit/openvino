@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -36,7 +36,11 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+# install & export
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt)
+ov_developer_package_export_targets(TARGET openvino::itt
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

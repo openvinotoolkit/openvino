@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -89,13 +89,6 @@ if(ENABLE_INTEL_CPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_INTEL_GNA)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gna_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
-    ov_coverage_genhtml(INFO_FILE "intel_gna_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 if (ENABLE_INTEL_GPU)
     ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gpu_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gpu/*")
@@ -116,6 +109,13 @@ if(ENABLE_OV_IR_FRONTEND)
     ov_coverage_extract(INPUT "openvino" OUTPUT "ir_frontend"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/ir/*")
     ov_coverage_genhtml(INFO_FILE "ir_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_OV_JAX_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "jax_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/jax/*")
+    ov_coverage_genhtml(INFO_FILE "jax_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

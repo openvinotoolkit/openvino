@@ -1,0 +1,5 @@
+[ww|WW]*_dynamic*
+[ww|WW]*_pytorch*
+[ww|WW]*_static*
+[ww|WW]*_tfhub*
+# ww*_tflite*

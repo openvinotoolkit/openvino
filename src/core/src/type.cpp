@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ std::string DiscreteTypeInfo::get_version() const {
     if (version_id) {
         return std::string(version_id);
     }
-    return nullptr;
+    return {};
 }
 
 DiscreteTypeInfo::operator std::string() const {

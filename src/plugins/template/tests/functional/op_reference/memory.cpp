@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
@@ -29,15 +29,15 @@ struct ReadValueAssignParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(ouput_type),
-          m_input_data(CreateTensor(input_type, input_values)),
-          m_expected_data(CreateTensor(ouput_type, output_values)),
+          m_input_data(CreateTensor(input_shape, input_type, input_values)),
+          m_expected_data(CreateTensor(output_shape, ouput_type, output_values)),
           m_variable_id(variable_id) {}
     Shape m_input_shape;
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::string m_variable_id;
 };
 
@@ -97,8 +97,8 @@ private:
                                                  const element::Type& input_type,
                                                  const std::string variable_id) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        auto variable = std::make_shared<op::util::Variable>(
-            op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_id});
+        auto variable =
+            std::make_shared<op::util::Variable>(op::util::VariableInfo{input_shape, input_type, variable_id});
         auto assign = std::make_shared<op::v6::Assign>(in, variable);
         auto read_value = std::make_shared<op::v6::ReadValue>(assign, variable);
         return std::make_shared<Model>(OutputVector{read_value},
@@ -109,19 +109,23 @@ private:
 
 TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
 TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
@@ -245,8 +249,8 @@ struct MemoryTestParams {
     ov::Shape m_output_shape;
     ov::element::Type m_input_type;
     ov::element::Type m_output_type;
-    ov::runtime::Tensor m_input_data;
-    ov::runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::vector<std::string> m_variable_id;
     size_t m_count_runs;
     size_t m_reset_on_run;
@@ -286,7 +290,6 @@ protected:
     void CommonTestSteps(const std::function<void(size_t, ov::InferRequest&)>& custom_step = nullptr) {
         auto params = GetParam();
 
-        const auto& functionParams = function->get_parameters();
         inferRequest.set_tensor(executableNetwork.input(0), params.m_input_data);
         for (size_t i = 0; i < params.m_count_runs; ++i) {
             if (custom_step) {
@@ -299,7 +302,7 @@ protected:
                                                                 i,
                                                                 1e-2f,
                                                                 -1.f,
-                                                                0);
+                                                                true);
         }
     }
 
@@ -313,8 +316,8 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAdd(const ov::Shape& in
                                                              const std::vector<std::string>& variable_id) {
     auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
     auto c = std::make_shared<ov::op::v0::Constant>(input_type, input_shape, 0);
-    auto variable = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[0]});
     auto read_value = std::make_shared<ov::op::v6::ReadValue>(c, variable);
     auto add = std::make_shared<ov::op::v1::Add>(in, read_value);
     auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
@@ -327,10 +330,10 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAddMultiVariable(const 
                                                                           const ov::element::Type& input_type,
                                                                           const std::vector<std::string>& variable_id) {
     auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-    auto variable1 = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
-    auto variable2 = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[1]});
+    auto variable1 =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[0]});
+    auto variable2 =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[1]});
     auto read_value1 = std::make_shared<ov::op::v6::ReadValue>(in, variable1);
     auto read_value2 = std::make_shared<ov::op::v6::ReadValue>(in, variable2);
     auto add1 = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
@@ -465,65 +468,64 @@ TEST_P(ReferenceReadValueAssignAddMultiVariableLayerTest, MemoryWithHardcodedRef
 template <ov::element::Type_t IN_ET>
 std::vector<MemoryTestParams> ReadValueAssignAddMultiVariableLayer() {
     using T = typename ov::element_type_traits<IN_ET>::value_type;
+    const size_t num_tests = 3;
     size_t count_runs = 10;
 
-    std::vector<T> first_result_shape1 = {1};
-    std::vector<T> first_result_shape22 = {1, 2, 3, 4};
-    std::vector<T> first_result_shape123 = {1, 2, 3, 4, 5, 6};
+    std::vector<std::vector<T>> parameter_value(num_tests);
+    parameter_value[0] = {1};
+    parameter_value[1] = {1, 2, 3, 4};
+    parameter_value[2] = {1, 2, 3, 4, 5, 6};
 
-    std::vector<T> new_result_shape1(1, T(0));
-    std::vector<T> new_result_shape22(4, T(0));
-    std::vector<T> new_result_shape123(6, T(0));
+    std::vector<Shape> in_out_shapes = {{1}, {1, 2}, {1, 2, 3}};
 
-    std::vector<std::vector<T>> result_shape1;
-    std::vector<std::vector<T>> result_shape22;
-    std::vector<std::vector<T>> result_shape123;
+    // the initial value for the buffers is equal to the params values on the 1st iteration
+    auto state_buffer_value = parameter_value;
 
-    for (size_t i = 0; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(),
-                       new_result_shape1.end(),
-                       first_result_shape1.begin(),
-                       new_result_shape1.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape22.begin(),
-                       new_result_shape22.end(),
-                       first_result_shape22.begin(),
-                       new_result_shape22.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape123.begin(),
-                       new_result_shape123.end(),
-                       first_result_shape123.begin(),
-                       new_result_shape123.begin(),
-                       std::plus<T>());
-        result_shape1.push_back(new_result_shape1);
-        result_shape22.push_back(new_result_shape22);
-        result_shape123.push_back(new_result_shape123);
+    // the result contain values after each inference request
+    // number of inferences = count_runs
+    std::vector<std::vector<std::vector<T>>> expected_res(num_tests);
+
+    // the reference for ov::Model:
+    //   ___________
+    //  |           | -> [ReadValue 1] ->   ________
+    //                                     |  Add 1 |        _______
+    //  | Parameter | -> [ReadValue 2] ->  |________| ----> |       |
+    //                                                      |  Add 2| -> Assign_1 -> Result
+    //  | __________| ---------------------------------->   |_______|
+    //  Note: Assign_2 is not shown in the graph here, it exists and connected to ReadValue2 directly,
+    //  but we don't check its value.
+    std::vector<std::vector<T>> add_1(num_tests);
+    for (size_t i = 0; i < num_tests; ++i) {
+        add_1[i].resize(parameter_value[i].size(), 0);
     }
 
-    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
-                                                          ov::Shape{1},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1},
-                                                          result_shape1,
-                                                          count_runs,
-                                                          {"v0", "v1"}),
-                                         MemoryTestParams(ov::Shape{2, 2},
-                                                          ov::Shape{2, 2},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1, 2, 3, 4},
-                                                          result_shape22,
-                                                          count_runs,
-                                                          {"v0", "v1"}),
-                                         MemoryTestParams(ov::Shape{1, 2, 3},
-                                                          ov::Shape{1, 2, 3},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
-                                                          result_shape123,
-                                                          count_runs,
-                                                          {"v0", "v1"})};
+    std::vector<MemoryTestParams> params;
+    for (size_t test_i = 0; test_i < num_tests; ++test_i) {
+        for (size_t i = 0; i < count_runs; i++) {
+            // Add1 = ReadValue1 + ReadValue2
+            std::transform(state_buffer_value[test_i].begin(),
+                           state_buffer_value[test_i].end(),
+                           parameter_value[test_i].begin(),
+                           add_1[test_i].begin(),
+                           std::plus<T>());
+            // Res = Add1 + Parameter
+            std::transform(add_1[test_i].begin(),
+                           add_1[test_i].end(),
+                           parameter_value[test_i].begin(),
+                           state_buffer_value[test_i].begin(),
+                           std::plus<T>());
+
+            expected_res[test_i].push_back(state_buffer_value[test_i]);
+        }
+        params.push_back(MemoryTestParams(in_out_shapes[test_i],
+                                          in_out_shapes[test_i],
+                                          IN_ET,
+                                          IN_ET,
+                                          parameter_value[test_i],
+                                          expected_res[test_i],
+                                          count_runs,
+                                          {"v0", "v1"}));
+    }
     return params;
 }
 
@@ -569,10 +571,7 @@ TEST_P(ReferenceReadValueAssignAddResetLayerTest, MemoryResetWithHardcodedRefs) 
 
     auto reset_var = [&](size_t iter, ov::InferRequest& inferRequest) {
         if (params.m_reset_on_run == iter) {
-            auto vars = inferRequest.query_state();
-            for (auto& var : vars) {
-                var.reset();
-            }
+            inferRequest.reset_state();
         }
     };
     CommonTestSteps(reset_var);
@@ -699,7 +698,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ReferenceReadValueAssignAddResetLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddReset()),
                          ReferenceReadValueAssignAddResetLayerTest::getTestCaseName);
-
 
 class ReferenceReadValueAssignAddModifyLayerTest : public ReferenceMemoryTest {
 protected:
@@ -862,7 +860,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddModify()),
                          ReferenceReadValueAssignAddModifyLayerTest::getTestCaseName);
 
-
 class ReferenceReadValueAssignAddMultiVariableModifyLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
@@ -877,8 +874,7 @@ TEST_P(ReferenceReadValueAssignAddMultiVariableModifyLayerTest, MemoryResetWithH
 
     auto reset_var = [&](size_t iter, ov::InferRequest& inferRequest) {
         if (params.m_reset_on_run == iter) {
-            auto vars = inferRequest.query_state();
-            vars[1].set_state(params.m_input_data);
+            inferRequest.reset_state();
         }
     };
     CommonTestSteps(reset_var);
@@ -887,106 +883,69 @@ TEST_P(ReferenceReadValueAssignAddMultiVariableModifyLayerTest, MemoryResetWithH
 template <ov::element::Type_t IN_ET>
 std::vector<MemoryTestParams> generateParamsForReadValueAssignAddMultiVariableModify() {
     using T = typename ov::element_type_traits<IN_ET>::value_type;
+    const size_t num_tests = 3;
     size_t count_runs = 10;
     size_t reset_on_run = 5;
 
-    std::vector<T> first_result_shape1 = {1};
-    std::vector<T> first_result_shape22 = {1, 2, 3, 4};
-    std::vector<T> first_result_shape123 = {1, 2, 3, 4, 5, 6};
+    std::vector<std::vector<T>> parameter_value(num_tests);
+    parameter_value[0] = {1};
+    parameter_value[1] = {1, 2, 3, 4};
+    parameter_value[2] = {1, 2, 3, 4, 5, 6};
 
-    std::vector<T> new_result_shape1(1, T(0));
-    std::vector<T> new_result_shape22(4, T(0));
-    std::vector<T> new_result_shape123(6, T(0));
+    std::vector<Shape> in_out_shapes = {{1}, {1, 2}, {1, 2, 3}};
 
-    std::vector<std::vector<T>> result_shape1;
-    std::vector<std::vector<T>> result_shape22;
-    std::vector<std::vector<T>> result_shape123;
+    // the initial value for the buffers is equal to the params values on the 1st iteration
+    auto state_buffer_value = parameter_value;
 
-    for (size_t i = 0; i < count_runs - reset_on_run; i++) {
-        std::transform(new_result_shape1.begin(),
-                       new_result_shape1.end(),
-                       first_result_shape1.begin(),
-                       new_result_shape1.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape22.begin(),
-                       new_result_shape22.end(),
-                       first_result_shape22.begin(),
-                       new_result_shape22.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape123.begin(),
-                       new_result_shape123.end(),
-                       first_result_shape123.begin(),
-                       new_result_shape123.begin(),
-                       std::plus<T>());
-        result_shape1.push_back(new_result_shape1);
-        result_shape22.push_back(new_result_shape22);
-        result_shape123.push_back(new_result_shape123);
+    // the result contain values after each inference request
+    // number of inferences = count_runs
+    std::vector<std::vector<std::vector<T>>> expected_res(num_tests);
+
+    // the reference for ov::Model:
+    //   ___________
+    //  |           | -> [ReadValue 1] ->   ________
+    //                                     |  Add 1 |        _______
+    //  | Parameter | -> [ReadValue 2] ->  |________| ----> |       |
+    //                                                      |  Add 2| -> Assign_1 -> Result
+    //  | __________| ---------------------------------->   |_______|
+    //  Note: Assign_2 is not shown in the graph here, it exists and connected to ReadValue2 directly,
+    //  but we don't check its value.
+    std::vector<std::vector<T>> add_1(num_tests);
+    for (size_t i = 0; i < num_tests; ++i) {
+        add_1[i].resize(parameter_value[i].size(), 0);
     }
 
-    std::transform(first_result_shape1.begin(),
-                first_result_shape1.end(),
-                first_result_shape1.begin(),
-                first_result_shape1.begin(),
-                std::plus<T>());
-    std::transform(first_result_shape22.begin(),
-                first_result_shape22.end(),
-                first_result_shape22.begin(),
-                first_result_shape22.begin(),
-                std::plus<T>());
-    std::transform(first_result_shape123.begin(),
-                first_result_shape123.end(),
-                first_result_shape123.begin(),
-                first_result_shape123.begin(),
-                std::plus<T>());
+    std::vector<MemoryTestParams> params;
+    for (size_t test_i = 0; test_i < num_tests; ++test_i) {
+        for (size_t i = 0; i < count_runs; i++) {
+            if (i == reset_on_run) {
+                state_buffer_value[test_i] = parameter_value[test_i];
+            }
+            // Add1 = ReadValue1 + ReadValue2
+            std::transform(state_buffer_value[test_i].begin(),
+                           state_buffer_value[test_i].end(),
+                           parameter_value[test_i].begin(),
+                           add_1[test_i].begin(),
+                           std::plus<T>());
+            // Res = Add1 + Parameter
+            std::transform(add_1[test_i].begin(),
+                           add_1[test_i].end(),
+                           parameter_value[test_i].begin(),
+                           state_buffer_value[test_i].begin(),
+                           std::plus<T>());
 
-    for (size_t i = count_runs - reset_on_run; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(),
-                       new_result_shape1.end(),
-                       first_result_shape1.begin(),
-                       new_result_shape1.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape22.begin(),
-                       new_result_shape22.end(),
-                       first_result_shape22.begin(),
-                       new_result_shape22.begin(),
-                       std::plus<T>());
-        std::transform(new_result_shape123.begin(),
-                       new_result_shape123.end(),
-                       first_result_shape123.begin(),
-                       new_result_shape123.begin(),
-                       std::plus<T>());
-        result_shape1.push_back(new_result_shape1);
-        result_shape22.push_back(new_result_shape22);
-        result_shape123.push_back(new_result_shape123);
+            expected_res[test_i].push_back(state_buffer_value[test_i]);
+        }
+        params.push_back(MemoryTestParams(in_out_shapes[test_i],
+                                          in_out_shapes[test_i],
+                                          IN_ET,
+                                          IN_ET,
+                                          parameter_value[test_i],
+                                          expected_res[test_i],
+                                          count_runs,
+                                          {"v0", "v1"},
+                                          reset_on_run));
     }
-
-    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
-                                                          ov::Shape{1},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1},
-                                                          result_shape1,
-                                                          count_runs,
-                                                          {"v0", "v1"},
-                                                          reset_on_run),
-                                         MemoryTestParams(ov::Shape{2, 2},
-                                                          ov::Shape{2, 2},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1, 2, 3, 4},
-                                                          result_shape22,
-                                                          count_runs,
-                                                          {"v0", "v1"},
-                                                          reset_on_run),
-                                         MemoryTestParams(ov::Shape{1, 2, 3},
-                                                          ov::Shape{1, 2, 3},
-                                                          IN_ET,
-                                                          IN_ET,
-                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
-                                                          result_shape123,
-                                                          count_runs,
-                                                          {"v0", "v1"},
-                                                          reset_on_run)};
     return params;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,14 +30,15 @@ public:
         std::condition_variable _cond;
         std::mutex _mutex;
         std::exception_ptr _exception_ptr;
+        bool _is_wakeup;
     };
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& config,
                   const DeviceInformation& device_info,
-                  const std::set<std::string>& batched_inputs,
-                  const std::set<std::string>& batched_outputs,
+                  const std::set<std::size_t>& batched_inputs,
+                  const std::set<std::size_t>& batched_outputs,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                   const ov::SoPtr<ov::IRemoteContext>& context);
@@ -54,6 +55,10 @@ public:
 
     virtual ~CompiledModel();
 
+    const std::vector<ov::Output<const ov::Node>>& outputs() const override;
+
+    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
+
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     static unsigned int ParseTimeoutValue(const std::string&);
@@ -69,8 +74,8 @@ protected:
     mutable std::atomic_size_t m_num_requests_created = {0};
     std::atomic<std::uint32_t> m_time_out = {0};  // in ms
 
-    const std::set<std::string> m_batched_inputs;
-    const std::set<std::string> m_batched_outputs;
+    const std::set<std::size_t> m_batched_inputs;
+    const std::set<std::size_t> m_batched_outputs;
 
     ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
     ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;

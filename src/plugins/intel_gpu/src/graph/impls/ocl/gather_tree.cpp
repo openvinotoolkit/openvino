@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,22 +15,21 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
     using parent = typed_primitive_impl_ocl<gather_tree>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gather_tree_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gather_tree_params, kernel_selector::gather_tree_optional_params>;
+    using kernel_params_t = kernel_selector::gather_tree_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_tree_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<gather_tree_impl>(*this);
+        return make_deep_copy<gather_tree_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::gather_tree_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(impl_param.get_program());
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
-        return {params, optional_params};
+        return params;
     }
 };
 

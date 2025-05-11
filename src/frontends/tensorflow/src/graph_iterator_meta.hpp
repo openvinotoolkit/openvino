@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,8 @@ class GraphIteratorMeta : public GraphIteratorProto {
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
+    HashTableKeysValuesMap m_hash_table_keys_map;
+    HashTableKeysValuesMap m_hash_table_values_map;
     bool m_mmap_enabled;
 
 public:
@@ -43,6 +45,10 @@ public:
 
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
+        FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
         try {
             std::ifstream mg_stream(path.c_str(), std::ios::in | std::ifstream::binary);
             auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
@@ -63,6 +69,14 @@ public:
 
     std::shared_ptr<std::map<std::string, std::string>> get_metagraph_output_names() const {
         return m_outputs_map;
+    }
+
+    HashTableKeysValuesMap get_hash_table_keys_map() const {
+        return m_hash_table_keys_map;
+    }
+
+    HashTableKeysValuesMap get_hash_table_values_map() const {
+        return m_hash_table_values_map;
     }
 
 private:
@@ -98,12 +112,10 @@ private:
 
         auto serving_default = validSignatures.find("serving_default");
         if (serving_default != validSignatures.end()) {
-            /*
-                "serving_default" signature contains map of input/output names.
-                Here we are storing two maps for inputs and outputs.
-                Map looks like "name_set_by_user" = "internal_name:port".
-                For example, "input_mask" = "serving_default_input_mask:0"
-            */
+            // "serving_default" signature contains map of input/output names.
+            // here we are storing two maps for inputs and outputs.
+            // map looks like {"internal_name:port": "name_set_by_user"}
+            // for example, {"serving_default_input_mask:0": "input_mask"}
             m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
             m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
             for (const auto& input : serving_default->second->inputs()) {
@@ -112,13 +124,26 @@ private:
             for (const auto& output : serving_default->second->outputs()) {
                 (*m_outputs_map)[output.second.name()] = output.first;
             }
+        } else if (validSignatures.size() > 0) {
+            // no special signature for serving
+            // so use all inputs and outputs for all signatures
+            m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
+            m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
+            for (const auto& signature : validSignatures) {
+                for (const auto& input : signature.second->inputs()) {
+                    (*m_inputs_map)[input.second.name()] = input.first;
+                }
+                for (const auto& output : signature.second->outputs()) {
+                    (*m_outputs_map)[output.second.name()] = output.first;
+                }
+            }
         }
 
         m_graph_def = std::make_shared<::tensorflow::GraphDef>(m_metagraph_def->graph_def());
 
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;
-        VariablesIndex::map_assignvariable(m_graph_def, var_map);
+        VariablesIndex::map_assignvariable(m_graph_def, var_map, m_hash_table_keys_map, m_hash_table_values_map);
         for (auto var : var_map) {
             m_variables_index->map_variable(var.first, var.second);
         }

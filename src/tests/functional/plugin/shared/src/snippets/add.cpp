@@ -5,9 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/add.hpp"
 #include "subgraph_simple.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -46,9 +44,8 @@ void Add::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
@@ -83,9 +80,11 @@ void AddConst::SetUp() {
     auto f = ov::test::snippets::AddConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+    if (type == ov::element::f16) {
+        abs_threshold = 3e-2;
     }
 }
 
@@ -98,9 +97,12 @@ void AddRollConst::SetUp() {
     auto f = ov::test::snippets::AddRollConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (type == ov::element::bf16) {
+        abs_threshold = 3e-2;
     }
 }
 
@@ -110,8 +112,7 @@ std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(input_shapes, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
-    if (input_shapes.size() != 2)
-        IE_THROW() << "Invalid input shapes vector size";
+    OPENVINO_ASSERT(input_shapes.size() == 2, "Invalid input shapes vector size");
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({input_shapes[0].first}) << "_";
     result << "TS[0]=";
@@ -138,9 +139,8 @@ void AddPair::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 

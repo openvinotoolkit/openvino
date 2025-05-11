@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/reshape.hpp>
-#include <low_precision/concat.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/reshape.hpp"
+#include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -27,8 +27,8 @@ using namespace ov::pass;
 namespace {
 class ActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
@@ -37,9 +37,9 @@ inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
 
 class ResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
@@ -70,7 +70,7 @@ public:
         const ov::element::Type precision = std::get<0>(GetParam());
         TestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateReshape(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediateReshape(
             precision,
             testValues.inputShape,
             testValues.reshapeOutputShape,
@@ -78,12 +78,12 @@ public:
             testValues.actual.fakeQuantize2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateReshape(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithIntermediateReshape(
             precision,
             testValues.inputShape,
             testValues.reshapeOutputShape,

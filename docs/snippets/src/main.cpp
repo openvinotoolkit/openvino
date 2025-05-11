@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,8 @@ ov::CompiledModel compiled_model = core.compile_model("model.tflite", "AUTO");
 //! [part2_6]
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
-    // To construct a model, please follow 
-    // https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_Representation.html
+    // To construct a model, please follow
+    // https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-representation.html
     return model;
 };
 std::shared_ptr<ov::Model> model = create_model();
@@ -85,7 +85,7 @@ project/
    └── src/            - source folder
        └── main.cpp
 build/                  - build directory
-   ... 
+   ...
 
 //! [part7]
 */

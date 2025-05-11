@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,12 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/remote_allocators.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -28,7 +27,12 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices) : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
+#ifdef OV_GPU_WITH_SYCL
+    const auto engine_type = cldnn::engine_types::sycl;
+#else
     const auto engine_type = cldnn::engine_types::ocl;
+#endif
+
     const auto runtime_type = cldnn::runtime_types::ocl;
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
@@ -111,8 +115,7 @@ std::shared_ptr<RemoteContextImpl> RemoteContextImpl::get_this_shared_ptr() {
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
     if (m_engine->use_unified_shared_memory()) {
-        USMHostAllocator allocator(get_this_shared_ptr());
-        return { ov::make_tensor(type, shape, allocator), nullptr };
+        return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape), nullptr };
     } else {
         return { ov::make_tensor(type, shape), nullptr };
     }
@@ -229,5 +232,4 @@ void RemoteContextImpl::check_if_shared() const {
     OPENVINO_ASSERT(m_type == ContextType::VA_SHARED, "[GPU] Shared context is required to to share this type of memory");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

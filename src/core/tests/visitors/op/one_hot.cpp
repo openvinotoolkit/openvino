@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, one_hot_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::OneHot>();
+    NodeBuilder::opset().insert<ov::op::v1::OneHot>();
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 3, 2, 3});
     auto depth = ov::op::v0::Constant::create(element::i64, Shape{}, {4});
     auto on_value = ov::op::v0::Constant::create(element::f32, Shape{}, {1.0f});

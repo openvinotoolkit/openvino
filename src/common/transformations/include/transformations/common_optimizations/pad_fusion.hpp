@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> AvgPool to AvgPool, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -30,12 +30,12 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
  */
 class ov::pass::PadFusionAvgPool : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionAvgPool", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PadFusionAvgPool");
     PadFusionAvgPool();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> Convolution to Convolution, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -43,12 +43,12 @@ public:
  */
 class ov::pass::PadFusionConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PadFusionConvolution");
     PadFusionConvolution();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> ConvolutionBackpropData to ConvolutionBackpropData, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -57,12 +57,12 @@ public:
  */
 class ov::pass::PadFusionConvolutionBackpropData : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionConvolutionBackpropData", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PadFusionConvolutionBackpropData");
     PadFusionConvolutionBackpropData();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> GroupConvolution to GroupConvolution, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -70,12 +70,12 @@ public:
  */
 class ov::pass::PadFusionGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionGroupConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PadFusionGroupConvolution");
     PadFusionGroupConvolution();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> GroupConvolutionBackpropData to GroupConvolutionBackpropData, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -84,13 +84,13 @@ public:
  */
 class ov::pass::PadFusionGroupConvolutionBackpropData : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionGroupConvolutionBackpropData", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PadFusionGroupConvolutionBackpropData");
     PadFusionGroupConvolutionBackpropData();
 };
 
 class ov::pass::PadFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PadFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PadFusion");
     PadFusion() {
         add_matcher<ov::pass::PadFusionAvgPool>();
         add_matcher<ov::pass::PadFusionConvolution>();

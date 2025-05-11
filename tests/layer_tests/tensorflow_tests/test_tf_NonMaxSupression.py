@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
@@ -12,10 +14,9 @@ class TestNonMaxSuppression(CommonTFLayerTest):
 
     # overload inputs generation to suit NMS use case
     def _prepare_input(self, inputs_dict):
-        channel = ':0' if self.use_old_api or not self.use_new_frontend else ''
         input_data = {}
         for input in inputs_dict.keys():
-            input_data[input + channel] = np.random.uniform(low=0, high=1,
+            input_data[input] = np.random.uniform(low=0, high=1,
                                                             size=inputs_dict[input]).astype(np.float32)
         return input_data
 
@@ -82,25 +83,21 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
-    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
-                              use_new_frontend, use_old_api):
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
+    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresion test on GPU")
-        self.use_old_api = use_old_api
         self._test(*self.create_nms_net(test_params), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api)
+                   ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
-    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
-                                        use_new_frontend, use_old_api):
+    @pytest.mark.precommit
+    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")
-        self.use_old_api = use_old_api
         self._test(*self.create_nms_net(test_params, with_scores=True), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api)
+                   ir_version, temp_dir=temp_dir)

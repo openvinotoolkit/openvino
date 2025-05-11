@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,12 +36,26 @@ OutputVector translate_eye(const NodeContext& context) {
         y = context.mark_node(std::make_shared<v0::Convert>(y, element::i32));
         dtype_id = 2;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported number of inputs: ", num_inputs, " for aten::eye");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported number of inputs: ", num_inputs, " for aten::eye");
     }
     if (!context.input_is_none(dtype_id)) {
         dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
     }
     auto eye = context.mark_node(std::make_shared<v9::Eye>(x, y, diagonal, element::i32));
+    return {context.mark_node(std::make_shared<v0::Convert>(eye, dtype))};
+};
+
+OutputVector translate_eye_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto x = get_input_as_i32(context, 0);
+    auto y = get_input_as_i32(context, 1);
+    // aten::eye support only main diagonal
+    auto diagonal = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto dtype = element::i32;
+    if (context.has_attribute("dtype")) {
+        dtype = context.get_attribute<element::Type>("dtype");
+    }
+    auto eye = context.mark_node(std::make_shared<v9::Eye>(x, y, diagonal, dtype));
     return {context.mark_node(std::make_shared<v0::Convert>(eye, dtype))};
 };
 

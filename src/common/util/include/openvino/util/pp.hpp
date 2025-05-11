@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #define OV_PP_TOSTRING(...)  OV_PP_TOSTRING_(__VA_ARGS__)
 #define OV_PP_TOSTRING_(...) #__VA_ARGS__
 
-#define OV_PP_EXPAND(X) X
+#define OV_PP_EXPAND(...) __VA_ARGS__
 
 #define OV_PP_NARG(...)                         OV_PP_EXPAND(OV_PP_NARG_(__VA_ARGS__, OV_PP_RSEQ_N()))
 #define OV_PP_NARG_(...)                        OV_PP_EXPAND(OV_PP_ARG_N(__VA_ARGS__))
@@ -48,3 +48,38 @@
 
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_PP_IS_ENABLED2(arg1_or_junk) OV_PP_SECOND_ARG(arg1_or_junk 1, 0)
+
+// Ignores inputs
+#define OV_PP_IGNORE(...)
+
+/* This macro is intended to fix C++20 [=] lambda
+warning. Although C++20 identifier is 202002L,
+some compilers supporting C++20, or their drafts like
+C++2a, producing the warning, are using 201402L value.
+Also, MSVC requires a special check due to the
+__cplusplus value compatibility issues.*/
+#if (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L)) || (__cplusplus >= 202002L)
+#    define OV_CAPTURE_CPY_AND_THIS =, this
+#else
+#    define OV_CAPTURE_CPY_AND_THIS =
+#endif /* C++20 */
+
+#ifdef __linux__
+#    ifndef _GNU_SOURCE
+#        define _GNU_SOURCE
+#        include <features.h>
+#        ifndef __USE_GNU
+#            define OPENVINO_MUSL_LIBC
+#        endif
+#        undef _GNU_SOURCE /* don't contaminate other includes unnecessarily */
+#    else
+#        include <features.h>
+#        ifndef __USE_GNU
+#            define OPENVINO_MUSL_LIBC
+#        endif
+#    endif
+
+#    ifndef OPENVINO_MUSL_LIBC
+#        define OPENVINO_GNU_LIBC
+#    endif
+#endif

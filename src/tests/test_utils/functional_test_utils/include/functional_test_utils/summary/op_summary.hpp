@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "summary.hpp"
 
 namespace ov {
@@ -31,10 +30,11 @@ private:
     static bool extractBody;
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
 
-    std::string getOpVersion(const std::string& version);
+    std::string get_opset_number(const std::string& opset_full_name);
 
 protected:
     OpSummary();
+    static OpSummary& createInstance();
     static OpSummaryDestroyer destroyer;
     friend class OpSummaryDestroyer;
 

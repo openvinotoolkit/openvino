@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,25 +8,23 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< AddTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     AddTestValues param;
     std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        (param.broadcast ? "_broadcast" : "");
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           (param.broadcast ? "_broadcast" : "");
     for (const auto& elem : param.precisionOnActivations) {
         result << "_" << elem << "_";
     }
@@ -53,12 +51,19 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
 }
 
 void AddTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     AddTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginal(
+    ov::PartialShape inputShape2 = inputShape;
+    if (param.broadcast) {
+        inputShape2[2] = 1;
+        inputShape2[3] = 1;
+    }
+    init_input_shapes({ inputShape, inputShape2 });
+
+    function = ov::builder::subgraph::AddFunction::getOriginal(
         precision, inputShape, param.broadcast,
         param.fakeQuantize1, param.fakeQuantize2);
 
@@ -66,7 +71,7 @@ void AddTransformation::SetUp() {
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

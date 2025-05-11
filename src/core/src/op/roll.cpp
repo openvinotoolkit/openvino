@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/roll.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "roll_shape_inference.hpp"
 
 namespace ov {
@@ -29,10 +28,8 @@ void Roll::validate_and_infer_types() {
                           axes_et.is_dynamic() || axes_et == element::i32 || axes_et == element::i64,
                           "Axes must have int32 or int64 element type.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, get_input_element_type(0), output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool Roll::visit_attributes(AttributeVisitor& visitor) {

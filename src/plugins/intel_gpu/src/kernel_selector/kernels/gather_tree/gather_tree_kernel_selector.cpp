@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 namespace kernel_selector {
     gather_tree_kernel_selector::gather_tree_kernel_selector() { Attach<GatherTreeKernelRef>(); }
 
-    KernelsData gather_tree_kernel_selector::GetBestKernels(const Params& params,
-                                                            const optional_params& options) const {
-        return GetNaiveBestKernel(params, options, KernelType::GATHER_TREE);
+    KernelsData gather_tree_kernel_selector::GetBestKernels(const Params& params) const {
+        return GetNaiveBestKernel(params, KernelType::GATHER_TREE);
     }
 }  // namespace kernel_selector

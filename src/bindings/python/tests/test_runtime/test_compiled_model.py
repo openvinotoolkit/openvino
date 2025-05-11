@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pytest
 import numpy as np
 
@@ -9,17 +10,25 @@ from tests.utils.helpers import (
     get_relu_model,
     generate_image,
     generate_model_and_image,
+    generate_concat_compiled_model,
     generate_relu_compiled_model,
+    generate_relu_compiled_model_with_config,
+    encrypt_base64,
+    decrypt_base64,
+    create_filenames_for_ir,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize
-from openvino.runtime import ConstOutput
+from openvino import ConstOutput
+
+import openvino.properties as props
+import openvino.properties.hint as hints
 
 
 def test_get_property(device):
     model = get_relu_model([1, 3, 32, 32])
     core = Core()
     compiled_model = core.compile_model(model, device, {})
-    network_name = compiled_model.get_property("NETWORK_NAME")
+    network_name = compiled_model.get_property(props.model_name)
     assert network_name == "test_model"
 
 
@@ -32,8 +41,8 @@ def test_get_runtime_model(device):
 def test_export_import(device):
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -47,13 +56,34 @@ def test_export_import(device):
     assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
+def test_export_import_with_encryption(device):
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    config = {}
+    config["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
+
+    compiled_model = generate_relu_compiled_model_with_config(device, config)
+
+    user_stream = compiled_model.export_model()
+
+    new_compiled = core.import_model(user_stream, device, config)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
 def test_export_import_advanced(device):
     import io
 
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -62,6 +92,43 @@ def test_export_import_advanced(device):
     compiled_model.export_model(user_stream)
 
     new_compiled = core.import_model(user_stream, device)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.fixture
+def prepare_blob_path(request, tmp_path):
+    filename = create_filename_for_test(request.node.name)
+    path_to_blob = tmp_path / str(filename + ".blob")
+    yield path_to_blob
+
+    os.remove(path_to_blob)
+
+
+def test_export_import_via_file(prepare_blob_path, device):
+    import io
+
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    compiled_model = generate_relu_compiled_model(device)
+
+    user_stream = io.BytesIO()
+
+    compiled_model.export_model(user_stream)
+    path_to_blob = prepare_blob_path
+
+    with open(path_to_blob, "wb") as f_w:
+        f_w.write(user_stream.getbuffer())
+
+    with open(path_to_blob, "rb") as f_r:
+        new_compiled = core.import_model(f_r.read(), device)
 
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
@@ -159,7 +226,7 @@ def test_inputs_docs(device):
     compiled_model = generate_relu_compiled_model(device)
 
     input_0 = compiled_model.inputs[0]
-    assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
+    assert input_0.__doc__ == "openvino.ConstOutput represents port/node output."
 
 
 def test_infer_new_request_numpy(device):
@@ -213,7 +280,7 @@ def test_direct_infer(device, shared_flag):
     compiled_model, img = generate_model_and_image(device)
 
     tensor = Tensor(img)
-    res = compiled_model({"data": tensor}, shared_memory=shared_flag)
+    res = compiled_model({"data": tensor}, share_inputs=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
@@ -222,7 +289,7 @@ def test_direct_infer(device, shared_flag):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     model = get_relu_model()
     serialize(model, xml_path, bin_path)
     with open(bin_path, "rb") as f:
@@ -235,3 +302,43 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     del model
     # check compiled and infer request can work properly after core object is destroyed
     compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+
+
+def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    model = get_relu_model()
+    serialize(model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = f.read()
+    with open(xml_path, "r") as f:
+        xml = f.read()
+
+    compiled = core.compile_model(model=xml, weights=weights, device_name=device)
+    assert isinstance(compiled.outputs[0], ConstOutput)
+    _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+
+
+def test_memory_release(device):
+    compiled_model = generate_concat_compiled_model(device)
+    request = compiled_model.create_infer_request()
+
+    input_tensor = Tensor(compiled_model.inputs[0].get_element_type(), compiled_model.inputs[0].get_shape())
+    request.infer({0: input_tensor, 1: input_tensor})
+
+    # Release memory and perform inference again
+    compiled_model.release_memory()
+    request.infer({0: input_tensor, 1: input_tensor})
+
+
+def test_set_property_set_type():
+    model = get_relu_model([1, 3, 32, 32])
+    core = Core()
+    set_model = set()
+    set_model.add(hints.ModelDistributionPolicy.TENSOR_PARALLEL)
+    core.set_property("CPU", {hints.model_distribution_policy: set_model})
+    core.compile_model(model, "CPU")
+    out_set_model = core.get_property("CPU", hints.model_distribution_policy)
+    assert len(out_set_model) > 0
+    for item in out_set_model:
+        assert item == hints.ModelDistributionPolicy.TENSOR_PARALLEL

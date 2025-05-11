@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ struct deconvolution_traits<int8_t> {
 };
 
 template <>
-struct deconvolution_traits<FLOAT16> {
+struct deconvolution_traits<ov::float16> {
     using accumulator_type = float;
 };
 
@@ -984,11 +984,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
-                        FLOAT16(6.f), FLOAT16(9.f),
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f),
+                        ov::float16(6.f), ov::float16(9.f),
 
-                        FLOAT16(1.f), FLOAT16(3.f),
-                        FLOAT16(2.f), FLOAT16(4.f) });
+                        ov::float16(1.f), ov::float16(3.f),
+                        ov::float16(2.f), ov::float16(4.f) });
     set_values(weights, { -2.f, 2.f,
                           7.f, -0.5f});
     set_values(biases, { 1.0f });
@@ -1559,7 +1559,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, {1, 1, 1}, {0, 0, 0}),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{1, 1, 1}, {0, 0, 0}),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -1653,7 +1653,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, {0, 0, 0}),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{ 2,2,2 }, {0, 0, 0}),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -1726,7 +1726,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{ 2,2,2 }, { 1, 1, 1 }),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -1758,11 +1758,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 16, 16, -2, 2);
-    VF<FLOAT16> input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
-    VVVVF<FLOAT16> filter_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 9, 9, -1, 1);
-    VF<FLOAT16> filter_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, filter_rnd);
-    VF<FLOAT16> bias_rnd = rg.generate_random_1d<FLOAT16>(1, -1, 1);
+    VVVVF<ov::float16> input_rnd = rg.generate_random_4d<ov::float16>(1, 32, 16, 16, -2, 2);
+    VF<ov::float16> input_rnd_vec = flatten_4d<ov::float16>(format::bfyx, input_rnd);
+    VVVVF<ov::float16> filter_rnd = rg.generate_random_4d<ov::float16>(1, 32, 9, 9, -1, 1);
+    VF<ov::float16> filter_rnd_vec = flatten_4d<ov::float16>(format::bfyx, filter_rnd);
+    VF<ov::float16> bias_rnd = rg.generate_random_1d<ov::float16>(1, -1, 1);
     VF<float> filter_rnd_f32_vec, bias_f32_rnd;
 
     for (unsigned int i = 0; i < filter_rnd_vec.size(); i++)
@@ -1797,9 +1797,9 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
 
     auto outputs_ref = network_ref.execute();
     auto output_ref_prim = outputs_ref.at("plane_output").get_memory();
-    cldnn::mem_lock<FLOAT16> output_ref_ptr(output_ref_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref_prim, get_test_stream());
 
-    std::vector<FLOAT16> output_vec_ref;
+    std::vector<ov::float16> output_vec_ref;
     for (unsigned int i = 0; i < output_ref_prim->get_layout().count(); i++) {
         output_vec_ref.push_back(output_ref_ptr[i]);
     }
@@ -1821,7 +1821,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     ASSERT_EQ(outputs_act.size(), size_t(1));
     ASSERT_EQ(outputs_act.begin()->first, "out");
     auto output_act_prim = outputs_act.begin()->second.get_memory();
-    cldnn::mem_lock<FLOAT16> output_act_ptr(output_act_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_act_ptr(output_act_prim, get_test_stream());
 
     std::vector<float> output_vec;
     for (unsigned int i = 0; i < output_act_prim->get_layout().count(); i++) {
@@ -1924,14 +1924,14 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     auto weights = engine.allocate_memory({ data_types::f16, format::oiyx,{ 1, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f16, format::bfyx,{ 1, 1, 1, 1 } });
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
-                        FLOAT16(6.f), FLOAT16(9.f),
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f),
+                        ov::float16(6.f), ov::float16(9.f),
 
-                        FLOAT16(1.f), FLOAT16(3.f),
-                        FLOAT16(2.f), FLOAT16(4.f) });
-    set_values(weights, { FLOAT16(-2.f), FLOAT16(2.f),
-                          FLOAT16(7.f), FLOAT16(-0.5f)});
-    set_values(biases, { FLOAT16(1.0f) });
+                        ov::float16(1.f), ov::float16(3.f),
+                        ov::float16(2.f), ov::float16(4.f) });
+    set_values(weights, { ov::float16(-2.f), ov::float16(2.f),
+                          ov::float16(7.f), ov::float16(-0.5f)});
+    set_values(biases, { ov::float16(1.0f) });
 
     topology topology(
             input_layout("input", input->get_layout()),
@@ -2373,7 +2373,7 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            deconvolution("deconv", input_info("input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+            deconvolution("deconv", input_info("input"), "weights", ov::Strides{ 2,2,2 }, { 1, 1, 1 }),
             reorder("out", input_info("deconv"), format::bfzyx, data_types::f32)
     );
 
@@ -2412,14 +2412,14 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
     auto weights = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f16, format::bfyx,{ 1, 2, 1, 1 } });
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f), FLOAT16(6.f), FLOAT16(9.f),
-                        FLOAT16(1.f), FLOAT16(3.f), FLOAT16(2.f), FLOAT16(4.f)
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f), ov::float16(6.f), ov::float16(9.f),
+                        ov::float16(1.f), ov::float16(3.f), ov::float16(2.f), ov::float16(4.f)
                         });
     set_values(weights, {
-            FLOAT16(-2.f), FLOAT16(2.f), FLOAT16(7.f), FLOAT16(-0.5f),
-            FLOAT16(-4.f), FLOAT16(1.f), FLOAT16(-9.f), FLOAT16(-7.f)
+            ov::float16(-2.f), ov::float16(2.f), ov::float16(7.f), ov::float16(-0.5f),
+            ov::float16(-4.f), ov::float16(1.f), ov::float16(-9.f), ov::float16(-7.f)
     });
-    set_values(biases, { FLOAT16(1.0f), FLOAT16(-1.0f) });
+    set_values(biases, { ov::float16(1.0f), ov::float16(-1.0f) });
 
     topology topology(
             input_layout("input", input->get_layout()),
@@ -2544,8 +2544,8 @@ struct typed_comparator<float> {
 };
 
 template <>
-struct typed_comparator<FLOAT16> {
-    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, FLOAT16 ref, FLOAT16 val) {
+struct typed_comparator<ov::float16> {
+    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, ov::float16 ref, ov::float16 val) {
         double abs_error = std::abs(0.05 * (double)ref);
         return ::testing::internal::DoubleNearPredFormat(lhs_expr, rhs_expr, "5 percent", (double)ref, (double)val, abs_error);
     }
@@ -2652,8 +2652,8 @@ public:
                                                             type_test_ranges<WeightsT>::min,
                                                             type_test_ranges<WeightsT>::max);
 
-        auto in_layout = cldnn::layout(cldnn::type_to_data_type<InputT>::value, params.input_format, params.input_size);
-        auto wei_layout = cldnn::layout(cldnn::type_to_data_type<WeightsT>::value, params.weights_format, params.weights_size);
+        auto in_layout = cldnn::layout(ov::element::from<InputT>(), params.input_format, params.input_size);
+        auto wei_layout = cldnn::layout(ov::element::from<WeightsT>(), params.weights_format, params.weights_size);
 
         auto wei_mem = eng.allocate_memory(wei_layout);
         auto in_mem = eng.allocate_memory(in_layout);
@@ -2670,7 +2670,7 @@ public:
 
         if (params.with_bias) {
             auto bias_size = cldnn::tensor(feature(params.weights_size.batch[0] * params.weights_size.group[0]));
-            auto bias_lay = cldnn::layout(cldnn::type_to_data_type<OutputT>::value, cldnn::format::bfyx, bias_size);
+            auto bias_lay = cldnn::layout(ov::element::from<OutputT>(), cldnn::format::bfyx, bias_size);
             auto bias_mem = eng.allocate_memory(bias_lay);
             bias_data = rg.generate_random_1d<OutputT>(bias_lay.feature(), -1, 1);
             set_values(bias_mem, bias_data);
@@ -2704,7 +2704,7 @@ public:
 
         // Compare results
         {
-            cldnn::mem_lock<OutputT> ptr(out_mem, get_test_stream());
+            cldnn::mem_lock<OutputT, mem_lock_type::read> ptr(out_mem, get_test_stream());
 
             auto b = static_cast<size_t>(out_mem->get_layout().batch());
             auto of = static_cast<size_t>(out_mem->get_layout().feature());
@@ -2763,7 +2763,7 @@ protected:
             run_typed_in<float>();
             break;
         case data_types::f16:
-            run_typed_in<FLOAT16>();
+            run_typed_in<ov::float16>();
             break;
         case data_types::i8:
             run_typed_in<int8_t>();
@@ -2795,7 +2795,7 @@ private:
             run_typed<InputT, WeightsT, float>();
             break;
         case data_types::f16:
-            run_typed<InputT, WeightsT, FLOAT16>();
+            run_typed<InputT, WeightsT, ov::float16>();
             break;
         default:
             break;
@@ -2810,7 +2810,7 @@ private:
             run_typed_in_wei<InputT, float>();
             break;
         case data_types::f16:
-            run_typed_in_wei<InputT, FLOAT16>();
+            run_typed_in_wei<InputT, ov::float16>();
             break;
         case data_types::i8:
             run_typed_in_wei<InputT, int8_t>();
@@ -3058,6 +3058,86 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
         ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+
+TEST(deconvolution_gpu_onednn, spatial_1d) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    ov::PartialShape input_pshape = {1, 16, 6};
+    ov::PartialShape weights_pshape = {16, 16, 3};
+    layout in_layout{ ov::PartialShape::dynamic(input_pshape.size()), data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto create_topology =[&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(deconvolution("deconv",
+                                   input_info("input"),
+                                   { "weights" },
+                                   1,
+                                   ov::Strides{1},
+                                   ov::CoordinateDiff{0},
+                                   ov::Strides{1}));
+        topology.add(reorder("reorder", input_info("deconv"), format::bfyx, data_types::f32));
+        return topology;
+    };
+
+    auto topology_test = create_topology();
+    auto topology_ref = create_topology();
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_test } }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "deconv", deconv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test(engine, topology_test, config_test);
+    network network_ref(engine, topology_ref, config_ref);
+
+    auto input_data = rg.generate_random_1d<ov::float16>(input_pshape.size(), -1, 1);
+    auto input_mem = engine.allocate_memory({ input_pshape, data_types::f16, format::bfyx });
+    set_values(input_mem, input_data);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    ASSERT_EQ(outputs_test.size(), size_t(1));
+    ASSERT_EQ(outputs_test.begin()->first, "reorder");
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, "reorder");
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_layout_test = output_memory_test->get_layout();
+    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
+
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 8};
+    ASSERT_EQ(output_layout_test.get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_layout_ref.get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);
     }
 }
 #endif

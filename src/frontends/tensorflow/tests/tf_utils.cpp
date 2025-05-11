@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,17 @@ namespace frontend {
 namespace tensorflow {
 namespace tests {
 
-shared_ptr<Model> convert_model(const string& model_path,
+const std::string TF_FE = "tf";
+
+shared_ptr<Model> convert_model(const std::string& model_path,
                                 const ConversionExtension::Ptr& conv_ext,
-                                const vector<string>& input_names,
+                                const vector<std::string>& input_names,
                                 const vector<element::Type>& input_types,
                                 const vector<PartialShape>& input_shapes,
                                 const std::vector<std::string>& input_names_to_freeze,
                                 const std::vector<void*>& freeze_values,
-                                const bool disable_mmap) {
+                                const bool disable_mmap,
+                                const std::vector<std::string>& output_names) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
@@ -32,7 +35,7 @@ shared_ptr<Model> convert_model(const string& model_path,
     if (conv_ext) {
         front_end->add_extension(conv_ext);
     }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
     ov::frontend::InputModel::Ptr input_model;
     if (!disable_mmap) {
         input_model = front_end->load(model_filename);
@@ -80,6 +83,18 @@ shared_ptr<Model> convert_model(const string& model_path,
     for (size_t ind = 0; ind < input_names_to_freeze.size(); ++ind) {
         auto place_to_freeze = input_model->get_place_by_tensor_name(input_names_to_freeze[ind]);
         input_model->set_tensor_value(place_to_freeze, freeze_values[ind]);
+    }
+
+    vector<Place::Ptr> output_places;
+    for (const auto& output_name : output_names) {
+        auto output_place = input_model->get_place_by_tensor_name(output_name);
+        if (!output_place) {
+            throw "Output place with name " + output_name + " is not found ";
+        }
+        output_places.push_back(output_place);
+    }
+    if (!output_places.empty()) {
+        input_model->override_all_outputs(output_places);
     }
 
     auto model = front_end->convert(input_model);

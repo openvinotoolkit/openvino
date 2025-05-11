@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/sigmoid.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/sigmoid.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -13,14 +14,17 @@ using namespace ov;
 namespace {
 struct SigmoidParams {
     template <class IT>
-    SigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    SigmoidParams(const ov::Shape& shape,
+                  const ov::element::Type& iType,
+                  const std::vector<IT>& iValues,
+                  const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)) {}
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -45,18 +49,18 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& Sigmoidected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& Sigmoidected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Sigmoid = std::make_shared<op::v0::Sigmoid>(in);
-        return std::make_shared<ov::Model>(NodeVector {Sigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Model>(OutputVector{Sigmoid}, ParameterVector{in});
     }
 };
 
 TEST_P(ReferenceSigmoidLayerTest, CompareWithRefs) {
     Exec();
 }
-
 
 template <element::Type_t IN_ET>
 std::vector<SigmoidParams> generateSigmoidFloatParams() {
@@ -67,16 +71,14 @@ std::vector<SigmoidParams> generateSigmoidFloatParams() {
     float sigma1 = 1.0f / (1.0f + std::exp(-x1));
     float sigma2 = 1.0f / (1.0f + std::exp(-x2));
 
-    std::vector<SigmoidParams> sigmoidParams {
-        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
-                    IN_ET,
-                    std::vector<T>{x1, x2, x1, x2},
-                    std::vector<T>{sigma1, sigma2, sigma1, sigma2}),
-        SigmoidParams(ov::PartialShape {1, 1, 4},
-                    IN_ET,
-                    std::vector<T>{x1, x2, x1, x2},
-                    std::vector<T>{sigma1, sigma2, sigma1, sigma2})
-    };
+    std::vector<SigmoidParams> sigmoidParams{SigmoidParams(ov::Shape{1, 1, 2, 2},
+                                                           IN_ET,
+                                                           std::vector<T>{x1, x2, x1, x2},
+                                                           std::vector<T>{sigma1, sigma2, sigma1, sigma2}),
+                                             SigmoidParams(ov::Shape{1, 1, 4},
+                                                           IN_ET,
+                                                           std::vector<T>{x1, x2, x1, x2},
+                                                           std::vector<T>{sigma1, sigma2, sigma1, sigma2})};
     return sigmoidParams;
 }
 
@@ -84,16 +86,9 @@ template <element::Type_t IN_ET>
 std::vector<SigmoidParams> generateSigmoidIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SigmoidParams> sigmoidParams {
-        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
-                    IN_ET,
-                    std::vector<T>{1, 4, -1, -4},
-                    std::vector<T>{1, 1, 0, 0}),
-        SigmoidParams(ov::PartialShape {1, 1, 4},
-                    IN_ET,
-                    std::vector<T>{1, 4, -1, -4},
-                    std::vector<T>{1, 1, 0, 0})
-    };
+    std::vector<SigmoidParams> sigmoidParams{
+        SigmoidParams(ov::Shape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0}),
+        SigmoidParams(ov::Shape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0})};
     return sigmoidParams;
 }
 
@@ -101,28 +96,19 @@ template <element::Type_t IN_ET>
 std::vector<SigmoidParams> generateSigmoidUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<SigmoidParams> sigmoidParams {
-        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
-                    IN_ET,
-                    std::vector<T>{1, 4, 1, 4},
-                    std::vector<T>{1, 1, 1, 1}),
-        SigmoidParams(ov::PartialShape {1, 1, 4},
-                    IN_ET,
-                    std::vector<T>{1, 4, 1, 4},
-                    std::vector<T>{1, 1, 1, 1})
-    };
+    std::vector<SigmoidParams> sigmoidParams{
+        SigmoidParams(ov::Shape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1}),
+        SigmoidParams(ov::Shape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1})};
     return sigmoidParams;
 }
 
 std::vector<SigmoidParams> generateSigmoidCombinedParams() {
-    const std::vector<std::vector<SigmoidParams>> sigmoidTypeParams {
-        generateSigmoidFloatParams<element::Type_t::f32>(),
-        generateSigmoidFloatParams<element::Type_t::f16>(),
-        generateSigmoidIntParams<element::Type_t::i64>(),
-        generateSigmoidIntParams<element::Type_t::i32>(),
-        generateSigmoidUintParams<element::Type_t::u64>(),
-        generateSigmoidUintParams<element::Type_t::u32>()
-        };
+    const std::vector<std::vector<SigmoidParams>> sigmoidTypeParams{generateSigmoidFloatParams<element::Type_t::f32>(),
+                                                                    generateSigmoidFloatParams<element::Type_t::f16>(),
+                                                                    generateSigmoidIntParams<element::Type_t::i64>(),
+                                                                    generateSigmoidIntParams<element::Type_t::i32>(),
+                                                                    generateSigmoidUintParams<element::Type_t::u64>(),
+                                                                    generateSigmoidUintParams<element::Type_t::u32>()};
     std::vector<SigmoidParams> combinedParams;
 
     for (const auto& params : sigmoidTypeParams) {
@@ -131,7 +117,9 @@ std::vector<SigmoidParams> generateSigmoidCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Sigmoid_With_Hardcoded_Refs, ReferenceSigmoidLayerTest,
-    testing::ValuesIn(generateSigmoidCombinedParams()), ReferenceSigmoidLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Sigmoid_With_Hardcoded_Refs,
+                         ReferenceSigmoidLayerTest,
+                         testing::ValuesIn(generateSigmoidCombinedParams()),
+                         ReferenceSigmoidLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ using Attrs = ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes;
 using ExperimentalDetection = ov::op::v6::ExperimentalDetectronDetectionOutput;
 
 TEST(attributes, detectron_detection_output) {
-    NodeBuilder::get_ops().register_factory<ExperimentalDetection>();
+    NodeBuilder::opset().insert<ExperimentalDetection>();
 
     Attrs attrs;
     attrs.class_agnostic_box_regression = false;

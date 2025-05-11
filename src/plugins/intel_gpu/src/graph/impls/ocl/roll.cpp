@@ -15,22 +15,56 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
     using parent = typed_primitive_impl_ocl<roll>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::roll_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::roll_params, kernel_selector::roll_optional_params>;
+    using kernel_params_t = kernel_selector::roll_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roll_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<roll_impl>(*this);
+        return make_deep_copy<roll_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<roll>();
         auto params = get_default_params<kernel_selector::roll_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::roll_optional_params>(impl_param.get_program());
 
-        params.shift = convert_dim_vector(primitive->shift);
+        if ((primitive->raw_shift.empty()) && (primitive->raw_axes.empty())) {
+            // Primitive created with static shape input
+            params.shift = convert_dim_vector(primitive->shift);
+        } else {
+            // Primitive created with dynamic shape input
+            const auto input_layout = impl_param.get_input_layout(0);
+            const auto& input_shape = input_layout.get_shape();
+            const auto rank = static_cast<int>(input_layout.get_rank());
+            const auto format = cldnn::format::get_default_format(rank);
+            const auto default_rank = format.dimension();
+            auto axes_raw = primitive->raw_axes;
+            auto shift_raw = primitive->raw_shift;
 
-        return {params, optional_params};
+            // Normalize axes and sum shift
+            std::vector<int32_t> shift(default_rank);
+            for (size_t a = 0; a < axes_raw.size(); ++a) {
+                auto& axis = axes_raw[a];
+                if (axis < 0) {
+                    axis += rank;
+                }
+                if (axis < 0 || axis >= rank) {
+                    OPENVINO_THROW(" Incorrect axis value: ", axis);
+                }
+                shift[axis] += shift_raw[a];
+            }
+
+            // Normalize shift
+            for (int s = 0; s < rank; ++s) {
+                auto& sh = shift[s];
+                const auto dim = static_cast<int32_t>(input_shape[s]);
+                sh %= dim;
+                if (sh < 0) {
+                    sh += dim;
+                }
+            }
+            params.shift = convert_dim_vector({format, shift});
+        }
+        return params;
     }
 };
 

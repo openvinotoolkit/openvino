@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,7 +141,6 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path) {
     holder->set(path);
     return holder;
 }
-
 #endif
 
 }  // namespace ov

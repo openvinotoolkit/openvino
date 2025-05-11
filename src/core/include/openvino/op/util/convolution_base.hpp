@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,10 +65,6 @@ public:
     const CoordinateDiff& get_pads_end() const {
         return m_pads_end;
     }
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use set_pads_end instead.")
-    void set_adding_above(const CoordinateDiff& pads_end) {
-        set_pads_end(pads_end);
-    }
     void set_pads_end(const CoordinateDiff& pads_end) {
         m_pads_end = pads_end;
     }
@@ -110,7 +106,7 @@ private:
 /// \brief Base class for operations like back propagation convolution
 class OPENVINO_API ConvolutionFwdPropBase : public ConvolutionBase {
 public:
-    OPENVINO_OP("ConvolutionFwdPropBase", "util");
+    OPENVINO_OP("ConvolutionFwdPropBase", "util", ConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     ConvolutionFwdPropBase() = default;

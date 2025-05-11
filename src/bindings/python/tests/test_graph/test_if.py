@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
 import numpy as np
-import openvino.runtime.opset8 as ov
-from openvino.runtime import Model
+import openvino.opset8 as ov
+from openvino import Model
 
-from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription
+from openvino.op.util import InvariantInputDescription, BodyOutputDescription
+
+from tests.utils.helpers import compare_models
 
 
 def create_simple_if_with_two_outputs(condition_val):
@@ -176,6 +179,25 @@ def test_simple_if_without_body_parameters():
     check_if(simple_if_without_parameters, False, ["Relu", 1, []])
 
 
+def check_if_getters(if_model, cond_val):
+    if_op = if_model(cond_val)
+    assert isinstance(if_op.get_then_body(), Model)
+    assert if_op.get_function(0)._get_raw_address() == if_op.get_then_body()._get_raw_address()
+    assert compare_models(if_op.get_function(0), if_op.get_then_body())
+
+    assert isinstance(if_op.get_else_body(), Model)
+    assert if_op.get_function(1)._get_raw_address() == if_op.get_else_body()._get_raw_address()
+    assert compare_models(if_op.get_function(1), if_op.get_else_body())
+
+
+@pytest.mark.parametrize(("cond_val"), [
+    True,
+    False,
+])
+def test_if_getters(cond_val):
+    check_if_getters(create_simple_if_with_two_outputs, cond_val)
+
+
 def test_simple_if_basic():
     condition = ov.constant(True, dtype=bool)
     # then_body
@@ -191,7 +213,11 @@ def test_simple_if_basic():
 
     if_node = ov.if_op(condition.output(0))
     if_node.set_function(0, then_body)
-    assert if_node.get_function(0) == then_body
+    subgraph_func = if_node.get_function(0)
+
+    assert isinstance(subgraph_func, type(then_body))
+    assert compare_models(subgraph_func, then_body)
+    assert subgraph_func._get_raw_address() == then_body._get_raw_address()
 
     if_node.set_input_descriptions(0, then_body_inputs)
     if_node.set_output_descriptions(1, else_body_outputs)

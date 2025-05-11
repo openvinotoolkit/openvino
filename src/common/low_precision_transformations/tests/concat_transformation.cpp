@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +9,17 @@
 #include <vector>
 #include <gtest/gtest.h>
 
-#include <low_precision/concat.hpp>
+#include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 namespace {
 class ConcatTransformationTestValues {
@@ -65,7 +65,7 @@ public:
             testValues.concatAxis);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transformer.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ConcatFunction::get(
@@ -126,6 +126,110 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {{}, {}},
             ov::element::u8,
             {ov::element::f32, {128.f}, {0.1f}}
+        }
+    },
+    // dynamic concatenation axis, but the same per-tensor values
+    {
+        {{1, -1, 4, 4}, {1, -1, 4, 4}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {128.f}, {0.1f}}
+            }
+        },
+        {
+            ov::element::u8,
+            {{}, {}},
+            ov::element::u8,
+            {ov::element::f32, {128.f}, {0.1f}}
+        }
+    },
+    // dynamic concatenation axis, but the same per-tensor values
+    {
+        {{1, -1, 4, 4}, {1, -1, 4, 4}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {}, {{0.1f}, ov::element::f32, {1, 1, 1}}},
+                {ov::element::f32, {}, {{0.1f}, ov::element::f32, {1, 1, 1}}}
+            }
+        },
+        {
+            ov::element::u8,
+            {{}, {}},
+            ov::element::u8,
+            {ov::element::f32, {}, {0.1f}}
+        }
+    },
+    // dynamic concatenation axis, dq don't match
+    {
+        {{1, -1, 4, 4}, {1, -1, 4, 4}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {}, {0.1f}}
+            }
+        },
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {}, {0.1f}}
+            },
+            ov::element::f32,
+            {}
+        }
+    },
+    // dynamic concatenation axis, different per-tensor values
+    {
+        {{1, -1, 4, 4}, {1, -1, 4, 4}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {128.f}, {10.f}}
+            }
+        },
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {128.f}, {10.f}}
+            },
+            ov::element::f32,
+            {}
+        }
+    },
+    // dynamic output concatenation axis, but one input dim is static
+    {
+        {{1, -1, 4, 4}, {1, 3, 4, 4}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {{128.f, 64.f, 128.f}}, {{10.f, 1.f, 10.f}}}
+            }
+        },
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32, {128.f}, {0.1f}},
+                {ov::element::f32, {{128.f, 64.f, 128.f}}, {{10.f, 1.f, 10.f}}}
+            },
+            ov::element::f32,
+            {}
         }
     },
     {

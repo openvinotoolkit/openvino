@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "preprocess_impls.hpp"
 
 #include "layout_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -43,7 +45,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         }
     }
 
-    auto model_shape = res.m_param->get_partial_shape();
+    const auto& model_shape = res.m_param->get_partial_shape();
     auto new_param_shape = model_shape;
     if (get_tensor_data()->is_shape_set()) {
         new_param_shape = get_tensor_data()->get_shape();
@@ -62,10 +64,13 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         auto net_to_tensor = layout::utils::find_permutation(sq_layout, new_param_shape, res.m_tensor_layout);
         if (!net_to_tensor.empty() && new_param_shape.rank().is_static()) {
             std::vector<ov::Dimension> dims(new_param_shape.size());
-            std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
-                return new_param_shape[v];
-            });
-            new_param_shape = PartialShape(dims);
+            std::transform(net_to_tensor.begin(),
+                           net_to_tensor.end(),
+                           dims.begin(),
+                           [&](int64_t v) -> const Dimension& {
+                               return new_param_shape[v];
+                           });
+            new_param_shape = PartialShape(std::move(dims));
         }
     } else {
         Layout new_layout;
@@ -73,7 +78,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
         if (res.m_tensor_layout.empty()) {
             // Reusing param's layout according to converted calculated layout
-            res.m_tensor_layout = new_layout;
+            res.m_tensor_layout = std::move(new_layout);
         }
     }
 
@@ -96,7 +101,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
     // Create separate parameter for each plane. Shape is based on color format
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
         auto plane_shape = color_info->shape(plane, new_param_shape, res.m_tensor_layout);
-        auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
+        auto plane_param = std::make_shared<op::v0::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
             std::string sub_name;
@@ -152,7 +157,7 @@ PreStepsList InputInfo::InputInfoImpl::create_implicit_steps(const Preprocessing
 
 bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                                      std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-                                     std::list<std::shared_ptr<opset8::Parameter>>& parameters_list) {
+                                     std::list<std::shared_ptr<op::v0::Parameter>>& parameters_list) {
     auto data = create_new_params(existing_names, model);
     auto consumers = data.m_param->output(0).get_target_inputs();
     bool need_validate = false;
@@ -190,7 +195,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
         nodes = std::get<0>(action_result);
     }
 
-    auto node = nodes[0];
+    const auto& node = nodes[0];
     if (node.get_partial_shape() != context.model_shape()) {
         need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
@@ -206,7 +211,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
-        if (dynamic_cast<ov::opset8::Result*>(consumer.get_node())) {
+        if (ov::as_type<ov::op::v0::Result>(consumer.get_node())) {
             // Some result points to old parameter (Param->Result case), need to trigger revalidation
             need_validate = true;
         }
@@ -321,11 +326,9 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
 
 //----------- OutputInfoImpl ----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
-    std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
-    auto start_out_node_names = node.get_tensor().get_names();
-    node.get_tensor().set_names({});
-    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    const auto result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
+
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
         // Overwrite existing model's layout here (fix 74065)
@@ -338,6 +341,10 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     if (get_tensor_data()->is_element_type_set()) {
         context.target_element_type() = get_tensor_data()->get_element_type();
     }
+    if (get_model_data()->is_color_format_set()) {
+        context.color_format() = get_model_data()->get_color_format();
+    }
+
     // Apply post-processing
     node = result->get_input_source_output(0);
     bool post_processing_applied = false;
@@ -361,64 +368,54 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node = std::get<0>(action_result);
         post_processing_applied = true;
     }
-    // Restore tensor names
-    node.get_tensor().set_names(start_out_node_names);
+
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    bool reset_orig_friendly_name = false;
-    if (!post_processing_applied) {
-        return;
-    }
-    if (orig_parent->get_output_size() == 1) {
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
-        reset_orig_friendly_name = true;
+    if (get_tensor_data()->get_names_compatibility_mode()) {
+        // Move result tensor names from previous input to new
+        const auto result_input_names = result->get_input_tensor(0).get_names();
+        result->get_input_tensor(0).set_names({});
+        node.get_tensor().set_names(result_input_names);
+
+        if (!post_processing_applied) {
+            return;
+        }
+
+        if (orig_parent->get_output_size() == 1) {
+            node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
+
+            // Reset friendly name of input node to avoid names collision
+            // when there is at a new node inserted by post-processing steps
+            // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+            // as it's required for old API correct work
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+        } else if (node.get_node_shared_ptr() != orig_parent) {
+            // Result node is changed - add ".<idx>" suffix
+            node.get_node_shared_ptr()->set_friendly_name(
+                orig_parent->get_friendly_name() + "." +
+                std::to_string(result->get_input_source_output(0).get_index()));
+        }
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     } else if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
-                                                      std::to_string(result->get_input_source_output(0).get_index()));
+        const auto suffix = std::string(".") + std::to_string(result->get_input_source_output(0).get_index());
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + suffix);
+
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(result->get_input_tensor(0));
-    if (!tensor_name.empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(node.get_tensor(), tensor_name);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // Reset friendly name of input node to avoid names collision
-    // when there is at a new node inserted by post-processing steps
-    // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-    // as it's required for old API correct work
-    if (reset_orig_friendly_name) {
-        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
-    }
-
-    // Create result
-    auto new_result = std::make_shared<opset8::Result>(node);
-    new_result->set_friendly_name(result->get_friendly_name());
-
-    // Preserve runtime info of original result
-    new_result->get_rt_info() = result->get_rt_info();
-    new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
-    new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
 
     // Update layout
     if (!context.layout().empty()) {
-        new_result->set_layout(context.layout());
-    }
-
-    for (auto& old_result : results) {
-        if (result == old_result) {
-            old_result = new_result;
-            break;
-        }
+        result->set_layout(context.layout());
     }
 }
 
 void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
-    std::shared_ptr<opset8::Result> result;
+    std::shared_ptr<op::v0::Result> result;
     auto node = m_output_node;
-    auto start_out_node_names = node.get_tensor().get_names();
-    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    const auto& start_out_node_names = node.get_tensor().get_names();
+    result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);
     if (get_tensor_data()->is_layout_set()) {
@@ -438,7 +435,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
 
     str << "Output ";
     if (!start_out_node_names.empty()) {
-        str << "\"" << *start_out_node_names.begin() << "\"";
+        str << "\"" << util::join(start_out_node_names) << "\"";
     }
     str << ":" << std::endl;
     str << "    Model's data tensor: ";

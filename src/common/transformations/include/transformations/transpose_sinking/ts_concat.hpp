@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
@@ -21,23 +20,23 @@ class TRANSFORMATIONS_API TSConcatBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSConcatForward transformation sinks Transpose through Concat operation
  * in the forward direction.
  */
 class ov::pass::transpose_sinking::TSConcatForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSConcatForward", "0");
+    OPENVINO_RTTI("ov::pass::TSConcatForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSConcatForward();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSConcatBackward transformation sinks Transpose through Concat operation
  * in the backward direction.
  */
 class ov::pass::transpose_sinking::TSConcatBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSConcatBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSConcatBackward");
     TSConcatBackward();
 };

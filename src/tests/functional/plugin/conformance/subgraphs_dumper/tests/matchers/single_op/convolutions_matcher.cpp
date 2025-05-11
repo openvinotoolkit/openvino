@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "matchers/single_op/convolutions.hpp"
-#include "openvino/op/ops.hpp"
 #include "base_test.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace {
 

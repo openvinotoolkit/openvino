@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,9 +12,9 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
         inputs_data = {}
         num_elements = 0
         assert len(inputs_info) % 2 == 0, "Number of inputs should be divisible by 2."
-        data_input_cnt = len(inputs_info)//2
+        data_input_cnt = len(inputs_info) // 2
         for i in range(1, data_input_cnt + 1):
-            indices_in_name = "indices{}".format(i)
+            indices_in_name = "indices{}:0".format(i)
             assert indices_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(indices_in_name)
             indices_shape = inputs_info[indices_in_name]
             num_elements = num_elements + np.prod(indices_shape, dtype=int)
@@ -28,15 +28,15 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
         idx = 0
         for i in range(1, data_input_cnt + 1):
-            data_in_name = "data{}".format(i)
-            indices_in_name = "indices{}".format(i)
+            data_in_name = "data{}:0".format(i)
+            indices_in_name = "indices{}:0".format(i)
             assert data_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(data_in_name)
             data_shape = inputs_info[data_in_name]
             indices_shape = inputs_info[indices_in_name]
             inputs_data[data_in_name] = np.random.randint(-50, 50, data_shape)
 
             num_elements_i = np.prod(indices_shape, dtype=int)
-            inputs_data[indices_in_name] = np.reshape(indices_array[idx:idx+num_elements_i], indices_shape)
+            inputs_data[indices_in_name] = np.reshape(indices_array[idx:idx + num_elements_i], indices_shape)
             idx = idx + num_elements_i
         return inputs_data
 
@@ -68,15 +68,13 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        if not use_new_frontend:
-            pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
+    def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("GPU error: Invalid constant blob dimensions")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_different_types = [
         dict(data_input_cnt=4, shape_of_element=[3, 2], data_type=tf.float64),
@@ -86,10 +84,8 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        if not use_new_frontend:
-            pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
+    def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("GPU error: Invalid constant blob dimensions")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,16 @@
 #include <gmock/gmock.h>
 
 #include <iostream>
-
-#include "async_infer_request.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
-#include "ie_icore.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
-#include "sync_infer_request.hpp"
+
+using ::testing::_;
+using ::testing::MatcherCast;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::StrEq;
 
 using namespace ov::mock_autobatch_plugin;
 
@@ -70,8 +73,8 @@ public:
                               const std::shared_ptr<const ov::IPlugin>& plugin,
                               const ov::AnyMap& config,
                               const DeviceInformation& device_info,
-                              const std::set<std::string>& batched_inputs,
-                              const std::set<std::string>& batched_outputs,
+                              const std::set<std::size_t>& batched_inputs,
+                              const std::set<std::size_t>& batched_outputs,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                               const ov::SoPtr<ov::IRemoteContext>& context)

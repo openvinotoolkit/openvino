@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -18,7 +18,7 @@ def get_imported_module_version(imported_module):
     for attr in version_attrs:
         installed_version = getattr(imported_module, attr, None)
         if isinstance(installed_version, str):
-           return installed_version
+            return installed_version
         else:
             installed_version = None
 

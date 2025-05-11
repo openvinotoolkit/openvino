@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using ov::test::NodeBuilder;
 TEST(attributes, shuffle_channels_op) {
     using ShuffleChannels = ov::op::v0::ShuffleChannels;
 
-    NodeBuilder::get_ops().register_factory<ShuffleChannels>();
+    NodeBuilder::opset().insert<ShuffleChannels>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 64, 16, 16});
     auto axis = 1;
     auto groups = 2;

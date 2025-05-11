@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 
 namespace kernel_selector {
 
-bool PermuteKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::PERMUTE || o.GetType() != KernelType::PERMUTE) {
+bool PermuteKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::PERMUTE) {
         return false;
     }
     const permute_params& params = static_cast<const permute_params&>(p);
@@ -30,8 +30,19 @@ JitConstants PermuteKernelBase::GetJitConstants(const permute_params& params, co
     return jit;
 }
 
-KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+void PermuteKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
+        const auto& prim_params = static_cast<const permute_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
+        kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
+        kernel_data.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
+KernelsData PermuteKernelBase::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -41,16 +52,9 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
-        const auto& prim_params = static_cast<const permute_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
-        kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
-        kernel_data.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    GetUpdateDispatchDataFunc(kd);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -65,7 +69,7 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

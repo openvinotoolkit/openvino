@@ -15,9 +15,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/core/graph_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     using namespace ov::pass::pattern;
@@ -44,7 +44,7 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
 
     auto data_m = any_input();
-    auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m});
+    auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, any_input()});
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
@@ -108,5 +108,4 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

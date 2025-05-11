@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,11 +51,11 @@ CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params
     return dispatchData;
 }
 
-KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 

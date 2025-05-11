@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelOptionalTestP,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 TEST(OVClassBasicPropsTest, smoke_TEMPLATEGetSetConfigNoThrow) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
 
     auto device_name = ov::test::utils::DEVICE_TEMPLATE;
 

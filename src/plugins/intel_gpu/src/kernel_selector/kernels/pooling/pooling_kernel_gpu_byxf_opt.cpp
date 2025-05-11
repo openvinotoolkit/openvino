@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,8 @@ JitConstants PoolingKernelGPUByxfOpt::GetJitConstants(const pooling_params& para
     return jit;
 }
 
-bool PoolingKernelGPUByxfOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!PoolingKernelBase::Validate(p, o)) {
+bool PoolingKernelGPUByxfOpt::Validate(const Params& p) const {
+    if (!PoolingKernelBase::Validate(p)) {
         return false;
     }
 
@@ -75,11 +75,11 @@ bool PoolingKernelGPUByxfOpt::Validate(const Params& p, const optional_params& o
     return true;
 }
 
-KernelsData PoolingKernelGPUByxfOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPUByxfOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPUByxfOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPUByxfOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

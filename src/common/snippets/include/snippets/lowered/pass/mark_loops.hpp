@@ -20,11 +20,11 @@ namespace pass {
  *          - the consumer of the expression is explicitly after this expression - the pass marks the branches
  * @ingroup snippets
  */
-class MarkLoops : public Pass {
+class MarkLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("MarkLoops", "Pass")
+    OPENVINO_RTTI("MarkLoops", "", RangedPass);
     MarkLoops(size_t vector_size);
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
     size_t m_vector_size;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/log.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     MATCHER_SCOPE(SoftPlusDecomposition);
@@ -22,7 +24,7 @@ ov::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     auto input = pattern::any_input();
     auto softplus = std::make_shared<ov::op::v4::SoftPlus>(input);
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();

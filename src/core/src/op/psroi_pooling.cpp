@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "psroi_pooling_shape_inference.hpp"
-
-using namespace std;
 
 namespace ov {
 namespace op {
@@ -22,7 +19,7 @@ PSROIPooling::PSROIPooling(const Output<Node>& input,
                            const float spatial_scale,
                            int spatial_bins_x,
                            int spatial_bins_y,
-                           const string& mode)
+                           const std::string& mode)
     : Op({input, coords}),
       m_output_dim(output_dim),
       m_group_size(group_size),
@@ -55,23 +52,21 @@ void PSROIPooling::validate_and_infer_types() {
                           coords_et.is_real(),
                           "Coords' data type must be floating point. Got " + coords_et.to_string());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, feat_maps_et, output_shapes[0]);
 }
 
-shared_ptr<Node> PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<PSROIPooling>(new_args.at(0),
-                                     new_args.at(1),
-                                     m_output_dim,
-                                     m_group_size,
-                                     m_spatial_scale,
-                                     m_spatial_bins_x,
-                                     m_spatial_bins_y,
-                                     m_mode);
+    return std::make_shared<PSROIPooling>(new_args.at(0),
+                                          new_args.at(1),
+                                          m_output_dim,
+                                          m_group_size,
+                                          m_spatial_scale,
+                                          m_spatial_bins_x,
+                                          m_spatial_bins_y,
+                                          m_mode);
 }
 
 void PSROIPooling::set_output_dim(size_t output_dim) {

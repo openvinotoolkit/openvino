@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,16 +9,18 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/op/interpolate.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(InterpolateTransformation);
@@ -39,28 +41,30 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
         pattern::wrap_type<opset1::Constant>(),
         pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(
-        std::make_shared<pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
+        std::make_shared<pass::pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
         matcher_name);
 
     this->register_matcher(matcher, callback);
 }
 
-bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool InterpolateTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
-    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions), true);
+    const auto newOperation = moveDequantizationAfter(interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
+
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
@@ -80,8 +84,8 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     return false;
 }
 
-bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool InterpolateTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

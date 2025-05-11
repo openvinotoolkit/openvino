@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,22 +9,17 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(
     const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
@@ -36,14 +31,15 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         netPrecision,
         inputShape,
         testValues.fqOnData,
@@ -52,7 +48,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

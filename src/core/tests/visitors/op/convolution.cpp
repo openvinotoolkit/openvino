@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, convolution) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
+    NodeBuilder::opset().insert<op::v1::Convolution>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 3, 3});
     auto strides = Strides{1, 1};
@@ -39,7 +39,7 @@ TEST(attributes, convolution) {
 }
 
 TEST(attributes, convolution2) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
+    NodeBuilder::opset().insert<op::v1::Convolution>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 227, 227});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{96, 3, 227, 227});
     auto strides = Strides{4, 4};

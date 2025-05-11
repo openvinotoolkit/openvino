@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,6 @@ namespace {
 TEST_P(ReferenceConversionLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
-} // namespace
-} // namespace ConversionOpsRefTestDefinitions
-} // namespace reference_tests
+}  // namespace
+}  // namespace ConversionOpsRefTestDefinitions
+}  // namespace reference_tests

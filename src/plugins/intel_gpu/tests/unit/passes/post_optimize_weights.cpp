@@ -5,6 +5,10 @@
 #include "test_utils.h"
 #include "program_wrapper.h"
 #include "fully_connected_inst.h"
+#include "convolution_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -48,7 +52,7 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
         input_layout("input", in_layout),
         input_layout("weights", weights->get_layout()),
         reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -131,7 +135,7 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     topology topology(
         input_layout("input", in_layout),
         data("weights", weights),
-        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -166,4 +170,75 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(weights_mem[i], expected[i]);
     }
+}
+
+TEST(post_optimize_weights, fuse_only_with_supported_weights_layout) {
+    // This test case checks that the reorder node is not fused with unsupported weights layout such as b_fs_yx_fsv16.
+    //    - Previous : When the weight layout which is a reorder node, is b_fs_yx_fsv16, fusing was attempted but the program terminates.
+    //    - Current : If the layout format is not supported, do not fuse and the program won't terminate.
+    //
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({{ 2, 32 }, data_types::f32, format::b_fs_yx_fsv16 });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("weights", weights->get_layout()),
+        reorder("reorder", input_info("weights"), format::bfyx, data_types::f16),
+        fully_connected("fc", input_info("input"), { "reorder" }, "", data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder"));
+}
+
+TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::Shape pshape = { 1, 512, 2, 332 };
+    ov::Shape weight_pshape = { 64, 1, 8, 5, 5 };
+    auto input = engine.allocate_memory({ pshape, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({ weight_pshape, data_types::f16, format::bfzyx });
+
+    std::vector<ov::float16> weights_data(weight_pshape[0] * weight_pshape[1] * weight_pshape[2] * weight_pshape[3] * weight_pshape[4]);
+    std::iota(weights_data.begin(), weights_data.end(), 0.f);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", "", 64, {1, 1}, {1, 1}, {2, 2}, {2, 2}, true)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
+    }
+
+    auto prog = program::build_program(engine, topology, config);
+
+    auto& conv_node = prog->get_node("conv");
+    auto weights_param = conv_node.as<convolution>().get_selected_impl()->get_weights_reorder_params();
+    ASSERT_TRUE(format::is_weights_format(prog->get_node("weights_weights_reorder_0").get_output_layout().format));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Check onednn_weights_params->_out_desc.get_size() with reorder output_layout bytes_count
+    auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);
+    ASSERT_TRUE(onednn_weights_params->_out_desc.get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
+#endif
 }

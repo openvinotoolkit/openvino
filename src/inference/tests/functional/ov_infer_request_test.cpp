@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <cpp/ie_infer_request.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/infer_request.hpp>
@@ -12,8 +11,6 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 TEST(InferRequestOVTests, throwsOnUninitializedSetTensor) {
     ov::InferRequest req;

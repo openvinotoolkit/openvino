@@ -4,15 +4,17 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
-permissions:
-  issues: write
-  pull-requests: write
+permissions: read-all
 
 jobs:
   stale:
+    permissions:
+      issues: write
+      pull-requests: write
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
-      - uses: actions/stale@v8
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
         with:
           stale-issue-message: 'This issue will be closed in a week because of 9 months of no activity.'
           stale-pr-message: 'This PR will be closed in a week because of 2 weeks of no activity.'

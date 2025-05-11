@@ -1,7 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
+import logging
+import pprint
 from operator import itemgetter
 from pathlib import Path
 from typing import Sequence, Any
@@ -22,7 +24,10 @@ from tests import (
     xfail_issue_58676,
     xfail_issue_78843,
     xfail_issue_86911,
-    xfail_issue_onnx_models_140)
+    xfail_issue_onnx_models_140,
+    skip_issue_127649)
+
+logger = logging.getLogger()
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -132,23 +137,29 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     file_name = path.name
     if path.is_file() and not file_name.startswith("."):
         model = {"model_name": path, "model_file": file_name, "dir": mdir}
+        logger.info("Found model: %s", pprint.pformat(model))
         basedir = mdir.stem
         if basedir in tolerance_map:
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
+            logger.info("Update model with a tolerance map: %s", pprint.pformat(model))
         else:
             # some models have the same stem, have to check if any of the keys from tolerance_map
             # is found in the full model path
             model_key = tolerance_map_key_in_model_path(str(path))
             if model_key is not None:
                 model.update(tolerance_map[model_key])
+                logger.info("Update model with tolerance map with model_key: %s", pprint.pformat(model))
         if basedir in post_processing:
             model.update(post_processing[basedir])
+            logger.info("Update model with post_processing: %s", pprint.pformat(model))
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
     zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
+
+    logger.info("Sorted zoo_models list of dictionaries: %s", pprint.pformat(zoo_models))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
@@ -162,12 +173,13 @@ if len(zoo_models) > 0:
             (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
 
             # Model MSFT
-            (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
+            (xfail_issue_37957, "test_msft_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
         ]
         for test_case in import_xfail_list:
             xfail, test_name = test_case
             xfail(getattr(test_cases, test_name))
 
+    logger.info("Test cases before first deletion: %s", pprint.pformat(test_cases))
     del test_cases
 
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
@@ -178,30 +190,37 @@ if len(zoo_models) > 0:
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
             (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
-            (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
+            (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_resnet101_duc_7_resnet101_duc_hdc_resnet101_duc_hdc_cpu"),
             (xfail_issue_78843, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
+            (skip_issue_127649, "test_onnx_model_zoo_vision_classification_resnet_model_resnet50_v1_7_resnet50v1_resnet50_v1_7_cpu"),
+            (skip_issue_127649, "test_onnx_model_zoo_vision_super_resolution_sub_pixel_cnn_2016_model_super_resolution_10_super_resolution_super_resolution_cpu"),
 
             # Model MSFT
-            (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
-            (xfail_issue_37973, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
-            (xfail_issue_37973, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
-            (xfail_issue_37973, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
-            (xfail_issue_37973, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset7_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset8_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset9_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset11_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset10_tf_inception_v2_model_cpu"),
 
-            (xfail_issue_58676, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            (xfail_issue_58676, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_58676, "test_msft_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_58676, "test_msft_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
 
-            (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
-            (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            (xfail_issue_78843, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+            (xfail_issue_39669, "test_msft_opset9_cgan_cgan_cpu"),
+            (xfail_issue_47495, "test_msft_opset10_bert_squad_bertsquad10_cpu"),
+            (xfail_issue_78843, "test_msft_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
 
-            (xfail_issue_86911, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
+            (xfail_issue_86911, "test_msft_opset9_lstm_seq_lens_unpacked_model_cpu"),
 
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case
             xfail(getattr(test_cases, test_name))
 
+    logger.info("Test cases before second deletion: %s", pprint.pformat(test_cases))
     del test_cases
 
+    logger.info("Test cases before adding to globals: %s",
+                pprint.pformat(backend_test.enable_report().test_cases))
     globals().update(backend_test.enable_report().test_cases)
+
+    logger.info("Globals: %s", pprint.pformat(globals()))

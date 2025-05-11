@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -24,14 +25,14 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
-        const auto& const_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
-        auto slice = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
+        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
         if (!const_axes || !slice)
             return false;
 
-        auto begin = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
         if (!begin || !end || !strides)
             return false;
 
@@ -58,17 +59,13 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             }))
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& axes = normalize_axes(squeeze->description(),
-                                          const_axes->cast_vector<int64_t>(),
-                                          squeeze->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-
         // Here squeeze input shape is equal to stridedslice input shape,
         // since new_axis_mask, shrink_axis_mask and ellipsis_mask are all zeros.
         auto tensor_rank = squeeze->get_input_partial_shape(0).rank();
         if (tensor_rank.is_dynamic())
             return false;
+
+        const auto axes = util::try_get_normalized_axis_vector(const_axes->get_tensor_view(), tensor_rank, *squeeze);
 
         auto tensor_length = tensor_rank.get_length();
         begin_vec.resize(tensor_length, 0);
@@ -125,17 +122,17 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         {squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
-        auto slice = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(m.get_match_root());
+        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());
         if (!slice)
             return false;
         auto squeeze = slice->get_input_node_shared_ptr(0);
-        const auto& const_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
         if (!const_axes)
             return false;
 
-        auto begin = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
         if (!begin || !end || !strides)
             return false;
 
@@ -163,11 +160,9 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             }))
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto axes = normalize_axes(squeeze->description(),
-                                   const_axes->cast_vector<int64_t>(),
-                                   squeeze->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto axes = const_axes->cast_vector<int64_t>();
+        ov::util::try_normalize_axes(axes, squeeze->get_input_partial_shape(0).rank(), *squeeze);
+
         std::sort(axes.begin(), axes.end());
         for (const auto& axis : axes) {
             begin_vec.insert(begin_vec.begin() + axis, 0);
@@ -198,60 +193,4 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
-}
-
-namespace {
-
-bool squeezes_perform_the_same(std::shared_ptr<ov::op::v0::Squeeze> lhs, std::shared_ptr<ov::op::v0::Squeeze> rhs) {
-    size_t l_input_size = lhs->inputs().size(), r_input_size = rhs->inputs().size();
-    if (l_input_size != r_input_size)
-        return false;
-    if (lhs->inputs().size() == 1 && rhs->inputs().size() == 1)
-        return true;
-    const auto rank = lhs->get_input_partial_shape(0).rank();
-    if (rank.is_dynamic())
-        return false;
-    const auto l_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(lhs->get_input_node_shared_ptr(1));
-    const auto r_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(rhs->get_input_node_shared_ptr(1));
-    if (l_axes && r_axes) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return ov::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
-               ov::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return false;
-}
-
-}  // namespace
-
-bool ov::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
-
-    bool graph_rewritten = false;
-
-    std::map<ov::Output<Node>, std::vector<std::shared_ptr<ov::op::v0::Squeeze>>> source_to_squeeze;
-    for (const auto& node : f->get_ordered_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_model(sub_graph);
-            }
-        }
-        if (auto squeeze = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(node)) {
-            source_to_squeeze[squeeze->input_value(0)].push_back(squeeze);
-        }
-    }
-
-    for (auto& item : source_to_squeeze) {
-        if (item.second.size() < 2)
-            continue;
-        auto root_squeeze = item.second[0];
-        for (auto& child_squeeze : item.second) {
-            if (root_squeeze->get_instance_id() != child_squeeze->get_instance_id() &&
-                squeezes_perform_the_same(root_squeeze, child_squeeze)) {
-                graph_rewritten |= replace_output_update_name(child_squeeze->output(0), root_squeeze->output(0));
-            }
-        }
-    }
-    return graph_rewritten;
 }

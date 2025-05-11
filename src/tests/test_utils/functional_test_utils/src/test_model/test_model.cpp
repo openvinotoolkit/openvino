@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "functional_test_utils/test_model/test_model.hpp"
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -19,7 +19,7 @@ void generate_test_model(const std::string& model_path,
                          const ov::PartialShape& input_shape) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(model_path, weights_path);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(input_shape.to_shape(), input_type));
+    manager.run_passes(ov::test::utils::make_conv_pool_relu(input_shape.to_shape(), input_type));
 }
 
 }  // namespace utils

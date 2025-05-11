@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
-#include <openvino/op/util/fft_base.hpp>
+
+#include <optional>
 
 #include "openvino/core/axis_vector.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -72,12 +76,8 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
     const int64_t axis_correction = (fft_kind == FFTKind::RealInput) ? input_rank : (input_rank - 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::normalize_axes(op, axis_correction, axes);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    auto axes_set = AxisSet(std::vector<size_t>(axes.begin(), axes.end()));
-    NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "Each axis must be unique.");
+    ov::util::try_normalize_axes(axes, axis_correction, *op);
+    NODE_VALIDATION_CHECK(op, ov::util::are_unique(axes), "Each axis must be unique.");
 }
 
 template <class T>
@@ -101,7 +101,7 @@ void validate_signal_size(const ov::op::util::FFTBase* op,
 template <class T>
 void shape_validation(const ov::op::util::FFTBase* op,
                       const std::vector<T>& input_shapes,
-                      std::vector<int64_t>* axes,
+                      std::optional<std::vector<int64_t>>& axes,
                       FFTKind fft_kind) {
     const auto& input_shape = input_shapes[0];
     const auto& axes_shape = input_shapes[1];

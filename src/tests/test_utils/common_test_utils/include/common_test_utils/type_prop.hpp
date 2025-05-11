@@ -1,13 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "gmock/gmock.h"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 #define EXPECT_HAS_SUBSTRING(haystack, needle) EXPECT_PRED_FORMAT2(testing::IsSubstring, needle, haystack)
 
@@ -19,22 +23,20 @@ struct PrintToDummyParamName {
 };
 
 /**
- * \brief Set labels on all shape dimensions start from first label.
+ * \brief Set symbols on all shape dimensions start from first symbol.
  *
- * \param p_shape      Shape to set labels.
- * \param first_label  Vale of first label (can't be 0)
+ * \param p_shape      Shape to set symbols.
+ * \return vector of set symbols
  */
-void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label);
-ov::TensorLabel get_shape_labels(const ov::PartialShape& p_shape);
+ov::TensorSymbol get_shape_symbols(const ov::PartialShape& p_shape);
 
 /**
- * \brief Set labels on all shape dimensions start from first label.
+ * \brief Set symbols on all shape dimensions start from first symbol.
  *
- * \param p_shape      Shape to set labels.
- * \param first_label  Vale of first label (can't be 0)
+ * \param p_shape      Shape to set symbols.
  */
-void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label);
-void set_shape_labels(ov::PartialShape& p_shape, const ov::TensorLabel& labels);
+ov::TensorSymbol set_shape_symbols(ov::PartialShape& p_shape);
+void set_shape_symbols(ov::PartialShape& p_shape, const ov::TensorSymbol& symbols);
 
 /**
  * \brief Test fixture for Unsqueeze/Squeeze type_prop tests.
@@ -58,7 +60,24 @@ protected:
         param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     }
 
-    ov::TensorLabel in_labels;
+    template <typename T>
+    auto create_squeeze(ov::PartialShape symboled_shape) -> std::shared_ptr<T> {
+        constexpr auto et = ov::element::i64;
+        const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, symboled_shape);
+        const auto symboled_shape_of = std::make_shared<ov::op::v0::ShapeOf>(symboled_param);
+
+        const auto zero = std::vector<int64_t>{0};
+        const auto axis = std::make_shared<ov::op::v0::Constant>(et, ov::Shape{}, zero);
+        const auto indices = std::make_shared<ov::op::v0::Constant>(et, ov::Shape{}, zero);
+        const auto gather = std::make_shared<ov::op::v7::Gather>(symboled_shape_of, indices, axis);
+        const auto axis_1 = std::make_shared<ov::op::v0::Constant>(et, ov::Shape{2}, std::vector<int64_t>{0, 1});
+        const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis_1);
+        const auto squeeze = std::make_shared<T>(unsqueeze, axis);
+
+        return squeeze;
+    }
+
+    ov::TensorSymbol in_symbols;
 };
 
 using PartialShapes = std::vector<ov::PartialShape>;

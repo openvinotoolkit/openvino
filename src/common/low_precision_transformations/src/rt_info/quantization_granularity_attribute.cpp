@@ -4,7 +4,7 @@
 
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov;
 
 bool QuantizationGranularityAttribute::is_skipped() const {

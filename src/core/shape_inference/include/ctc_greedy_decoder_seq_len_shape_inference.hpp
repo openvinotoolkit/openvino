@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -42,7 +42,7 @@ std::vector<TRShape> shape_infer(const CTCGreedyDecoderSeqLen* op, const std::ve
                               "The first dimensions of input tensors must match.");
     }
 
-    return {TRShape{batch_size, time_size}, TRShape{batch_size}};
+    return {TRShape{batch_size, std::move(time_size)}, TRShape{batch_size}};
 }
 }  // namespace v6
 }  // namespace op

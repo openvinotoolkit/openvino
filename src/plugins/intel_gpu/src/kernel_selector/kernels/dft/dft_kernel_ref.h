@@ -22,14 +22,10 @@ struct dft_params : public base_params {
     dft_params() : base_params{KernelType::DFT} {}
 };
 
-struct dft_optional_params : optional_params {
-    dft_optional_params() : optional_params{KernelType::DFT} {}
-};
-
 class DFTKernelRef : public KernelBaseOpenCL {
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const dft_params& params) const;
 
 public:

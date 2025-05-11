@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from sys import platform
 
 import numpy as np
 import pytest
@@ -10,18 +12,18 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestFusedBatchNorm(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
-        x_shape = inputs_info['x']
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape)
-        scale_shape = inputs_info['scale']
-        inputs_data['scale'] = np.random.randint(-10, 10, scale_shape)
-        offset_shape = inputs_info['offset']
-        inputs_data['offset'] = np.random.randint(-10, 10, offset_shape)
-        if 'mean' in inputs_info:
-            mean_shape = inputs_info['mean']
-            inputs_data['mean'] = np.random.randint(-10, 10, mean_shape)
-        if 'variance' in inputs_info:
-            variance_shape = inputs_info['variance']
-            inputs_data['variance'] = np.random.randint(0, 10, variance_shape)
+        x_shape = inputs_info['x:0']
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape)
+        scale_shape = inputs_info['scale:0']
+        inputs_data['scale:0'] = np.random.randint(-10, 10, scale_shape)
+        offset_shape = inputs_info['offset:0']
+        inputs_data['offset:0'] = np.random.randint(-10, 10, offset_shape)
+        if 'mean:0' in inputs_info:
+            mean_shape = inputs_info['mean:0']
+            inputs_data['mean:0'] = np.random.randint(-10, 10, mean_shape)
+        if 'variance:0' in inputs_info:
+            variance_shape = inputs_info['variance:0']
+            inputs_data['variance:0'] = np.random.randint(0, 10, variance_shape)
         return inputs_data
 
     def create_fused_batch_norm_net(self, x_shape, epsilon, exponential_avg_factor, data_format, is_training,
@@ -35,7 +37,7 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             c_dim = x_shape[-1]
-            if data_format == "NCHW":
+            if data_format == "NCHW" or data_format == "NCDHW":
                 c_dim = x_shape[1]
             x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
             if empty_mean_variance:
@@ -92,13 +94,17 @@ class TestFusedBatchNorm(CommonTFLayerTest):
              fbn_version="v3"),
         dict(x_shape=[5, 10, 8, 2], epsilon=0.0002, exponential_avg_factor=0.2, data_format="NHWC",
              is_training=True, fbn_version="v3", empty_mean_variance=False),
+        # 5D cases
+        dict(x_shape=[5, 4, 3, 2, 3], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCDHW",
+             is_training=False, fbn_version="v3"),
+        dict(x_shape=[3, 4, 3, 3, 2], epsilon=0.0003, exponential_avg_factor=0.0, data_format="NDHWC",
+             is_training=False, fbn_version="v3"),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_fused_batch_norm_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend, use_old_api):
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    def test_fused_batch_norm_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_fused_batch_norm_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

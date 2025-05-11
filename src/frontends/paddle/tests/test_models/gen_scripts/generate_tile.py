@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -8,7 +8,6 @@ import numpy as np
 from save_model import saveModel
 import paddle
 import sys
-from paddle.fluid.layers.tensor import fill_constant
 
 
 def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
@@ -18,13 +17,17 @@ def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
         node_x = paddle.static.data(
             name="x",
             shape=x.shape,
-            dtype=x.dtype if x.dtype != np.bool_ else np.int32,
+            dtype=x.dtype
         )
         node_x = paddle.cast(node_x, dtype=x.dtype)
         repeat_times_list = []
         if tensor_list:
             for i in repeat_times:
-                temp_out = fill_constant([1], "int32", i, force_cpu=True)
+                if paddle.__version__ >= '2.0.0':
+                    temp_out = paddle.full([1], i, "int32").cpu()
+                else:
+                    temp_out = paddle.fluid.layers.tensor.fill_constant([1], "int32", i, force_cpu=True)
+
                 repeat_times_list.append(temp_out)
         else:
             repeat_times_list = repeat_times
@@ -45,19 +48,19 @@ def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        if x.dtype == np.bool_:
-            x = x.astype(np.int32)
-
         if to_tensor:
             feed = {"x": x, "repeat_times": repeat_times}
+            feed_vars = [node_x, repeat_times_list]
         else:
             feed = {"x": x}
+            feed_vars = [node_x]
+
         outs = exe.run(feed=feed, fetch_list=[out])
 
         saveModel(
             name,
             exe,
-            feedkeys=[*feed.keys()],
+            feed_vars=feed_vars,
             fetchlist=[out],
             inputs=[*feed.values()],
             outputs=[outs[0]],

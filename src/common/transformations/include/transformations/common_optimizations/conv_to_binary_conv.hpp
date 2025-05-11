@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation converts Convolution to BinaryConvolution under following conditions:
  *  - first input to Convolution is a FakeQuantize with levels==2 with output low,high being either (0, 1) or (-1, 1)
  *  - second input (weights) is a constant with values -1 or 1
@@ -72,6 +72,6 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
  */
 class ov::pass::ConvToBinaryConv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvToBinaryConv", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvToBinaryConv");
     ConvToBinaryConv();
 };

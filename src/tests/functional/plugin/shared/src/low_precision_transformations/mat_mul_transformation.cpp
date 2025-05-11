@@ -1,27 +1,24 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/mat_mul_transformation.hpp"
-
 #include <memory>
+#include <queue>
+#include <string>
 #include <tuple>
 #include <vector>
 #include <string>
 #include <queue>
-#include <ie_core.hpp>
 
-#include "ngraph/op/op.hpp"
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -33,38 +30,23 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
         testValues.inputShape1 << "_" <<
         testValues.fqOnData1 << "_" <<
         testValues.inputShape2 << "_" <<
-        testValues.fqOnData2;
+        testValues.fqOnData2 << "_" <<
+        testValues.expectedRuntimePrecision << "_" <<
+        testValues.expectedKernelName;
 
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected layer name " << info.name();
-    }
-
-    size_t low;
-    size_t high;
-    if (info.name() == "input1") {
-        low = 1ul;
-        high = 5ul;
-    } else if (info.name() == "input2") {
-        low = 5ul;
-        high = 10ul;
-    } else {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
-}
 
 void MatMulTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
+
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         testValues.inputShape1,
         testValues.fqOnData1,
@@ -74,19 +56,19 @@ void MatMulTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulTransformation::Run() {
+void MatMulTransformation::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    LayerTestsCommon::Run();
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
-    const auto actualType = getRuntimePrecision(params.expectedKernelName);
+    const auto actualType = get_runtime_precision(params.expectedKernelName);
 
     EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

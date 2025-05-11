@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, broadcast_v1) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Broadcast>();
+    NodeBuilder::opset().insert<ov::op::v1::Broadcast>();
     const auto arg = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 3, 1});
     const auto shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
     const auto axes_mapping = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
@@ -27,7 +27,7 @@ TEST(attributes, broadcast_v1) {
 }
 
 TEST(attributes, broadcast_v3) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::Broadcast>();
+    NodeBuilder::opset().insert<ov::op::v3::Broadcast>();
     const auto arg = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 3, 1});
     const auto shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
@@ -40,7 +40,7 @@ TEST(attributes, broadcast_v3) {
 }
 
 TEST(attributes, broadcast_v3_explicit) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::Broadcast>();
+    NodeBuilder::opset().insert<ov::op::v3::Broadcast>();
     const auto arg = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 3, 1});
     const auto shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});
     const auto axes_mapping = make_shared<ov::op::v0::Parameter>(element::i64, Shape{3});

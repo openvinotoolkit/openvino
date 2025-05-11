@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,7 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
         std::string out_z_str = "";
         const auto& output = params.outputs[0];
         if (params.has_dynamic_outputs()) {
-            DimensionAccessHelper dims(output);
+            DimensionAccessHelperJit dims(output);
             out_y_str = dims.y();
             out_z_str = dims.z();
         } else {
@@ -267,8 +267,8 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
     return dispatchData;
 }
 
-bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
@@ -308,7 +308,7 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
     return true;
 }
 
-KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/, const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 

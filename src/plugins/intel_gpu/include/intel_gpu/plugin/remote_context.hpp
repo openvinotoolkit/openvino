@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,7 @@
 # define NOMINMAX
 #endif
 
-#ifdef _WIN32
-# include <gpu/gpu_context_api_dx.hpp>
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#else
-# include <gpu/gpu_context_api_va.hpp>
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
-#endif
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -25,10 +19,8 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <atomic>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
@@ -43,8 +35,8 @@ public:
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
-
     cldnn::engine& get_engine() { return *m_engine; }
+    const cldnn::engine& get_engine() const { return *m_engine; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
@@ -75,5 +67,10 @@ private:
     ov::AnyMap properties;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(ptr._ptr);
+    OPENVINO_ASSERT(casted, "[GPU] Invalid remote context type. Can't cast to ov::intel_gpu::RemoteContext type");
+    return casted;
+}
+
+}  // namespace ov::intel_gpu

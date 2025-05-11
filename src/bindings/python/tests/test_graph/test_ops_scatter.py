@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset12 as ov
-from openvino.runtime import Type
+import openvino.opset13 as ov
+from openvino import Type
 
 
 def test_scatter_update_props():

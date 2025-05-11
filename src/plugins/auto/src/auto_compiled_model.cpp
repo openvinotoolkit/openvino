@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,18 +26,18 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                       "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
     OPENVINO_ASSERT(m_context->m_hw_compiled_model);
-    return m_context->m_hw_compiled_model->get_runtime_model();
+    auto model = m_context->m_hw_compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), m_context->m_hw_compiled_model._so);
+    return model;
 }
 
 ov::Any AutoCompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -47,19 +47,13 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                     ov::device::priorities,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::enable_profiling};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (name == ov::supported_properties) {
         auto ro_properties = default_ro_properties();
@@ -69,7 +63,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
+    } else if (name == ov::enable_profiling) {
+        return m_context->m_need_perf_counters;
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
     } else if (name == ov::device::priorities) {
@@ -92,15 +88,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = m_context->m_model_priority;
-        if (m_context->m_ov_core->is_new_api()) {
-            return value ? ((value > 1) ? ov::hint::Priority::LOW :
-                    ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(
-                        MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
+        return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
@@ -109,9 +97,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             real = m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_compiled_model->get_property(name).as<unsigned int>();
         } else {
-            std::unique_lock<std::mutex> lock(m_context->m_mutex);
-            auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
-            lock.unlock();
+            DeviceInformation device_info;
+            {
+                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
+            }
             unsigned int optimal_batch_size = 0;
             unsigned int requests = 0;
             bool tput_enabled_in_plugin = false;
@@ -135,8 +125,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
             }
             requests = 0;
-            // check if the real is default value or actual device didn't support this property.
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
             try {
                 // for benchmark through AUTO:CPU,GPU
                 // SetConfig directly set to CPU/GPU in this case
@@ -166,7 +154,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                         LOG_DEBUG_TAG("get_property range_for_streams from %s failed", device_info.device_name.c_str());
                     }
                 }
-                if (!m_context->m_batching_disabled) {
+                if (!m_context->m_batching_disabled && m_model) {
                     if (std::find(actual_dev_supported_properties.begin(),
                                   actual_dev_supported_properties.end(),
                                   ov::optimal_batch_size) != actual_dev_supported_properties.end()) {
@@ -245,29 +233,27 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name);
             return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name);
         }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        auto ro_properties = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), ro_properties);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), ro_properties);
-        return to_string_vector(ro_properties);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        auto rw_properties = default_rw_properties();
-        return to_string_vector(rw_properties);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+        std::string device_name;
+        try {
+            std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+                device_name = m_scheduler->m_compile_context[FALLBACKDEVICE].m_device_info.device_name;
                 return m_scheduler->m_compile_context[FALLBACKDEVICE].m_compiled_model->get_property(name).as<bool>();
             }
-        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            return m_scheduler->m_compile_context[ACTUALDEVICE].
-                m_compiled_model->get_property(name).as<bool>();
-        } else {
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
-             std::lock_guard<std::mutex> lock(m_context->m_mutex);
-            return m_scheduler->m_compile_context[CPU].
-                m_compiled_model->get_property(name).as<bool>();
+            if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+                device_name = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+                return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<bool>();
+            } else {
+                OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
+                                m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
+                device_name = m_scheduler->m_compile_context[CPU].m_device_info.device_name;
+                return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name).as<bool>();
+            }
+        } catch (const ov::Exception&) {
+            LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", device_name.c_str());
+            return false;
         }
     }
     OPENVINO_THROW(get_log_tag(), ": not supported property ", name);

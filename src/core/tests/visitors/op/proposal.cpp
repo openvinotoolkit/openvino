@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, proposal_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Proposal>();
+    NodeBuilder::opset().insert<ov::op::v0::Proposal>();
     const auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1024, 2, 128, 128});
     const auto class_logits = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1024, 4, 128, 128});
     const auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
@@ -58,7 +58,7 @@ TEST(attributes, proposal_op) {
 }
 
 TEST(attributes, proposal_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Proposal>();
+    NodeBuilder::opset().insert<ov::op::v0::Proposal>();
     const auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 34, 62});
     const auto class_logits = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 24, 34, 62});
     const auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});

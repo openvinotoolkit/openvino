@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import io
@@ -10,6 +10,8 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 from pathlib import Path
 from itertools import chain
+import tempfile
+import shutil
 
 from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
@@ -17,12 +19,12 @@ from tests.runtime import get_runtime
 
 def create_onnx_model():
     add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
-    const_tensor = onnx.helper.make_tensor("const_tensor",
-                                           onnx.TensorProto.FLOAT,
-                                           (2, 2),
-                                           [0.5, 1, 1.5, 2.0])
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
-                                       value=const_tensor, name="const_node")
+    const_tensor = onnx.helper.make_tensor(
+        "const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0]
+    )
+    const_node = onnx.helper.make_node(
+        "Constant", [], outputs=["const_node"], value=const_tensor, name="const_node"
+    )
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
@@ -30,7 +32,7 @@ def create_onnx_model():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_2():
@@ -42,7 +44,7 @@ def create_onnx_model_2():
         make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_with_subgraphs():
@@ -68,35 +70,35 @@ def create_onnx_model_with_subgraphs():
     res = onnx.helper.make_tensor_value_info("res", onnx.TensorProto.FLOAT, [3])
 
     graph = make_graph([if_node], "graph", [cond, x1, x2], [res])
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_with_custom_attributes():
-    add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"],
-                                attribute_i32=np.int32(10),
-                                attribute_i64=np.int64(10),
-                                attribute_str="string",
-                                attribute_f32=float(10),
-                                attribute_f64=np.float64(10),
-                                attribute_bool=True,
-                                attribute_type=onnx.TensorProto.INT32,
-
-                                attribute_list_i32=np.array([1, 2, 3], dtype=np.int32),
-                                attribute_list_i64=np.array([1, 2, 3], dtype=np.int64),
-                                attribute_list_str=np.array(["a", "b", "c"], dtype=str),
-                                attribute_list_f32=np.array([1, 2, 3], dtype=float),
-                                attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
-                                attribute_list_bool=[True, False, True],
-                                attribute_list_type=np.array([onnx.TensorProto.INT32,
-                                                              onnx.TensorProto.FLOAT]),
-
-                                )
-    const_tensor = onnx.helper.make_tensor("const_tensor",
-                                           onnx.TensorProto.FLOAT,
-                                           (2, 2),
-                                           [0.5, 1, 1.5, 2.0])
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
-                                       value=const_tensor, name="const_node")
+    add = onnx.helper.make_node(
+        "Add",
+        inputs=["x", "y"],
+        outputs=["z"],
+        attribute_i32=np.int32(10),
+        attribute_i64=np.int64(10),
+        attribute_str="string",
+        attribute_f32=float(10),
+        attribute_f64=np.float64(10),
+        attribute_bool=True,
+        attribute_type=onnx.TensorProto.INT32,
+        attribute_list_i32=np.array([1, 2, 3], dtype=np.int32),
+        attribute_list_i64=np.array([1, 2, 3], dtype=np.int64),
+        attribute_list_str=np.array(["a", "b", "c"], dtype=str),
+        attribute_list_f32=np.array([1, 2, 3], dtype=float),
+        attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
+        attribute_list_bool=[True, False, True],
+        attribute_list_type=np.array([onnx.TensorProto.INT32, onnx.TensorProto.FLOAT]),
+    )
+    const_tensor = onnx.helper.make_tensor(
+        "const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0]
+    )
+    const_node = onnx.helper.make_node(
+        "Constant", [], outputs=["const_node"], value=const_tensor, name="const_node"
+    )
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
@@ -104,7 +106,7 @@ def create_onnx_model_with_custom_attributes():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_for_op_extension():
@@ -112,45 +114,62 @@ def create_onnx_model_for_op_extension():
     elu = onnx.helper.make_node("Elu", alpha=1.0, inputs=["x"], outputs=["elu"])
 
     # operation with vector<size_t>, enum, bool attributes
-    avg_pool = onnx.helper.make_node("AveragePool", kernel_shape=[2, 2], auto_pad="SAME_LOWER",
-                                     strides=[2, 2],
-                                     inputs=["elu"], outputs=["avg_pool"])
+    avg_pool = onnx.helper.make_node(
+        "AveragePool",
+        kernel_shape=[2, 2],
+        auto_pad="SAME_LOWER",
+        strides=[2, 2],
+        inputs=["elu"],
+        outputs=["avg_pool"],
+    )
 
     # operation with no attributes
     floor = onnx.helper.make_node("Floor", inputs=["avg_pool"], outputs=["floor"])
 
     # operation with int64_t attribute
-    concat = onnx.helper.make_node("Concat", axis=0, inputs=["floor", "avg_pool"], outputs=["concat"])
+    concat = onnx.helper.make_node(
+        "Concat", axis=0, inputs=["floor", "avg_pool"], outputs=["concat"]
+    )
 
-    const_tensor = onnx.helper.make_tensor("const_tensor",
-                                           onnx.TensorProto.FLOAT,
-                                           [1],
-                                           [0.5])
+    const_tensor = onnx.helper.make_tensor(
+        "const_tensor", onnx.TensorProto.FLOAT, [1], [0.5]
+    )
 
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
-                                       value=const_tensor, name="const_node")
+    const_node = onnx.helper.make_node(
+        "Constant", [], outputs=["const_node"], value=const_tensor, name="const_node"
+    )
     # operation with enum attribute
     mul = onnx.helper.make_node("Mul", inputs=["concat", "const_node"], outputs=["mul"])
 
-    # operation with element::type (class) attribute
-    cast = onnx.helper.make_node("Cast", to=int(onnx.TensorProto.FLOAT), inputs=["mul"], outputs=["out"])
+    # operation with  ov::element::type (class) attribute
+    cast = onnx.helper.make_node(
+        "Cast", to=int(onnx.TensorProto.FLOAT), inputs=["mul"], outputs=["out"]
+    )
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (1, 3, 32, 32)),
     ]
-    output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (3, 3, 32, 32))]
-    graph = make_graph([const_node, elu, avg_pool, floor, concat, mul, cast], "graph",
-                       input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    output_tensors = [
+        make_tensor_value_info("out", onnx.TensorProto.FLOAT, (3, 3, 32, 32))
+    ]
+    graph = make_graph(
+        [const_node, elu, avg_pool, floor, concat, mul, cast],
+        "graph",
+        input_tensors,
+        output_tensors,
+    )
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_extension_with_custom_domain():
-    add = onnx.helper.make_node("CustomAdd", inputs=["x", "y"], outputs=["z"], domain="custom_domain")
-    const_tensor = onnx.helper.make_tensor("const_tensor",
-                                           onnx.TensorProto.FLOAT,
-                                           (2, 2),
-                                           [0.5, 1, 1.5, 2.0])
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
-                                       value=const_tensor, name="const_node")
+    add = onnx.helper.make_node(
+        "CustomAdd", inputs=["x", "y"], outputs=["z"], domain="custom_domain"
+    )
+    const_tensor = onnx.helper.make_tensor(
+        "const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0]
+    )
+    const_node = onnx.helper.make_node(
+        "Constant", [], outputs=["const_node"], value=const_tensor, name="const_node"
+    )
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
@@ -158,7 +177,7 @@ def create_onnx_model_extension_with_custom_domain():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def run_model(model, *inputs, expected):
@@ -187,11 +206,20 @@ def setup_module():
     onnx.save_model(create_onnx_model(), onnx_model_filename)
     onnx.save_model(create_onnx_model(), model_stream)
     onnx.save_model(create_onnx_model_2(), onnx_model_2_filename)
-    onnx.save_model(create_onnx_model_with_custom_attributes(),
-                    onnx_model_with_custom_attributes_filename)
-    onnx.save_model(create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename)
-    onnx.save_model(create_onnx_model_for_op_extension(), onnx_model_for_op_extension_test)
-    onnx.save_model(create_onnx_model_extension_with_custom_domain(), onnx_model_extension_with_custom_domain)
+    onnx.save_model(
+        create_onnx_model_with_custom_attributes(),
+        onnx_model_with_custom_attributes_filename,
+    )
+    onnx.save_model(
+        create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename
+    )
+    onnx.save_model(
+        create_onnx_model_for_op_extension(), onnx_model_for_op_extension_test
+    )
+    onnx.save_model(
+        create_onnx_model_extension_with_custom_domain(),
+        onnx_model_extension_with_custom_domain,
+    )
 
 
 def teardown_module():
@@ -227,17 +255,28 @@ def test_convert():
     run_model(converted_model, input_1, input_2, expected=[expected])
 
 
-@pytest.mark.parametrize(("model_filename", "inputs", "expected"), [
-    [onnx_model_filename,
-     [np.array([[1, 2], [3, 4]], dtype=np.float32),
-      np.array([[2, 3], [4, 5]], dtype=np.float32)],
-     np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)],
-    [onnx_model_with_subgraphs_filename,
-     [np.array(False, dtype=bool),
-      np.array([1, 2, 3], dtype=np.float32),
-      np.array([2, 3, 5], dtype=np.float32)],
-     np.array([-1, -1, -2], dtype=np.float32)],
-])
+@pytest.mark.parametrize(
+    ("model_filename", "inputs", "expected"),
+    [
+        [
+            onnx_model_filename,
+            [
+                np.array([[1, 2], [3, 4]], dtype=np.float32),
+                np.array([[2, 3], [4, 5]], dtype=np.float32),
+            ],
+            np.array([[1.5, 5], [10.5, 18]], dtype=np.float32),
+        ],
+        [
+            onnx_model_with_subgraphs_filename,
+            [
+                np.array(False, dtype=bool),
+                np.array([1, 2, 3], dtype=np.float32),
+                np.array([2, 3, 5], dtype=np.float32),
+            ],
+            np.array([-1, -1, -2], dtype=np.float32),
+        ],
+    ],
+)
 def test_decode_and_convert(model_filename, inputs, expected):
     skip_if_onnx_frontend_is_disabled()
 
@@ -251,13 +290,21 @@ def test_decode_and_convert(model_filename, inputs, expected):
     assert decoded_model
 
     for op in decoded_model.get_ordered_ops():
-        assert op.get_type_name() in ["Parameter", "Constant", "ONNXFrameworkNode",
-                                      "ONNXSubgraphFrameworkNode", "Result"]
+        assert op.get_type_name() in [
+            "Parameter",
+            "Constant",
+            "ONNXFrameworkNode",
+            "ONNXSubgraphFrameworkNode",
+            "Result",
+        ]
 
     fe.convert(decoded_model)
     assert decoded_model
     for op in decoded_model.get_ordered_ops():
-        assert op.get_type_name() not in ["ONNXFrameworkNode", "ONNXSubgraphFrameworkNode"]
+        assert op.get_type_name() not in [
+            "ONNXFrameworkNode",
+            "ONNXSubgraphFrameworkNode",
+        ]
 
     run_model(decoded_model, *inputs, expected=[expected])
 
@@ -273,8 +320,15 @@ def test_load_by_model():
     decoded_function = fe.decode(model)
     assert decoded_function
 
-    assert not fem.load_by_model("test.xx")
-    assert not fem.load_by_model("onnx.yy")
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("test.xx")
+
+    assert e.match(r'Could not open the file: "test.xx"')
+
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("onnx.yy")
+
+    assert e.match(r'Could not open the file: "onnx.yy"')
 
 
 def test_onnx_conversion_extension_check_attributes():
@@ -305,16 +359,16 @@ def test_onnx_conversion_extension_check_attributes():
         check_attribute(node, "attribute_i32", int, 10)
         check_attribute(node, "attribute_i64", int, 10)
         check_attribute(node, "attribute_str", str, "string")
-        check_attribute(node, "attribute_f32", float, 10.)
-        check_attribute(node, "attribute_f64", float, 10.)
+        check_attribute(node, "attribute_f32", float, 10.0)
+        check_attribute(node, "attribute_f64", float, 10.0)
         check_attribute(node, "attribute_bool", int, 1)
         check_attribute(node, "attribute_type", int, 6)
 
         check_attribute(node, "attribute_list_i32", list, [1, 2, 3])
         check_attribute(node, "attribute_list_i64", list, [1, 2, 3])
         check_attribute(node, "attribute_list_str", list, ["a", "b", "c"])
-        check_attribute(node, "attribute_list_f32", list, [1., 2., 3.])
-        check_attribute(node, "attribute_list_f64", list, [1., 2., 3.])
+        check_attribute(node, "attribute_list_f32", list, [1.0, 2.0, 3.0])
+        check_attribute(node, "attribute_list_f64", list, [1.0, 2.0, 3.0])
         check_attribute(node, "attribute_list_bool", list, [1, 0, 1])
         check_attribute(node, "attribute_list_type", list, [6, 1])
 
@@ -369,12 +423,21 @@ def test_onnx_conversion_extension_attribute_with_default_value():
 
         check_attribute(node, "attribute_list_i32", np.array([4, 5, 6], dtype=np.int32))
         check_attribute(node, "attribute_list_i64", np.array([4, 5, 6], dtype=np.int64))
-        check_attribute(node, "attribute_list_str", np.array(["d", "e", "f"], dtype=str))
+        check_attribute(
+            node, "attribute_list_str", np.array(["d", "e", "f"], dtype=str)
+        )
         check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=float))
-        check_attribute(node, "attribute_list_f64", np.array([4, 5, 6], dtype=np.float64))
-        check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=bool))
-        check_attribute(node, "attribute_list_type", np.array([onnx.TensorProto.INT32,
-                                                               onnx.TensorProto.FLOAT]))
+        check_attribute(
+            node, "attribute_list_f64", np.array([4, 5, 6], dtype=np.float64)
+        )
+        check_attribute(
+            node, "attribute_list_bool", np.array([True, False, True], dtype=bool)
+        )
+        check_attribute(
+            node,
+            "attribute_list_type",
+            np.array([onnx.TensorProto.INT32, onnx.TensorProto.FLOAT]),
+        )
 
         input_1 = node.get_input(0)
         input_2 = node.get_input(1)
@@ -425,8 +488,8 @@ def test_onnx_conversion_extension_cast_attributes():
         check_attribute(node, "attribute_bool", True, bool)
         check_attribute(node, "attribute_type", Type.i32, Type)
 
-        check_attribute(node, "attribute_list_i32", [1., 2., 3.], float)
-        check_attribute(node, "attribute_list_i64", [1., 2., 3.], float)
+        check_attribute(node, "attribute_list_i32", [1.0, 2.0, 3.0], float)
+        check_attribute(node, "attribute_list_i64", [1.0, 2.0, 3.0], float)
         check_attribute(node, "attribute_list_str", ["a", "b", "c"], str)
         check_attribute(node, "attribute_list_f32", [1, 2, 3], int)
         check_attribute(node, "attribute_list_f64", [1, 2, 3], int)
@@ -528,7 +591,9 @@ def test_onnx_conversion_extension_with_custom_domain():
         add = ops.add(input_1, input_2)
         return [add.output(0)]
 
-    fe.add_extension(ConversionExtension("CustomAdd", "custom_domain", custom_converter))
+    fe.add_extension(
+        ConversionExtension("CustomAdd", "custom_domain", custom_converter)
+    )
     input_model = fe.load(onnx_model_extension_with_custom_domain)
     assert input_model
     model = fe.convert(input_model)
@@ -546,14 +611,20 @@ def test_onnx_op_extension_with_custom_domain():
     assert fe
     assert fe.get_name() == "onnx"
 
-    fe.add_extension(OpExtension("opset1.Add", "CustomAdd", "custom_domain", {}, {"auto_broadcast": "numpy"}))
+    fe.add_extension(
+        OpExtension(
+            "opset1.Add", "CustomAdd", "custom_domain", {}, {"auto_broadcast": "numpy"}
+        )
+    )
     input_model = fe.load(onnx_model_extension_with_custom_domain)
     assert input_model
     model = fe.convert(input_model)
     assert model
 
 
-@pytest.mark.parametrize("opset_prefix", ["opset1.", "opset1::", "opset8.", "opset8::", ""])
+@pytest.mark.parametrize(
+    "opset_prefix", ["opset1.", "opset1::", "opset8.", "opset8::", ""]
+)
 def test_op_extension_specify_opset(opset_prefix):
     skip_if_onnx_frontend_is_disabled()
 
@@ -576,7 +647,9 @@ def test_op_extension_specify_opset(opset_prefix):
     assert model
 
 
-@pytest.mark.parametrize("opset_prefix", ["opset1..", "opset1:::", "opset.", "opset::", "wrong"])
+@pytest.mark.parametrize(
+    "opset_prefix", ["opset1..", "opset1:::", "opset.", "opset::", "wrong"]
+)
 def test_op_extension_specify_wrong_opset(opset_prefix):
     skip_if_onnx_frontend_is_disabled()
 
@@ -609,17 +682,26 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
 
     # add extensions
     core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    core.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Elu", {}, {"alpha": 1.0}))
     core.add_extension(OpExtension("Floor"))
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
     core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                  "strides": [2, 2],
-                                                                  "pads_begin": [0, 0],
-                                                                  "pads_end": [1, 1],
-                                                                  "exclude-pad": True,
-                                                                  "auto_pad": "same_upper",
-                                                                  "rounding_type": "floor"}))
+    core.add_extension(
+        OpExtension(
+            "AvgPool",
+            "AveragePool",
+            {},
+            {
+                "kernel": [2, 2],
+                "strides": [2, 2],
+                "pads_begin": [0, 0],
+                "pads_end": [1, 1],
+                "exclude-pad": True,
+                "auto_pad": "same_upper",
+                "rounding_type": "floor",
+            },
+        )
+    )
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
@@ -639,17 +721,26 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
 
     # add extensions
     core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    core.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.0}))
     core.add_extension(OpExtension("Floor"))
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
     core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                  "strides": [2, 2],
-                                                                  "pads_begin": [0, 0],
-                                                                  "pads_end": [1, 1],
-                                                                  "exclude-pad": True,
-                                                                  "auto_pad": "same_upper",
-                                                                  "rounding_type": "floor"}))
+    core.add_extension(
+        OpExtension(
+            "AvgPool",
+            "AveragePool",
+            {},
+            {
+                "kernel": [2, 2],
+                "strides": [2, 2],
+                "pads_begin": [0, 0],
+                "pads_end": [1, 1],
+                "exclude-pad": True,
+                "auto_pad": "same_upper",
+                "rounding_type": "floor",
+            },
+        )
+    )
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
@@ -671,29 +762,38 @@ def test_op_extension_via_frontend_extension_map_attributes():
     core.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
     core.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
 
-    core.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
-                                                              "strides": "strides",
-                                                              "auto_pad": "auto_pad"},
-                                                             {"pads_begin": [0, 0],
-                                                              "pads_end": [1, 1],
-                                                              "exclude-pad": True,
-                                                              "rounding_type": "floor"}))
+    core.add_extension(
+        OpExtension(
+            "AvgPool",
+            "AveragePool",
+            {"kernel": "kernel_shape", "strides": "strides", "auto_pad": "auto_pad"},
+            {
+                "pads_begin": [0, 0],
+                "pads_end": [1, 1],
+                "exclude-pad": True,
+                "rounding_type": "floor",
+            },
+        )
+    )
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
 def get_builtin_extensions_path():
-    win_folder_path = Path(__file__).parent.parent.parent.parent
-    linux_folder_path = win_folder_path.joinpath("lib")
-    for lib_path in chain(win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")):
-        if "libtest_builtin_extensions" in lib_path.name:
+    ci_tests_path = Path(__file__).resolve().parents[3]
+    for lib_path in chain(
+        ci_tests_path.glob("*.dll"), ci_tests_path.glob("*.so")
+    ):
+        if "test_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
 
 
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
+@pytest.mark.skipif(
+    len(get_builtin_extensions_path()) == 0,
+    reason="The extension library path was not found",
+)
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_onnx_frontend_is_disabled()
 
@@ -709,8 +809,10 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Relu" for op in model.get_ops())
 
 
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
+@pytest.mark.skipif(
+    len(get_builtin_extensions_path()) == 0,
+    reason="The extension library path was not found",
+)
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_onnx_frontend_is_disabled()
 
@@ -720,8 +822,36 @@ def test_so_extension_via_frontend_decode_input_model():
         in_model = fe.load(onnx_model_2_filename)
         return fe.decode(in_model)
 
-    decoded_model = load_decoded_model()  # decoded model has longer lifetime than frontend
+    decoded_model = (
+        load_decoded_model()
+    )  # decoded model has longer lifetime than frontend
     assert decoded_model
+
+
+@pytest.mark.skipif(
+    len(get_builtin_extensions_path()) == 0,
+    reason="The extension library path was not found",
+)
+def test_add_extension_unicode_paths():
+    skip_if_onnx_frontend_is_disabled()
+
+    test_directory = Path(__file__).resolve().parent
+    unicode_characters = r"晚安_путь_к_файлу"
+    with tempfile.TemporaryDirectory(dir=test_directory, prefix=unicode_characters) as temp_dir:
+        extension_path = Path(get_builtin_extensions_path())
+        temp_extension_path = Path(temp_dir) / extension_path.name
+        shutil.copyfile(extension_path, temp_extension_path)
+
+        assert os.path.exists(temp_extension_path), "Could not create an extension library with unicode path."
+
+        def convert_model(path):
+            fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+            fe.add_extension(path)
+            in_model = fe.load(onnx_model_2_filename)
+            converted_model = fe.convert(in_model)
+            assert converted_model
+
+        convert_model(temp_extension_path)
 
 
 def test_load_bytesio_model():

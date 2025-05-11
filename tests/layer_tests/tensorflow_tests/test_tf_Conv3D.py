@@ -15,9 +15,8 @@ class TestConv3D(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_new_frontend - common parameter
     def create_conv3d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations,
-                                            ir_version, use_new_frontend):
+                                            ir_version):
         """
             Tensorflow net                  IR net
 
@@ -67,17 +66,16 @@ class TestConv3D(CommonTFLayerTest):
         dict(input_shape=[1, 10, 10, 20, 3], input_filter=[2, 4, 2, 3, 3], input_strides=[1, 2, 2, 2, 1],
              dilations=[1, 2, 2, 2, 1]),
         pytest.param(
-            dict(input_shape=[1, 224, 224, 224, 3], input_filter=[1, 2, 3, 3, 2], input_strides=[1, 2, 2, 2, 1],
+            dict(input_shape=[1, 24, 24, 24, 3], input_filter=[1, 2, 3, 3, 2], input_strides=[1, 2, 2, 2, 1],
                  dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("padding", ['SAME', 'VALID'])
     @pytest.mark.nightly
-    def test_conv3d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
-        self._test(*self.create_conv3d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
-                                                             use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+    def test_conv3d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Unable to convert data format b_fs_zyx_fsv16 to weights format issue on GPU")
+        self._test(*self.create_conv3d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version),
+                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir)

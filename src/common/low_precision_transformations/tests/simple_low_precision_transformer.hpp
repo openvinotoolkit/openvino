@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <map>
 
-#include <ngraph/ngraph.hpp>
+#include "openvino/pass/manager.hpp"
 
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -14,20 +14,26 @@
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 
-class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
+class SimpleLowPrecisionTransformer : public ov::pass::ModelPass{
 public:
+    OPENVINO_MODEL_PASS_RTTI("SimpleLowPrecisionTransformer");
     SimpleLowPrecisionTransformer(
-        const std::vector<ngraph::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
-        const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
-        const AttributeParameters& params = AttributeParameters());
+        const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
+        const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
+        const AttributeParameters& params = AttributeParameters(),
+        const bool addCleanup = false);
 
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
     template <class T, class Operation>
-    void add(const std::shared_ptr<ov::Model> function, const TestTransformationParams& params) {
-        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
+    void add(const std::shared_ptr<ov::Model> model, const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(model, TestTransformationParams::toParams(params));
+    }
+    template <class T>
+    void add(const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ov::Model>& model);

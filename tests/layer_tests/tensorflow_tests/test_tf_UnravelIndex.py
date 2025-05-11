@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnravelIndex(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'indices' in inputs_info
-        indices_shape = inputs_info['indices']
+        assert 'indices:0' in inputs_info
+        indices_shape = inputs_info['indices:0']
         inputs_data = {}
-        inputs_data['indices'] = np.random.randint(0, self.num_elements, indices_shape).astype(self.input_type)
+        inputs_data['indices:0'] = np.random.randint(0, self.num_elements, indices_shape).astype(self.input_type)
         return inputs_data
 
     def create_unravel_index_net(self, input_shape, input_type, dims_value):
@@ -35,10 +35,8 @@ class TestUnravelIndex(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_unravel_index_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend, use_old_api):
+    def test_unravel_index_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unravel_index_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

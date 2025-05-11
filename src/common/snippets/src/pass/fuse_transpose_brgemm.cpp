@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -17,24 +17,19 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-const std::set<std::vector<int>> FuseTransposeBrgemm::supported_cases = {{0, 2, 1, 3}};
-
-bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_port) {
-    const auto transpose_node = transpose_port.get_node_shared_ptr();
-    // it's safe to do so because of the patterns we used. alternatively we can do it through pattern_values_map
-    const auto& constant = as_type_ptr<ov::opset1::Constant>(transpose_node->get_input_node_shared_ptr(1));
-    // if Transpose in and out layout is not empty => something was already fused on this port
-    auto default_layout = std::vector<size_t>(transpose_port.get_shape().size());
-    std::iota(default_layout.begin(), default_layout.end(), 0);// NCHW layout by default
-    if (lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_port)->get_layout() != default_layout ||
-        lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_node->input_value(0))->get_layout() != default_layout)
+bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_out) {
+    const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
+    if (!transpose)
         return false;
-    const auto& transpose_order = constant->cast_vector<int>();
-    // todo: this limitation is due to the fact that offsets are calculated in Kernel, and the only way
-    //  to calc them non-default way is to set Parameter rt_info field. This limitation can be removed if
-    //  the rt_info is properly propagated to the corresponding parameter
-    return is_type<ov::opset1::Parameter>(transpose_node->get_input_node_shared_ptr(0)) &&
-           supported_cases.count(transpose_order) != 0;
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    if (!order)
+        return false;
+    return is_supported_transpose_order(order->cast_vector<int32_t>());
+}
+
+bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t>& order) {
+    const auto size = order.size();
+    return order.size() > 0 && order.back() == (static_cast<int32_t>(size) - 1);
 }
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
@@ -51,13 +46,27 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
 
     // Pattern 2: Transpose on output of MatMul
     auto brgemm_out = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto transpose2 = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant});
+    auto transpose2 = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant}, is_supported_transpose);
 
     auto brgemm_or_transpose = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{brgemm_in0, brgemm_in1, transpose2});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
+
+        auto fuse_layouts = [](const std::vector<size_t>& layout_1, const std::vector<size_t>& layout_2) {
+            if (layout_1.empty())
+                return layout_2;
+            if (layout_2.empty())
+                return layout_1;
+            OPENVINO_ASSERT(layout_1.size() == layout_2.size(), "Fused layouts must have equal ranks");
+            std::vector<size_t> fused_layout(layout_1.size());
+            for (size_t i = 0; i < layout_1.size(); ++i) {
+                OPENVINO_ASSERT(layout_2[i] < layout_1.size(), "Fused layouts values mustn't exceed layout size");
+                fused_layout[i] = layout_1[layout_2[i]];
+            }
+            return fused_layout;
+        };
 
         // Transpose on the Brgemm's output
         if (!brgemm) {
@@ -66,8 +75,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& transpose_out = m.get_match_value();
             const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
             const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_out);
-            original_port->set_shape(transpose_out.get_shape());
-            original_port->set_layout(const_order->cast_vector<size_t>());
+            original_port->set_shape(utils::pshape_to_vdims(transpose_out.get_partial_shape()));
+            const auto& out_layout = original_port->get_layout();
+            const auto& transpose_order = const_order->cast_vector<size_t>();
+            original_port->set_layout(fuse_layouts(out_layout, transpose_order));
             for (const auto& in : transpose_out.get_target_inputs())
                 in.replace_source_output(brgemm->output(0));
         }
@@ -80,8 +91,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
                 const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
                 brgemm->set_argument(i, transpose->input_value(0));
                 const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
-                original_port->set_shape(transpose->get_input_shape(0));
-                original_port->set_layout(const_order->cast_vector<size_t>());
+                const auto& in_layout = original_port->get_layout();
+                const auto& transpose_order = const_order->cast_vector<size_t>();
+                original_port->set_shape(utils::pshape_to_vdims(transpose->get_input_partial_shape(0)));
+                original_port->set_layout(fuse_layouts(transpose_order, in_layout));
             }
         }
 

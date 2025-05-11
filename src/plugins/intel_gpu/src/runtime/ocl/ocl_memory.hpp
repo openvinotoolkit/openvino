@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,23 +27,25 @@ struct lockable_gpu_mem {
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
-    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer);
+    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    event::ptr fill(stream& stream, unsigned char pattern) override;
-    event::ptr fill(stream& stream) override;
+    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
+    event::ptr fill(stream& stream, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
     }
+    void* buffer_ptr() const override {
+        return get_buffer().get();
+    }
 
-    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
-
-    event::ptr copy_to(stream& stream, void* other , bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
@@ -54,24 +56,22 @@ protected:
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
-    gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer);
+    gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    event::ptr fill(stream& stream, unsigned char pattern) override;
-    event::ptr fill(stream& stream) override;
+    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
+    event::ptr fill(stream& stream, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
     const cl::Image2D& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
     }
 
-    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* other, bool blocking) override;
-
-    event::ptr copy_to(stream& stream, memory& other, bool blocking) override;
-    event::ptr copy_to(stream& stream, void* other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
+    event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) const override;
 
 protected:
     cl::Image2D _buffer;
@@ -105,8 +105,8 @@ private:
 #endif
 
 struct gpu_usm : public lockable_gpu_mem, public memory {
-    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type);
-    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer);
+    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -115,14 +115,14 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     cl::UsmMemory& get_buffer() { return _buffer; }
     void* buffer_ptr() const override { return _buffer.get(); }
 
-    event::ptr fill(stream& stream, unsigned char pattern) override;
-    event::ptr fill(stream& stream) override;
+    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
+    event::ptr fill(stream& stream, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
 
-    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override;
 
-    event::ptr copy_to(stream& stream, void* host_ptr, bool blocking) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
 #endif

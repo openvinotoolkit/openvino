@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -71,7 +72,7 @@ public:
         // reduce = reduce_type->copy_with_new_inputs({input, axes_const});
         // reduce->set_keep_dims(keep_dims);
 
-        return std::make_shared<ov::Model>(NodeVector{reduce}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{reduce}, ParameterVector{input});
     }
 
     static std::shared_ptr<ov::Model> get_reference_function(const PartialShape& input_shape,
@@ -126,7 +127,7 @@ public:
                 true);
         }
 
-        return std::make_shared<ov::Model>(NodeVector{input.get_node_shared_ptr()}, ParameterVector{param});
+        return std::make_shared<ov::Model>(OutputVector{input.get_node_shared_ptr()}, ParameterVector{param});
     }
 };
 
@@ -138,7 +139,7 @@ TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
     m.register_pass<ov::pass::ConvertReduceToPooling>();
     m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc =
         FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);
@@ -209,7 +210,7 @@ TEST(ConvertReduceToPooling, Negative) {
     auto f = ConvertReduceToPoolingTests::get_initial_function(PartialShape::dynamic(), {3}, MAX, true);
     pass::Manager manager;
     manager.register_pass<ov::pass::ConvertReduceToPooling>();
-    ASSERT_NO_THROW(manager.run_passes(f));
+    OV_ASSERT_NO_THROW(manager.run_passes(f));
 }
 
 #undef MAX

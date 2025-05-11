@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var PYTHON_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE CMAKE_SHARED_LIBRARY_SUFFIX)
+foreach(var Python3_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE CMAKE_SHARED_LIBRARY_SUFFIX)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -12,7 +12,13 @@ endforeach()
 
 find_program(fdupes_PROGRAM NAMES fdupes DOC "Path to fdupes")
 if(NOT fdupes_PROGRAM)
-    message(WARNING "Failed to find 'fdupes' tool, use 'sudo apt-get install fdupes' to install it")
+    set(fdupes_install_msg "refer to your platform's package manager or install it manually.")
+    if(CMAKE_HOST_LINUX)
+        set(fdupes_install_msg "sudo apt-get install fdupes")
+    elseif(CMAKE_HOST_APPLE)
+        set(fdupes_install_msg "brew install fdupes")
+    endif()
+    message(WARNING "Failed to find 'fdupes' tool. Install it using: ${fdupes_install_msg}")
     return()
 endif()
 
@@ -20,7 +26,7 @@ endif()
 
 get_filename_component(wheel_name "${PACKAGE_FILE}" NAME)
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
+execute_process(COMMAND ${Python3_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
                 WORKING_DIRECTORY ${WORKING_DIRECTORY}
                 OUTPUT_VARIABLE output_message
                 ERROR_VARIABLE error_message
@@ -48,7 +54,7 @@ file(REMOVE_RECURSE "${WORKING_DIRECTORY}")
 # filtering of 'duplicated_files'
 
 foreach(duplicated_file IN LISTS duplicated_files)
-    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*" AND NOT duplicated_file MATCHES ".*\\.pyi$")
         set(duplicated_libraries "${duplicated_file}\n${duplicated_libraries}")
     endif()
 endforeach()

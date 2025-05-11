@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,12 +39,12 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using parent = typed_primitive_impl_ocl<roi_align>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::roi_align_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::roi_align_params, kernel_selector::roi_align_optional_params>;
+    using kernel_params_t = kernel_selector::roi_align_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roi_align_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<roi_align_impl>(*this);
+        return make_deep_copy<roi_align_impl, kernel_params_t>(*this);
     }
 
 protected:
@@ -63,7 +63,6 @@ public:
         const auto& batches_layout = impl_param.get_input_layout(2);
 
         auto params = get_default_params<kernel_selector::roi_align_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::roi_align_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(rois_layout));
         params.inputs.push_back(convert_data_tensor(batches_layout));
@@ -71,8 +70,10 @@ public:
         params.aligned_mode = from(primitive->aligned_mode);
         params.sampling_ratio = primitive->sampling_ratio;
         params.spatial_scale = primitive->spatial_scale;
+        params.rotated_mode = primitive->roi_mode == roi_align::ROIMode::rotated;
+        params.clockwise = primitive->clockwise;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

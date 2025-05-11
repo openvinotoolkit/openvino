@@ -1,10 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/op/rdft.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -26,8 +31,8 @@ static std::shared_ptr<op::v7::DFT> build_dft_signal() {
 
 static std::shared_ptr<op::v7::DFT> build_dft_constant() {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 2});
-    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{512, 100});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 2});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{512, 100});
     auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
     return DFT_signal;
 }
@@ -161,8 +166,8 @@ TEST(StaticShapeInferenceTest, RDFTWithSignalSizes) {
 
 TEST(StaticShapeInferenceTest, RDFTWithConstAxesAndSignalSizes) {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{2, 3});
-    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{64, 64});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{2, 3});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{64, 64});
     auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}};

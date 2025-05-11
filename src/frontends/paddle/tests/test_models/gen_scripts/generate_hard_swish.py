@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -15,7 +15,10 @@ def hard_swish(name: str, x, threshold=6.0, scale=6.0, offset=3.0, data_type='fl
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.fluid.layers.hard_swish(node_x, threshold=threshold, scale=scale, offset=offset, name='hard_swish')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.nn.functional.hardswish(node_x, name='hard_swish')
+        else:
+            out = paddle.fluid.layers.hard_swish(node_x, threshold=threshold, scale=scale, offset=offset, name='hard_swish')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -26,7 +29,7 @@ def hard_swish(name: str, x, threshold=6.0, scale=6.0, offset=3.0, data_type='fl
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

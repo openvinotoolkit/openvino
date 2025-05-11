@@ -1,19 +1,21 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/shuffle_channels.hpp"
-
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
+#include "low_precision/shuffle_channels.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,20 +23,20 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
     MATCHER_SCOPE(ShuffleChannelsTransformation);
     auto matcher = pattern::wrap_type<opset1::ShuffleChannels>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ShuffleChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ShuffleChannelsTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -48,18 +50,16 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const size_t normalizedAxis = ngraph::normalize_axis(
-                shuffleChannels->get_friendly_name(),
-                shuffleChannels->get_axis(),
-                shuffleChannels->get_input_partial_shape(0).rank());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const size_t normalizedAxis =
+                ov::util::try_normalize_axis(shuffleChannels->get_axis(),
+                                             shuffleChannels->get_input_partial_shape(0).rank(),
+                                             *shuffleChannels);
 
             if (constShape[normalizedAxis] == 1ul) {
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                const auto shuffledConst = fold<ov::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
                 return ov::as_type_ptr<opset1::Constant>(shuffledConst);
             }
         }
@@ -75,12 +75,14 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
     replace_node(dequantization.multiplyConstant, shuffledMulConst);
     dequantization.multiplyConstant = shuffledMulConst;
 
-    moveDequantizationAfter(context, shuffleChannels, dequantization, false);
+    const auto newOperation = moveDequantizationAfter(shuffleChannels, dequantization);
+
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
+bool ShuffleChannelsTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }
 
@@ -117,4 +119,4 @@ bool ShuffleChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -352,7 +352,7 @@ protected:
 };
 
 TEST(attributes, user_op) {
-    ov::test::NodeBuilder::get_ops().register_factory<Oracle>();
+    ov::test::NodeBuilder::opset().insert<Oracle>();
     auto program = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto result = make_shared<ov::op::v0::Result>(data);

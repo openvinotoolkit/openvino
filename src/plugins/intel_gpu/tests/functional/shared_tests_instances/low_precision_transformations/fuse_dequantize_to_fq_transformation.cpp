@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 
@@ -18,11 +17,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             { },
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, {}, { 0.01f } },
-            ngraph::element::f32,
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -31,11 +30,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {128, 3},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             { },
-            ngraph::element::f32,
-            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
-            ngraph::element::f32,
+            ov::element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ov::element::f32, {1, 3} } },
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -44,11 +43,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             { },
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, {}, { {0.01f, 0.f, 0.01f} } },
-            ngraph::element::f32,
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -57,11 +56,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             { },
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -70,11 +69,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             { },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
+            ov::element::u8,
+            { {ov::element::f32}, { -128 }, { 0.01f } },
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -83,11 +82,11 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            { {128}, ngraph::element::f32 },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
+            ov::element::f32,
+            { {128}, ov::element::f32 },
+            ov::element::u8,
+            { {ov::element::f32}, { -128 }, { 0.01f } },
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
@@ -98,9 +97,9 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {
             { },
             { },
-            ngraph::element::i32,
-            { {ngraph::element::f32}, {}, {} },
-            ngraph::element::f32,
+            ov::element::i32,
+            { {ov::element::f32}, {}, {} },
+            ov::element::f32,
             { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } }
         }
     },

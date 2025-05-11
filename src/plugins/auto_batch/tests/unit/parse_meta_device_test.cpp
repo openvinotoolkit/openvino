@@ -1,25 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using meta_device_params = std::tuple<std::string,        // Device batch cfg
                                       ov::AnyMap,         // property map
@@ -27,12 +11,12 @@ using meta_device_params = std::tuple<std::string,        // Device batch cfg
                                       bool>;              // Throw exception
 
 const std::vector<std::string> cpu_supported_properties = {
-    "CACHE_DIR",
+    ov::cache_dir.name(),
 };
 
 const std::vector<std::string> gpu_supported_properties = {
-    "CACHE_DIR",
-    "OPTIMAL_BATCH_SIZE",
+    ov::cache_dir.name(),
+    ov::optimal_batch_size.name(),
 };
 
 class ParseMetaDeviceTest : public ::testing::TestWithParam<meta_device_params> {
@@ -76,7 +60,7 @@ public:
         std::tie(m_batch_cfg, m_config, m_expected_device_info, m_throw_exception) = this->GetParam();
 
         ON_CALL(*m_core, get_supported_property)
-            .WillByDefault([](const std::string& device, const ov::AnyMap& configs) {
+            .WillByDefault([](const std::string& device, const ov::AnyMap& configs, const bool keep_core_property) {
                 ov::AnyMap res_config;
                 if (device == "CPU") {
                     for (auto& c : configs) {
@@ -124,16 +108,16 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDeviceTestCase) {
 const std::vector<meta_device_params> meta_device_test_configs = {
     meta_device_params{"CPU(4)", {}, DeviceInformation{"CPU", {}, 4}, false},
     meta_device_params{"CPU(4)", {{}}, DeviceInformation{"CPU", {{}}, 4}, true},
-    meta_device_params{"CPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4}, false},
-    meta_device_params{"GPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"GPU", {{"CACHE_DIR", "./"}}, 4}, false},
+    meta_device_params{"CPU(4)", {{ov::cache_dir("./")}}, DeviceInformation{"CPU", {{ov::cache_dir("./")}}, 4}, false},
+    meta_device_params{"GPU(4)", {{ov::cache_dir("./")}}, DeviceInformation{"GPU", {{ov::cache_dir("./")}}, 4}, false},
     meta_device_params{"GPU(8)",
-                       {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
-                       DeviceInformation{"GPU", {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}}, 8},
+                       {{ov::cache_dir("./")}, {ov::optimal_batch_size.name(), "16"}},
+                       DeviceInformation{"GPU", {{ov::cache_dir("./")}, {ov::optimal_batch_size.name(), "16"}}, 8},
                        false},
-    meta_device_params{"CPU(4)", {{"OPTIMAL_BATCH_SIZE", "16"}}, DeviceInformation{"CPU", {{}}, 4}, true},
+    meta_device_params{"CPU(4)", {{ov::optimal_batch_size.name(), "16"}}, DeviceInformation{"CPU", {{}}, 4}, true},
     meta_device_params{"CPU(4)",
-                       {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
-                       DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4},
+                       {{ov::cache_dir("./")}, {ov::optimal_batch_size.name(), "16"}},
+                       DeviceInformation{"CPU", {{ov::cache_dir("./")}}, 4},
                        true},
 };
 

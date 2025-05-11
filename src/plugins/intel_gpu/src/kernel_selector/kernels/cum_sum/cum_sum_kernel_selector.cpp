@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ cum_sum_kernel_selector::cum_sum_kernel_selector() {
     Attach<CumSumKernelPartialSum>();
 }
 
-KernelsData cum_sum_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::CUM_SUM);
+KernelsData cum_sum_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::CUM_SUM);
 }
 }  // namespace kernel_selector

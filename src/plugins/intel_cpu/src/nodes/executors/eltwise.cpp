@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0mvn
 //
 
 #include "eltwise.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#include <utility>
 
-using namespace InferenceEngine;
+namespace ov::intel_cpu {
 
-EltwiseExecutor::EltwiseExecutor(const ExecutorContext::CPtr context) : context(context) {}
+EltwiseExecutor::EltwiseExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

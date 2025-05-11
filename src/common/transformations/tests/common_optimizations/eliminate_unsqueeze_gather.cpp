@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
@@ -43,13 +48,13 @@ protected:
                                                          v0::Constant::create(element::i64, Shape{1}, {0}),
                                                          v0::Constant::create(element::i64, Shape{1}, {axis}));
         const auto relu = std::make_shared<v0::Relu>(gather);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Actual");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Actual");
     }
 
     static std::shared_ptr<Model> reference(const TensorShape& inShape, const TensorType& inType) {
         const auto parameter = std::make_shared<v0::Parameter>(inType, inShape);
         const auto relu = std::make_shared<v0::Relu>(parameter);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Reference");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Reference");
     }
 };
 

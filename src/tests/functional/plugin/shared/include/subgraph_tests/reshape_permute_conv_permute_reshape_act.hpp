@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
-namespace SubgraphTestsDefinitions {
-
-TEST_P(ConvReshapeAct, CompareWithRefs) {
-    Run();
+namespace ov {
+namespace test {
+TEST_P(ConvReshapeAct, Inference) {
+    run();
 }
-
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

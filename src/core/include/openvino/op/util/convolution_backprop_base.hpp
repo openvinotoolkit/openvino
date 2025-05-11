@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace util {
 /// \brief Base class for operations like back propagation convolution
 class OPENVINO_API ConvolutionBackPropBase : public ConvolutionBase {
 public:
-    OPENVINO_OP("ConvolutionBackPropBase", "util");
+    OPENVINO_OP("ConvolutionBackPropBase", "util", ConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     ConvolutionBackPropBase() = default;

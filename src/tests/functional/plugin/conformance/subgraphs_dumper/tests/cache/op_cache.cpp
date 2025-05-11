@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cache/op_cache.hpp"
+
 #include <memory>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/util/file_util.hpp"
-
+#include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "cache/op_cache.hpp"
+#include "openvino/util/file_util.hpp"
+#include "utils/cache.hpp"
 #include "utils/node.hpp"
-
-#include "base_test.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 
@@ -29,11 +29,11 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
-            auto params = ov::ParameterVector {
+            auto params = ov::ParameterVector{
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
             };
             auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), ov::element::f16);
@@ -64,30 +64,29 @@ TEST_F(OpCacheFuncTest, get_op_cache_twice) {
 
 TEST_F(OpCacheFuncTest, update_cache) {
     auto op_cache = ov::tools::subgraph_dumper::OpCache::get();
-    ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
-    ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
 }
 
 TEST_F(OpCacheFuncTest, serialize_cache) {
     auto op_cache = ov::tools::subgraph_dumper::OpCache::get();
     op_cache->set_serialization_dir(test_artifacts_dir);
-    ASSERT_NO_THROW(op_cache->serialize_cache());
+    OV_ASSERT_NO_THROW(op_cache->serialize_cache());
 }
 
 // ====================== Operation Cache Unit tests ==============================
 
-class OpCacheUnitTest : public OpCacheFuncTest,
-                        public virtual OpCache {
+class OpCacheUnitTest : public OpCacheFuncTest, public virtual OpCache {
 protected:
     std::shared_ptr<ov::op::v0::Convert> convert_node;
-    MetaInfo test_meta;
+    ov::conformance::MetaInfo test_meta;
 
     void SetUp() override {
         OpCacheFuncTest::SetUp();
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1});
         convert_node = std::make_shared<ov::op::v0::Convert>(param, ov::element::f16);
         convert_node->set_friendly_name("convert_0");
-        test_meta = MetaInfo(test_model_path, {{"in_0", InputInfo()}});
+        test_meta = ov::conformance::MetaInfo(test_model_path, {{"in_0", ov::conformance::InputInfo()}});
     }
 };
 
@@ -100,7 +99,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     this->update_cache(convert_node, test_model_path, 1);
     ASSERT_EQ(m_ops_cache.size(), 1);
     std::shared_ptr<ov::Model> test_model_1;
-    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"});
+    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"}).string();
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1});
         param->set_friendly_name("in_0");
@@ -115,10 +114,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     // check cache
     ASSERT_EQ(m_ops_cache.size(), 2);
     for (const auto& cached_node : this->m_ops_cache) {
-        ASSERT_TRUE(std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first) ||
-                    std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(cached_node.first));
+        ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first) ||
+                    ov::as_type_ptr<ov::op::v0::ShapeOf>(cached_node.first));
         auto meta = cached_node.second;
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
             ASSERT_EQ(meta.get_model_info().size(), 1);
             ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
@@ -133,8 +132,8 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
             ASSERT_EQ(meta.get_input_info().begin()->first, "Convert-1_0");
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, ov::conformance::DEFAULT_MAX_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, ov::conformance::DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
         } else {
             // check model_path
@@ -150,22 +149,30 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
             ASSERT_EQ(meta.get_input_info().begin()->first, "ShapeOf-1_0");
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, ov::conformance::DEFAULT_MAX_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, ov::conformance::DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
         }
     }
 }
 
+TEST_F(OpCacheUnitTest, directory_exists) {
+    EXPECT_TRUE(ov::util::directory_exists(test_artifacts_dir));
+    EXPECT_FALSE(ov::util::directory_exists(test_artifacts_dir + "/fake"));
+}
+
 TEST_F(OpCacheUnitTest, serialize_op) {
+    // Ticket: 149824
+    if (std::getenv("GITHUB_ACTIONS")) {
+        GTEST_SKIP();
+    }
     this->set_serialization_dir(test_artifacts_dir);
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));
-    auto serialized_model_path = ov::util::path_join({test_artifacts_dir,
-        "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
+    auto serialized_model_path =
+        ov::util::path_join({test_artifacts_dir, "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
     ASSERT_TRUE(ov::util::file_exists(serialized_model_path));
-    auto core = ov::Core();
-    auto serialized_model = core.read_model(serialized_model_path);
+    auto serialized_model = ov::util::core->read_model(serialized_model_path);
     auto res = compare_functions(test_model, serialized_model, true, false, true, true, true, false);
     ASSERT_TRUE(res.first);
 }
@@ -177,7 +184,7 @@ TEST_F(OpCacheUnitTest, get_rel_serilization_dir) {
 }
 
 TEST_F(OpCacheUnitTest, generate_model_by_node) {
-    auto generated_graph = generate_model_by_node(convert_node);
+    auto generated_graph = ov::util::generate_model_by_node(convert_node);
     auto res = compare_functions(test_model, generated_graph, true, false, true, true, true, false);
     ASSERT_TRUE(res.first);
 }

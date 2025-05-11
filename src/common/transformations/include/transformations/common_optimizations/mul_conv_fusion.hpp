@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <functional>
 #include <memory>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Multiply->Convolution fusion replaces following graph:
  *
  *   +-------+   +----------+
@@ -71,7 +71,7 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
  *
  * Restrictions:
  * - weights' shape is static
- * - if the constant input to Multiply has the same rank as 'input', the constant first dimension has to be 1
+ * - if the constant input to Multiply has the same rank as weights, the constant first dimension has to be 1
  * - constant input to Multiply has to be broadcastable to weights when 'Convolution Op' is either Convolution or
  * GroupConvolution
  * - shape of a constant input to Multiply has to be in one of following forms: (1), (1, 1, ..., 1), (C, 1, ..., 1), (1,
@@ -80,24 +80,24 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 class ov::pass::MultiplyConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyConvolutionFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionFusion");
     MultiplyConvolutionFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyGroupConvolutionFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionFusion");
     MultiplyGroupConvolutionFusion();
 };
 
 class ov::pass::MultiplyConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyConvolutionBackpropDataFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionBackpropDataFusion");
     MultiplyConvolutionBackpropDataFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionBackpropDataFusion");
     MultiplyGroupConvolutionBackpropDataFusion();
 };

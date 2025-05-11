@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -10,8 +10,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestAtenTo(PytorchLayerTest):
-    def _prepare_input(self):
-        return (np.random.uniform(low=0.0, high=50.0, size=(3,)),)
+    def _prepare_input(self, input_shape=(3,)):
+        return (np.random.uniform(low=0.0, high=50.0, size=input_shape),)
 
     def create_model(self, type, non_blocking=False, copy=False, memory_format=None):
         import torch
@@ -39,7 +39,8 @@ class TestAtenTo(PytorchLayerTest):
     @pytest.mark.precommit
     def test_aten_to(self, input_type, output_type, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(output_type),
+                   ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -56,7 +57,8 @@ class TestAtenTo(PytorchLayerTest):
     @pytest.mark.nightly
     def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version)
+        self._test(*self.create_model(output_type,
+                   non_blocking=non_blocking), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -72,7 +74,8 @@ class TestAtenTo(PytorchLayerTest):
     @pytest.mark.nightly
     def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
+        self._test(*self.create_model(output_type, copy=copy),
+                   ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -83,14 +86,19 @@ class TestAtenTo(PytorchLayerTest):
         [torch.int32, 2],
         [torch.int64, 3],
         [torch.float32, 3],
-        [torch.float64, 4],
+        [torch.float64, 0],
     ])
     @pytest.mark.nightly
     def test_aten_to_raise_memory_format_arg(self, input_type, output_type, memory_format, ie_device, precision,
                                              ir_version):
         self.input_type = input_type
-        with pytest.raises(OpConversionFailure) as e:
-            self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
+        input_shape = (3,)
+        if memory_format == 2:
+            input_shape = (3, 4, 5, 6)
+        if memory_format == 3:
+            input_shape = (3, 4, 5, 6, 7)
+        self._test(*self.create_model(output_type, memory_format=memory_format), ie_device,
+                   precision, ir_version, kwargs_to_prepare_input={"input_shape": input_shape})
 
 
 class TestAtenToDevice(PytorchLayerTest):
@@ -113,7 +121,9 @@ class TestAtenToDevice(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_aten_to_device(self, use_trace, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=use_trace)
+
 
 class TestAtenToDeviceConst(PytorchLayerTest):
     def _prepare_input(self):
@@ -135,4 +145,90 @@ class TestAtenToDeviceConst(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_aten_to_device_const(self, use_trace, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=use_trace)
+
+
+class TestAtenToComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(2, 3),)
+
+    def create_model(self, dtype):
+        import torch
+
+        class aten_to_complex(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, x):
+                return torch.view_as_real(x.to(self.dtype))
+
+        return aten_to_complex(dtype), None, "aten::to"
+
+    @pytest.mark.parametrize("dtype", [torch.complex32,
+                                       torch.complex64,
+                                       torch.complex128])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_complex(self, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(dtype), ie_device, precision,
+                   ir_version, trace_model=True)
+
+
+class TestAtenToFromComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        # double conversion to avoid accuracy issues due to different precision
+        return (np.random.randn(2, 3, 2).astype(np.float16).astype(np.float32),)
+
+    def create_model(self, dtype):
+        import torch
+
+        class aten_to_from_complex(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, x):
+                c = torch.view_as_complex(x.to(self.dtype))
+                return c.to(torch.float32)
+
+        return aten_to_from_complex(dtype), None, "aten::to"
+
+    @pytest.mark.parametrize("dtype", [torch.float16,
+                                       torch.float32,
+                                       torch.float64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_from_complex(self, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(dtype), ie_device, precision,
+                   ir_version)
+
+
+class TestAtenToFromComplexTensor(PytorchLayerTest):
+    def _prepare_input(self):
+        # double conversion to avoid accuracy issues due to different precision
+        return (np.random.randn(2, 3, 2).astype(np.float16).astype(np.float32),)
+
+    def create_model(self, dtype):
+        import torch
+
+        class aten_to_from_complex(torch.nn.Module):
+            def __init__(self, dtype):
+                super().__init__()
+                self.dtype = dtype
+
+            def forward(self, x):
+                c = torch.view_as_complex(x.to(self.dtype))
+                return c.to(x.dtype)
+
+        return aten_to_from_complex(dtype), None, "aten::to"
+
+    @pytest.mark.parametrize("dtype", [torch.float16,
+                                       torch.float32,
+                                       torch.float64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_from_complex(self, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(dtype), ie_device, precision,
+                   ir_version)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,13 @@
 #include <map>
 #include <memory>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/node.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace recurrent {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -39,16 +39,15 @@ enum class OpInput {
 /// \brief      This structure aggregates operator's inptus in a key-value map.
 ///
 struct OpInputMap {
-    using container_type = std::map<OpInput, Output<ngraph::Node>>;
+    using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    explicit OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
+
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
-    Output<ngraph::Node>& at(const OpInput& key);
-    const Output<ngraph::Node>& at(const OpInput& key) const;
+    ov::Output<ov::Node>& at(const OpInput& key);
+    const ov::Output<ov::Node>& at(const OpInput& key) const;
 
     container_type m_map;
 };
@@ -59,12 +58,11 @@ struct OpInputMap {
 /// \brief      This structure aggregates operator's attributes.
 ///
 struct OpAttributes {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpAttributes(const Node& node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     virtual ~OpAttributes() = default;
 
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     std::int64_t m_hidden_size;
     float m_clip_threshold;
     std::vector<std::string> m_activations;
@@ -73,5 +71,6 @@ struct OpAttributes {
 };
 
 }  // namespace recurrent
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,20 +16,26 @@
 #include "rt_info/precisions_attribute.hpp"
 #include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
-#include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
 #include "layer_transformation.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 /**
-* @brief NetworkHelper class encapsulates manipulations with nGraph function.
+* @brief NetworkHelper class encapsulates manipulations with ov::Model.
 */
 class LP_TRANSFORMATIONS_API NetworkHelper {
 public:
@@ -97,7 +103,7 @@ public:
     static std::shared_ptr<ov::opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
     static std::shared_ptr<ov::opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<ov::opset1::FakeQuantize> fq,
@@ -119,26 +125,26 @@ public:
     static FakeQuantizeDequantization makeDequantization(
         const float dequantizationMul,
         const float dequantizationSub,
-        const ngraph::element::Type originalPrecision,
-        const ngraph::PartialShape& dataNodeOutputShape,
+        const ov::element::Type originalPrecision,
+        const ov::PartialShape& dataNodeOutputShape,
         element::Type precision,
         const element::Type deqPrecision = element::f32,
-        std::shared_ptr<ngraph::Node> input = nullptr);
+        std::shared_ptr<ov::Node> input = nullptr);
 
-    static std::shared_ptr<ngraph::Node> makeDequantizationSubtract(
-        const ngraph::Output<ngraph::Node>& parent,
-        const ngraph::Output<ngraph::Node>& subtract_constant);
+    static std::shared_ptr<ov::Node> makeDequantizationSubtract(
+        const ov::Output<ov::Node>& parent,
+        const ov::Output<ov::Node>& subtract_constant);
 
-    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ov::Node>& node,
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
-    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node,
-        const std::vector<ngraph::element::Type>& _defaultPrecisions = precision_set::int8_support);
+    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ov::Node>& node,
+        const std::vector<ov::element::Type>& _defaultPrecisions = precision_set::get_int8_support());
 
     static bool isQuantizeSupported(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ngraph::element::Type> _defaultPrecisions = precision_set::int8_support,
+        const std::vector<ov::element::Type> _defaultPrecisions = precision_set::get_int8_support(),
         const size_t parentIndex = 0ul,
         const bool inPlace = false);
 
@@ -166,16 +172,15 @@ public:
     };
 
     static InsertDequantizationResult moveDequantizationAfter(
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
+        const bool updateOutputPrecision,
         const bool moveSubtract,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static InsertDequantizationResult moveDequantizationBefore(
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
         const bool moveSubtract);
 
     static std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> splitConstantsBeforeConcat(
@@ -184,11 +189,12 @@ public:
 
     static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
 
-    static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+    static size_t getChildInputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+    static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision);
+    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization,
+                                                              const element::Type& precision = element::dynamic);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
@@ -200,11 +206,11 @@ public:
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
         const size_t branchIndex,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support,
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support(),
         const bool inPlace = false);
 
-    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+    static std::shared_ptr<ov::Node> separateInStandaloneBranch(std::shared_ptr<ov::Node> node,
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static std::shared_ptr<ov::opset1::FakeQuantize> fuseConvert(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize);
 
@@ -212,7 +218,7 @@ public:
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
 
-    static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
+    static bool isPrecisionPreserved(const std::shared_ptr<ov::Node>& node);
 
     static void insertDequantizationAfter(
         const std::shared_ptr<Node>& originalNode,
@@ -266,7 +272,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shar
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
-        std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        std::dynamic_pointer_cast<ov::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
         THROW_IE_LPT_EXCEPTION(*layer) << "TypeRelaxed type is expected";
@@ -278,7 +284,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
-        std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        std::dynamic_pointer_cast<ov::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
         // Make such replacements in advance for all supported polymorphic layer types
@@ -292,9 +298,14 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 }
 
 template <typename T>
-std::shared_ptr<Node> make_op_pattern(const ngraph::NodeVector& args) {
-    return std::make_shared<ov::pass::pattern::op::Any>(element::undefined, PartialShape{},
-                                                        [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); }, args);
+std::shared_ptr<Node> make_op_pattern(const ov::NodeVector& args) {
+    return std::make_shared<ov::pass::pattern::op::Any>(
+        element::dynamic,
+        PartialShape{},
+        [](std::shared_ptr<Node> n) {
+            return !!ov::as_type_ptr<T>(n);
+        },
+        args);
 }
 
 template <typename T, typename... Args>
@@ -361,4 +372,4 @@ bool isDisabled(const std::shared_ptr<Node>& node);
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

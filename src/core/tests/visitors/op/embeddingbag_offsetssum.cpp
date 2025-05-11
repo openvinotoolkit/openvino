@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(visitor_without_attribute, embedding_bag_offsets_sum_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::EmbeddingBagOffsetsSum>();
+    NodeBuilder::opset().insert<ov::op::v3::EmbeddingBagOffsetsSum>();
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2, 3});
 
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
@@ -30,7 +30,7 @@ TEST(visitor_without_attribute, embedding_bag_offsets_sum_op) {
 }
 
 TEST(visitor_without_attribute, embedding_bag_offsets_sum_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::EmbeddingBagOffsetsSum>();
+    NodeBuilder::opset().insert<ov::op::v3::EmbeddingBagOffsetsSum>();
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2, 3});
 
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
@@ -46,7 +46,7 @@ TEST(visitor_without_attribute, embedding_bag_offsets_sum_op2) {
 }
 
 TEST(visitor_without_attribute, embedding_bag_offsets_sum_op3) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::EmbeddingBagOffsetsSum>();
+    NodeBuilder::opset().insert<ov::op::v3::EmbeddingBagOffsetsSum>();
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2, 3});
 
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});

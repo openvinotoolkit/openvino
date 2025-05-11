@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,15 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 
 template <class T>
 class LP_TRANSFORMATIONS_API SharedAttribute : public ov::RuntimeAttribute {
 public:
-    virtual ~SharedAttribute() = default;
-
     /**
-     * @ingroup ie_transformation_common_api
+     * @ingroup ov_transformation_common_api
      * @brief SharedValueAttribute type for shared value attributes.
      * The attribute is used for attribute SharedValue value backward propagation.
      */

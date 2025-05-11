@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/op/roll.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/roll.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -39,10 +39,8 @@ std::vector<TRShape> shape_infer(const Roll* op,
                           "Axes must be a scalar or 1D tensor.");
 
     if (data_pshape.rank().is_static()) {
-        if (const auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::normalize_axes(op, data_pshape.size(), *axes);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
+            ov::util::validate_axes(*axes, data_pshape.rank(), *op);
         }
     }
 

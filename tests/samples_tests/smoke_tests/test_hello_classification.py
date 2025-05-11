@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2023 Intel Corporation
+ Copyright (C) 2018-2025 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -11,41 +11,45 @@
  limitations under the License.
 """
 import os
+import pathlib
 import pytest
 import re
 import sys
 import logging as log
-import subprocess
-from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import get_cmd_output, get_tests, download
 from common.samples_common_test_class import SamplesCommonTestClass
-from common.samples_common_test_class import Environment
 from common.common_utils import shell
 from pathlib import Path
 import shutil
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'd': ['CPU'],
-                                       'sample_type': ['C++', 'C']},
-                           use_device=['d'])
-
-test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                               'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                               'd': ['CPU'],
-                                               'sample_type': ['C++', 'C']},
-                                   use_device=['d'])
+def get_executable(sample_language):
+    return pathlib.Path(os.environ['IE_APP_PATH'], 'hello_classification' + ('' if sample_language == 'C++' else '_c')).with_suffix('.exe' if os.name == 'nt' else '')
 
 
-class TestHello(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'hello_classification'
-        super().setup_class()
+def prepend(cache, model, inp):
+    test_data_dir = cache.mkdir('test_data')
+    return download(test_data_dir, test_data_dir / model), download(test_data_dir, test_data_dir / inp)
+
+
+test_data_fp32 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'sample_type': ['C++', 'C'],
+})
+
+test_data_fp32_unicode = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],
+    'sample_type': ['C++'],
+})
+
+
+class Test_hello_classification(SamplesCommonTestClass):
+    sample_name = 'hello_classification'
 
     @pytest.mark.parametrize("param", test_data_fp32)
-    def test_hello_classification_fp32(self, param):
+    def test_hello_classification_fp32(self, param, cache):
         """
         Classification_sample_async has functional and accuracy tests.
         Also check ASCII path support.
@@ -53,26 +57,24 @@ class TestHello(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
-        if not stdout:
-            return 0
+        output = get_cmd_output(get_executable(param['sample_type']), *prepend(cache, param['m'], param['i']), param['d'])
 
-        stdout = stdout.split('\n')
+        output = output.split('\n')
 
         is_ok = True
-        for line in range(len(stdout)):
-            if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
-                top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
+        for line in range(len(output)):
+            if re.match('\\d+ +\\d+.\\d+$', output[line].replace('[ INFO ]', '').strip()) is not None:
+                top1 = output[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
                 if '215' not in top1:
                     is_ok = False
-                    log.error('Expected class 215, Detected class {}'.format(top1))
+                    log.error('Expected class 262, Detected class {}'.format(top1))
                 break
         assert is_ok, 'Wrong top1 class'
         log.info('Accuracy passed')
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
-    def test_hello_classification_check_unicode_path_support(self, param):
+    def test_hello_classification_check_unicode_path_support(self, param, cache, tmp_path):
         """
         Check UNICODE characters in paths.
         """
@@ -80,20 +82,16 @@ class TestHello(SamplesCommonTestClass):
         if sys.platform.startswith("win"):  #issue 71298 need fix, then add condition: and param.get('sample_type') == "C":
             pytest.skip("C sample doesn't support unicode paths on Windows")
 
-        tmp_dir_path = Path(os.path.join(os.environ.get('WORKSPACE'), f"tmp_dir_for_{self.sample_name}"))
-        tmp_image_dir = tmp_dir_path / 'image'
-        tmp_model_dir = tmp_dir_path / 'model'
+        tmp_image_dir = tmp_path / 'image'
+        tmp_model_dir = tmp_path / 'model'
 
-        if tmp_dir_path.exists():
-            shutil.rmtree(tmp_dir_path)
-
-        tmp_image_dir.mkdir(parents=True)  # make tmp_dir_path too
+        tmp_image_dir.mkdir()
         tmp_model_dir.mkdir()
 
+        test_data_dir = cache.makedir('test_data')
         # Copy files
-        shutil.copy(Path(Environment.env['test_data']) / Path(param['i']), tmp_image_dir)
-        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m']), tmp_model_dir)
-        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(test_data_dir / param['i'], tmp_image_dir)
+        shutil.copy(test_data_dir / param['m'], tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]
@@ -114,9 +112,9 @@ class TestHello(SamplesCommonTestClass):
 
         # Reference run
         log.info("Reference run ...")
-        self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=param.get('sample_type'))
+        executable_path = self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=param.get('sample_type'))
         cmd_line = f"{model_path} {image_path} {param.get('d', 'C++')}"
-        ref_retcode, ref_stdout, ref_stderr = shell([self.executable_path, cmd_line])
+        ref_retcode, ref_stdout, ref_stderr = shell([executable_path, cmd_line])
 
         if ref_retcode != 0:
             log.error("Reference run FAILED with error:")
@@ -131,10 +129,6 @@ class TestHello(SamplesCommonTestClass):
                 prob = float(line.split()[1])
                 ref_probs.append((prob_class, prob))
 
-        #  Testing
-        errors_list = []
-        passed = True
-
         for image_name in [encoded_words[-1]]:
             for model_name in [encoded_words[-1]]:
 
@@ -144,51 +138,11 @@ class TestHello(SamplesCommonTestClass):
 
                 new_model_path = tmp_model_dir / (original_model_name + f"_{model_name.decode('utf-8')}.xml")
                 model_path.rename(new_model_path)
-                Path(str(model_path).replace('.xml', '.bin')).rename(Path(str(new_model_path).replace('.xml', '.bin')))
-                model_path = new_model_path
-
-                cmd_line = f"{model_path} {image_path} {param.get('d', 'CPU')}"
-
-                if sys.platform.startswith('win'):
-                    subproc = subprocess.Popen(f"{self.executable_path} {cmd_line}", shell=True, stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE, encoding='utf-8')
-                    (stdout, stderr) = subproc.communicate()
-                    retcode = subproc.returncode
-
-                    if param['sample_type'] == 'C':
-                        print(f"STDOUT:\n"
-                              f"{stdout}\n\n"
-                              f"STDERR:\n"
-                              f"{stderr}\n\n"
-                              f"RETCODE:\n"
-                              f"{retcode}\n\n")
-                else:
-                    retcode, stdout, stderr = shell([self.executable_path, cmd_line])
-
-                if retcode != 0:
-                    passed = False
-                    errors_list.append({'image_additional_name': image_name.decode('utf-8'),
-                                        'model_additional_name': model_name.decode('utf-8'),
-                                        'error': stderr})
-
+                stdout = get_cmd_output(executable_path, new_model_path, image_path, param['d'])
                 probs = []
                 for line in stdout.split(sep='\n'):
                     if re.match(r"^\\d+\\s+\\d+.\\d+", line):
                         prob_class = int(line.split()[0])
                         prob = float(line.split()[1])
                         probs.append((prob_class, prob))
-
-                if ref_probs == probs:
-                    log.info('Accuracy passed. \n')
-                else:
-                    passed = False
-                    errors_list.append({'image_additional_name': image_name.decode('utf-8'),
-                                        'model_additional_name': model_name.decode('utf-8'),
-                                        'error': "Accuracy failed!"})
-
-        if passed:
-            shutil.rmtree(tmp_dir_path)
-            log.info("UNICODE check passed. Temporary files and directories has been deleted.")
-        else:
-            log.error("UNICODE check failed. Temporary files and directories has not been deleted.")
-            raise AssertionError("Sample execution failed!")
+                assert ref_probs == probs

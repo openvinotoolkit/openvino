@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -31,7 +32,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
     auto p_add_input = pattern::any_input();
     auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_add_input);
         const auto& subtrahend_input = pattern_to_output.at(p_input);
@@ -41,8 +42,8 @@ ov::pass::SubtractFusion::SubtractFusion() {
         NodeVector nodes_to_replace{add};
 
         if (pattern_to_output.count(p_mul_const)) {
-            auto minus_one_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                pattern_to_output.at(p_mul_const).get_node_shared_ptr());
+            auto minus_one_const =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
             if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }

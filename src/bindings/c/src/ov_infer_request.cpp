@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_infer_request.h"
@@ -289,13 +289,13 @@ ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const i
     if (!infer_request) {
         return ov_status_e::INVALID_C_PARAM;
     }
-
+    bool ret = true;
     try {
-        infer_request->object->wait_for(std::chrono::milliseconds(timeout));
+        ret = infer_request->object->wait_for(std::chrono::milliseconds(timeout));
     }
     CATCH_OV_EXCEPTIONS
 
-    return ov_status_e::OK;
+    return ret ? ov_status_e::OK : ov_status_e::RESULT_NOT_READY;
 }
 
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {

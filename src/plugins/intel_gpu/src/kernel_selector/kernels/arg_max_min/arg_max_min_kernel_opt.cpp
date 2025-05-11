@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ ParamsKey ArgMaxMinKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -17,7 +18,7 @@ ParamsKey ArgMaxMinKernelOpt::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ArgMaxMinKernelOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ArgMaxMinKernelOpt::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
     k.requires_subgroups();
@@ -27,8 +28,8 @@ DeviceFeaturesKey ArgMaxMinKernelOpt::get_required_device_features_key(const Par
     return k;
 }
 
-KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -56,7 +57,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         dispatchData.gws = { Align(size, 16), orgParams.inputs[0].Batch().v, 1 };
@@ -69,7 +70,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,7 @@ namespace ov {
 class OPENVINO_API BaseOpExtension : public Extension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
-    /**
-     * @brief Returns the type info of operation
-     *
-     * @return ov::DiscreteTypeInfo
-     */
-    virtual const ov::DiscreteTypeInfo& get_type_info() const = 0;
+
     /**
      * @brief Method creates an OpenVINO operation
      *
@@ -46,7 +41,7 @@ public:
     /**
      * @brief Destructor
      */
-    ~BaseOpExtension() override;
+    virtual ~BaseOpExtension() override;
 };
 
 namespace detail {
@@ -62,6 +57,7 @@ namespace detail {
 OV_COLLECT_ATTACHED_EXTENSIONS(onnx)
 OV_COLLECT_ATTACHED_EXTENSIONS(paddle)
 OV_COLLECT_ATTACHED_EXTENSIONS(tensorflow)
+OV_COLLECT_ATTACHED_EXTENSIONS(pytorch)
 }  // namespace detail
 
 /**
@@ -98,6 +94,7 @@ public:
         detail::collect_attached_extensions_onnx<T>(res);
         detail::collect_attached_extensions_paddle<T>(res);
         detail::collect_attached_extensions_tensorflow<T>(res);
+        detail::collect_attached_extensions_pytorch<T>(res);
         return res;
     }
 };

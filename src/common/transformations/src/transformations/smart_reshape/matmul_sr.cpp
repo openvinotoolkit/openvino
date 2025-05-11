@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -28,10 +28,8 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
                                          const std::shared_ptr<ov::Node>& other_input_label,
                                          const std::shared_ptr<ov::Node>& reshape_pattern_label,
                                          bool reshape_is_A_input) {
-    const auto& reshape_rank = pattern_to_output.at(reshape_label).get_partial_shape().rank();
-    const auto& matmul =
-        std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
-    if (!matmul || reshape_rank.is_dynamic() || reshape_rank.get_length() != 2)
+    const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+    if (!matmul)
         return false;
     const auto& shape_source = pattern_to_output.at(other_input_label);
     if (ov::is_type<ov::op::v1::Transpose>(shape_source.get_node_shared_ptr()) ||
@@ -39,25 +37,28 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
         // avoiding loop creation
         return false;
 
-    const auto& raw_idx =
-        reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto& idx = ov::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    const auto& C =
-        std::make_shared<ov::op::v1::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
-                                             ov::op::v0::Constant::create(ov::element::i64, {idx.size()}, idx),
-                                             ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-    const auto& N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    const auto& pattern_vector =
-        reshape_is_A_input ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
-                           : (matmul->get_transpose_b() ? ov::OutputVector({N, C}) : ov::OutputVector({C, N}));
-    const auto& new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
+    bool is_1d = ov::pass::pattern::rank_equals(1)(shape_source);
+    int64_t idx = -1;
+    if (!is_1d) {
+        idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    }
+
+    const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(shape_source);
+    const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {idx});
+    const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
+    const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    const auto pattern_vector = reshape_is_A_input
+                                    ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
+                                    : (matmul->get_transpose_b() ? ov::OutputVector({N, C}) : ov::OutputVector({C, N}));
+    const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
 
     auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
-    new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
-    copy_runtime_info(reshape_pattern, new_reshape_pattern);
-    replace_node(reshape_pattern, new_reshape_pattern);
+    ov::NodeVector nodes_to_copy_rt_info{new_reshape_pattern, C, N, in_C_0, in_C_1, in_C_2};
+    copy_runtime_info(reshape_pattern, nodes_to_copy_rt_info);
+
+    auto reshape_input = pattern_to_output.at(reshape_label).get_node_shared_ptr()->input(1);
+    reshape_input.replace_source_output(new_reshape_pattern);
     return true;
 }
 
@@ -65,11 +66,14 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
 ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     MATCHER_SCOPE(ReshapeAMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
-    auto reshape_label =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label});
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
+    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
+                                                                           reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -87,11 +91,14 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
 
 ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     MATCHER_SCOPE(ReshapeBMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
-    auto reshape_label =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label});
+    auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::consumers_count(1)(output);
+    };
+    auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({reshape_input_label, reshape_pattern_label},
+                                                                           reshape_predicate);
     auto matmul_label = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -113,17 +120,15 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto matmul =
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
             return false;
 
         auto transpose_is_fusable = [](const std::shared_ptr<ov::Node>& input) {
             const auto& input_rank = input->get_output_partial_shape(0).rank();
             if (input_rank.is_static() && input_rank.get_length() >= 2) {
-                if (auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(input)) {
-                    if (auto order =
-                            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))) {
+                if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(input)) {
+                    if (auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))) {
                         const auto& order_vector = order->cast_vector<int64_t>();
                         std::vector<int64_t> fusable_order(input_rank.get_length());
                         std::iota(fusable_order.begin(), fusable_order.end(), 0);

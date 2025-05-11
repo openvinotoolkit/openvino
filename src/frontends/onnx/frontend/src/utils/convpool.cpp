@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,25 @@
 
 #include <unordered_map>
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/strides.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
+using namespace ov;
+using namespace ov::op;
+using ov::CoordinateDiff;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
-Shape get_kernel_shape(const Node& node) {
-    const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
+ov::Shape get_kernel_shape(const Node& node) {
+    const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
@@ -32,7 +38,7 @@ namespace {
 /// \return     The attribute default value.
 ///
 std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
@@ -63,28 +69,28 @@ std::vector<std::size_t> get_attribute_value(const Node& node,
 }
 }  // namespace
 
-Strides get_strides(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_strides(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "strides", kernel_rank);
 }
 
-Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "dilations", kernel_rank);
 }
 
-ngraph::op::RoundingType get_rounding_type(const Node& node) {
-    return static_cast<ngraph::op::RoundingType>(node.get_attribute_value<std::int64_t>("ceil_mode", 0));
+ov::op::RoundingType get_rounding_type(const Node& node) {
+    return static_cast<ov::op::RoundingType>(node.get_attribute_value<std::int64_t>("ceil_mode", 0));
 }
 
-ngraph::op::PadType get_auto_pad(const Node& node) {
+ov::op::PadType get_auto_pad(const Node& node) {
     // Default value means use explicitly provided padding values.
-    ngraph::op::PadType pad_type{ngraph::op::PadType::NOTSET};
+    ov::op::PadType pad_type{ov::op::PadType::NOTSET};
     if (node.has_attribute("auto_pad")) {
-        static std::unordered_multimap<std::string, ngraph::op::PadType> auto_pad_values{
-            {"VALID", ngraph::op::PadType::VALID},
-            {"SAME_UPPER", ngraph::op::PadType::SAME_UPPER},
-            {"SAME_LOWER", ngraph::op::PadType::SAME_LOWER},
-            {"NOTSET", ngraph::op::PadType::NOTSET},
-            {"", ngraph::op::PadType::NOTSET},  // empty string considered as undefined attribute
+        static std::unordered_multimap<std::string, ov::op::PadType> auto_pad_values{
+            {"VALID", ov::op::PadType::VALID},
+            {"SAME_UPPER", ov::op::PadType::SAME_UPPER},
+            {"SAME_LOWER", ov::op::PadType::SAME_LOWER},
+            {"NOTSET", ov::op::PadType::NOTSET},
+            {"", ov::op::PadType::NOTSET},  // empty string considered as undefined attribute
         };
 
         const std::string& pad_str{node.get_attribute_value<std::string>("auto_pad", "NOTSET")};
@@ -120,55 +126,60 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 }
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "The rank of node must be static in order to calculate pads");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
     return get_pads(node, data_spatial_dims);
 }
 
-void calculate_auto_pads(const Shape& data_shape,
-                         const Shape& filter_shape,
-                         const Strides& strides,
-                         const Strides& dilations,
-                         const ngraph::op::PadType& pad_type,
+void calculate_auto_pads(const ov::Shape& data_shape,
+                         const ov::Shape& filter_shape,
+                         const ov::Strides& strides,
+                         const ov::Strides& dilations,
+                         const ov::op::PadType& pad_type,
                          CoordinateDiff& padding_below,
                          CoordinateDiff& padding_above) {
-    if (pad_type == ngraph::op::PadType::SAME_UPPER || pad_type == ngraph::op::PadType::SAME_LOWER) {
-        padding_below.clear();
-        padding_above.clear();
-        // Extract kernel shape - remove (N,C) channels
-        Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::infer_auto_padding(data_shape,
-                                   kernel_shape,
-                                   strides,
-                                   dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (pad_type == ov::op::PadType::SAME_UPPER || pad_type == ov::op::PadType::SAME_LOWER) {
+        const auto num_spatial = strides.size();
+        padding_below.resize(num_spatial);
+        padding_above.resize(num_spatial);
+        auto data_dim = data_shape.cend() - num_spatial;
+        auto filter_dim = filter_shape.cend() - num_spatial;
+
+        const auto padding_swap = pad_type == ov::op::PadType::SAME_UPPER;
+        auto&& pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
+        auto&& pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
+
+        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
+            int64_t filter_size = (static_cast<int64_t>(*filter_dim - 1)) * dilations[i] + 1;
+            auto filter_stride = static_cast<int64_t>(strides[i]);
+            auto output_size = (*data_dim + filter_stride - 1) / filter_stride;
+
+            auto padding_needed = std::max<int64_t>(0, (output_size - 1) * filter_stride + filter_size - *data_dim);
+            *pad_b = padding_needed / 2;
+            *pad_e = padding_needed - *pad_b;
+        }
     }
 }
 
-Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters, int64_t groups) {
-    const auto zero_node = default_opset::Constant::create(element::i64, Shape(), {0});
-    const auto split_lengths = default_opset::Constant::create(element::i64, Shape{2}, {1, -1});
-    const auto groups_node = default_opset::Constant::create(element::i64, Shape{1}, {groups});
+Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups) {
+    const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape(), {0});
+    const auto split_lengths = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});
+    const auto groups_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {groups});
 
-    const auto filters_shape = std::make_shared<default_opset::ShapeOf>(filters);
-    const auto splitted_shape = std::make_shared<default_opset::VariadicSplit>(filters_shape, zero_node, split_lengths);
+    const auto filters_shape = std::make_shared<v3::ShapeOf>(filters);
+    const auto splitted_shape = std::make_shared<v1::VariadicSplit>(filters_shape, zero_node, split_lengths);
 
-    const auto first_dim = std::make_shared<default_opset::Divide>(splitted_shape->output(0), groups_node);
+    const auto first_dim = std::make_shared<v1::Divide>(splitted_shape->output(0), groups_node);
     const auto new_filters_shape =
-        std::make_shared<default_opset::Concat>(OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
+        std::make_shared<v0::Concat>(ov::OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
 
-    const auto reshaped_filters = std::make_shared<default_opset::Reshape>(filters, new_filters_shape, false);
+    const auto reshaped_filters = std::make_shared<v1::Reshape>(filters, new_filters_shape, false);
 
     return reshaped_filters;
 }
 }  // namespace convpool
-}  // namespace onnx_import
-}  // namespace ngraph
-
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

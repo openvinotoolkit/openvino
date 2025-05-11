@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,13 +70,11 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
         return;
 
     // Get axis value if possible.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& axis_const_input = get_constant_from_source(input_value(AXIS))) {
+    if (const auto& axis_const_input = ov::util::get_constant_from_source(input_value(AXIS))) {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
-        int64_t data_rank = data_shape.rank().get_length();
-        axis = ov::normalize_axis(this, axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const int64_t data_rank = data_shape.rank().get_length();
+        axis = ov::util::try_normalize_axis(axis, data_rank, *this);
 
         if (indices_shape.rank().is_static() && updates_shape.rank().is_static()) {
             int64_t indices_rank = indices_shape.rank().get_length();

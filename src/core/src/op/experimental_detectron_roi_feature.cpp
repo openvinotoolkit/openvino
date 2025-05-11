@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 #include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-
-using namespace std;
 
 namespace ov {
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
@@ -46,11 +44,11 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
         set_output_type(i, shapes_and_type.second, output_shapes[i]);
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(
+std::shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(
     const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(new_args, m_attrs);
+    return std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(new_args, m_attrs);
 }
 
 void op::v6::ExperimentalDetectronROIFeatureExtractor::set_attrs(Attributes attrs) {

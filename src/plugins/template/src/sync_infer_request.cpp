@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,13 @@
 
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "perf_counter.hpp"
 #include "plugin.hpp"
 #include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
@@ -38,6 +40,32 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
 
 }  // namespace
 
+void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
+                       ov::op::util::VariableContext& variable_context,
+                       std::vector<ov::SoPtr<ov::IVariableState>>& list_of_variables) {
+    for (const auto& op : ov_model->get_ordered_ops()) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                collect_variables(sub_graph, variable_context, list_of_variables);
+            }
+        }
+    }
+
+    for (const auto& variable : ov_model->get_variables()) {
+        if (!variable_context.get_variable_value(variable)) {
+            const auto& shape = variable->get_info().data_shape.is_dynamic()
+                                    ? ov::Shape{0}
+                                    : variable->get_info().data_shape.to_shape();
+            ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
+            variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
+            auto state =
+                std::make_shared<ov::template_plugin::VariableState>(variable->get_info(),
+                                                                     variable_context.get_variable_value(variable));
+            list_of_variables.emplace_back(state);
+        }
+    }
+}
+
 // ! [infer_request:ctor]
 ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::template_plugin::CompiledModel>& model)
     : ov::ISyncInferRequest(model) {
@@ -56,7 +84,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
         openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_WaitPipline"),
     };
-
+    m_durations = {};
     m_executable = get_template_model()->get_template_plugin()->m_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
@@ -83,18 +111,8 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 
     // Save variable states
     ov::op::util::VariableContext variable_context;
-    for (const auto& variable : m_executable->get_model()->get_variables()) {
-        if (!variable_context.get_variable_value(variable)) {
-            auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
-                                                                      : variable->get_info().data_shape.to_shape();
-            ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
-            variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
-        }
-        auto state = std::make_shared<VariableState>(
-            variable->get_info().variable_id,
-            get_tensor_impl(variable_context.get_variable_value(variable)->get_state()));
-        m_variable_states.emplace_back(state);
-    }
+    const auto& ov_model = m_executable->get_model();
+    collect_variables(ov_model, variable_context, m_variable_states);
     m_eval_context.emplace("VariableContext", variable_context);
 }
 // ! [infer_request:ctor]
@@ -235,11 +253,11 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
-        auto host_tensor = m_backend_output_tensors[i];
+        const auto& host_tensor = m_backend_output_tensors[i];
         auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
-            allocate_tensor(output, [host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
+            allocate_tensor(output, [&host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(ov::make_tensor(tensor));
             });
@@ -268,9 +286,19 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
         p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
         return p_info;
     };
+
     info.emplace_back(fill_profiling_info("input preprocessing", m_durations[Preprocess]));
     info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
+    auto template_model = get_template_model();
+    for (const auto& op : template_model->get_runtime_model()->get_ops()) {
+        auto rt_info = op->get_rt_info();
+        const auto& it = rt_info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
+        OPENVINO_ASSERT(it != rt_info.end(), "Operation ", op, " doesn't contain performance counter");
+        auto counter = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        info.emplace_back(fill_profiling_info(op->get_friendly_name(), counter->duration()));
+    }
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
+
     return info;
 }
 // ! [infer_request:get_profiling_info]

@@ -1,42 +1,41 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/core.hpp"
-#include <common_test_utils/test_common.hpp>
-#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
-using namespace ::testing;
-using namespace ov::test;
+namespace {
+using ov::test::InputShape;
 
 using OVDynamicBatchParams = std::tuple<
-    std::vector<InputShape>,                                           // dynamic and static case sizes
-    ElementType,                                                       // Network precision
+    std::vector<InputShape>,                                 // dynamic and static case sizes
+    ov::element::Type,                                                 // Model type
     std::string,                                                       // Device name
     ov::AnyMap                                                         // Config
 >;
 
-class OVDynamicBatchShape_Tests : public WithParamInterface<OVDynamicBatchParams>,
-    virtual public ov::test::SubgraphBaseTest {
+class OVDynamicBatchShape_Tests : public ::testing::WithParamInterface<OVDynamicBatchParams>,
+                                  virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(TestParamInfo<OVDynamicBatchParams> obj) {
-        std::vector<InputShape> inputShapes;
-        ElementType netPrecision;
-        std::string targetDevice;
+    static std::string getTestCaseName(::testing::TestParamInfo<OVDynamicBatchParams> obj) {
+        std::vector<InputShape> input_shapes;
+        ov::element::Type model_type;
+        std::string target_device;
         ov::AnyMap configuration;
-        std::tie(inputShapes, netPrecision, targetDevice, configuration) = obj.param;
+        std::tie(input_shapes, model_type, target_device, configuration) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : input_shapes) {
             result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : input_shapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
@@ -45,8 +44,8 @@ public:
             }
             result << ")_";
         }
-        result << "netPRC=" << netPrecision << "_";
-        result << "targetDevice=" << targetDevice;
+        result << "netPRC=" << model_type << "_";
+        result << "targetDevice=" << target_device;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
@@ -59,29 +58,30 @@ public:
 
 protected:
     void SetUp() override {
-        if (core)
+        if (core) {
             core.reset();
-        std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
+            core = ov::test::utils::PluginCache::get().core();
+        }
+        std::vector<InputShape> input_shape;
 
-        init_input_shapes(inputShape);
+        std::tie(input_shape, model_type, targetDevice, configuration) = this->GetParam();
+
+        init_input_shapes(input_shape);
         //TODO: think how we can switch between several input topologies in the future
-        //  function = ngraph::builder::subgraph::makeSplitConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
-        function = ngraph::builder::subgraph::makeSplitMultiConvConcat(inputShape.front().first.get_min_shape(), netPrecision);
+        //  function = ov::test::utils::make_split_conv_concat(input_shape.front().first.get_min_shape(), model_type);
+        function = ov::test::utils::make_split_multi_conv_concat(input_shape.front().first.get_min_shape(), model_type);
 
         //  make topology dynamic
         std::map<std::string, ov::PartialShape> dynShape;
-        dynShape["input_tensor"] = inputShape.front().first;
+        dynShape["input_tensor"] = input_shape.front().first;
         function->reshape(dynShape);
     }
-    std::shared_ptr<ov::Model> src_func;
-    // std::map<std::string, std::string> configuration;
-    std::vector<InputShape> inputShape;
-    ElementType netPrecision;
+
+    ov::element::Type model_type;
 };
 
 TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    core = std::make_shared<ov::Core>();
     run();
 }
 
@@ -90,19 +90,19 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     std::string cacheFolderName;
     {
         std::stringstream ss;
-        ss << "InferDynamicBatchBound_cached_" << netPrecision << "_" << targetDevice;
+        ss << "InferDynamicBatchBound_cached_" << model_type << "_" << targetDevice;
         cacheFolderName = ss.str();
 
         ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
         ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
         ov::test::utils::removeDir(cacheFolderName);
 
-        core = std::make_shared<ov::Core>();
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
     }
     {
-        core = std::make_shared<ov::Core>();
+        core.reset();
+        core = ov::test::utils::PluginCache::get().core();
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
 
@@ -112,37 +112,24 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     }
 }
 
-namespace {
 auto config = []() {
     return ov::AnyMap{};
 };
 
-auto hetero_config = []() {
-    return ov::AnyMap{{"TARGET_FALLBACK", ov::test::utils::DEVICE_GPU}};
-};
-
-const std::vector<InputShape> inputShapes = {
+const std::vector<InputShape> input_shapes = {
     { { {1, 19}, 4, 20, 20}, { {1, 4, 20, 20}, {7, 4, 20, 20}, {17, 4, 20, 20} } }
 };
 
-const std::vector<ElementType> netPrecisions = {
-    ElementType::f16,
-    ElementType::f32
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f16,
+    ov::element::f32
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
     ::testing::Combine(
-        ::testing::Values(inputShapes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(input_shapes),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(config())),
-    OVDynamicBatchShape_Tests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
-    ::testing::Combine(
-        ::testing::Values(inputShapes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::test::utils::DEVICE_HETERO),
-        ::testing::Values(hetero_config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 }  // namespace

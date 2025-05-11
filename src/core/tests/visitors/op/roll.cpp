@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, roll_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v7::Roll>();
+    NodeBuilder::opset().insert<ov::op::v7::Roll>();
     const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3});
     const auto B = make_shared<ov::op::v0::Constant>(element::i32, Shape{3});
     const auto C = make_shared<ov::op::v0::Constant>(element::i32, Shape{3});

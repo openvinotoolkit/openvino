@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
@@ -25,9 +27,9 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     auto mvn = ov::pass::pattern::wrap_type<ov::op::v6::MVN>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto mvn_node = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
+        auto mvn_node = ov::as_type_ptr<ov::op::v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
 
         if (mvn_node == nullptr || transformation_callback(mvn_node)) {
             return false;

@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/variadic_split.hpp>
+#include "low_precision/variadic_split.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <transformations/init_node_info.hpp>
+
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/variadic_split_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/variadic_split.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -25,18 +25,18 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
+        std::vector<ov::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t axis;
     std::vector<size_t> splitLengths;
     TestTransformationParams params;
@@ -50,7 +50,7 @@ public:
     void SetUp() override {
         const VariadicSplitTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::VariadicSplitFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::VariadicSplitFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -58,12 +58,12 @@ public:
             testValues.splitLengths);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::VariadicSplitTransformation, ov::op::v1::VariadicSplit>(
+        transformer.add<ov::pass::low_precision::VariadicSplitTransformation, ov::op::v1::VariadicSplit>(
             testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
+            ov::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
                                                                            testValues.expected.inputPrecision,
                                                                            testValues.expected.dequantizationBefore,
                                                                            testValues.expected.precisionAfterOperation,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "multiclass_nms_shape_inference.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -28,9 +27,7 @@ std::shared_ptr<Node> MulticlassNms::clone_with_new_inputs(const OutputVector& n
 
 void MulticlassNms::validate_and_infer_types() {
     OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes, false);
 
@@ -74,9 +71,7 @@ std::shared_ptr<Node> MulticlassNms::clone_with_new_inputs(const OutputVector& n
 void MulticlassNms::validate_and_infer_types() {
     OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes, false);
 

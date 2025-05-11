@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,12 +18,12 @@ class TRANSFORMATIONS_API TSFuse;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input
  * or fuses them to single Transpose if input gets changed
  */
 class ov::pass::transpose_sinking::TSFuse : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TSFuse", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TSFuse");
     TSFuse();
 };

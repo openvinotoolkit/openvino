@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
      LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     //  LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
     //  LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
@@ -27,7 +27,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         {
             {},
             {{0.f, 0.f, 0.f}},
@@ -38,7 +38,7 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     },
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { -12.8f }, { 12.7f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { -12.8f }, { 12.7f } },
         {
             {},
             {{0.f, 0.f, 0.f}},
@@ -50,7 +50,7 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     // per-channel quantization with the same values
     {
         {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ov::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -64,7 +64,7 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     {
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { -127.f, 0.f, 128.f / 2.f },
             { 128.f / 4.f, 128.f / 2.f, 128.f },
             { 0.f, 0.f, 0.f },
@@ -79,7 +79,7 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ClampTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),

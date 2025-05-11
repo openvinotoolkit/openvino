@@ -6,7 +6,9 @@
 
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace std;
@@ -30,7 +32,7 @@ ParameterVector filter_parameters(const OutputVector& out_vec) {
     ParameterVector parameters;
     for (const auto& out : out_vec) {
         auto node = out.get_node_shared_ptr();
-        if (auto param = dynamic_pointer_cast<Parameter>(node)) {
+        if (auto param = ov::as_type_ptr<Parameter>(node)) {
             parameters.push_back(param);
         }
     }
@@ -46,6 +48,19 @@ OutputVector set_transpose_for(const vector<size_t>& idxs, const OutputVector& o
         iota(axes.begin(), axes.end(), 0);
         reverse(axes.begin(), axes.end());
         auto order = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
+        auto transpose = make_shared<Transpose>(out, order);
+        result[idx] = transpose;
+    }
+    return result;
+}
+
+OutputVector set_transpose_with_order(const vector<size_t>& idxs,
+                                      const OutputVector& out_vec,
+                                      const vector<size_t>& transpose_order_axes) {
+    OutputVector result = out_vec;
+    for (const auto& idx : idxs) {
+        const auto& out = out_vec[idx];
+        auto order = make_shared<Constant>(element::i32, Shape{transpose_order_axes.size()}, transpose_order_axes);
         auto transpose = make_shared<Transpose>(out, order);
         result[idx] = transpose;
     }

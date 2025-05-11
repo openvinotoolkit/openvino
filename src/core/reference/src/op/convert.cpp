@@ -1,21 +1,27 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/convert.hpp"
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "jit_generator.hpp"
+#include "openvino/reference/utils/convert_util.hpp"
 
-using namespace ngraph::runtime;
+#ifdef OV_CORE_USE_XBYAK_JIT
+#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/util/common_util.hpp"
+#endif
+
+#ifdef OV_CORE_USE_INTRINSICS
+#    include "openvino/reference/utils/convert_x86_intrinsics.hpp"
 #endif
 
 namespace ov {
 namespace reference {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
 namespace {
+#ifdef OV_CORE_USE_XBYAK_JIT
 template <typename src_t, typename dst_t, bool clamp = false>
-void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
+void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
 
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec_prepare(jit::Generator&) {}
@@ -56,6 +62,42 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
+void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vcvtps2ph(f16vec, f32vec, 0);       // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
+}
+
+template <>
+void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
+
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);    // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
+    gen.vminps(f32vec, f32vec, upper_bound);  // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);  // clamp f16 lowest
+    gen.vcvtps2ph(f16vec, f32vec, 0);         // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
+}
+
+template <>
+void jit_convert_vec<bfloat16, float>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vmovdqu(gen.yword[dst], f32vec);    // move result to destination
+}
+
+template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
@@ -70,6 +112,11 @@ void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     gen.vmovdqu(upper_bound, gen.yword[addr]);
     gen.mov(addr, (size_t)lower_bounds);
     gen.vmovdqu(lower_bound, gen.yword[addr]);
+}
+
+template <>
+void jit_convert_vec_prepare<bfloat16, float16, true>(jit::Generator& gen) {
+    jit_convert_vec_prepare<float, float16, true>(gen);
 }
 
 template <>
@@ -210,7 +257,7 @@ public:
 
     template <typename src_t, typename dst_t, bool clamp = false>
     static fn_t get() {
-        if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16)) {
+        if (is_x64() && mayiuse(jit::avx) && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
                                                               jit_convert_vec<src_t, dst_t, clamp>,
@@ -223,40 +270,6 @@ public:
         return nullptr;
     }
 };
-
-template <typename TI, typename TO, bool clamp = false>
-void convert_impl(const TI* arg, TO* out, size_t count) {
-    auto converter = jit_convert_array::get<TI, TO, clamp>();
-
-    if (converter) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else {
-        for (size_t i = 0; i < count; ++i) {
-            out[i] = static_cast<TO>(arg[i]);
-        }
-    }
-}
-
-template <>
-void convert_impl<float, float16, true>(const float* arg, float16* out, size_t count) {
-    auto converter = jit_convert_array::get<float, float16, true>();
-
-    if (converter) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else {
-        for (size_t i = 0; i < count; ++i) {
-            if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-                out[i] = std::numeric_limits<ov::float16>::max();
-            } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-                out[i] = std::numeric_limits<ov::float16>::lowest();
-            } else {
-                out[i] = static_cast<ov::float16>(arg[i]);
-            }
-        }
-    }
-}
 
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_prepare(jit::Generator&) {}
@@ -448,7 +461,7 @@ public:
 
     template <typename data_t, typename range_t>
     static fn_t get() {
-        if (is_x64() && mayiuse(avx2)) {
+        if (is_x64() && mayiuse(jit::avx2)) {
             static const jit_count_out_of_range::context_t context{
                 {sizeof(data_t), &jit::Generator::copy<data_t>},
                 jit_count_out_of_range_vec_prepare<data_t, range_t>,
@@ -463,74 +476,91 @@ public:
     }
 };
 
+#endif  // OV_CORE_USE_XBYAK_JIT
+
+template <class Clamp, typename TI, typename TO>
+void convert_impl(const TI* arg, TO* out, size_t count) {
+#ifdef OV_CORE_USE_XBYAK_JIT
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
+            jit_convert_array::args_t args = {arg, out, count};
+            converter(&args);
+            return;
+        }
+    }
+#endif  // OV_CORE_USE_XBYAK_JIT
+    Converter<TI, TO>::template apply<Clamp>(arg, out, count);
+}
 }  // namespace
 
 template <>
 void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+template <>
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
+    convert_impl<NoClamp>(arg, out, count);
+}
+
+template <>
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
+    convert_impl<NoClamp>(arg, out, count);
+}
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    convert_impl<float, float16, true>(arg, out, count);
-#else
-    // FIXME: duplicate and stub for ARM, provide more optimized solution
-    for (size_t i = 0; i < count; ++i) {
-        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
-#endif  // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    convert_impl<Clamp<float, float16>>(arg, out, count);
+}
+
+template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+    Converter<int32_t, float16>::apply<Clamp<int32_t, float16>>(arg, out, count);
+}
+
+void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count) {
+    // can re-use Clamp as bf16 is converted to float before clamping
+    using clamp_bf16_f16 = Clamp<float, float16>;
+    convert_impl<clamp_bf16_f16>(arg, out, count);
+    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
-    size_t num_out_of_range = 0;
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    auto converter = jit_count_out_of_range::get<float, float16>();
-    if (converter) {
-        jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-        converter(&args);
-        return num_out_of_range;
-    }
-#endif
-    for (size_t i = 0; i < count; ++i) {
-        // if abs value is smaller than the smallest positive fp16, but not zero
-        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
-            num_out_of_range++;
-        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            num_out_of_range++;
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            num_out_of_range++;
+#ifdef OV_CORE_USE_XBYAK_JIT
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
+            size_t num_out_of_range = 0;
+            jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
+            converter(&args);
+            return num_out_of_range;
         }
     }
-    return num_out_of_range;
+#endif  // OV_CORE_USE_XBYAK_JIT
+    const auto is_out_of_f16_range = [](const float v) {
+        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
+               (v < std::numeric_limits<float16>::lowest());
+    };
+
+    return std::count_if(arg, arg + count, is_out_of_f16_range);
 }
 
 }  // namespace reference

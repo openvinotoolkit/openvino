@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -33,11 +33,9 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_avg_pool_2D_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api, use_new_frontend):
+    def test_keras_avg_pool_2D_float32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_avg_pool_2D_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   precision, temp_dir=temp_dir, ir_version=ir_version, **params)
 
     test_data_extended_float32 = [
         dict(pool_size=(3, 3), strides=None, padding='same', data_format='channels_last',
@@ -46,14 +44,14 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
         dict(pool_size=(5, 5), strides=None, padding='same', data_format='channels_last',
              input_names=["x1"],
              input_shapes=[[3, 4, 5, 6]], input_type=tf.float32),
-        pytest.param(dict(pool_size=(5, 5), strides=(3, 3), padding='valid', data_format='channels_last',
-                          input_names=["x1"],
-                          input_shapes=[[3, 7, 6, 5]], input_type=tf.float32), marks=pytest.mark.precommit_tf_fe)]
+        dict(pool_size=(5, 5), strides=(3, 3), padding='valid', data_format='channels_last',
+             input_names=["x1"],
+             input_shapes=[[3, 7, 6, 5]], input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data_extended_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_avg_pool_2D_extended_float32(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_old_api, use_new_frontend):
+                                                temp_dir):
         self._test(*self.create_keras_avg_pool_2D_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   precision, temp_dir=temp_dir, ir_version=ir_version, **params)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,6 +84,12 @@ std::vector<std::string> DeviceIDParser::get_multi_devices(const std::string& de
 }
 
 std::string DeviceIDParser::get_batch_device(const std::string& device) {
+    if (device.find(",") != std::string::npos) {
+        OPENVINO_THROW("BATCH accepts only one device in list but got '", device, "'");
+    }
+    if (device.find("-") != std::string::npos) {
+        OPENVINO_THROW("Invalid device name '", device, "' for BATCH");
+    }
     auto trim_request_info = [](const std::string& device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,7 @@
 namespace cldnn {
 
 inline ov::Tensor make_tensor(const layout& l, void* memory_pointer) {
-    ov::element::Type et = data_type_to_element_type(l.data_type);
-
-    return ov::Tensor(et, l.get_shape(), memory_pointer);
+    return ov::Tensor(l.data_type, l.get_shape(), memory_pointer);
 }
 
 struct TensorsContainer final {
@@ -58,7 +56,7 @@ struct TensorsContainer final {
         } else if (m_tensors.count(port) > 0) {
             return m_tensors.at(port);
         } else {
-            OPENVINO_THROW("[GPU] Can't get tensor for ", port, " port!\n");
+            return ov::Tensor{};
         }
     }
 

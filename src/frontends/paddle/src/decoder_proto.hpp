@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,8 @@ public:
 
     std::map<std::string, OutputVector> map_for_each_output(
         const std::function<Output<Node>(const std::string&, size_t)>& func) const;
+
+    int64_t get_version() const override;
 
 private:
     std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;

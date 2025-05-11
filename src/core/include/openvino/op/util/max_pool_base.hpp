@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,10 +57,6 @@ public:
     /// \return The end of padding shape.
     const Shape& get_pads_end() const {
         return m_pads_end;
-    }
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use set_pads_end instead.")
-    void set_adding_above(const Shape& pads_end) {
-        m_pads_end = pads_end;
     }
     void set_pads_end(Shape pads_end);
 

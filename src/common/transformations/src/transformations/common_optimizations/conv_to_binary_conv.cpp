@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -48,15 +49,14 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         {fq_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
+        auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
         if (!fq || fq->get_levels() != 2)
             return false;
 
-        auto output_low_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr());
+        auto output_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr());
         if (!output_low_constant)
             return false;
         auto output_low = output_low_constant->cast_vector<float>();
@@ -66,8 +66,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         bool output_low_is_minus_one = std::all_of(output_low.begin(), output_low.end(), [](float f) -> bool {
             return f == -1.0f;
         });
-        auto output_high_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr());
+        auto output_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr());
         if (!output_high_constant)
             return false;
         auto output_high = output_high_constant->cast_vector<float>();
@@ -78,8 +77,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         if (!(output_high_is_one && (output_low_is_zero || output_low_is_minus_one)))
             return false;
 
-        auto weights_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_constant = ov::as_type_ptr<ov::op::v0::Constant>(conv->input_value(1).get_node_shared_ptr());
         if (!weights_constant)
             return false;
 
@@ -121,9 +119,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced,
                 ov::op::v0::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            weights_reduced_reshaped = ov::get_constant_from_source(weights_reduced_reshaped);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            weights_reduced_reshaped = ov::util::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<ov::op::v1::Add>(new_conv, weights_reduced_reshaped);
             auto mul =
                 std::make_shared<ov::op::v1::Multiply>(add, ov::op::v0::Constant::create(element::f32, Shape{}, {0.5}));

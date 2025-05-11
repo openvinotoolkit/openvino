@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +49,8 @@ struct pooling : public primitive_base<pooling> {
             const ov::Shape& pads_begin = {0, 0},
             const ov::Shape& pads_end = {0, 0},
             ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT,
-            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR)
+        : primitive_base(id, {input}),
           mode(static_cast<pooling_mode>(mode)),
           size(size),
           stride(stride),
@@ -77,9 +76,8 @@ struct pooling : public primitive_base<pooling> {
             const ov::Shape& pads_begin,
             const ov::Shape& pads_end,
             tensor output_size,
-            const data_types output_data_type,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+            const data_types output_data_type)
+        : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
           mode(static_cast<pooling_mode>(mode)),
           size(size),
           stride(stride),
@@ -115,9 +113,8 @@ struct pooling : public primitive_base<pooling> {
             int64_t axis,
             data_types index_element_type,
             tensor output_size,
-            const data_types output_data_type,
-            const padding& output_padding = padding())
-            : primitive_base(id, {input, indices_output}, {output_padding}, {optional_data_type{output_data_type}}),
+            const data_types output_data_type)
+            : primitive_base(id, {input, indices_output}, 1, {optional_data_type{output_data_type}}),
               indices_output(indices_output.pid),
               mode(pooling_mode::max),
               size(size),
@@ -134,7 +131,7 @@ struct pooling : public primitive_base<pooling> {
               maxPoolOpset8Features(true) {}
 
     /// @brief Primitive id which contains indices output.
-    primitive_id indices_output;
+    input_info indices_output;
     /// @brief Pooling mode.
     pooling_mode mode = pooling_mode::max;
     /// @brief Pooling kernel size.
@@ -174,7 +171,7 @@ struct pooling : public primitive_base<pooling> {
         seed = hash_combine(seed, axis);
         seed = hash_combine(seed, index_element_type);
         seed = hash_combine(seed, maxPoolOpset8Features);
-        seed = hash_combine(seed, indices_output.empty());
+        seed = hash_combine(seed, indices_output.is_valid());
         return seed;
     }
 
@@ -196,7 +193,7 @@ struct pooling : public primitive_base<pooling> {
                cmp_fields(axis) &&
                cmp_fields(index_element_type) &&
                cmp_fields(maxPoolOpset8Features) &&
-               cmp_fields(indices_output.empty());
+               cmp_fields(indices_output.is_valid());
         #undef cmp_fields
     }
 
@@ -237,10 +234,13 @@ struct pooling : public primitive_base<pooling> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!indices_output.empty())
-            ret.push_back(indices_output);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (indices_output.is_valid())
+            ret[idx++] = &indices_output;
+
         return ret;
     }
 };

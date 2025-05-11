@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertBatchToSpace transformation decomposes BatchToSpace layer to Reshape->Transpose->Reshape->Crop.
  *
  * @param convert_by_elements - reduces the maximum number of dimensions that arise during the transformation
@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
 
 class ov::pass::ConvertBatchToSpace : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBatchToSpace", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBatchToSpace");
     explicit ConvertBatchToSpace(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_batch_to_space_by_elements();

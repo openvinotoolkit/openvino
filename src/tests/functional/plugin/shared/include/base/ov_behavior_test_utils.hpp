@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -21,20 +20,40 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
+
+#define MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(GET_TEST_NAME)                                            \
+    [](const testing::TestParamInfo<PropertiesParams>& info) {                                          \
+        std::string name = GET_TEST_NAME(info);                                                         \
+        return (sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_") + name; \
+    }
+
+#define MARK_MANDATORY_API_FOR_HW_DEVICE_WITH_PARAM(GET_TEST_NAME)                                      \
+    [](const testing::TestParamInfo<std::string>& info) {                                               \
+        std::string name = GET_TEST_NAME(info);                                                         \
+        return (sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_") + name; \
+    }
+
+#define MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM()                                                \
+    [](const testing::TestParamInfo<std::string>& info) {                                               \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_";          \
+    }
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
-                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
+                                                                              ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
+    return ov::test::utils::make_split_concat(inputShape, ngPrc);
 }
 
 inline bool sw_plugin_in_target_device(std::string targetDevice) {
@@ -63,7 +82,8 @@ public:
         set_api_entity();
         auto test_name = this->GetFullTestName();
         k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
-        std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
+        if (ov::test::utils::is_print_rel_influence_coef)
+            std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();
     }
@@ -143,7 +163,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -156,12 +176,15 @@ protected:
     std::shared_ptr<ov::Model> function;
 };
 
+// DEPRECATED
+// Replace the usage by `ov::test::utils::create_core()`
+// in NVIDIA and NPU plugin
 inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
+    pluginName += OV_BUILD_POSTFIX;
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
         ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
@@ -170,18 +193,18 @@ inline ov::Core createCoreWithTemplate() {
 
 class OVClassNetworkTest {
 public:
-    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+    std::shared_ptr<ov::Model> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
+        actualNetwork = ov::test::utils::make_split_concat();
         // Quite simple network
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+        simpleNetwork = ov::test::utils::make_single_concat_with_constant();
         // Multinput to substruct network
-        multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
+        multinputNetwork = ov::test::utils::make_concat_with_params();
         // Network with KSO
-        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
+        ksoNetwork = ov::test::utils::make_kso_function();
     }
 
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
@@ -233,25 +256,32 @@ class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Model> actualNetwork;
 
 public:
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ov::test::utils::make_split_conv_concat();
     }
 };
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
-{                                                      \
-    try {                                              \
-        __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
-        GTEST_SKIP();                                  \
-    }                                                  \
-}
+class OVClassSeveralDevicesTests : public OVPluginTestBase,
+                                   public OVClassNetworkTest,
+                                   public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> target_devices;
+
+    void SetUp() override {
+        target_device = ov::test::utils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
+        target_devices = GetParam();
+    }
+};
+
 } // namespace behavior
 } // namespace test
 } // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include <cstdint>
 
 #include "dimension_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/batch_to_space.hpp"
-#include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {

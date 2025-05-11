@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -88,12 +89,11 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
                             const ov::Output<ov::Node>& B,
                             const ov::op::RecurrentSequenceDirection& direction) {
     auto X_pshape = X.get_partial_shape();
-    if (X_pshape.size() < 2 || X_pshape[1].is_dynamic()) {
+    if (X_pshape.size() < 2) {
         return false;
     }
 
-    auto max_seq_len = X_pshape[1].get_length();
-    bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+    bool enable_mask = ov::op::util::is_seq_len_provided(X.get_node_shared_ptr(), seq_lengths.get_node_shared_ptr());
 
     const bool is_reverse = direction == ov::op::RecurrentSequenceDirection::REVERSE;
     std::shared_ptr<ov::Node> reverse_seq_before;
@@ -257,8 +257,8 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
     if (enable_mask) {
         // create initial values for body_parameters in outer graph
         // aggregated Y_h - concatenation of the last non-zero values for each batch
-        auto H_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(H_body_param);
-        auto aggregated_Y_h_scalar = ov::op::v0::Constant::create(H_body_param->get_element_type(), {}, {0.f});
+        auto H_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(squeezed_h);
+        auto aggregated_Y_h_scalar = ov::op::v0::Constant::create(squeezed_h->get_element_type(), {}, {0.f});
         auto aggregated_Y_h =
             ov::op::util::make_try_fold<ov::op::v3::Broadcast>(aggregated_Y_h_scalar, H_body_param_shape);
 
@@ -273,8 +273,8 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
         H_out = tensor_iterator->get_function()->get_results()[1];
 
         if (cell_state_defined) {
-            auto C_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(C_body_param);
-            auto aggregated_Y_c_scalar = ov::op::v0::Constant::create(C_body_param->get_element_type(), {}, {0.f});
+            auto C_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(squeezed_c);
+            auto aggregated_Y_c_scalar = ov::op::v0::Constant::create(squeezed_c->get_element_type(), {}, {0.f});
             auto aggregated_Y_c =
                 ov::op::util::make_try_fold<ov::op::v3::Broadcast>(aggregated_Y_c_scalar, C_body_param_shape);
             ov::copy_runtime_info(sequence, aggregated_Y_c);
@@ -354,7 +354,7 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
     auto B_m = pattern::any_input();
     auto rnn_seq = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -397,7 +397,7 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
     auto B_m = pattern::any_input();
     auto gru_seq = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -442,7 +442,7 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
     auto lstm_seq =
         ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto sequence = ov::as_type_ptr<ov::op::v5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward

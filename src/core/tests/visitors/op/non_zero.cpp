@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, non_zero_op_default) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    NodeBuilder::opset().insert<ov::op::v3::NonZero>();
     const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node);
 
@@ -27,7 +27,7 @@ TEST(attributes, non_zero_op_default) {
 }
 
 TEST(attributes, non_zero_op_i32) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    NodeBuilder::opset().insert<ov::op::v3::NonZero>();
     const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, element::i32);
 
@@ -40,7 +40,7 @@ TEST(attributes, non_zero_op_i32) {
 }
 
 TEST(attributes, non_zero_op_i32_string) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    NodeBuilder::opset().insert<ov::op::v3::NonZero>();
     const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, "i32");
 
@@ -53,7 +53,7 @@ TEST(attributes, non_zero_op_i32_string) {
 }
 
 TEST(attributes, non_zero_op_i64) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    NodeBuilder::opset().insert<ov::op::v3::NonZero>();
     const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, element::i64);
 
@@ -66,7 +66,7 @@ TEST(attributes, non_zero_op_i64) {
 }
 
 TEST(attributes, non_zero_op_i64_string) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    NodeBuilder::opset().insert<ov::op::v3::NonZero>();
     const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, "i64");
 

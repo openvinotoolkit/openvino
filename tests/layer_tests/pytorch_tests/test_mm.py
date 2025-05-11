@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -41,6 +41,7 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::mm'), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
@@ -55,6 +56,7 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_bmm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::bmm'), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
@@ -81,6 +83,7 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::matmul'), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)

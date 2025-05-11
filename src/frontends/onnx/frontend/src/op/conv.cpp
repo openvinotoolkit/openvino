@@ -1,52 +1,47 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/conv.hpp"
-
-#include <cstddef>
-#include <memory>
-#include <vector>
-
-#include "default_opset.hpp"
+#include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/group_conv.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 namespace detail {
 
-std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, const Output<ngraph::Node>& bias) {
-    const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
-    const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
+std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov::Output<ov::Node>& bias) {
+    const auto conv_shape = std::make_shared<v3::ShapeOf>(ng_conv);
+    const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
-    return {
-        std::make_shared<default_opset::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
+    return {std::make_shared<v1::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-OutputVector conv(const Node& node,
-                  Output<ngraph::Node> data,
-                  Output<ngraph::Node> filters,
-                  Output<ngraph::Node> bias) {
+ov::OutputVector conv(const ov::frontend::onnx::Node& node,
+                      ov::Output<ov::Node> data,
+                      ov::Output<ov::Node> filters,
+                      ov::Output<ov::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
+    FRONT_END_GENERAL_CHECK(data.get_partial_shape().rank().is_static(),
+                            "The input data tensor's rank has to be known (static)");
 
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
     const auto paddings = convpool::get_pads(node);
-    const ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+    const ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
     const auto& padding_below = paddings.first;
     const auto& padding_above = paddings.second;
 
@@ -60,13 +55,13 @@ OutputVector conv(const Node& node,
                                                              auto_pad_type);
 
     // no bias param
-    if (ngraph::op::is_null(bias)) {
+    if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();
 
-        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                     "The bias input needs to be 1D vector");
+        FRONT_END_GENERAL_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
+                                "The bias input needs to be 1D vector");
 
         const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
         conv_node->set_friendly_name(onnx_name + "/WithoutBiases");
@@ -75,15 +70,13 @@ OutputVector conv(const Node& node,
 }
 }  // namespace detail
 
-OutputVector conv(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("Conv", OPSET_SINCE(1), ai_onnx::opset_1::conv);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

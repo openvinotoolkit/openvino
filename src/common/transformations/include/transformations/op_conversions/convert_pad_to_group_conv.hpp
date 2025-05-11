@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertPadToGroupConvolution transformation replaces Pad operation
  * with GroupConvolution but has some restrictions on Pad parameters:
  * 1. PadMode must be Constant and value is equal to 0
@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 class ov::pass::ConvertPadToGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertPadToGroupConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertPadToGroupConvolution");
     ConvertPadToGroupConvolution();
 };

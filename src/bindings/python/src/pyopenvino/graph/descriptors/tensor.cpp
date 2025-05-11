@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <string>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
@@ -29,7 +30,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the shape description.
 
                 :return: The shape description.
-                :rtype:  openvino.runtime.Shape
+                :rtype:  openvino.Shape
              )");
 
     tensor.def("get_rt_info",
@@ -39,7 +40,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
-                :rtype: openvino.runtime.RTMap
+                :rtype: openvino.RTMap
              )");
 
     tensor.def("size",
@@ -57,7 +58,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the partial shape description.
 
                 :return: PartialShape description.
-                :rtype: openvino.runtime.PartialShape
+                :rtype: openvino.PartialShape
              )");
 
     tensor.def("get_element_type",
@@ -66,7 +67,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the element type description.
 
                 :return: Type description.
-                :rtype: openvino.runtime.Type
+                :rtype: openvino.Type
              )");
 
     tensor.def("get_names",
@@ -105,6 +106,63 @@ void regclass_graph_descriptor_Tensor(py::module m) {
 
                 :return: Any name.
                 :rtype: string
+             )");
+
+    tensor.def("get_lower_value",
+               &ov::descriptor::Tensor::get_lower_value,
+               R"(
+                Returns the lower bound of the tensor.
+
+                :return: Lower bound.
+                :rtype: openvino.Tensor
+             )");
+
+    tensor.def("set_lower_value",
+               &ov::descriptor::Tensor::set_lower_value,
+               py::arg("lower_bound"),
+               R"(
+                Sets the lower bound of the tensor.
+
+                :param lower_bound: The lower bound value.
+                :type lower_bound: openvino.Tensor
+             )");
+
+    tensor.def("get_upper_value",
+               &ov::descriptor::Tensor::get_upper_value,
+               R"(
+                Returns the upper bound of the tensor.
+
+                :return: Upper bound.
+                :rtype: openvino.Tensor
+             )");
+
+    tensor.def("set_upper_value",
+               &ov::descriptor::Tensor::set_upper_value,
+               py::arg("upper_bound"),
+               R"(
+                Sets the upper bound of the tensor.
+
+                :param upper_bound: Sets the upper bound value.
+                :type upper_bound: openvino.Tensor
+             )");
+
+    tensor.def("get_value_symbol",
+               &ov::descriptor::Tensor::get_value_symbol,
+               R"(
+                Returns the List of symbols.
+
+                :return: List of Symbols.
+                :rtype: List[openvino.Symbol]
+             )");
+
+    tensor.def("set_value_symbol",
+               &ov::descriptor::Tensor::set_value_symbol,
+               py::arg("value_symbol"),
+               R"(
+                Sets the value symbol of the tensor.
+
+                :param value_symbol: List of Symbols
+                :type value_symbol: List[openvino.Symbol]
              )");
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -31,7 +31,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     }
 
     if (impl_param.has_fused_primitives()) {
-        data_type = impl_param.get_fused_output_layout().data_type;
+        data_type = impl_param.get_output_element_type();
     }
 
     auto pad = desc->pad;
@@ -117,7 +117,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto strides = desc->stride;
@@ -134,7 +134,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         out_fmt = node.get_preferred_output_fmt();
     }
 
-    if (desc->with_output_size) {
+    if (!node.get_program().is_new_shape_infer() && desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
                                        desc->output_size.spatial[0],
@@ -207,7 +207,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             op.set_output_shape(output_partial_shape.to_shape());
             input_shapes.push_back(ov::Shape{output_partial_shape.size()});
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        } else if (memory_deps.count(2)) {
+        } else if ((desc->output_shape_id.is_valid() || desc->output_partial_shape.size() > 0) && memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
             auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
@@ -266,7 +266,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
     auto stride = argument->stride;
     auto pad = argument->pad;
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -275,23 +275,24 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                           "output size",
                           output_layout.get_rank(),
                           "Input/output number of dimension does not match.");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Stride size",
-                          stride.size(),
-                          "output size",
-                          output_layout.get_spatial_rank(),
-                          "Stride/output number of dimension does not match.");
-
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset size",
-                          pad.size(),
-                          "input number of dimensions",
-                          output_layout.get_spatial_rank(),
-                          "");
+    if (!node.get_program().is_new_shape_infer()) {
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Stride size",
+                            stride.size(),
+                            "output size",
+                            output_layout.get_spatial_rank(),
+                            "Stride/output number of dimension does not match.");
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Input offset size",
+                            pad.size(),
+                            "input number of dimensions",
+                            output_layout.get_spatial_rank(),
+                            "");
+    }
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-    if (argument->bias.size() != 0) {
+    if (argument->bias.is_valid()) {
         auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                                 "Bias batch[0]",
@@ -325,12 +326,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                                 "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
     }
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "deconvolution padding filling value",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding mode",
-                            0.0f,
-                            "Unknown padding mode in deconvolution.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                             "Weights feature maps number",
                             filter_inst.ifm() * filter_inst.group(),

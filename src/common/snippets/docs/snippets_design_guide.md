@@ -236,7 +236,7 @@ Finally, the `Backend` uses the optimized `IR` to produce executable code.
 As shown on the figure below, `Snippets` are organized in a very similar way.
 ```mermaid
  graph LR
-   Source[nGraph \n model]
+   Source[OpenVINO \n model]
    subgraph Snippets
       direction LR
       subgraph Optimizer[Optimizer]
@@ -244,10 +244,10 @@ As shown on the figure below, `Snippets` are organized in a very similar way.
        Data[Data flow \n optimizations]
        Converter[Convert \n IR]
        Control[Control flow \n optimizations]
-       Data-->|nGraph \nIR|Converter
+       Data-->|OpenVINO \nIR|Converter
        Converter-->|Linear \nIR|Control
       end
-      Frontend[Tokenizer]-->|nGraph \nIR|Data
+      Frontend[Tokenizer]-->|OpenVINO \nIR|Data
       Control-->|Linear \nIR|Backend[Generator]
    end
    Source --> Frontend
@@ -258,13 +258,13 @@ classDef daisy1 fill:#FFE17A, stroke: #FEC91B, color: #262626
 class Frontend,Optimizer,Backend steel1
 class Source,Executable daisy1
 ```
-Instead of a source code, `Snippets` take `nGraph` model as an input. 
-Then the `Tokenizer` (which is essentially a `Snippets` `Frontend`) parses an input `nGraph model`, and tries to find a part of the model that could be processed by `Snippets`. 
-If such a part is found, `Tokenizer` converts it to an `nGraph IR` and stores inside a `Subgraph` node. 
-`nGraph IR` - is one of the two `IR` types used by `Snippets`, it is simply a small `nGraph model` that can contain `Snippets`-specific operations. 
+Instead of a source code, `Snippets` take `OpenVINO` model as an input. 
+Then the `Tokenizer` (which is essentially a `Snippets` `Frontend`) parses an input `OpenVINO model`, and tries to find a part of the model that could be processed by `Snippets`. 
+If such a part is found, `Tokenizer` converts it to an `OpenVINO IR` and stores inside a `Subgraph` node. 
+`OpenVINO IR` - is one of the two `IR` types used by `Snippets`, it is simply a small `OpenVINO model` that can contain `Snippets`-specific operations. 
 
-`nGraph IR` is then passed to the `Optimizer` unit that in turn consists of three subunits. 
-The purpose of the first subunit is to perform data flow optimizations. The second subunit converts `nGraph IR` (data-flow-oriented representation) to `Linear IR` (control-flow-focused IR). Finally, the third subunit is dedicated to control flow optimizations.
+`OpenVINO IR` is then passed to the `Optimizer` unit that in turn consists of three subunits. 
+The purpose of the first subunit is to perform data flow optimizations. The second subunit converts `OpenVINO IR` (data-flow-oriented representation) to `Linear IR` (control-flow-focused IR). Finally, the third subunit is dedicated to control flow optimizations.
 
 After all optimizations, the `Linear IR` is used by the `Generator` (which is `Snippets` `Backend`) to produce executable code, which we will refer to as `Kernel`. 
 As discussed in the Introduction, the purpose of the `Kernel` is to process a part of the initial tensor, and several `Kernels` are usually executed in parallel to process the whole tensor. 
@@ -280,7 +280,7 @@ The `Snippets` integration into the plugin pipeline is schematically depicted be
  graph LR
    subgraph Plugin[<font size=+2> Plugin pipeline </font>]
     direction LR
-    subgraph ngraph[<b> Transformations on nGraph model </b>]
+    subgraph openvino[<b> Transformations on OpenVINO model </b>]
         direction LR
         common[Common \n Transformations]
         lpt[Low \n Precision]
@@ -305,7 +305,7 @@ The `Snippets` integration into the plugin pipeline is schematically depicted be
          create-->execute
     end
    end
-   Source[nGraph \n model]-->|Main \n flow|common
+   Source[OpenVINO \n model]-->|Main \n flow|common
    convert~~~internal
 classDef no-bg-color fill:none,stroke-width:0px
 classDef steel1 fill:#B9D6E5, stroke: #86B3CA, color: #262626
@@ -315,15 +315,15 @@ class tokenize,optimize,generate steel1
 class Source,Executable daisy1
 class create,execute dafault_node1
 ```
-As one can see from the picture, overall plugin pipeline consists of two major blocks: the first block applies transformations to `nGraph model` while the second one works with the internal plugin graph representation. Since `Snippets` is a backend-independent framework, it can't work with the plugin graph or plugin-specific `Ops` directly, so the tokenization is performed immediately before plugin-specific operations are introduced into the graph (`Conversion to Plugin opset`). 
-`Tokenizer` replaces parts of the `nGraph model` that can be executed by `Snippets` with `ov::op::Subgraph` nGraph nodes. 
-Each of the nodes stores a piece of the initial `nGraph model` that was replaced by the node. 
-This piece is stored as an nGraph model itself, which we refer to  as `nGraph IR` to distinguish from the original `nGraph model`. 
+As one can see from the picture, overall plugin pipeline consists of two major blocks: the first block applies transformations to `OpenVINO model` while the second one works with the internal plugin graph representation. Since `Snippets` is a backend-independent framework, it can't work with the plugin graph or plugin-specific `Ops` directly, so the tokenization is performed immediately before plugin-specific operations are introduced into the graph (`Conversion to Plugin opset`). 
+`Tokenizer` replaces parts of the `OpenVINO model` that can be executed by `Snippets` with `ov::op::Subgraph` OpenVINO nodes. 
+Each of the nodes stores a piece of the initial `OpenVINO model` that was replaced by the node. 
+This piece is stored as an OpenVINO model itself, which we refer to  as `OpenVINO IR` to distinguish from the original `OpenVINO model`. 
 Note that sometimes the exact type of `IR` is not important in our discussion. 
-In such cases, we will refer to the `IR` (`nGraph` or `Linear`) as `body function`, or simply `body`. 
+In such cases, we will refer to the `IR` (`OpenVINO` or `Linear`) as `body function`, or simply `body`. 
 
-When the plugin finalizes all `nGraph model` transformations, the model is converted to an internal plugin graph representation. 
-At this point `ov::op::Subgraph` is converted to `ov::intel_cpu::node::Snippet` which still retains the `nGraph IR`. 
+When the plugin finalizes all `OpenVINO model` transformations, the model is converted to an internal plugin graph representation. 
+At this point `ov::op::Subgraph` is converted to `ov::intel_cpu::node::Snippet` which still retains the `OpenVINO IR`. 
 This IR is then optimized and an executable `Kernel` is produced during the `CreateComputePrimitive` stage (`CreatePrimitive()` stage in CPU plugin). 
 Finally, multiple copies of the produced kernel executed in parallel during the `Execute` stage.
 
@@ -332,7 +332,7 @@ To summarize, `Snippets` workflow consists of three major blocks: `Tokenizer`, `
 
 ### Tokenizer
 
-`Tokenizer` is run on an `nGraph model` and its main purpose is to identify subgraphs that are suitable for code generation. 
+`Tokenizer` is run on an `OpenVINO model` and its main purpose is to identify subgraphs that are suitable for code generation. 
 These subgraphs are then replaced with the `ov::op::Subgraph` node. 
 This stage is called tokenization because the `Tokenizer` employs a greedy  algorithm similar to the ones used for parsing input stream of characters into tokens. 
 One of the distinctive features of this algorithm is its flexibility, so it can seamlessly handle arbitrary operations' patterns. 
@@ -371,8 +371,8 @@ The tokenization algorithm is depicted on the flowchart below.
 ```
 Let us briefly describe the process:
 1. If a Node is not supported by `Snippets`, then ignore it and proceed to the next one.
-2. If a Node has no `Subgraph`  parents, then replace it with `Subgraph` node and copy the initial Node to the `Subgraph's` body (which is in the `nGraph IR` form).
-3. If a Node has a single `Subgraph` parent, then attach it to the `Subgraph`. It means copy the Node to the `Subgraph's` body, and remove it from the original `nGraph model`. Note that if the Node has more than one parent, corresponding parents' outputs will be connected with the updated `Subgraph` as shown on the diagram below.
+2. If a Node has no `Subgraph`  parents, then replace it with `Subgraph` node and copy the initial Node to the `Subgraph's` body (which is in the `OpenVINO IR` form).
+3. If a Node has a single `Subgraph` parent, then attach it to the `Subgraph`. It means copy the Node to the `Subgraph's` body, and remove it from the original `OpenVINO model`. Note that if the Node has more than one parent, corresponding parents' outputs will be connected with the updated `Subgraph` as shown on the diagram below.
 4. If a Node has multiple `Subgraph` parents, then they will be merged into a single `Subgraph` and the Node will be attached to it.
 ```mermaid
  graph LR
@@ -409,7 +409,7 @@ If a `Constant` is not scalar, then it can't be tokenized since storing `Constan
 Please refer to the [collapse_subgraph.cpp](../src/pass/collapse_subgraph.cpp) to gain more insights on the tokenization process.
 
 There is however one more aspect of the tokenization process that is worth covering here. 
-As discussed in the **Plugin integration** section above, the `Tokenizer` is executed before the plugin converts the `nGraph model` to an internal graph representation. 
+As discussed in the **Plugin integration** section above, the `Tokenizer` is executed before the plugin converts the `OpenVINO model` to an internal graph representation. 
 It means that the tokenized nodes will not be visible to the plugin (since they are hidden inside `Subrgaphs'` body functions), so they will be ignored by plugin optimization passes. 
 In particular, the plugin won't be able to fuse the nodes using the OneDNN post-ops mechanism. 
 This type of fusings is backend-specific, therefore can't be supported by `Snippets` directly, but it's still important from the performance perspective.
@@ -424,15 +424,15 @@ Please, refer to the [snippets_mark_skipped.cpp](../../../plugins/intel_cpu/src/
 As briefly discussed in the ***Architecture*** section, `Optimizer` consists of two major units: the first one performs data flow optimization, and the second one is focused on control flow. 
 Note however that some data-flow-related passes can be performed only after the control flow optimizations, so the second unit modifies the dataflow as well. 
 Nevertheless, we will refer to the units as `Data flow optimizer` and `Control flow optimizer` to reflect their main purpose. 
-Keep in mind that, as discussed above, the `Data flow optimizer` operates exclusively on the `nGraph IR`, while the `Control flow optimizer` works with the `Linear IR`. 
+Keep in mind that, as discussed above, the `Data flow optimizer` operates exclusively on the `OpenVINO IR`, while the `Control flow optimizer` works with the `Linear IR`. 
 We will discuss these units in more detail below.
 
 #### Data flow optimizer
 
  Before `Data flow optimizer` can modify data flow, it needs to perform a preliminary stage called `Canonicalization`. 
  To understand the stage's purpose we need to make a step back to the tokenization. 
- The `Tokenizer` saves a part of the initial `nGraph function` in `Subgraph's` body. 
- The problem is that the `nGraph function` has no information about data layouts that will be used by the `Subgraph's` parents during the `Execution` stage. 
+ The `Tokenizer` saves a part of the initial `OpenVINO function` in `Subgraph's` body. 
+ The problem is that the `OpenVINO function` has no information about data layouts that will be used by the `Subgraph's` parents during the `Execution` stage. 
  This happens because the plugin assigns layouts on internal graph representation well after the tokenization is finished. 
  The purpose of `Canonicalization` is to incorporate the plugin-defined input layouts into the body function. 
  If an input's layout was changed to a blocked one, then the corresponding body input `Parameter` will be reshaped, and new shapes will be propagated through the body function. 
@@ -444,28 +444,29 @@ We will discuss these units in more detail below.
  The next stage is the actual data flow optimizations, the stage has two main objectives. 
  First, it inserts utility operations to make the data flow explicit and suitable for further optimizations and code generation. 
  Second, it replaces some `Ops` (or `Ops'` patterns) with operations from the custom `Snippets::op` opset to allow for generation of a more efficient code. 
+ The data flow optimizations are shape-agnostic transformations which allow to perform the stage `Data flow optimization` on subgraphs with dynamic shapes.
  Let's consider an example below to clarify this stage's mechanics.
 
 ```mermaid
  graph LR
    subgraph left[" "]
       direction TB
-      P10[Parameter 1]-->|"[3,2,10,1]"|S0["Multiply"]
+      P10[Parameter 1]-->|"[3,2,?,?]"|S0["Multiply"]
       C10[Constant 1]-->|"[1,1,1,1]"|S0
-      S0-->|"[3,2,10,1]"|Add0[Add]
-      Add0-->|"[3,2,10,64]"|Power0[Power]
+      S0-->|"[3,2,?,?]"|Add0[Add]
+      Add0-->|"[3,2,?,?]"|Power0[Power]
       C20[Constant 2]-->|"[1,1,1,1]"|Power0
-      P20[Parameter 2]--->|"[3,2,10,64]"|Add0
-      Power0-->|"[3,2,10,64]"|R0["Result"]
+      P20[Parameter 2]--->|"[3,2,?,?]"|Add0
+      Power0-->|"[3,2,?,?]"|R0["Result"]
    end
    subgraph middle[" "]
       direction TB
-      P11[Parameter 1]-->|"[3,2,10,1]"|S1["Multiply"]
+      P11[Parameter 1]-->|"[3,2,?,?]"|S1["Multiply"]
       C11[Scalar 1]-->|"[1,1,1,1]"|S1
-      S1-->|"[3,2,10,1]"|B1[BroadcastMove]-->|"[3,2,10,64]"|Add1[Add]
-      Add1-->|"[3,2,10,64]"|Power1[PowerStatic]
-      P21[Parameter 2]--->|"[3,2,10,64]"|Add1
-      Power1-->|"[3,2,10,64]"|R1["Result"]
+      S1-->|"[3,2,?,?]"|Add1[Add]
+      Add1-->|"[3,2,?,?]"|Power1[PowerStatic]
+      P21[Parameter 2]--->|"[3,2,?,?]"|Add1
+      Power1-->|"[3,2,?,?]"|R1["Result"]
    end
    left-->|Data flow \n optimization|middle
 %%   middle-->|<font size=+1>Attach Add\n to Subgraph</font>|right
@@ -476,26 +477,27 @@ The picture above demonstrates body functions' state before (left) and after (ri
 Here what happend with the graph during the optimizations:
 1. `Constant` nodes were replaced with `Scalars` from `Snippets` opset. This is needed to allow for generation of a more efficient code, since a corresponding ScalarEmitter allows to store values directly inside the `Kernel`.
 2. The `Scalar->Power`sequence was replaced with the `PowerStatic` operation (`Snipppets` opset). Again, this allows to generate more specialized and performant code.
-3. An explicit `BroadcastMove` operation was inserted between the `Multiply` and `Add` nodes, since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
 
-This should give you a general idea on how the `Data flow optimizer` works, please refer to `canonicalize(...)` and `data_flow_transformations(...)` in [subgraph.cpp](../src/op/subgraph.cpp) for more details. 
-The last thing worth mentioning here is that the `Snippets` also allow a plugin to perform target-specific optimizations by providing several transformation managers to `snippets::op::Subgraph::generate(...)` (which in turn calls both `data_flow_transformations(...)` and `control_flow_transformations(...)`). 
-The managers will be executed on different stages of the pipeline to enable more fine-tuning.
+This should give you a general idea on how the `Data flow optimizer` works, please refer to `data_flow_transformations(...)` in [subgraph.cpp](../src/op/subgraph.cpp) for more details. 
+The last thing worth mentioning here is that the `Snippets` also allow a plugin to perform target-specific optimizations by providing set of positioned passes to
+`snippets::op::Subgraph::generate(...)` (which in turn calls both `data_flow_transformations(...)` and `control_flow_transformations(...)`).
+Positioned passes (defined in [positioned_pass.hpp](../include/snippets/pass/positioned_pass.hpp)) represent the transformation itself and the place where it should be registered in the transformation manager,
+which allows the plugin to flexibly register its own passes.
 
 #### Control flow optimizer
 
 As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel. 
-Since the `nGraph IR` doesn't have an explicit control flow representation, a special control-flow-oriented `IR` was developed. 
+Since the `OpenVINO IR` doesn't have an explicit control flow representation, a special control-flow-oriented `IR` was developed. 
 It is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
 
 ##### Linear Intermediate Representation
 
 `Linear IR` is specially designed to facilitate manipulations with control flow. 
-It is called linear, because it is essentially a sequence of `Expressions` (an analog of nGraph `Op`) that represents control flow. 
+It is called linear, because it is essentially a sequence of `Expressions` (an analog of OpenVINO `Op`) that represents control flow. 
 So if `Expression 1` is followed by `Expression 2` in `LIR` then the code for `Expression 1` will be emitted before the code for `Expression 2`. 
 Note that this doesn't necessarily mean that the `Expression 2` uses the result of `Expression 1`, they can be completely unrelated from the data flow standpoint. 
 The only restriction here is that all the `Expression's` inputs must be ready by the time it is executed. 
-This restriction is the same as in `nGraph IR`, but an important distinction here is that `LIR` allows to permute `Expressions` while this data-dependency condition is fulfilled. 
+This restriction is the same as in `OpenVINO IR`, but an important distinction here is that `LIR` allows to permute `Expressions` while this data-dependency condition is fulfilled. 
 So the `LIR` preserves data dependencies, but also allows for a more control on expressions' order that represents control flow. 
 This is a brief rationale behind the linear `IR`, now let's move to the implementation.
 
@@ -515,8 +517,8 @@ flowchart LR
        Expression-->|Contains|Connector[PortConnector]
        Expression-->|Contains|PortDescriptor
        Connector-->|Contains|ExpressionPort
-       Expression.->|Can \n create|ExpressionPort
-       ExpressionPort.->|Contains \n Pointer|Expression
+       Expression-->|Can \n create|ExpressionPort
+       ExpressionPort-->|Contains \n Pointer|Expression
    end
    subgraph Usage[Moving between Expressions]
       direction TB
@@ -536,13 +538,13 @@ flowchart LR
    class consumers no-bg
 ```
 
-`LinearIR` is our graph representation, it's an analog to an nGraph model. 
+`LinearIR` is our graph representation, it's an analog to an OpenVINO model. 
 It is simply a container for `Expressions`, the order of `Expressions` represents control flow. 
-`LIR` also incorporates a range of useful methods to manage the `Expressions`, for example `create_expression(...)` to build `Expressions` from nGraph nodes, or `replace_input(...)` to modify data dependencies between `Expressions`. 
+`LIR` also incorporates a range of useful methods to manage the `Expressions`, for example `create_expression(...)` to build `Expressions` from OpenVINO nodes. 
 Please refer to the implementation in [linear_ir.cpp](../src/lowered/linear_ir.cpp) for more details.
 
 `Expression` is the main building block of a `Linear IR`. 
-It contains a pointer to the nGraph node it was created from and a pointer to the emitter it will be mapped to (which is null until `Expression::init_emitter(...)` is called). 
+It contains a pointer to the OpenVINO node it was created from and a pointer to the emitter it will be mapped to (which is null until `Expression::init_emitter(...)` is called). 
 An `Expression` can have an arbitrary number of inputs and outputs, we will refer to them simply as ports. 
 Every port can be uniquely identified by the `ExpressionPort` class. 
 The `ExpressionPort` contains a pointer to the `Expression` which port it represents, the port type (`input` or `output`) and its index (input/output number). 
@@ -556,41 +558,65 @@ This information will be used by the control flow optimization pipeline to deter
 An `Expression` internally stores two separate vectors of input and output `PortDescriptors` which could be accessed by calling `get_input_port_descriptors()` or `get_input_port_descriptor(i)` (and similar for outputs).
 
 Finally, `PortConnectors` specify how the `Expression's` ports are connected. 
-Note that an `Expression` output can be connected to several inputs (like with nGraph nodes), So every `PortConnector` stores one source `ExpressionPort` and a set of consumer `ExpressionPorts` that can be accessed by the `get_source()` or `get_consumers()` methods, respectively. 
+Note that an `Expression` output can be connected to several inputs (like with OpenVINO nodes), So every `PortConnector` stores one source `ExpressionPort` and a set of consumer `ExpressionPorts` that can be accessed by the `get_source()` or `get_consumers()` methods, respectively. 
 Like with `PortDescriptors`, an `Expression` stores input and output `PortConnectors` in two separate vectors accessed via `get_input_port_connector(i)` (or its output twin).
 
 An example on how `PortConnectors` can be used to move between `Expressions` is given on the right side of the above picture. 
 So if we need to get a child expression connected to the i-th expression's output, we need to call `expression->get_output_port_connector(i)` first to obtain a corresponding connector, then to call `connector->get_consumers()` to obtain a set of connected `ExpressionPorts`, and finally `ExpressionPort->get_expr()` to access a child expression. 
 Note that if a `PortDescriptor` is required, you can obtain it directly (without getting `Expression` first) by calling `ExpressionPort->get_descriptor_ptr()`, so the `ExpressionPort` will snag the right `PortDescriptor` from the `Expression` for you.
 
-Concluding this section, it's worth mentioning that the `LinearIR` currently provides two debug features: `debug_print()` and `serialize(...)`. 
+Concluding this section, it's worth mentioning that the `LinearIR` currently provides several debug features: `debug_print()`, serialization, performance counters and segfault detector. 
 The first one prints input and output `PortConnectors` and `PortDescriptors` for every `Expression` to stderr. 
-The second one serializes the `LIR` into an `xml` OpenVINO graph format, where a lot of useful parameters are displayed for every `Expression`.
+The second one allows users to serialize the `LIR` in two representations: as a control flow graph of `LinearIR` using the pass `SerializeControlFlow` and 
+as a data flow graph of `LinearIR` using the pass `SerializeDataFlow` (control flow operations (e.g. `LoopBegin`/`LoopEnd`) are not serialized).
+The both serializations are saved in `xml` OpenVINO graph format, where a lot of useful parameters are displayed for every `Expression`.
+Please see [perf_count.md](./debug_capabilities/perf_count.md) and [snippets_segfault_detector.md](./debug_capabilities/snippets_segfault_detector.md) for more info regarding the performance counters and segfault detector. 
+
+The `LinearIR` also provides a a convenient interface for working with new `Expressions`.
+This interface includes the `insert_node(...)` method that creates a new `Expression` based on the passed `ov::Node` and inserts it in the specified place in the `LinearIR`.
+The `insert_node(...)` method automatically performs all the necessary actions for full integration into the `LinearIR` (connection with parents and consumers and updates of the corresponding `LoopInfo`).
+This helper is used in several control flow transformations, that are usually named `InsertSomething`. Consider the `InsertLoadStore` pass as an example [insert_load_store.cpp](../src/lowered/pass/insert_load_store.cpp).
+The method `replace_with_node(...)` replaces the existing `Expressions` in the `LinearIR` with the new `Expression`. This `Expression` is created from the passed `ov::Node`.
+The example of using the helper might be found in the `LoadMoveBroadcastToBroadcastLoad` pass inside [load_movebroadcast_to_broadcastload.cpp](../src/lowered/pass/load_movebroadcast_to_broadcastload.cpp).
+The method `replace_with_expr(...)` replaces the existing `Expressions` in the `LinearIR` with the passed `Expression`.
+For more details regarding these helpers please refer to the relevant descriptions in `LinearIR` interface inside [linear_ir.cpp](../src/lowered/linear_ir.cpp).
 
 ##### Control flow optimization pipeline
 
-Control flow optimization pipeline is divided into three main blocks: common pipeline, buffer pipeline and final pipeline. 
-The common pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
-The exact set of transformations executed in the common pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
+The pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
+The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
 1. `MarkLoops` - performs an analysis of `Expressions'` connectivity and their `PortDescriptors`. 
 Based on this information, the pass divides the `Expression` into groups, so that each of the groups can be executed inside one loop. 
-Every group is described by a `loop_id`, and additional information is saved in `LinearIR::LoopManager::LoopInfo`.
+Every group is described by a `loop_id`, and additional information is saved in `LoopInfo`.
 2. `FuseLoops` - analyzes the assigned `loop_ids` and `LoopInfo`, fuses some loops if possible. 
 This pass can move some `Expressions` up or down the graph, so the `Expressions` with the same `loop_ids` are grouped together.
 3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
 4. `InsertLoadStore` - inserts explicit memory access operations like `Load` and `Store` (both from `snippets::op`). 
 These are needed, so appropriate instructions will be emitted during the code generation stage to move data between memory and vector registers.
-5. `InitLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
+5. `InitLoops` - initialize data pointer shift parameters (pointer increments and finalization offsets for each loop port) in `LoopInfo`.
+6. `InsertLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
 Again, the explicit operations are needed to emit appropriate instructions later.
-6. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
+7. `InsertBroadcastMove` insert `MoveBroadcast` before `Expressions` with several inputs since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
+8. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
+9. `AllocateBuffers` is responsible for a safe `Buffer` data pointer increments and common memory size calculation. For more details refer please to the end of this section.
+10. `CleanRepeatedDataPointerShifts` - eliminates redundant pointer increments from the loops.
+11. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
 
-The buffer pipeline is focused on managing `op::Buffer` operations:
-1. `IdentifyBuffers` - analyzes buffers using graph coloring algorithm to avoid redundant pointer increments.
-2. `AllocateBuffers` - calculates minimal memory size required to handle all the buffers. The memory will be allocated during the execution stage by the plugin `Snippet` node.
-    
-The final pipeline applies finishing touches before the `IR` will be passed to the `Generator` module:
-1. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
-2. `CleanupLoopOffsets` - eliminates redundant pointer increments from the loops.
+As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
+Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
+* All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
+* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
+
+The algorithm supports two modes: optimized and non-optimized.
+The optimized one calculates minimal memory size and minimal unique `RegGroup` count required to handle all the buffers.
+The non-optimized version assigns each buffer an unique `RegGroup`, `ClusterID` and `offset`.
+The first mode is the default one, while the second one might be used for debugging the optimized version.
+The optimized algorithm `AllocateBuffers` has the main following steps:
+1. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+2. `DefineBufferClusters` - creates sets of `Buffer` ops (buffer clusters) and set `ClusterID` value to `Buffer` ops.
+As noticed above, `Buffers` from one cluster refer to the same memory area.
+For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
+3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
 More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
 When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
@@ -604,28 +630,33 @@ Let's discuss the target-independent stage first.
 
 The `Preparation` consists of low-level target-independent transformations needed to prepare the `IR` for code generation. 
 There are currently two such transformations:
-1. `AssignRegisters` assigns abstract registers to `Expressions` based on their data dependencies. 
-The easiest way to think about the assignment logic is that a register is assigned to every `PortConnector` to ensure appropriate data propagation. 
-However, every `Expression` needs to know the assigned registers, so they are stored is the `PortDescriptors` (and could be obtained via `get_reg()`). 
-Consequently, all the ports connected to the same `PortConnector` will have the same register in their `PortDescriptors`. 
-`AssignRegisters` also supports register re-utilization, so if all `ExpressionPorts` connected to this `PortConnector` are evaluated, then the corresponding register may be reused by other `PortConnector`. 
-In other words, when all the `Expressions` that required input data in a certain register are evaluated, the register may be reused to hold another `Expression's` output. 
-`AssignRegisters` also supports two types of registers: general-purpose and vector ones. 
+1. `InitRegisters` assigns registers to `Expressions` based on their data dependencies. 
+This register assignment is organized in three steps implemented as separate passes: `InitLiveRanges`, `AssignRegisters` and `InsertRegSpills`.
+    * `InitLiveRanges` assigns an abstract register to every `PortConnector` and determines their live intervals based on data dependencies.
+Note that the assigned registers are stored in `PortDescriptors` and could be obtained via `get_reg()`.
+Similarly, the `get_live_regs()` method returns live registers for the given expression.
+    * `AssignRegisters` uses the information collected by `InitLiveRanges` to map abstract register to the physical ones.
+Physical registers that have non-overlapping live intervals will be reused.
+    * Finally, `InsertRegSpills` inserts `RegSpillBegin` and `RegSpillEnd` operations to spill (and restore) some registers to the stack and update live registers for affected expressions.
+For example, this is needed to reduce ABI call overheads if we need to call a binary inside a loop.
 Different types of registers are managed and assigned independently, and a particular register type required by an `Expression` is provided by the `ov::snippets::Generator` (or a derived generator for target-specific `Ops`).  
-2. `InsertTailLoop` injects tail-processing section after a loop body if needed. 
+2. `InsertSpecificIterations` injects initialization section before a loop body and tail-processing section after a loop body if needed. 
 Note that every loop has two parameters that specify how its body is evaluated: `work_amount` and `increment` The `work_amount` indicates how much of the data needs to be processed, it often equals to the dimension's size the loop is working on. 
 The `increment` defines how many data entries are processed on every loop iteration (it usually equals to vector size for the innermost loops of elementwise subgraph). 
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
-`InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
+`InsertSpecificIterations` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
+3. `CleanupLoopOffsets` "fuses" the finalization offsets of loop with an outer loop's pointer increments and zeroes the offsets before `Result` operations.
+4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
+This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the `Preparation` passes. 
+Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage.
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
-`TargetMachine` also maps the nGraph's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
+`TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
 The mapping is done using the `jitters` map defined in [target_machine.hpp](../include/snippets/target_machine.hpp). 
 In order for this mechanism to work, every `Snippets'` code generation backend should create emitter implementations derived from the `Emitter` base class defined in [emitter.hpp](../include/snippets/emitter.hpp). 
-The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/x64/cpu_generator.cpp) for an implementation example.
+The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/cpu_generator.cpp) for an implementation example.
 
 Note that `init_emitters(...)` only initializes the appropriate emitters, but do not actually emit any code. 
 To perform code emission, a `snippets::op::Kernel` operation is constructed (see [generator.cpp](../src/generator.cpp)), its constructor takes the `IR` with all the initialized emitters as an only input argument. 
@@ -634,7 +665,7 @@ Finally, the `kernel->emit_code({}, {})` command initiates the code emission.
 Note that the `emit_code(...)` is called only for the `KernelEmitter`, and the emitter is responsible for calling the same method for the rest of the expressions in the `IR` This encapsulation is needed because the `KernelEmitter` performs mapping of the assigned abstract registers to physical registers available on a particular platform. 
 Another important function of the `KernelEmitter` is to calculate input/output data offsets based on dimension indices provided in runtime, and to shift corresponding data-handling registers accordingly. 
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
-We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
+We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
 ## See also
 

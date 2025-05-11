@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, group_conv_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::GroupConvolution>();
+    NodeBuilder::opset().insert<ov::op::v1::GroupConvolution>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 224, 224});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 1, 3, 5, 5});
     auto strides = Strides{1, 1};
@@ -37,7 +37,7 @@ TEST(attributes, group_conv_op) {
 }
 
 TEST(attributes, group_conv_backprop_data_op) {
-    NodeBuilder::get_ops().register_factory<op::v1::GroupConvolutionBackpropData>();
+    NodeBuilder::opset().insert<op::v1::GroupConvolutionBackpropData>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 20, 224, 224});
     const auto filter = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 5, 2, 3, 3});
     const auto output_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});

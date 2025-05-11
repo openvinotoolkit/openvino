@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, bin_convolution) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
+    NodeBuilder::opset().insert<op::v1::BinaryConvolution>();
     const PartialShape data_batch_shape{1, 1, 5, 5};
     const PartialShape filters_shape{1, 1, 3, 3};
     Strides strides{1, 1};

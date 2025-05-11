@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,13 @@ public:
     SoftmaxKernelRef() : Parent("softmax_gpu_ref") {}
     virtual ~SoftmaxKernelRef() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

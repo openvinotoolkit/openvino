@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 
@@ -32,7 +34,7 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
         return false;
 
-    auto res_node = std::dynamic_pointer_cast<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
+    auto res_node = ov::as_type_ptr<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
 
     const std::vector<bool> comp_result = res_node->cast_vector<bool>();
 
@@ -52,10 +54,10 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     auto oh = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto fake_quantize = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({data, il, ih, ol, oh});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        const auto fake_quantize_node = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(
-            pattern_to_output.at(fake_quantize).get_node_shared_ptr());
+        const auto fake_quantize_node =
+            ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
         if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) ||
             !isValidRangesInputs(fake_quantize_node)) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ public:
     ExtractImagePatchesKernelRef() : ExtractImagePatchesKernelBase("extract_image_patches_ref") {}
     virtual ~ExtractImagePatchesKernelRef() = default;
 protected:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 };
 }  // namespace kernel_selector

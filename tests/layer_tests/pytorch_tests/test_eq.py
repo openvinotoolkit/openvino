@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -40,9 +40,10 @@ class TestEq(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_eq_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
         self.input_array = input_array 
         self.input_type = types[0]
         self.other_array = other_array
         self.other_type = types[1]
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

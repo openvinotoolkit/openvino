@@ -1,15 +1,15 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
-class TestGelu(PytorchLayerTest):
+class TestGather(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False):
         import numpy as np
-        index = np.random.randint(0, max_val, (m, n))
+        index = np.random.randint(0, max_val, (m, n)).astype(np.int64)
         inp = np.random.randn(m, n).astype(np.float32)
         if out:
             axis = int(max_val == n)
@@ -39,10 +39,11 @@ class TestGelu(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("m", [2, 10, 100])
     @pytest.mark.parametrize("n", [2, 10, 100])
     @pytest.mark.parametrize("axis", [0, 1])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_gather(self, m, n, axis, out, ie_device, precision, ir_version):
         self._test(*self.create_model(axis, out), ie_device, precision, ir_version, kwargs_to_prepare_input={
             "m": m, "n": n, "max_val": m if axis == 0 else n, "out": out

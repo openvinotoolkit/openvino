@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,6 @@
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
-using namespace ngraph;
 
 namespace {
     const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {

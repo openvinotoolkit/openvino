@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableConcatAxis(ConcatAxis::BATCH);
     k.EnableConcatKernelPerInput();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -83,13 +84,16 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     std::string input_dims_order = "";
     std::string output_dims_order = "";
-    for (size_t i = 0; i < dims_id.size(); i++) {
-        input_dims_order += dims_id[i] + (i == dims_id.size() - 1 ? "" : ",");
-        if (axis_order[i] == axis)
-            output_dims_order += "(" + dims_id[i] + " + output_offset_in_concat_axis)" +
-                                 (i == dims_id.size() - 1 ? "" : ",");
-        else
-            output_dims_order += dims_id[i] + (i == dims_id.size() - 1 ? "" : ",");
+
+    for (size_t i = 0; i < dims_id.size(); ++i) {
+        std::string separator = i == dims_id.size() - 1 ? "" : ",";
+        input_dims_order += dims_id[i] + separator;
+
+        if (axis_order[i] == axis) {
+            output_dims_order += "(" + dims_id[i] + " + output_offset_in_concat_axis)" + separator;
+        } else {
+            output_dims_order += dims_id[i] + separator;
+        }
     }
 
     cldnnJit.AddConstant(MakeJitConstant("INPUT_DIMS_ORDER", input_dims_order));
@@ -97,11 +101,19 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     cldnnJit.AddConstant(MakeJitConstant("INPUT_DIM_0", DataTensor::Channelndex(input_format, Tensor::DataChannelName::X)));
 
+    if (!params.fused_ops.empty()) {
+        auto idx_order = dims_id;
+        size_t axis_idx = std::distance(axis_order.begin(), std::find(axis_order.begin(), axis_order.end(), axis));
+        idx_order[axis_idx] = "(" + idx_order[axis_idx] + " + output_offset_in_concat_axis)";
+
+        auto conf = FusedOpsConfiguration("", idx_order, "result", params.inputs[0].GetDType());
+        cldnnJit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
     return cldnnJit;
 }
 
-KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    KernelsData kd = GetCommonKernelsData(params, optParams);
+KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params) const {
+    KernelsData kd = GetCommonKernelsData(params);
 
     if (!kd.empty()) {
         for (int i = 0; i < static_cast<int>(kd[0].kernels.size()); i++) {
@@ -118,7 +130,7 @@ KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const o
     return kd;
 }
 
-KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

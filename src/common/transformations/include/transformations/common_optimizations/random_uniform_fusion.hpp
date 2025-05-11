@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,13 +16,13 @@ class TRANSFORMATIONS_API RandomUniformFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RandomUniformFusion transformation replaces RandomUniform -> Add or
  * RandomUniform -> Mul subgraph with a RandomUniform and replaces min and max const
  * with corrected values.
  */
 class ov::pass::RandomUniformFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RandomUniformFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RandomUniformFusion");
     RandomUniformFusion();
 };

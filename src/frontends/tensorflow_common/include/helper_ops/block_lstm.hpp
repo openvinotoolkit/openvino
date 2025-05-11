@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,6 +129,26 @@ public:
     ov::Dimension get_hidden_size() const {
         // TODO: it must be deleted once hidden_size is gone from attributes
         return m_hidden_size;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 9,
+                                      "[TensorFlow Frontend] internal error: BlockLSTM expects 9 inputs");
+        auto block_lstm_node = std::make_shared<BlockLSTM>(inputs[0],
+                                                           inputs[1],
+                                                           inputs[2],
+                                                           inputs[3],
+                                                           inputs[4],
+                                                           inputs[5],
+                                                           inputs[6],
+                                                           inputs[7],
+                                                           inputs[8],
+                                                           m_forget_bias,
+                                                           m_cell_clip,
+                                                           m_use_peephole,
+                                                           m_decoder);
+        block_lstm_node->set_attrs(get_attrs());
+        return block_lstm_node;
     }
 
 private:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,19 @@
 #    include <mutex>
 #    include <type_traits>
 #    include <vector>
+
+#    ifndef TBBBIND_2_5_AVAILABLE
+#        define TBBBIND_2_5_AVAILABLE 0
+#    endif
+
+// On Ubuntu22.04, system tbb is 2021.5 oneTBB and tbbbind dynamic library doesn't exist.
+// In this case, tbbbind static library is needed.
+#    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
+#    if USE_TBBBIND_2_5
+#        pragma message("USE_TBBBIND_2_5 is enabled")
+#    else
+#        pragma message("USE_TBBBIND_2_5 is disabled")
+#    endif
 
 namespace custom {
 
@@ -56,8 +69,8 @@ struct constraints {
     int max_threads_per_core = tbb::task_arena::automatic;
 };
 
+#if USE_TBBBIND_2_5
 class binding_handler;
-
 class binding_observer : public tbb::task_scheduler_observer {
     binding_handler* my_binding_handler;
 
@@ -77,14 +90,16 @@ struct binding_observer_deleter {
 };
 
 using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
-
+#endif
 }  // namespace detail
 
 class task_arena {
     tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
+#if USE_TBBBIND_2_5
     detail::binding_oberver_ptr my_binding_observer;
+#endif
 
 public:
     using constraints = detail::constraints;

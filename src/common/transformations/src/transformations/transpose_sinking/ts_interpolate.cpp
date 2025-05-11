@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -22,10 +23,10 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSInterpolateForward::TSInterpolateForward() {
     MATCHER_SCOPE(TSInterpolateForward);
-    create_pattern<ov::op::v4::Interpolate>(true, {0});
+    create_pattern<ov::op::v4::Interpolate>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         // remove Transpose on 1st input:
         auto transpose_parent = transpose_info.transpose->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
@@ -36,7 +37,7 @@ TSInterpolateForward::TSInterpolateForward() {
         const auto& new_axes = ChangeAxes(main_node->input_value(3), transpose_axis_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
@@ -75,7 +76,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -98,7 +99,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
         auto new_axes = ChangeAxes(main_node->input_value(3), reversed_transpose_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {

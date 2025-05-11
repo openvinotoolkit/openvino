@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
 
         topology topology(
                 input_layout("input", input->get_layout()),
-                activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+                activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
@@ -80,23 +80,18 @@ public:
         if (is_caching_test) {
             membuf mem_buf;
             {
-                auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-                {
-                    network0 = std::make_shared<cldnn::network>(prog, 0);
-                    std::ostream out_mem(&mem_buf);
-                    BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                    network0->save(ob);
-                }
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                ob.set_stream(get_test_stream_ptr().get());
+                program::build_program(engine, topology, get_test_default_config(engine))->save(ob);
             }
             {
-                {
-                    std::istream in_mem(&mem_buf);
-                    BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                    auto pos = ib.tellg();
-                    network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
-                    ib.seekg(pos);
-                    network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false, 0);
-                }
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, get_test_default_config(engine));
+                imported_prog->load(ib);
+                network0 = std::make_shared<cldnn::network>(imported_prog, 0);
+                network1 = std::make_shared<cldnn::network>(imported_prog, 1);
             }
         } else {
             auto prog = program::build_program(engine, topology, get_test_default_config(engine));
@@ -171,34 +166,20 @@ public:
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
         if (is_caching_test) {
-            membuf mem_buf0;
-            membuf mem_buf1;
+            membuf mem_buf;
             {
-                auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-                {
-                    network0 = std::make_shared<cldnn::network>(prog, 0);
-                    std::ostream out_mem0(&mem_buf0);
-                    BinaryOutputBuffer ob0 = BinaryOutputBuffer(out_mem0);
-                    network0->save(ob0);
-                }
-                {
-                    network1 = std::make_shared<cldnn::network>(prog, 1);
-                    std::ostream out_mem1(&mem_buf1);
-                    BinaryOutputBuffer ob1 = BinaryOutputBuffer(out_mem1);
-                    network1->save(ob1);
-                }
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                ob.set_stream(get_test_stream_ptr().get());
+                program::build_program(engine, topology, get_test_default_config(engine))->save(ob);
             }
             {
-                {
-                    std::istream in_mem0(&mem_buf0);
-                    BinaryInputBuffer ib0 = BinaryInputBuffer(in_mem0, engine);
-                    network0 = std::make_shared<cldnn::network>(ib0, get_test_stream_ptr(), engine, false, 0);
-                }
-                {
-                    std::istream in_mem1(&mem_buf1);
-                    BinaryInputBuffer ib1 = BinaryInputBuffer(in_mem1, engine);
-                    network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, true, 0);
-                }
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, get_test_default_config(engine));
+                imported_prog->load(ib);
+                network0 = std::make_shared<cldnn::network>(imported_prog, 0);
+                network1 = std::make_shared<cldnn::network>(imported_prog, 1);
             }
         } else {
             auto prog = program::build_program(engine, topology, get_test_default_config(engine));

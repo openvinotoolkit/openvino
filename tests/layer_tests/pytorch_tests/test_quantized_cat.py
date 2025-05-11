@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
@@ -65,14 +67,18 @@ class aten_add_quantized_cat(torch.nn.Module):
 
 
 class TestQuantizedCat(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
     def _prepare_input(self):
-        return (np.round(np.random.rand(2, 1, 3).astype(np.float32), 4),)
+        return (np.round(self.rng.random([2, 1, 3], dtype=np.float32), 4),)
 
     @pytest.mark.parametrize("scale", [1.0, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_quantized_cat(scale, zero_point, dtype),
@@ -91,6 +97,8 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_append_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_append_quantized_cat(scale, zero_point, dtype),
@@ -130,6 +138,8 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_add_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_add_quantized_cat(scale, zero_point, dtype),

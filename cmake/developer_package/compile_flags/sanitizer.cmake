@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,8 +16,24 @@ if (ENABLE_SANITIZER)
             "Please, check requirements:\n"
             "https://github.com/openvinotoolkit/openvino/wiki/AddressSanitizer-and-LeakSanitizer")
         endif()
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    elseif(OV_COMPILER_IS_CLANG)
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/sanitizers/asan/ignore.txt")
+        if(BUILD_SHARED_LIBS)
+            set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libasan")
+        endif()
+
+        check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+        if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+            set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
+        endif()
+
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/sanitizers/asan/ignore.txt")
+        if(BUILD_SHARED_LIBS)
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libasan")
+        endif()
+    elseif(CMAKE_COMPILER_IS_GNUCXX)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
+
         check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
         if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
@@ -60,8 +76,12 @@ if(ENABLE_UB_SANITIZER)
     if(SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")
     endif()
-
-    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=undefined")
+    
+    if(OV_COMPILER_IS_CLANG)
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -lubsan")
+    else()
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=undefined")
+    endif()
 endif()
 
 if(ENABLE_THREAD_SANITIZER)
@@ -69,7 +89,11 @@ if(ENABLE_THREAD_SANITIZER)
         message(FATAL_ERROR "Thread sanitizer is not supported in Windows with MSVC compiler. Please, use clang-cl or mingw")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
-        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+        if(OV_COMPILER_IS_CLANG)
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -ltsan")
+        else()
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+        endif()
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
@@ -82,7 +106,7 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
-        if(CMAKE_COMPILER_IS_GNUCXX)
+        if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_CLANG_TIDY)
             # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
             # Clang has no var-tracking-assignments.
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
@@ -90,6 +114,16 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
         # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
         if(NOT OV_COMPILER_IS_APPLECLANG)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
+
+            # clang does not provide rpath if -shared-libasan is used
+            # https://stackoverflow.com/questions/68571138/asan-dynamic-runtime-is-missing-on-ubuntu-18, https://bugs.llvm.org/show_bug.cgi?id=51271
+            if(BUILD_SHARED_LIBS AND ENABLE_SANITIZER AND OV_COMPILER_IS_CLANG)
+                execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name libclang_rt.asan-x86_64.so
+                    OUTPUT_VARIABLE OV_LIBASAN_FILEPATH)
+                get_filename_component(LIBASAN_DIRNAME ${OV_LIBASAN_FILEPATH} PATH)
+                set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=${LIBASAN_DIRNAME}")
+            endif()
+
             if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
                 set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
             endif()

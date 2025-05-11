@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,19 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
-#include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/negative.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -87,28 +91,25 @@ std::shared_ptr<ov::opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Nod
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     MATCHER_SCOPE(AddTransformation);
-    auto matcher = ngraph::pattern::wrap_type<ov::opset1::Add>();
+    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Add>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Add> op = ov::as_type_ptr<ov::opset1::Add>(m.get_match_root());
-    if ((op == nullptr) || (!canBeTransformed(context, op))) {
+    if ((op == nullptr) || (!canBeTransformed(op))) {
         return false;
     }
-
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 1));
 
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
     std::shared_ptr<ov::opset1::Add> add = ov::as_type_ptr<ov::opset1::Add>(addNode);
@@ -130,7 +131,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
-        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
+        ov::copy_runtime_info({ add, newMultiply }, newMultiply);
         if (ov::is_type<ov::opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
@@ -216,31 +217,33 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
+        auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-            ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{output_type},
+            ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),
+            ov::op::TemporaryReplaceOutputType(inputs[1], output_type).get());
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{add->get_output_element_type(0)},
+            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, output_type).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, output_type).get());
 
         NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
-        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
+        ov::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
-    updateOutput(context, newMultiply, newAddOrSubtract);
+    updateOutput(newMultiply, newAddOrSubtract);
 
     if (fullPathIndex != -1) {
         std::shared_ptr<Node> node = add;
         NetworkHelper::foldDequantization(node, fullPathIndex, defaultPrecisions);
     }
 
+    OPENVINO_DEBUG("LPT: done: ", newAddOrSubtract);
     return true;
 }
 
-bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool AddTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
     if (dequantization1.multiplyHasZeroOrDenormal()) {
         return false;
@@ -251,9 +254,9 @@ bool AddTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+    return EltwiseBaseTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

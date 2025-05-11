@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,24 @@ void def_type_dependent_functions<const ov::Node>(
 template <>
 void def_type_dependent_functions<ov::Node>(
     py::class_<ov::Output<ov::Node>, std::shared_ptr<ov::Output<ov::Node>>>& output) {
+    output.def("set_names",
+               &ov::Output<ov::Node>::set_names,
+               py::arg("names"),
+               R"(
+            Set tensor names associated with this output.
+
+            :param names: Set of tensor names.
+            :type names: Set[str]
+            )");
+    output.def("add_names",
+               &ov::Output<ov::Node>::add_names,
+               py::arg("names"),
+               R"(
+            Add tensor names associated with this output.
+
+            :param names: Set of tensor names.
+            :type names: Set[str]
+            )");
     output.def("remove_target_input",
                &ov::Output<ov::Node>::remove_target_input,
                py::arg("target_input"),
@@ -31,7 +49,7 @@ void def_type_dependent_functions<ov::Node>(
                 Removes a target input from the output referenced by this output handle.
 
                 :param target_input: The target input to remove.
-                :type target_input: openvino.runtime.Output
+                :type target_input: openvino.Output
                )");
     output.def("replace",
                &ov::Output<ov::Node>::replace,
@@ -40,6 +58,6 @@ void def_type_dependent_functions<ov::Node>(
                 Replace all users of this value with replacement.
 
                 :param replacement: The node that is a replacement.
-                :type replacement: openvino.runtime.Output
+                :type replacement: openvino.Output
                )");
 }

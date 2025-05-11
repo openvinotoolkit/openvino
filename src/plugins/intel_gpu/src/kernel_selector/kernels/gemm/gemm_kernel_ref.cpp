@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gemm_kernel_ref.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey GemmKernelRef::GetSupportedKey() const {
@@ -27,12 +28,29 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDynamicShapesSupport();
+    k.EnableIndirectGemm();
 
     return k;
 }
 
-DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& params) const {
     return DeviceFeaturesKey();
+}
+
+GemmKernelBase::DispatchData GemmKernelRef::SetDefault(const gemm_params& params) const {
+    const auto& output = params.outputs[0];
+
+    DispatchData dispatchData;
+
+    if (!output.is_dynamic()) {
+        auto total_batches = output.LogicalSize() /
+                            (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
+        dispatchData.gws = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
+                             total_batches };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    }
+
+    return dispatchData;
 }
 
 JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
@@ -46,6 +64,37 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
         jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACTIVATION"));
     }
 
+    auto get_matmul_axis = [](const std::vector<int64_t>& order_idx) {
+        auto last_idx = static_cast<size_t>(order_idx.back());
+        last_idx = (last_idx >= order_idx.size()) ? (order_idx.size() - 1) : last_idx;
+
+        std::vector<std::string> dims;
+        if (order_idx.size() == 1) {
+            dims = {"X"};
+        } else if (order_idx.size() == 2) {
+            dims = {"Y", "X"};
+        } else if (order_idx.size() == 3) {
+            dims = {"F", "Y", "X"};
+        } else if (order_idx.size() == 4) {
+            dims = {"B", "F", "Y", "X"};
+        } else if (order_idx.size() == 5) {
+            dims = {"B", "F", "Z", "Y", "X"};
+        } else if (order_idx.size() == 6) {
+            dims = {"B", "F", "W", "Z", "Y", "X"};
+        }
+        return dims[last_idx];
+    };
+
+    jit.AddConstants({
+        MakeJitConstant("MATMUL_AXIS", get_matmul_axis(params.input0_order)),
+        MakeJitConstant("TR_B", GetTransposedDims(params.output_order).at(0)),
+        MakeJitConstant("TR_F", GetTransposedDims(params.output_order).at(1)),
+        MakeJitConstant("TR_W", GetTransposedDims(params.output_order).at(4)),
+        MakeJitConstant("TR_Z", GetTransposedDims(params.output_order).at(5)),
+        MakeJitConstant("TR_Y", GetTransposedDims(params.output_order).at(6)),
+        MakeJitConstant("TR_X", GetTransposedDims(params.output_order).at(7)),
+    });
+
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "dequantized", input_dt, 1 };
@@ -55,16 +104,16 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
     return jit;
 }
 
-KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData GemmKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
-bool GemmKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool GemmKernelRef::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     // int8 validation

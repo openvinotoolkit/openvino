@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/matmul.hpp"
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -33,9 +34,9 @@ struct MatMulParams {
         m_input_type1 = input_type1;
         m_input_type2 = input_type2;
         m_expected_type = expected_type;
-        m_input_value1 = CreateTensor(input_type1, input_value1);
-        m_input_value2 = CreateTensor(input_type2, input_value2);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value1 = CreateTensor(input_shape1, input_type1, input_value1);
+        m_input_value2 = CreateTensor(input_shape2, input_type2, input_value2);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_transpose1 = transpose1;
         m_transpose2 = transpose2;
         m_use_constant = use_constant;
@@ -63,9 +64,9 @@ struct MatMulParams {
         std::vector<T> input_value2(shape_size(input_shape2));
         std::iota(std::begin(input_value1), std::end(input_value1), input_value_step);
         std::iota(std::begin(input_value2), std::end(input_value2), input_value_step);
-        m_input_value1 = CreateTensor(input_type1, input_value1);
-        m_input_value2 = CreateTensor(input_type2, input_value2);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value1 = CreateTensor(input_shape1, input_type1, input_value1);
+        m_input_value2 = CreateTensor(input_shape2, input_type2, input_value2);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_transpose1 = transpose1;
         m_transpose2 = transpose2;
         m_use_constant = use_constant;

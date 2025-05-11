@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,11 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     std::shared_ptr<ov::autobatch_plugin::SyncInferRequest> m_sync_request;
+
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::IAsyncInferRequest> m_request_without_batch;
 };

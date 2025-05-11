@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "default_opset.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 

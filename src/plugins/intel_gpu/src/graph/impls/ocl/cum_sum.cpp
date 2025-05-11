@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,30 +48,43 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     using parent = typed_primitive_impl_ocl<cum_sum>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::cum_sum_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::cum_sum_params, kernel_selector::cum_sum_optional_params>;
+    using kernel_params_t = kernel_selector::cum_sum_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::cum_sum_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<cum_sum_impl>(*this);
+        return make_deep_copy<cum_sum_impl, kernel_params_t>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<cum_sum>();
         auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::cum_sum_optional_params>(impl_param.get_program());
 
         size_t rank = impl_param.get_output_layout().get_rank();
         params.axis = convert_axis(primitive->axis, rank);
         params.exclusive = primitive->exclusive;
         params.reverse = primitive->reverse;
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

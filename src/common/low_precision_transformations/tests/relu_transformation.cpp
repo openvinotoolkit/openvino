@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/relu.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/relu.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -30,15 +30,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -47,7 +47,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ReluTransformationTestValues> ReluTransformationParams;
 
 class ReluTransformation : public LayerTransformation, public testing::WithParamInterface<ReluTransformationParams> {
@@ -56,16 +56,16 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ReluFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ReluFunction::getOriginal(
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
+        transformer.add<ov::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ReluFunction::getReference(
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
@@ -101,7 +101,7 @@ TEST_P(ReluTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { -1, -1, -1, -1 },
 };
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {
+const std::vector<ov::PartialShape> shapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 

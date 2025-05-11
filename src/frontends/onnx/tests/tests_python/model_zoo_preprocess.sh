@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
 
 # default ONNX Model Zoo commit hash ID:
-ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
+ONNX_SHA=5faef4c33eba0395177850e1e31c4a6a9e634c82
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_ONNX_MODELS_ZOO=false
@@ -56,8 +56,8 @@ while getopts "homfd:s:" opt; do
 done
 shift $((OPTIND -1))
 
-MODEL_ZOO_DIR="$MODELS_DIR/model_zoo"
-ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo_$ONNX_SHA"
+MODEL_ZOO_DIR="$MODELS_DIR"
+ONNX_MODELS_DIR="$MODEL_ZOO_DIR/onnx_model_zoo"
 MSFT_MODELS_DIR="$MODEL_ZOO_DIR/MSFT"
 
 function pull_and_postprocess_onnx_model_zoo() {

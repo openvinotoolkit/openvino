@@ -1,8 +1,9 @@
+</br>
 {% if sourcename is defined and theme_use_edit_page_button==true and page_source_suffix and has_github_page %}
 {% set src = sourcename.split('.') %}
 <div class="editthispage">
-    <a class='button button-ghost button-size-m' href="{{ get_edit_url() }}">
-        <i class="fas fa-pencil-alt"></i> {{ _("Edit this page") }}
+    <a class='button button-size-m' href="{{ get_edit_url() }}">
+        <i class="fas fa-pencil-alt"></i> {{ _("Edit on GitHub") }}
     </a>
 </div>
 {% endif %}

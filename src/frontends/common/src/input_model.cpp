@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 
 using namespace ov;
 using namespace ov::frontend;
+
+InputModel::~InputModel() = default;
 
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     if (!m_actual) {
@@ -31,6 +33,13 @@ Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) 
         return {};
     }
     FRONTEND_RETURN_STATEMENT("get_place_by_tensor_name", m_actual->get_place_by_tensor_name(tensor_name))
+}
+
+Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    if (!m_actual) {
+        return {};
+    }
+    FRONTEND_RETURN_STATEMENT("get_place_by_input_index", m_actual->get_place_by_input_index(input_idx))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {

@@ -8,14 +8,18 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/op/util/reduction_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -117,13 +121,12 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
-        const auto reduce_node =
-            std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+        const auto reduce_node = ov::as_type_ptr<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         const auto unsqueeze_node = pattern_map.at(unsqueeze).get_node_shared_ptr();
         auto unsqueeze_axes_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
         auto reduce_axes_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!unsqueeze_axes_input || !reduce_axes_input || !reduce_node) {
             return false;
@@ -134,11 +137,9 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         }
 
         auto unsqueeze_axes_val = unsqueeze_axes_input->cast_vector<int64_t>();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        normalize_axes(unsqueeze_node.get(),
-                       unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
-                       unsqueeze_axes_val);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::try_normalize_axes(unsqueeze_axes_val,
+                                     unsqueeze_node->get_output_partial_shape(0).rank(),
+                                     *unsqueeze_node);
         const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {
@@ -192,8 +193,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
-        const auto reduce_node =
-            std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+        const auto reduce_node = ov::as_type_ptr<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
             return false;
         }
@@ -217,7 +217,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         const auto reduce_adjusted_axes = adjust_axes(reduce_axes_val, unsqueeze_axes);
 
         auto reduce_axes_input =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!reduce_axes_input) {
             return false;

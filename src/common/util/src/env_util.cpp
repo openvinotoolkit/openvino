@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,10 +38,16 @@ int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {
                << env << "\" due to syntax error \"" << err << '\"' << std::endl;
             throw std::runtime_error(ss.str());
         }
-    } else {
-        OPENVINO_DEBUG << "Environment variable (" << env_var << ") empty or undefined, "
-                       << " defaulted to " << default_value << " here.";
     }
+#ifdef ENABLE_OPENVINO_DEBUG
+    else {
+        OPENVINO_DEBUG("Environment variable (",
+                       env_var,
+                       ") empty or undefined, defaulted to ",
+                       default_value,
+                       " here.");
+    }
+#endif
     return env;
 }
 
@@ -62,4 +68,18 @@ bool ov::util::getenv_bool(const char* env_var, bool default_value) {
         throw std::runtime_error(ss.str());
     }
     return rc;
+}
+
+std::unordered_set<std::string> ov::util::split_by_delimiter(const std::string& str, char delimiter) {
+    std::unordered_set<std::string> res;
+    size_t start_search_from = 0;
+    size_t pos;
+    while ((pos = str.find(delimiter, start_search_from)) != std::string::npos) {
+        res.insert(str.substr(start_search_from, pos - start_search_from));
+        start_search_from = pos + 1;
+    }
+    if (start_search_from < str.size()) {
+        res.insert(str.substr(start_search_from));
+    }
+    return res;
 }

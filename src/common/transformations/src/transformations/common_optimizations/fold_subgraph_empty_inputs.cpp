@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -18,7 +19,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
     auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
+        auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
         }
@@ -34,7 +35,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                      std::back_inserter(empty_inputs),
                      [](const Output<Node>& input) {
                          // skip constants
-                         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
+                         if (ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
                              return false;
                          }
                          // skip non-static shapes

@@ -1,15 +1,15 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
-import platform
 import signal
 import sys
 import traceback
 from multiprocessing import Process, Queue, TimeoutError, ProcessError
 from queue import Empty as QueueEmpty
 from typing import Callable, Union
+
 
 def _mp_wrapped_func(func: Callable, func_args: list, queue: Queue, logger_queue: Queue):
     """

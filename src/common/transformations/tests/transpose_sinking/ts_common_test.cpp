@@ -8,12 +8,14 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
+#include "transformations/transpose_sinking/ts_cumsum.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
+#include "transformations/transpose_sinking/ts_tile.hpp"
 #include "transformations/transpose_sinking/ts_unary.hpp"
 #include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "ts_test_case.hpp"
@@ -206,6 +208,30 @@ FactoryPtr CreateInterpolateFactory(const std::string& type_name, bool is_refere
     return std::make_shared<InterpolateFactory>(type_name, is_reference);
 }
 
+class CumSumFactory : public IFactory {
+public:
+    explicit CumSumFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<CumSum>(parent_nodes[0], parent_nodes[1]);
+    }
+};
+
+FactoryPtr CreateCumSumFactory(const std::string& type_name) {
+    return std::make_shared<CumSumFactory>(type_name);
+}
+
+class TileFactory : public IFactory {
+public:
+    explicit TileFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<Tile>(parent_nodes[0], parent_nodes[1]);
+    }
+};
+
+FactoryPtr CreateTileFactory(const std::string& type_name) {
+    return std::make_shared<TileFactory>(type_name);
+}
+
 class SliceFactory : public IFactory {
 public:
     explicit SliceFactory(const std::string& type_name) : IFactory(type_name) {}
@@ -284,6 +310,12 @@ FactoryPtr CreateFakeQuantizeFactory(const std::string& type_name) {
 
 #undef CREATE_INTERPOLATE_FACTORY
 #define CREATE_INTERPOLATE_FACTORY(type_name, reference_flag) CreateInterpolateFactory(#type_name, reference_flag)
+
+#undef CREATE_CUMSUM_FACTORY
+#define CREATE_CUMSUM_FACTORY(type_name) CreateCumSumFactory(#type_name)
+
+#undef CREATE_TILE_FACTORY
+#define CREATE_TILE_FACTORY(type_name) CreateTileFactory(#type_name)
 
 #undef CREATE_SLICE_FACTORY
 #define CREATE_SLICE_FACTORY(type_name) CreateSliceFactory(#type_name)
@@ -760,6 +792,84 @@ auto test_forward_interpolate = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward, TSTestFixture, test_forward_interpolate());
+
+auto test_forward_cumsum = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSCumSumForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {}, std::vector<int64_t>{0})};
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_specific_gather_for}, {{1}}};
+    test_case.model_ref.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonCumSumForward, TSTestFixture, test_forward_cumsum());
+
+auto test_forward_tile = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSTileForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {4}, std::vector<int64_t>{1, 2, 3, 4})};
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(out, data, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_specific_gather_for}, {{1}}};
+    test_case.model_ref.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonTileForward, TSTestFixture, test_forward_tile());
 
 auto test_forward_squeeze = []() {
     TestCase test_case;
@@ -1262,6 +1372,120 @@ auto test_backward_interpolate = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TSTestFixture, test_backward_interpolate());
 
+auto test_backward_cumsum = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSCumSumBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {}, std::vector<int64_t>{0})};
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_CUMSUM_FACTORY(CumSum)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonCumSumBackward, TSTestFixture, test_backward_cumsum());
+
+auto test_backward_tile = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSTileBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {1, 2, 48, 80}),
+                                constant<int64_t>(element::i64, {4}, std::vector<int64_t>{1, 2, 3, 4})};
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(out, data, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonTileBackward, TSTestFixture, test_backward_tile());
+
+auto test_backward_tile_tf_case = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSTileBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {2, 1, 1, 128}),
+                                constant<int64_t>(element::i64, {4}, std::vector<int64_t>{1, 1, 88, 1})};
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(out, data, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonTileBackwardTfCase, TSTestFixture, test_backward_tile_tf_case());
+
 auto test_backward_unsqueeze = []() {
     TestCase test_case;
 
@@ -1412,6 +1636,143 @@ auto test_backward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
                          TSTestFixture,
                          test_backward_reshape_unsqueeze());
+
+auto test_backward_unsqueeze_dyn_rank = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+        parameter(element::f32, PartialShape::dynamic()),
+        constant<int64_t>(element::i32, {2}, {-1}),
+    };
+
+    auto dyn_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+
+            // fill the order const with the stub values {-1, -2}
+            auto order = make_shared<Constant>(element::i32, Shape{2}, vector<int64_t>{-1, -2});
+            auto transpose = make_shared<Transpose>(out, order);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_BINARY_FACTORY(Unsqueeze)};
+    test_case.model.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Ref model description, the same as the original model, the transformation is not applied
+    // it's expected.
+    test_case.model_ref.main_op = {CREATE_BINARY_FACTORY(Unsqueeze)};
+    test_case.model_ref.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackwardDynRank,
+                         TSTestFixture,
+                         test_backward_unsqueeze_dyn_rank());
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameShape) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    const Shape input_shape = {4, 5, 6};
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
+        auto transpose = create_transpose(reshape);
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto transpose = create_transpose(X);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto indices = std::make_shared<Constant>(element::i32, Shape{3}, Shape{1, 0, 2});
+        auto gather = std::make_shared<ov::op::v8::Gather>(reshape_const, indices, axis);
+        auto reshape = std::make_shared<Reshape>(transpose, gather, false);
+        model_ref = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSUnsqueezeBackward>();
+}
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameShapeSpecialOne) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, Shape{4, 5, 6});
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{3}, std::vector<int>{4, 5, -1});
+        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
+        auto transpose = create_transpose(reshape);
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    model_ref = model->clone();
+
+    manager.register_pass<TSUnsqueezeBackward>();
+}
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeForwardSameShape) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{1, 3, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    const Shape input_shape = {4, 5, 6, 7};
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto transpose = create_transpose(X);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{5, 7, 4, 6});
+        auto reshape = std::make_shared<Reshape>(transpose, reshape_const, false);
+        model = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{5, 7, 4, 6});
+        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto indices = std::make_shared<Constant>(element::i32, Shape{4}, Shape{2, 0, 3, 1});
+        auto gather = std::make_shared<ov::op::v8::Gather>(reshape_const, indices, axis);
+        auto reshape = std::make_shared<Reshape>(X, gather, false);
+        auto transpose = create_transpose(reshape);
+        model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSUnsqueezeForward>();
+}
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeForwardSameShapeSpecialOne) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, Shape{4, 5, 6});
+        auto transpose = create_transpose(X);
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{3}, std::vector<int>{4, 5, -1});
+        auto reshape = std::make_shared<Reshape>(transpose, reshape_const, false);
+        model = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
+    }
+
+    model_ref = model->clone();
+
+    manager.register_pass<TSUnsqueezeForward>();
+}
 
 }  // namespace common
 }  // namespace testing

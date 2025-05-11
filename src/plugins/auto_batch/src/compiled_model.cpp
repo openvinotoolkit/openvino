@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const ov::AnyMap& config,
                              const DeviceInformation& device_info,
-                             const std::set<std::string>& batched_inputs,
-                             const std::set<std::string>& batched_outputs,
+                             const std::set<std::size_t>& batched_inputs,
+                             const std::set<std::size_t>& batched_outputs,
                              const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                              const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                              const ov::SoPtr<ov::IRemoteContext>& context)
@@ -64,6 +64,7 @@ CompiledModel::GetWorkerInferRequest() const {
             workerRequestPtr->_infer_request_batched._so = m_compiled_model_with_batch._so;
         workerRequestPtr->_batch_size = m_device_info.device_batch_size;
         workerRequestPtr->_completion_tasks.resize(workerRequestPtr->_batch_size);
+        workerRequestPtr->_is_wakeup = false;
         workerRequestPtr->_infer_request_batched->set_callback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
@@ -74,6 +75,7 @@ CompiledModel::GetWorkerInferRequest() const {
                     workerRequestPtr->_completion_tasks[c]();
                 }
                 // reset the timeout
+                workerRequestPtr->_is_wakeup = true;
                 workerRequestPtr->_cond.notify_one();
             });
 
@@ -83,6 +85,9 @@ CompiledModel::GetWorkerInferRequest() const {
                 {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
                     status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
+                    if ((status != std::cv_status::timeout) && (workerRequestPtr->_is_wakeup == false))
+                        continue;
+                    workerRequestPtr->_is_wakeup = false;
                 }
                 if (m_terminate) {
                     break;
@@ -134,26 +139,19 @@ CompiledModel::GetWorkerInferRequest() const {
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
-    if (!m_compiled_model_with_batch) {
-        auto res = m_compiled_model_without_batch->create_infer_request();
-        for (auto& iter : res->get_inputs()) {
-            auto&& tensor = res->get_tensor(iter);
-            if (!tensor._so)
-                tensor._so = m_compiled_model_without_batch._so;
-        }
-        for (auto& iter : res->get_outputs()) {
-            auto&& tensor = res->get_tensor(iter);
-            if (!tensor._so)
-                tensor._so = m_compiled_model_without_batch._so;
-        }
-        return res;
-    }
-
-    auto sync_res = create_sync_infer_request();
-
     ov::SoPtr<ov::IAsyncInferRequest> infer_request_without_batch = {
         m_compiled_model_without_batch->create_infer_request(),
         m_compiled_model_without_batch._so};
+    // simpler wrapper if m_compiled_model_with_batch is empty
+    std::shared_ptr<ov::ISyncInferRequest> sync_res;
+    if (m_compiled_model_with_batch)
+        sync_res = create_sync_infer_request();
+    else
+        sync_res = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
+            std::dynamic_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
+            nullptr,
+            0,
+            0);
     return std::make_shared<ov::autobatch_plugin::AsyncInferRequest>(
         std::dynamic_pointer_cast<ov::autobatch_plugin::SyncInferRequest>(sync_res),
         infer_request_without_batch,
@@ -161,8 +159,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return m_compiled_model_with_batch ? m_compiled_model_with_batch->get_runtime_model()
-                                       : m_compiled_model_without_batch->get_runtime_model();
+    auto& compiled_model = m_compiled_model_with_batch ? m_compiled_model_with_batch : m_compiled_model_without_batch;
+    auto model = compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), compiled_model._so);
+    return model;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -202,27 +202,17 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return num_request;
         } else if (name == ov::model_name.name()) {
             return m_compiled_model_without_batch->get_property(name);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-            return std::vector<std::string>{ov::optimal_number_of_infer_requests.name(),
-                                            METRIC_KEY(SUPPORTED_METRICS),
-                                            ov::model_name.name(),
-                                            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                            ov::execution_devices.name()};
-        } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-            return std::vector<std::string>{ov::auto_batch_timeout.name()};
         } else if (name == ov::execution_devices) {
             return m_compiled_model_without_batch->get_property(name);
         } else if (name == ov::loaded_from_cache) {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
             return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_METRICS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_CONFIG_KEYS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
             return time_out;
@@ -246,7 +236,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
+    return m_compiled_model_without_batch->outputs();
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
+    return m_compiled_model_without_batch->inputs();
 }
 
 void CompiledModel::export_model(std::ostream& model) const {

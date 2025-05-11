@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ class PadAttrVisitorTest : public testing::Test {};
 TYPED_TEST_SUITE_P(PadAttrVisitorTest);
 
 TYPED_TEST_P(PadAttrVisitorTest, pad_basic) {
-    NodeBuilder::get_ops().register_factory<TypeParam>();
+    NodeBuilder::opset().insert<TypeParam>();
     auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
     auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
@@ -35,7 +35,7 @@ TYPED_TEST_P(PadAttrVisitorTest, pad_basic) {
 }
 
 TYPED_TEST_P(PadAttrVisitorTest, pad_const_mode) {
-    NodeBuilder::get_ops().register_factory<TypeParam>();
+    NodeBuilder::opset().insert<TypeParam>();
     auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
     auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});

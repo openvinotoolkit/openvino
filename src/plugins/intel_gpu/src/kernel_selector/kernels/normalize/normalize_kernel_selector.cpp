@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ normalize_kernel_selector::normalize_kernel_selector() {
     Attach<NormalizeKernelAcrossSpatialRef>();
 }
 
-KernelsData normalize_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::NORMALIZE);
+KernelsData normalize_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::NORMALIZE);
 }
 }  // namespace kernel_selector

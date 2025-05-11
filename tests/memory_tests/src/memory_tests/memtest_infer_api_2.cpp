@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/runtime/core.hpp>
@@ -77,17 +77,17 @@ int runPipeline(const std::string &model, const std::string &device,
 
     try {
         pipeline(model, device, reshapeShapes, dataShapes);
-    } catch (const InferenceEngine::Exception &iex) {
+    } catch (const ov::Exception &iex) {
         std::cerr
-                << "Inference Engine pipeline failed with Inference Engine exception:\n"
+                << "OpenVINO pipeline failed with OpenVINO exception:\n"
                 << iex.what();
         return 1;
     } catch (const std::exception &ex) {
-        std::cerr << "Inference Engine pipeline failed with exception:\n"
+        std::cerr << "OpenVINO pipeline failed with exception:\n"
                   << ex.what();
         return 2;
     } catch (...) {
-        std::cerr << "Inference Engine pipeline failed\n";
+        std::cerr << "OpenVINO pipeline failed\n";
         return 3;
     }
     return 0;

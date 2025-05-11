@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
@@ -18,7 +19,7 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     auto mvn = pattern::wrap_type<ov::op::v0::MVN>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto mvn_node = std::dynamic_pointer_cast<ov::op::v0::MVN>(m.get_match_root());
+        auto mvn_node = ov::as_type_ptr<ov::op::v0::MVN>(m.get_match_root());
         if (!mvn_node) {
             return false;
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,16 +10,19 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -29,8 +32,8 @@ namespace {
 
 class ActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
@@ -39,14 +42,14 @@ inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
 
 class ResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ov::element::Type precisionBeforeOp;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore2;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
@@ -78,26 +81,26 @@ public:
         const ov::element::Type precision = std::get<0>(GetParam());
         TestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalSelectionWithIntermediate(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalSelectionWithIntermediate(
             precision,
             testValues.inputShape,
             testValues.transparentIntermediate,
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto supportedPrecisions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, {ov::element::u8}}
             })
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceSelectionWithIntermediate(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceSelectionWithIntermediate(
             precision,
             testValues.inputShape,
             testValues.transparentIntermediate,

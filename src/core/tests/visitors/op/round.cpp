@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 void static test_mode(ov::op::v5::Round::RoundMode mode) {
-    NodeBuilder::get_ops().register_factory<ov::op::v5::Round>();
+    NodeBuilder::opset().insert<ov::op::v5::Round>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{200});
     auto round = make_shared<ov::op::v5::Round>(data, mode);
     NodeBuilder builder(round, {data});

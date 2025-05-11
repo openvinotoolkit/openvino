@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, extractimagepatches_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::ExtractImagePatches>();
+    NodeBuilder::opset().insert<ov::op::v3::ExtractImagePatches>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
 
     auto sizes = Shape{3, 3};

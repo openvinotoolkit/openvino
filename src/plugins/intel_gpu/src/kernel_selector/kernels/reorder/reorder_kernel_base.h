@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,13 +43,6 @@ struct reorder_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reorder_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reorder_optional_params : optional_params {
-    reorder_optional_params() : optional_params(KernelType::REORDER) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // reorder_fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_fuse_params : fuse_params {
@@ -70,6 +63,8 @@ struct reorder_weights_params : public Params {
     WeightsTensor output;
     bool winograd = false;
     bool rotate_180 = false;
+    size_t original_input_rank = 0;
+    size_t original_output_rank = 0;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k;
@@ -112,9 +107,9 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    bool Validate(const Params&, const optional_params&) const override { return true; }
-    KernelsData GetCommonKernelsData(const reorder_weights_params& params,
-                                     const optional_params&) const;
-    KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&) const;
+    bool Validate(const Params&) const override { return true; }
+    KernelsData GetCommonKernelsData(const reorder_weights_params& params) const;
+    KernelsData GetCommonKernelsData(const reorder_params& params) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

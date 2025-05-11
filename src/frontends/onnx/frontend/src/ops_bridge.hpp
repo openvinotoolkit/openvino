@@ -1,41 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 
-#include "ngraph/except.hpp"
-#include "onnx_import/core/operator_set.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/operator_set.hpp"
 #include "version_range.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-namespace error {
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct UnknownOperator : ngraph_error {
-    UnknownOperator(const std::string& name, const std::string& domain)
-        : ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
-};
-
-struct UnknownDomain : ngraph_error {
-    explicit UnknownDomain(const std::string& domain) : ngraph_error{domain} {}
-};
-
-struct UnsupportedVersion : ngraph_error {
-    UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
-        : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
-                       std::to_string(version)} {}
-};
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-}  // namespace error
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 class OperatorsBridge {
 public:
@@ -102,12 +83,9 @@ private:
     //    domain_2: { ... },
     //    ...
     // }
-    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, Operator>>;
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-extern const char* OPENVINO_ONNX_DOMAIN;
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

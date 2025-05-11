@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,14 +8,14 @@
 
 set(BUILD_SHARED_LIBS OFF)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-all)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+    ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-stringop-overflow)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
-    ie_add_compiler_flags(/wd4703)
+    ov_add_compiler_flags(/wd4703)
 endif()
 
 set(protobuf_VERBOSE ON)
@@ -23,6 +23,9 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
+
+# some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
+unset(HAVE_ZLIB CACHE)
 
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR
@@ -53,8 +56,7 @@ set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
-   CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     if(protobuf_BUILD_PROTOC_BINARIES)
         list(APPEND _protoc_libs protoc libprotoc libprotobuf)
         set_target_properties(${_protoc_libs} PROPERTIES

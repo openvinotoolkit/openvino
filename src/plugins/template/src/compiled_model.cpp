@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "async_infer_request.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "perf_counter.hpp"
@@ -126,9 +127,6 @@ std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::Compiled
 
 // ! [compiled_model:get_property]
 ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -138,18 +136,11 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
+        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling, ov::hint::performance_mode};
         return rw_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
     if (ov::model_name == name) {
-        auto model_name = m_model->get_friendly_name();
+        auto& model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
@@ -157,17 +148,17 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
                                                            std::to_string(m_cfg.device_id)};
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = m_cfg.streams_executor_config._streams;
+        unsigned int value = m_cfg.streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
-        std::vector<ov::PropertyName> supported_properties;
+        auto supported_properties = decltype(ov::supported_properties)::value_type();
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     }
 
     return m_cfg.Get(name);
@@ -189,8 +180,10 @@ void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream
     model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     model_stream.write(m_model.c_str(), dataSize);
 
-    dataSize = static_cast<std::uint64_t>(m_constants.size());
-    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
+        dataSize = static_cast<std::uint64_t>(m_constants.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    }
 }
 // ! [compiled_model:export_model]

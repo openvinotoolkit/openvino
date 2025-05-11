@@ -1,25 +1,28 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 
-using ngraph::helpers::QuantizationGranularity;
-
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
     quantGroupConvSpecificParams groupConvParams;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ov::element::Type element_type;
+    ov::Shape inputShapes;
     std::string targetDevice;
-    std::tie(groupConvParams, netPrecision, inputShapes, targetDevice) = obj.param;
-    ngraph::op::PadType padType = ngraph::op::PadType::AUTO;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::tie(groupConvParams, element_type, inputShapes, targetDevice) = obj.param;
+    ov::op::PadType padType = ov::op::PadType::AUTO;
+    ov::Shape kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
     size_t quantLevels;
-    QuantizationGranularity quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
 
@@ -36,34 +39,30 @@ std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInf
     result << "Levels=" << quantLevels << "_";
     result << "QG=" << quantGranularity << "_";
     result << "QW=" << quantizeWeights << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
+    result << "ET=" << element_type.get_type_name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void QuantGroupConvLayerTest::SetUp() {
-    threshold = 0.5f;
-
     quantGroupConvSpecificParams groupConvParams;
-    std::vector<size_t> inputShape;
-    auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = this->GetParam();
-    ngraph::op::PadType padType = ngraph::op::PadType::AUTO;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    ov::Shape inputShape;
+    ov::element::Type element_type = ov::element::dynamic;
+    std::tie(groupConvParams, element_type, inputShape, targetDevice) = this->GetParam();
+    ov::op::PadType padType = ov::op::PadType::AUTO;
+    ov::Shape kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
     size_t quantLevels;
-    size_t quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, quantLevels, dataFqConstShapes);
+    auto dataFq = ov::test::utils::make_fake_quantize(params[0], element_type, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {convOutChannels, inputShape[1]};
     if (weightsShapes[0] % numGroups || weightsShapes[1] % numGroups)
@@ -73,24 +72,24 @@ void QuantGroupConvLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.begin(), numGroups);
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
-    std::vector<float> weightsData;
-    auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode = ov::test::utils::make_constant(element_type, weightsShapes);
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         weightsFqConstShapes[0] = weightsShapes[0];
 
-    std::shared_ptr<ngraph::Node> weights;
+    std::shared_ptr<ov::Node> weights;
     if (quantizeWeights) {
-        weights = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes);
+        weights = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
     } else {
         weights = weightsNode;
     }
 
-    auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-            ngraph::builder::makeGroupConvolution(dataFq, weights, ngPrc, stride, padBegin, padEnd, dilation, padType));
+    auto groupConv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(
+            ov::test::utils::make_group_convolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
-    function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
+    function = std::make_shared<ov::Model>(results, params, "QuantGroupConvolution");
 }
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

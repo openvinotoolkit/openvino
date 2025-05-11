@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,8 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
-            slog::info << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
+            slog::info << "Usage : " << TSTRING2STRING(argv[0]) << " <path_to_model> <path_to_image> <device_name>"
+                       << slog::endl;
             return EXIT_FAILURE;
         }
 
@@ -81,7 +82,7 @@ int tmain(int argc, tchar* argv[]) {
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
         ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-        // 4) Here we suppose model has 'NCHW' layout for input
+        // 4) Suppose model has 'NCHW' layout for input
         ppp.input().model().set_layout("NCHW");
         // 5) Set output tensor information:
         // - precision of tensor is supposed to be 'f32'

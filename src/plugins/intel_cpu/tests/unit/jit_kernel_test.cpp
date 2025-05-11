@@ -26,7 +26,7 @@ struct jit_test_kernel : public jit_kernel {
 
     void init() {
         if (create_kernel() != status::success)
-            IE_THROW() << "Can't generate jit kernel";
+            OPENVINO_THROW("Can't generate jit kernel");
         _fn = (function_t)jit_ker();
     }
 
@@ -269,19 +269,18 @@ struct jit_variable_load_store_test_kernel {
     struct Params {
         const SrcT *src;
         DstT *dst;
-        size_t size;
     };
 
     template<size_t N, size_t M, bool is_src>
     void test() {
-        kernel_impl<N, is_src> kernel;
+        kernel_impl<N, M, is_src> kernel;
         kernel.init();
         ASSERT_GE(N, M);
 
         std::array<SrcT, N> src {};
         std::array<DstT, N> result {};
 
-        Params args = { src.data(), result.data(), M };
+        Params args = { src.data(), result.data()};
 
         src.fill(static_cast<SrcT>(42));
         for (size_t i = 0; i < M; ++i) {
@@ -300,7 +299,7 @@ struct jit_variable_load_store_test_kernel {
     }
 
 private:
-    template<size_t N, bool is_src>
+    template<size_t N, size_t M, bool is_src>
     class kernel_impl : public jit_test_kernel<Params> {
     public:
         void generate() override {
@@ -308,12 +307,11 @@ private:
 
             auto src_ptr = jit_kernel::arg(&Params::src);
             auto dst_ptr = jit_kernel::arg(&Params::dst);
-            auto size = jit_kernel::arg(&Params::size);
 
             auto interm = jit_kernel::var<typename std::conditional<is_src, SrcT[N], DstT[N]>::type>();
 
-            jit_kernel::load(interm, src_ptr, size);
-            jit_kernel::store(dst_ptr, interm, size);
+            jit_kernel::load(interm, src_ptr, M);
+            jit_kernel::store(dst_ptr, interm, M);
 
             jit_kernel::postamble();
         }
@@ -324,13 +322,23 @@ TEST(JitKernel, variable_load_and_store) {
     {
         jit_variable_load_store_test_kernel<uint8_t, float> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 11, false>();
+            kernel.test<16, 16, false>();
+            kernel.test<16, 15, false>();
+            kernel.test<16, 10, false>();
+            kernel.test<16, 1, false>();
         }
         if (mayiuse(cpu_isa_t::avx2)) {
+            kernel.test<8, 8, false>();
+            kernel.test<8, 7, false>();
+            kernel.test<8, 6, false>();
             kernel.test<8, 5, false>();
+            kernel.test<8, 4, false>();
         }
         if (mayiuse(cpu_isa_t::sse41)) {
+            kernel.test<4, 4, false>();
             kernel.test<4, 3, false>();
+            kernel.test<4, 2, false>();
+            kernel.test<4, 1, false>();
         }
     }
 
@@ -350,6 +358,7 @@ TEST(JitKernel, variable_load_and_store) {
     {
         jit_variable_load_store_test_kernel<float, bfloat16_t> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
+            kernel.test<16, 4, true>();
             kernel.test<16, 11, true>();
         }
         if (mayiuse(cpu_isa_t::avx2)) {
@@ -357,6 +366,29 @@ TEST(JitKernel, variable_load_and_store) {
         }
         if (mayiuse(cpu_isa_t::sse41)) {
             kernel.test<4, 3, true>();
+        }
+    }
+
+    {
+        jit_variable_load_store_test_kernel<float, uint8_t> kernel;
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            kernel.test<16, 16, true>();
+            kernel.test<16, 10, true>();
+            kernel.test<16, 2, true>();
+            kernel.test<16, 1, true>();
+        }
+        if (mayiuse(cpu_isa_t::avx2)) {
+            kernel.test<8, 8, true>();
+            kernel.test<8, 7, true>();
+            kernel.test<8, 6, true>();
+            kernel.test<8, 5, true>();
+            kernel.test<8, 4, true>();
+        }
+        if (mayiuse(cpu_isa_t::sse41)) {
+            kernel.test<4, 4, true>();
+            kernel.test<4, 3, true>();
+            kernel.test<4, 2, true>();
+            kernel.test<4, 1, true>();
         }
     }
 

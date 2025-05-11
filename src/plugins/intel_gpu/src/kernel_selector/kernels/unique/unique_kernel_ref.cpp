@@ -124,20 +124,8 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
 
 }  // namespace
 
-KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    auto kernel_data = KernelData::Default<unique_count_params>(params);
-    const auto& kernel_params = dynamic_cast<const unique_count_params&>(*kernel_data.params);
-    const auto dispatch_data = SetDefault(kernel_params);
-    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
-    const auto jit_constants = GetJitConstants(kernel_params);
-    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
-    auto& kernel = kernel_data.kernels.front();
-
-    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+void UniqueCountKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
@@ -145,9 +133,25 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const opt
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
         // Need to adjust buffer size according to input size
-        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
+        kd.internalBuffers.front() = prim_params.inputs.front().PhysicalSizeInBytes();
         kd.internalBufferDataType = prim_params.inputs.front().GetDType();
     };
+}
+
+KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+
+    auto kernel_data = KernelData::Default<unique_count_params>(params);
+    const auto& kernel_params = dynamic_cast<const unique_count_params&>(*kernel_data.params);
+    const auto dispatch_data = SetDefault(kernel_params);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params);
+    const auto jit_constants = GetJitConstants(kernel_params);
+    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+    auto& kernel = kernel_data.kernels.front();
+
+    GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,
@@ -161,11 +165,11 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const opt
                      static_cast<int>(kernel_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(kernel_params),
                      static_cast<int>(kernel_params.outputs.size()),
-                     kernel_params.inputs.front().is_dynamic());
+                     kernel_params.is_shape_agnostic);
 
     // Additional buffer to save intermediate algorithm results
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-    kernel_data.internalBufferSizes.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
+    kernel_data.internalBuffers.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
     kernel_data.internalBufferDataType = kernel_params.inputs.front().GetDType();
 
     return {kernel_data};
@@ -185,8 +189,8 @@ ParamsKey UniqueCountKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueCountKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE_COUNT || options.GetType() != KernelType::UNIQUE_COUNT) {
+bool UniqueCountKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::UNIQUE_COUNT) {
         return false;
     }
 
@@ -212,7 +216,7 @@ JitConstants UniqueCountKernelRef::GetJitConstants(const unique_count_params& ke
     }
 
     if (input.is_dynamic()) {
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         const std::string total_data_size =
             toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
@@ -234,20 +238,8 @@ CommonDispatchData UniqueCountKernelRef::SetDefault(const unique_count_params& /
     return dispatch_data;
 }
 
-KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    auto kernel_data = KernelData::Default<unique_gather_params>(params);
-    const auto& kernel_params = dynamic_cast<const unique_gather_params&>(*kernel_data.params);
-    const auto dispatch_data = SetDefault(kernel_params);
-    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
-    const auto jit_constants = GetJitConstants(kernel_params);
-    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
-    auto& kernel = kernel_data.kernels.front();
-
-    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+void UniqueGatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
@@ -255,6 +247,22 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const op
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
+}
+
+KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+
+    auto kernel_data = KernelData::Default<unique_gather_params>(params);
+    const auto& kernel_params = dynamic_cast<const unique_gather_params&>(*kernel_data.params);
+    const auto dispatch_data = SetDefault(kernel_params);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params);
+    const auto jit_constants = GetJitConstants(kernel_params);
+    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+    auto& kernel = kernel_data.kernels.front();
+
+    GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(kernel,
                      dispatch_data,
@@ -268,7 +276,7 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const op
                      static_cast<int>(kernel_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(kernel_params),
                      static_cast<int>(kernel_params.outputs.size()),
-                     kernel_params.outputs.front().is_dynamic());
+                     kernel_params.is_shape_agnostic);
 
     return {kernel_data};
 }
@@ -287,8 +295,8 @@ ParamsKey UniqueGatherKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueGatherKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE_GATHER || options.GetType() != KernelType::UNIQUE_GATHER) {
+bool UniqueGatherKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::UNIQUE_GATHER) {
         return false;
     }
 
@@ -318,7 +326,7 @@ JitConstants UniqueGatherKernelRef::GetJitConstants(const unique_gather_params& 
     }
 
     if (input.is_dynamic()) {
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         const std::string total_data_size =
             toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));

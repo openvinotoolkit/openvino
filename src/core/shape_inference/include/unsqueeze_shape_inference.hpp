@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -12,12 +13,10 @@ namespace v0 {
 
 template <class TOp>
 void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(rank, {0, 1}),
+                          ov::util::is_rank_compatible_any_of(rank, {0, 1}),
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 template <class TShape, class TRShape = result_shape_t<TShape>>
@@ -41,18 +40,15 @@ std::vector<TRShape> shape_infer(const Unsqueeze* op,
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        normalize_axes(op, expanded_rank, unique_axes);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        const std::set<int64_t> axes(unique_axes.begin(), unique_axes.end());
+        ov::util::try_normalize_axes(unique_axes, expanded_rank, *op);
+        AxisSet axes;
+        for (const auto& axis : unique_axes) {
+            axes.insert(axis);
+        }
 
         out_shape = arg_shape;
         for (const auto& axis : axes) {
-            NODE_VALIDATION_CHECK(op,
-                                  static_cast<size_t>(axis) <= out_shape.size() + 1,
-                                  "provided 'axes' value ",
-                                  axis,
-                                  " is not valid.");
+            NODE_VALIDATION_CHECK(op, axis <= out_shape.size() + 1U, "provided 'axes' value ", axis, " is not valid.");
             // As shape not throw exception on repeated axis it has to be check if insert or append dimension.
             // This will be not required if this op has same behaviour as numpy expand_dims.
             if (static_cast<size_t>(axis) <= out_shape.size()) {

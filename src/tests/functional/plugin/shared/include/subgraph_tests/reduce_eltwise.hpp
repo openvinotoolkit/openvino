@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/reduce_eltwise.hpp"
 
-namespace SubgraphTestsDefinitions {
-
-TEST_P(ReduceEltwiseTest, CompareWithRefs) {
-    Run();
+namespace ov {
+namespace test {
+TEST_P(ReduceEltwiseTest, Inference) {
+    run();
 };
-
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

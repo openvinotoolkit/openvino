@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -64,7 +64,7 @@ def import_and_compute_with_axes_as_const(op_type, data, axes, **node_attrs):
         [onnx.helper.make_tensor_value_info("y", onnx.TensorProto.FLOAT, ())],
     )
 
-    model = onnx.helper.make_model(graph, producer_name="ngraph ONNX Importer")
+    model = onnx.helper.make_model(graph, producer_name="OpenVINO ONNX Frontend")
     model.opset_import[0].version = 13
     graph_model = import_onnx_model(model)
     runtime = get_runtime()

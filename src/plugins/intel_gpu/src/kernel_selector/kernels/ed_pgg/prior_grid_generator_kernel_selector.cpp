@@ -11,7 +11,7 @@ experimental_detectron_prior_grid_generator_kernel_selector::experimental_detect
     Attach<ExperimentalDetectronPriorGridGeneratorKernelRef>();
 }
 
-KernelsData experimental_detectron_prior_grid_generator_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR);
+KernelsData experimental_detectron_prior_grid_generator_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR);
 }
 }  // namespace kernel_selector

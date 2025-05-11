@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,12 @@
 
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
-    Run();
+TEST_P(ConstantResultSubgraphTest, Inference) {
+    run();
 }
 
-}  // namespace SubgraphTestsDefinitions
-
+}  // namespace test
+}  // namespace ov

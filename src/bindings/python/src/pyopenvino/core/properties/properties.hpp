@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,6 @@
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/auto/properties.hpp"
-#include "pyopenvino/core/properties/properties.hpp"
 
 namespace py = pybind11;
 
@@ -28,6 +24,13 @@ void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW> 
         return property.name();
     });
 
+    m.def(func_name.c_str(), [property](T value) {
+        return property(value);
+    });
+}
+
+template <typename T>
+void wrap_property_WO(py::module m, ov::Property<T, ov::PropertyMutability::WO> property, std::string func_name) {
     m.def(func_name.c_str(), [property](T value) {
         return property(value);
     });

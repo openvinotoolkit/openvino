@@ -1,26 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using query_model_params = std::tuple<ov::AnyMap,  // Set Property
                                       bool>;
@@ -60,7 +44,7 @@ public:
 
     void SetUp() override {
         std::tie(m_properties, m_throw_exception) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::test::utils::make_multi_single_conv();
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
@@ -74,15 +58,15 @@ TEST_P(QueryModelTest, QueryModelTestCase) {
     if (m_throw_exception) {
         ASSERT_ANY_THROW(m_plugin->query_model(m_model, m_properties));
     } else {
-        ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
     }
 }
 
 const std::vector<query_model_params> query_model_params_test = {
     query_model_params{{{}}, true},
-    query_model_params{{{"AUTO_BATCH_TIMEOUT", "200"}}, true},
-    query_model_params{{{"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
-    query_model_params{{{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
+    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, true},
+    query_model_params{{{ov::device::priorities("CPU(4)")}}, false},
+    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

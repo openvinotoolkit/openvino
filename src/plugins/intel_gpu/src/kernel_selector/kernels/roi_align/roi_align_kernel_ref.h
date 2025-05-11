@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -16,16 +16,14 @@ struct roi_align_params : public base_params {
     float spatial_scale = 1.f;
     PoolType pooling_mode = PoolType::MAX;
     roi_aligned_mode aligned_mode = roi_aligned_mode::ASYMMETRIC;
+    bool rotated_mode = false;
+    bool clockwise = false;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         k.EnablePoolType(pooling_mode);
         return k;
     }
-};
-
-struct roi_align_optional_params : optional_params {
-    roi_align_optional_params() : optional_params{KernelType::ROI_ALIGN} {}
 };
 
 class ROIAlignKernelRef : public KernelBaseOpenCL {
@@ -35,10 +33,10 @@ public:
     using DispatchData = CommonDispatchData;
 
     ROIAlignKernelRef() : KernelBaseOpenCL{"roi_align_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
 
 protected:
     JitConstants GetJitConstants(const roi_align_params& params) const;

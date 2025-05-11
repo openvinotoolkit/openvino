@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#include "binary_convolution_inst.h"
 #include "quantize_inst.h"
 
 #include <vector>
@@ -43,6 +42,11 @@ public:
     // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
+                                                          int32_t src_port,
+                                                          const layout& in_layout,
+                                                          const layout& out_layout);
+
+    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 
@@ -56,8 +60,14 @@ private:
         bool needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                   lhs.needs_split_reorder == rhs.needs_split_reorder;
+            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                    lhs.needs_split_reorder == rhs.needs_split_reorder;
+
+            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+                ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                        rhs.expected_layout.format.traits().block_sizes);
+            }
+            return ret;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -67,6 +77,8 @@ private:
                 return (lhs.data_source < rhs.data_source);
             else if (lhs.expected_layout != rhs.expected_layout)
                 return (lhs.expected_layout < rhs.expected_layout);
+            else if (lhs.expected_layout.format == cldnn::format::custom)
+                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
             return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
@@ -78,26 +90,23 @@ class layout_optimizer {
 public:
     enum class optimization_attributes_type {
         group_convolution,
-        deformable_convolution,
         bfyx_only_layer,
         fs_b_yx_fsv32_network,
         b_fs_zyx_fsv32_network,
         b_fs_yx_fsv16_network,
         b_fs_zyx_fsv16_network,
-        bs_fs_yx_bsv16_fsv16_network,
-        use_onednn_impls
+        bs_fs_yx_bsv16_fsv16_network
     };
 
     struct optimization_attributes {
         int32_t group_convolution = 0;
-        int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
         int32_t fs_b_yx_fsv32_network = 0;
         int32_t b_fs_zyx_fsv32_network = 0;
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
-        int32_t use_onednn_impls = 0;
+        std::map<primitive_type_id, bool> onednn_impls = {};
     };
 
 private:
@@ -169,13 +178,6 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     impl_types get_forced_impl_type_by_config(program_node& node);
-    static bool are_data_types_suitable_for_onednn(program_node& node);
-    bool are_layouts_suitable_for_onednn(program_node& node);
-    static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_preferred_impl_type_of_users(program_node& node);
     bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
@@ -187,7 +189,35 @@ public:
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
+    template <typename PT>
+    void enable_onednn_for() {
+        _optimization_attributes.onednn_impls[PT::type_id()] = true;
+    }
+
+    template <typename PT>
+    void disable_onednn_for() {
+        _optimization_attributes.onednn_impls[PT::type_id()] = false;
+    }
+    void add_all_onednn_impls_optimization_attribute();
+    bool has_all_enabled_onednn_impls_optimization_attribute();
+    template <typename PT>
+    bool is_enabled_onednn_for() {
+        auto type_id = PT::type_id();
+        auto it = _optimization_attributes.onednn_impls.find(type_id);
+        if (it == _optimization_attributes.onednn_impls.end()) {
+            return false;
+        }
+
+        return it->second;
+    }
+    void set_value_onednn(primitive_type_id p_type, bool val);
+    bool contains_onednn_impls_optimization_attribute(const program_node*);
+    bool is_empty_onednn_impls_optimization_attribute();
+    void clear_onednn_impls_optimization_attribute();
+    std::map<primitive_type_id, bool> get_all_onednn_impls_optimization_attribute();
+
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
+    const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
@@ -196,9 +226,5 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
-#endif
 };
 }  // namespace cldnn

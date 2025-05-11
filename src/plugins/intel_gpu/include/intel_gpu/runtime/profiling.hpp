@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -121,6 +122,7 @@ struct perf_counter_key {
     pipeline_stage stage;
     int64_t iteration_num;
     bool cache_hit;
+    std::string memalloc_info;
 };
 
 struct perf_counter_hash {
@@ -156,7 +158,7 @@ public:
         , _obj(obj)
         , _stage(stage) {
         GPU_DEBUG_IF(profiling_enabled) {
-            _per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
+            _per_iter_mode = GPU_DEBUG_VALUE_OR(ov::intel_gpu::ExecutionConfig::get_dump_profiling_data_per_iter(), false);
             _start = std::chrono::high_resolution_clock::now();
         }
     }
@@ -170,10 +172,11 @@ public:
             auto custom_stage_duration = std::chrono::duration_cast<us>(custom_duration).count();
             auto total_duration = custom_stage_duration == 0 ? stage_duration
                                                              : custom_stage_duration;
-            _obj.add_profiling_data(_stage, cache_hit, total_duration, _per_iter_mode);
+            _obj.add_profiling_data(_stage, cache_hit, memalloc_info, total_duration, _per_iter_mode);
         }
     }
     void set_cache_hit(bool val = true) { cache_hit = val; }
+    void add_memalloc_info(std::string info = "") { memalloc_info += info; }
     void set_custom_stage_duration(std::chrono::nanoseconds duration) { custom_duration = duration; }
 
 private:
@@ -185,6 +188,7 @@ private:
     instrumentation::pipeline_stage _stage;
     bool _per_iter_mode = false;
     bool cache_hit = false;
+    std::string memalloc_info = "";
 };
 
 class mem_usage_logger {

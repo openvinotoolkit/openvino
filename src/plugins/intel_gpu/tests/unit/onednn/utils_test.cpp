@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <oneapi/dnnl/dnnl.hpp>
+#include <sstream>
 #include <oneapi/dnnl/dnnl_debug.h>
 
+#include "intel_gpu/runtime/utils.hpp"
 #include "test_utils.h"
 
 #include "intel_gpu/runtime/format.hpp"
@@ -160,8 +162,100 @@ INSTANTIATE_TEST_SUITE_P(smoke, weight_format_test_match_dnnl,
     testing::ValuesIn(std::vector<format_matching_test_params>{
         {{1, 3, 8, 8}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abcd, cldnn::format::oiyx},
         {{16, 16, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ABcd16b16a, cldnn::format::os_is_yx_isv16_osv16},
-        {{8, 4, 16, 16, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ABcde8a4b, cldnn::format::os_is_zyx_osv8_isv4},
-        {{16, 16, 8, 8}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ABcd2a8b8a2b, cldnn::format::os_is_yx_osa2_isa8_osv8_isv2},
-        {{32, 32, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, cldnn::format::is_os_yx_isa4_osa8_isv8_osv4},
     }),
     weight_format_test_match_dnnl::PrintToString);
+
+struct memory_desc_to_fmt_conversion_params {
+    dnnl::memory::dims dims;
+    dnnl::memory::data_type data_type;
+    dnnl::memory::format_tag dnnl_format;
+    bool grouped;
+    cldnn::format_traits expected;
+};
+
+class memory_desc_to_fmt_conversion_test : public testing::TestWithParam<memory_desc_to_fmt_conversion_params> {
+public:
+    static std::string PrintToString(testing::TestParamInfo<memory_desc_to_fmt_conversion_params> param_info) {
+        auto dnnl_format = param_info.param.dnnl_format;
+        std::stringstream s;
+        ov::Shape shape(param_info.param.dims.begin(), param_info.param.dims.end());
+        s << shape;
+        return std::string(dnnl_fmt_tag2str((dnnl_format_tag_t)dnnl_format)) + "_" + s.str();
+    }
+};
+
+TEST_P(memory_desc_to_fmt_conversion_test, test_match_data_format) {
+    auto param = GetParam();
+
+    dnnl::memory::desc test_desc(param.dims, param.data_type, param.dnnl_format);
+    auto result = onednn::convert_memory_desc_to_traits(test_desc, true, param.grouped);
+    ASSERT_EQ(result.str, param.expected.str);
+    ASSERT_EQ(result.batch_num, param.expected.batch_num);
+    ASSERT_EQ(result.feature_num, param.expected.feature_num);
+    ASSERT_EQ(result.spatial_num, param.expected.spatial_num);
+    ASSERT_EQ(result.group_num, param.expected.group_num);
+    ASSERT_EQ(result._order, param.expected._order);
+    ASSERT_EQ(result.order, param.expected.order);
+    ASSERT_EQ(result.internal_order, param.expected.internal_order);
+    ASSERT_EQ(result.block_sizes, param.expected.block_sizes);
+    ASSERT_EQ(result.logic_block_sizes, param.expected.logic_block_sizes);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, memory_desc_to_fmt_conversion_test,
+    testing::ValuesIn(std::vector<memory_desc_to_fmt_conversion_params>{
+        {
+            {1, 3, 8, 8}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abcd, false,
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {}, {}
+            }
+        },
+        {
+            {16, 16, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ABcd16b16a, false,
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{1, 16}, {0, 16}}, {{1, 16}, {0, 16}}
+            }
+        },
+        {
+            {8, 4, 16, 16, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ABcde8a4b, false,
+            format_traits{
+                "custom", 1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx", "oixyz", {{0, 8}, {1, 4}}, {{0, 8}, {1, 4}}
+            }
+        },
+        {
+            {16, 16, 8, 8}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ABcd2a8b8a2b, false,
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 2}, {1, 8}, {0, 8}, {1, 2}}
+            }
+        },
+        {
+            {64, 64, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, false,
+            format_traits{
+                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
+            }
+        },
+        {
+            {32, 32, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, false,  // same format as above but different sizes
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 4}, {0, 8}, {1, 8}, {0, 4}} // Order is different due to A=B=1 (strides are equal)
+            }
+        },
+        {
+            {65, 32, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, false,  // same format as above but different sizes
+            format_traits{
+                "custom", 1, 1, 2, 0, {1, 0, 2, 3}, "ioyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
+            }
+        },
+        {
+            {10, 20, 30, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::AcdeB24a2b, true,
+            format_traits{
+                "custom", 1, 1, 2, 1, {0, 2, 3, 4, 1}, "giyxo", "oixy????g", {{8, 24}, {0, 2}}, {{0, 24}, {1, 2}}
+            }
+        },
+        {
+            {10, 60, 70, 40, 50}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::aCBde4c8b8c4b, true,
+            format_traits{
+                "custom", 1, 1, 2, 1, {0, 2, 1, 3, 4}, "gioyx", "oixy????g", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{2, 4}, {1, 8}, {2, 8}, {1, 4}}
+            }
+        },
+    }),
+    memory_desc_to_fmt_conversion_test::PrintToString);

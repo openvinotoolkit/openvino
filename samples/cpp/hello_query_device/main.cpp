@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@
 // clang-format on
 
 /**
- * @brief Print IE Parameters
- * @param reference on IE Parameter
+ * @brief Print OV Parameters
+ * @param reference on OV Parameter
  * @return void
  */
 void print_any_value(const ov::Any& value) {

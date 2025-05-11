@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/convolution.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/convolution.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -27,12 +27,12 @@ public:
     class Values {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph::builder::subgraph::Constant weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -41,7 +41,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
 
 class ConvolutionQDqTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
@@ -50,7 +50,7 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},
@@ -63,10 +63,10 @@ public:
             testValues.actual.dequantizationAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},
@@ -106,11 +106,11 @@ TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, -1, -1, -1 }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ -1, 3, 72, 48 }),
+    ov::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -429,6 +429,30 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
         }
     },
+    // mixed precision: f16 dequantization constants, f32 dequantization precision
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ov::element::u8,
+            {{ov::element::f16}, {}, {0.02f}},
+            {{ov::element::f16}, {}, {0.03f}},
+            {std::vector<float>{ 2.f }, ov::element::i8},
+            {},
+            ov::element::f16,
+            {}
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            {{}, {}, {}},
+            {std::vector<float>{ 2.f }, ov::element::i8},
+            {},
+            ov::element::f32,
+            {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}}
+        }
+    },
     // incorrect zero point on activations [not transformed]
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
@@ -513,7 +537,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
+const std::vector<ov::PartialShape> unsuitablePartialShapes = {
     PartialShape::dynamic(),
 };
 

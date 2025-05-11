@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "helper_transforms/saved_model_unused_remover.hpp"
 
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -33,7 +33,7 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
             continue;
         }
 
-        auto param = as_type_ptr<Parameter>(result->get_input_node_shared_ptr(0));
+        auto param = as_type_ptr<v0::Parameter>(result->get_input_node_shared_ptr(0));
         if (param) {
             isUsed = false;
             for (size_t i = 0; i < param->get_output_size(); ++i) {

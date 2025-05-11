@@ -20,14 +20,14 @@ namespace pass {
  * @param m_vector_size - the count of elements for loading/storing
  * @ingroup snippets
  */
-class InsertLoadStore : public Pass {
+class InsertLoadStore : public RangedPass {
 public:
+    OPENVINO_RTTI("InsertLoadStore", "", RangedPass);
     explicit InsertLoadStore(size_t vector_size);
-    OPENVINO_RTTI("InsertLoadStore", "Pass")
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    size_t get_count(const PortDescriptorPtr& port_desc) const;
+    size_t get_count(const ExpressionPort& port) const;
     bool insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
     bool insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,9 @@ bool get_keep_dims(const std::shared_ptr<Node>& main_node) {
 TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
-    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(true, {0});
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>({0});
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);
         auto transpose_order = transpose_info.transpose_const;
         auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
@@ -52,10 +52,8 @@ TSReductionForward::TSReductionForward() {
             return false;
 
         auto rank = main_node->get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
         auto non_negative_axes =
-            normalize_axes(main_node->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(), rank, *main_node);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         std::vector<size_t> new_values;
@@ -102,7 +100,7 @@ TSReductionBackward::TSReductionBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto main_node = pattern_to_output.at(reduce_label);
@@ -117,11 +115,9 @@ TSReductionBackward::TSReductionBackward() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        auto rank = main_node->get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto non_negative_axes =
-            normalize_axes(main_node->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto rank = main_node->get_input_partial_shape(0).rank();
+        const auto non_negative_axes =
+            util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(), rank, *main_node);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         if (!keep_dims) {

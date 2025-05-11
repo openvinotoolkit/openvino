@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
@@ -46,11 +46,10 @@ ov::pass::Proposal1Scales::Proposal1Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
-    auto convert_label = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({parameter_label});
-    auto param_or_convert =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{parameter_label, convert_label});
+
+    auto optional_convert = pattern::optional<ov::op::v0::Convert>(parameter_label);
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {param_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
@@ -72,11 +71,9 @@ ov::pass::Proposal4Scales::Proposal4Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
-    auto convert_label = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({parameter_label});
-    auto param_or_convert =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{parameter_label, convert_label});
+    auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(parameter_label);
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {param_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });

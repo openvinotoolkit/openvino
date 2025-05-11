@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,10 +28,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
-    std::string _cached_kernel_id;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<custom_gpu_primitive_impl>(*this);
+        return std::make_unique<custom_gpu_primitive_impl>(*this);
     }
 
     custom_gpu_primitive_impl()
@@ -39,18 +38,16 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : cl_kernel(other.cl_kernel)
-    , _kernels({})
-    , _cached_kernel_id(other._cached_kernel_id) {
+    , _kernels({}) {
         for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(kernel->clone());
+            _kernels.emplace_back(kernel->clone(other.can_share_kernels));
         }
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
         : cl_kernel(cl_kernel)
-        , _kernels()
-        , _cached_kernel_id() { }
+        , _kernels() { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
@@ -62,14 +59,16 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         _kernels.clear();
         auto compiled_kernels = kernels_cache.get_kernels(params);
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
-        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id));
+    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[0]));
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
-    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
-        _cached_kernel_id = kernels_cache.get_cached_kernel_id(_kernels[0]);
+    std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        return {kernels_cache.get_cached_kernel_id(_kernels[0])};
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
@@ -98,14 +97,14 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << *cl_kernel;
-        ob << _cached_kernel_id;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
         ib >> *cl_kernel;
-        ib >> _cached_kernel_id;
     }
 };
 
@@ -163,13 +162,14 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // #define INPUT0_LOWER_PADDING (uint[]) { 0, 0, 0, 0 }
     // #define INPUT0_UPPER_PADDING (uint[]) { 0, 0, 0, 0 }
     mem_consts.AddConstant(
-        kernel_selector::MakeJitConstant(name + "_LOWER_PADDING", l.data_padding.lower_size().sizes(format::bfyx)));
+        kernel_selector::MakeJitConstant(name + "_LOWER_PADDING", layout::format_sizes(l.data_padding._lower_size, format::bfyx)));
     mem_consts.AddConstant(
-        kernel_selector::MakeJitConstant(name + "_UPPER_PADDING", l.data_padding.upper_size().sizes(format::bfyx)));
+        kernel_selector::MakeJitConstant(name + "_UPPER_PADDING", layout::format_sizes(l.data_padding._upper_size, format::bfyx)));
 
     // Pitches (in elements)
     // #define INPUT0_PITCHES (uint[]) { b, f, h, w, }
-    auto padded_sizes = l.get_buffer_size().sizes(format::bfyx);
+    // auto padded_sizes = l.get_buffer_size().sizes(format::bfyx);
+    auto padded_sizes = l.get_padded_dims();
 
     std::vector<tensor::value_type> pitches(4);
     switch (l.format) {
@@ -206,8 +206,8 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // Offset (in elements)
     // #define INPUT0_OFFSET 0
     int32_t offset =
-        (pitches[0] * l.data_padding.lower_size().batch[0]) + (pitches[1] * l.data_padding.lower_size().feature[0]) +
-        (pitches[2] * l.data_padding.lower_size().spatial[1]) + (pitches[3] * l.data_padding.lower_size().spatial[0]);
+        (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
+        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
@@ -255,7 +255,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
+    return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {

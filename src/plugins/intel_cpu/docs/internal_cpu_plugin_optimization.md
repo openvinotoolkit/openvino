@@ -3,7 +3,7 @@
 The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
 Refer to the sections below for details.
 
-> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/2023.0/openvino_docs_ops_opset.html).
+> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html).
 
 
 ## Fusing Convolution and Simple Layers
@@ -15,7 +15,7 @@ Merge of a convolution layer and any of the simple layers listed below:
 
 > **NOTE**: You can have any number and order of simple layers.
 
-A combination of a convolution layer and simple layers results in a single fused layer called 
+A combination of a convolution layer and simple layers results in a single fused layer called
 *Convolution*:
 
 ```mermaid
@@ -45,7 +45,7 @@ class nodeB2,nodeB3,nodeB5, steel1
 
 ## Fusing Pooling and FakeQuantize Layers
 
-A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
+A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:
 
 ```mermaid
 flowchart TD
@@ -71,7 +71,7 @@ class nodeB2,nodeB3 steel1
 ```
 ## Fusing FullyConnected and Activation Layers
 
-A combination of FullyConnected and Activation layers results in a single fused layer called 
+A combination of FullyConnected and Activation layers results in a single fused layer called
 *FullyConnected*:
 
 ```mermaid
@@ -98,7 +98,7 @@ class nodeB2,nodeB3 steel1
 ```
 ## Fusing Convolution and Depthwise Convolution Layers Grouped with Simple Layers
 
-> **NOTE**: This pattern is possible only on CPUs with support of Streaming SIMD Extensions 4.2 
+> **NOTE**: This pattern is possible only on CPUs with support of Streaming SIMD Extensions 4.2
 > (SSE 4.2) and Intel AVX2 Instruction Set Architecture (ISA).
 
 A combination of a group of a Convolution (or Binary Convolution) layer and simple layers and a group of a Depthwise Convolution
@@ -173,7 +173,7 @@ class nodeB2 coral1
 ```
 ## Fusing a Group of Convolutions
 
-If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:   
+If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:
 
 ```mermaid
 flowchart TD

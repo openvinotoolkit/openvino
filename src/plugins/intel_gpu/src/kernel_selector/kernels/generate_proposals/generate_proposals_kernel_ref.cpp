@@ -27,13 +27,12 @@ ParamsKey GenerateProposalsRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool GenerateProposalsRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GENERATE_PROPOSALS
-        || o.GetType() != KernelType::GENERATE_PROPOSALS) {
+bool GenerateProposalsRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GENERATE_PROPOSALS) {
         return false;
     }
 
@@ -45,8 +44,6 @@ constexpr size_t kImInfoInputIdx = 0;
 constexpr size_t kAnchorsInputIdx = 1;
 constexpr size_t kDeltasInputIdx = 2;
 constexpr size_t kScoresInputIdx = 3;
-constexpr size_t kRoisScoresOutputIdx = 4;
-constexpr size_t kRoisNumsOutputIdx = 5;
 
 GenerateProposalsRef::DispatchData SetDefault(const generate_proposals_params& params, size_t idx) {
     GenerateProposalsRef::DispatchData dispatch_data;
@@ -90,15 +87,15 @@ void GenerateProposalsRef::SetKernelArguments(
         case 2: { // NMS
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2}); // rois num
             break;
         }
         case 3: { // convert proposals to rois and roi scores
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // rois
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisScoresOutputIdx}); // roi scores
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2}); // rois num
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // rois
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1}); // roi scores
             break;
         }
         default:
@@ -106,8 +103,8 @@ void GenerateProposalsRef::SetKernelArguments(
     }
 }
 
-KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GenerateProposalsRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -129,14 +126,14 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
     const auto num_batches = inputs[kScoresInputIdx].Batch().v;
     constexpr size_t kProposalBoxSize = 6; // 6 values: {x0, y0, x1, y1, score, keep}
     const auto proposals_buffer_size = num_batches * num_proposals * sizeof(float) * kProposalBoxSize;
-    kd.internalBufferSizes.push_back(proposals_buffer_size);
+    kd.internalBuffers.push_back(proposals_buffer_size);
 
     const auto out_indices_size = num_batches * new_params.post_nms_count * sizeof(float);
-    kd.internalBufferSizes.push_back(out_indices_size);
+    kd.internalBuffers.push_back(out_indices_size);
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatchData = SetDefault(new_params, i);
-        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
         cldnn_jit.AddConstant(MakeJitConstant("GENERATE_PROPOSALS_STAGE_" + std::to_string(i), "true"));

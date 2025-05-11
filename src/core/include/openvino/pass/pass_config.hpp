@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 

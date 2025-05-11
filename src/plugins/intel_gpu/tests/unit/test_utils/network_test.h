@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,8 +43,8 @@ struct typed_comparator<float> {
 };
 
 template <>
-struct typed_comparator<FLOAT16> {
-    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, FLOAT16 ref, FLOAT16 val) {
+struct typed_comparator<ov::float16> {
+    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, ov::float16 ref, ov::float16 val) {
         double abs_error = std::abs(0.05 * (double)ref);
         return ::testing::internal::DoubleNearPredFormat(lhs_expr, rhs_expr, "5 percent", (double)ref, (double)val, abs_error);
     }
@@ -104,7 +104,7 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
 
     void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+        mem_lock<T, mem_lock_type::read> ptr(actual, get_test_stream());
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(0, 0, 0, 0));
@@ -139,7 +139,7 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
     using vector_type = VVVVF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
     void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> ptr(actual, get_test_stream());
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 for (size_t yi = 0; yi < reference[0][0].size(); ++yi) {
@@ -287,7 +287,7 @@ public:
                                                         typename reference_tensor_typed<T, N>::vector_type data) {
         auto output = reference_tensor_typed<T, N>(std::move(data));
         auto shape = output.get_shape();
-        auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
+        auto lt = cldnn::layout(ov::element::from<T>(), fmt, shape);
         topo.add(cldnn::input_layout(id, lt));
         auto mem = eng.allocate_memory(lt);
         output.fill_memory(mem);
@@ -301,7 +301,7 @@ public:
                                                 typename reference_tensor_typed<T, N>::vector_type data) {
         auto output = reference_tensor_typed<T, N>(std::move(data));
         auto shape = output.get_shape();
-        auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
+        auto lt = cldnn::layout(ov::element::from<T>(), fmt, shape);
         auto mem = eng.allocate_memory(lt);
         output.fill_memory(mem);
         topo.add(cldnn::data(id, mem));
@@ -314,7 +314,7 @@ public:
                                                            std::shared_ptr<reference_node<WeightsT, InputN>> weights,
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{ cldnn::format::any, "" }) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>()));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVF<T> output_data = fully_connected_reference_typed<T>(input->reference.reference,
@@ -330,7 +330,7 @@ public:
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
                                                            size_t input_dim_size = 3) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>(), input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,

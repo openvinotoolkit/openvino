@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,4 @@ struct permute_params : public base_params {
     std::vector<uint16_t> order;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// permute_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct permute_optional_params : optional_params {
-    permute_optional_params() : optional_params(KernelType::PERMUTE) {}
-};
 }  // namespace kernel_selector

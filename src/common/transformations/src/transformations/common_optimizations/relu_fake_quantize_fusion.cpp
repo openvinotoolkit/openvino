@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -26,12 +27,12 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                                                                               pass::pattern::any_input(),
                                                                               pass::pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
         auto input_low = pattern_map[input_low_pattern];
-        auto input_low_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
+        auto input_low_const = ov::as_type_ptr<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
@@ -39,7 +40,7 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                 return f < 0;
             }))
             return false;
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
 

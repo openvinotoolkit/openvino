@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import numpy as np
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -115,6 +116,7 @@ class TestIndexRange(PytorchLayerTest):
     def test_index_range(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
                    "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(("input_shape", "idx"), (
@@ -125,6 +127,7 @@ class TestIndexRange(PytorchLayerTest):
     def test_index_range_free_dims(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model2(), ie_device, precision, ir_version, kwargs_to_prepare_input={
                    "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
+
 
 class TestIndexMask(PytorchLayerTest):
     def _prepare_input(self, input_shape):
@@ -150,4 +153,28 @@ class TestIndexMask(PytorchLayerTest):
                                                [2, 2, 3, 4]))
     def test_index_mask(self, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
-                   "input_shape": input_shape}, trace_model=True)
+                   "input_shape": input_shape}, trace_model=True, use_convert_model=True)
+
+
+class TestIndexNone(PytorchLayerTest):
+    def _prepare_input(self, input_shape):
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32),)
+
+    class aten_index_list(torch.nn.Module):
+        def __init__(self, idxs):
+            super(TestIndexNone.aten_index_list, self).__init__()
+            self.idxs = idxs
+
+        def forward(self, x):
+            return x[self.idxs]
+
+    @pytest.mark.nightly
+    @pytest.mark.parametrize(("input_shape,idxs"), [
+        ((2, 3, 4, 5), (torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1),)),
+        ((2, 3, 4, 5), (torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1), torch.randint(0, 3, [14], dtype=torch.int32))),
+        ((2, 3, 4, 5), (None, None, torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1), torch.randint(0, 3, [14], dtype=torch.int32))),
+        ])
+    def test_index(self, input_shape, idxs, ie_device, precision, ir_version):
+        self._test(self.aten_index_list(idxs), None, "aten::index", ie_device, precision,
+                   ir_version,kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)

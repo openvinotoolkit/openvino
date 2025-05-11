@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include <fstream>
@@ -13,17 +12,14 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/test_common.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 TEST(TransformationTests, ConvBiasFusion) {
     std::shared_ptr<ov::Model> f(nullptr);
@@ -41,29 +37,23 @@ TEST(TransformationTests, ConvBiasFusion) {
         auto add = std::make_shared<opset1::Add>(conv, bias);
         add->set_friendly_name("add");
 
-        f = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input1});
     }
 
     std::unordered_map<std::string, std::string> pp;
 
-    InferenceEngine::CNNNetwork network(f);
-
-    // Set PrimitivesPriority to all Convolutions
-    auto model = network.getFunction();
-    ASSERT_NE(nullptr, model);
-    for (auto& op : model->get_ops()) {
-        if (auto conv = std::dynamic_pointer_cast<opset1::Convolution>(op)) {
+    for (auto& op : f->get_ops()) {
+        if (auto conv = ov::as_type_ptr<opset1::Convolution>(op)) {
             auto& rtInfo = conv->get_rt_info();
             rtInfo[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("test");
             pp[op->get_friendly_name()] = "test";
         }
     }
 
-    auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-    auto funcs = clonedNetwork.getFunction();
+    auto funcs = f->clone();
 
     for (auto& op : funcs->get_ops()) {
-        if (auto conv = std::dynamic_pointer_cast<opset1::Convolution>(op)) {
+        if (auto conv = ov::as_type_ptr<opset1::Convolution>(op)) {
             ASSERT_TRUE(pp.find(op->get_friendly_name()) != pp.end());
             ASSERT_EQ(pp[op->get_friendly_name()], "test");
         }

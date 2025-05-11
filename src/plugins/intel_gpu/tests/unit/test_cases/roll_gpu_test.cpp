@@ -44,15 +44,15 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
         auto& engine = get_test_engine();
 
         format::type plane_format = format::get_default_format(p.input_shape.size());
-        const layout data_layout(type_to_data_type<T>::value, plane_format, tensor(input_format, p.input_shape));
+        const layout data_layout(ov::element::from<T>(), plane_format, tensor(input_format, p.input_shape));
         auto input = engine.allocate_memory(data_layout);
         set_values(input, p.input_values);
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("reordered_input", input_info("input"), input_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_input", input_info("input"), input_format, ov::element::from<T>()));
         topology.add(roll("roll", input_info("reordered_input"), tensor(input_format, p.shift)));
-        topology.add(reorder("reordered_roll", input_info("roll"), plane_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_roll", input_info("roll"), plane_format, ov::element::from<T>()));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
@@ -71,7 +71,7 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
         auto& p = std::get<0>(info.param);
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";
-        result << "Precision=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
+        result << "Precision=" << ov::element::Type(ov::element::from<T>()) << "_";
         result << "Shift=" << vec2str(p.shift) << "_";
         result << "Format=" << std::get<1>(info.param);
         return result.str();
@@ -250,9 +250,10 @@ INSTANTIATE_ROLL_TEST_SUITE(uint8_t, getRollParams6D, formats6d)
 INSTANTIATE_ROLL_TEST_SUITE(int32_t, getRollParams6D, formats6d)
 INSTANTIATE_ROLL_TEST_SUITE(int64_t, getRollParams6D, formats6d)
 
-INSTANTIATE_ROLL_TEST_SUITE(FLOAT16, getRollFloatingPointParams, formats4d)
+using ov::float16;
+INSTANTIATE_ROLL_TEST_SUITE(float16, getRollFloatingPointParams, formats4d)
 INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointParams, formats4d)
-INSTANTIATE_ROLL_TEST_SUITE(FLOAT16, getRollFloatingPointAdditionalLogic, {format::bfyx})
+INSTANTIATE_ROLL_TEST_SUITE(float16, getRollFloatingPointAdditionalLogic, {format::bfyx})
 INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointAdditionalLogic, {format::bfyx})
 
 #undef INSTANTIATE_ROLL_TEST_SUITE
@@ -279,9 +280,9 @@ INSTANTIATE_ROLL_TEST_SUITE_CACHED(int8_t, getRollParams6D)
 INSTANTIATE_ROLL_TEST_SUITE_CACHED(uint8_t, getRollParams6D)
 INSTANTIATE_ROLL_TEST_SUITE_CACHED(int32_t, getRollParams6D)
 INSTANTIATE_ROLL_TEST_SUITE_CACHED(int64_t, getRollParams6D)
-INSTANTIATE_ROLL_TEST_SUITE_CACHED(FLOAT16, getRollFloatingPointParams)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(float16, getRollFloatingPointParams)
 INSTANTIATE_ROLL_TEST_SUITE_CACHED(float, getRollFloatingPointParams)
-INSTANTIATE_ROLL_TEST_SUITE_CACHED(FLOAT16, getRollFloatingPointAdditionalLogic)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(float16, getRollFloatingPointAdditionalLogic)
 #endif
 INSTANTIATE_ROLL_TEST_SUITE_CACHED(float, getRollFloatingPointAdditionalLogic)
 

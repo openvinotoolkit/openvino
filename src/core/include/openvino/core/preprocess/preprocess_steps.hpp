@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
+#include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -34,6 +35,14 @@ class OPENVINO_API PreProcessSteps final {
 public:
     /// \brief Default destructor
     ~PreProcessSteps();
+
+    /// \brief Add clamp preprocess operation. Clamp each element of input to the specified range [min_value, max_value]
+    ///
+    /// \param min_value Minimum value to clamp to.
+    /// \param max_value Maximum value to clamp to.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& clamp(double min_value, double max_value);
 
     /// \brief Add convert element type preprocess operation
     ///
@@ -79,6 +88,32 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps& mean(const std::vector<float>& values);
+
+    /// \brief Add pad preprocess operation
+    /// Extends an input tensor on edges with constants
+    ///
+    /// \param pads_begin Number of padding elements to add at the beginning of each axis.
+    /// \param pads_end Number of padding elements to add at the end of each axis.
+    /// \param value Value to be populated in the padded area
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& pad(const std::vector<int>& pads_begin,
+                         const std::vector<int>& pads_end,
+                         float value,
+                         PaddingMode mode);
+
+    /// \brief Add pad preprocess operation
+    /// Extends an input tensor on edges with constants
+    ///
+    /// \param pads_begin Number of padding elements to add at the beginning of each axis.
+    /// \param pads_end Number of padding elements to add at the end of each axis.
+    /// \param values Values to be populated in the padded area
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& pad(const std::vector<int>& pads_begin,
+                         const std::vector<int>& pads_end,
+                         const std::vector<float>& values,
+                         PaddingMode mode);
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,10 +75,17 @@ public:
     memory::ptr pred_memory_ptr() const { return dep_memory_ptr(0); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
-    condition::branch get_branch_true() const { return node->get_branch_true(); }
-    condition::branch get_branch_false() const { return node->get_branch_false(); }
+    condition::branch get_branch_true() const {
+        return get_node().as<condition>().get_branch_true();
+    }
+    condition::branch get_branch_false() const {
+        return get_node().as<condition>().get_branch_false();
+    }
 
     void update_output_layout();
+    void postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch);
+
+    static layout adjust_scalar_to_1d_layout(layout& target, layout& other);
 
 private:
     network::ptr _net_true;

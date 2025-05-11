@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import time
@@ -8,8 +8,10 @@ import os
 import io
 import threading
 import numpy as np
+import openvino.properties as props
 
-from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, opset12 as ops, serialize
+from openvino import Core, Model, AsyncInferQueue, PartialShape, Layout, serialize
+from openvino import opset13 as ops
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_devtest
@@ -50,7 +52,7 @@ def check_gil_released_safe(func, is_assign=False, args=[]):  # noqa: B006
 
 device = os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
 core = Core()
-core.set_property({"PERF_COUNT": "YES"})
+core.set_property({props.enable_profiling: True})
 param = ops.parameter([224, 224])
 model = Model(ops.relu(param), [param])
 compiled_model = core.compile_model(model, device)

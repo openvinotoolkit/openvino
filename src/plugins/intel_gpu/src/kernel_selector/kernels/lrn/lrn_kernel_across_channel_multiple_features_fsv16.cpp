@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeaturesFSV16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeaturesFSV16::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -58,7 +58,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
     return dispatchData;
 }
 
-KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 

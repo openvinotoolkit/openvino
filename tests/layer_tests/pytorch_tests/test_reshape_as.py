@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -32,6 +32,7 @@ class TestReshapeAs(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op", ["reshape_as", "view_as"])
     @pytest.mark.parametrize('input_tensor_shapes',( ((3, 6), (2, 9)), ((2, 2, 3), (6, 2)), ((6, 2), (2, 2, 3))))
     def test_reshape_as(self, op, input_tensor_shapes, ie_device, precision, ir_version):

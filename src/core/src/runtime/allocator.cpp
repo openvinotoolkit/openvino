@@ -1,12 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/allocator.hpp"
 
-#include "blob_allocator.hpp"
-#include "ie_allocator.hpp"
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 
 namespace ov {
@@ -31,7 +28,7 @@ struct DefaultAllocator {
         }
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) noexcept {
         if (alignment == alignof(max_align_t)) {
             ::operator delete(handle);
         } else {
@@ -48,25 +45,9 @@ struct DefaultAllocator {
     }
 };
 
+Allocator::Base::~Base() = default;
+
 Allocator::Allocator() : Allocator{DefaultAllocator{}} {}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct AllocatorImplWrapper {
-    AllocatorImplWrapper(const AllocatorImpl::Ptr& impl_) : impl{impl_} {}
-    void* allocate(const size_t bytes, const size_t alignment) {
-        return impl->allocate(bytes, alignment);
-    }
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
-        impl->deallocate(handle, bytes, alignment);
-    }
-    bool is_equal(const AllocatorImplWrapper& other) const {
-        return impl->is_equal(*other.impl);
-    }
-    AllocatorImpl::Ptr impl;
-};
-
-Allocator::Allocator(const AllocatorImpl::Ptr& allocator_impl) : Allocator{AllocatorImplWrapper{allocator_impl}} {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 Allocator::~Allocator() {
     _impl = {};
@@ -86,11 +67,19 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
         OPENVINO_ASSERT(false, "Unexpected exception");                  \
     }
 
+#define OV_ALLOCATOR_NO_THROW_STATEMENT(...) \
+    try {                                    \
+        if (_impl) {                         \
+            __VA_ARGS__;                     \
+        }                                    \
+    } catch (...) {                          \
+    }
+
 void* Allocator::allocate(const size_t bytes, const size_t alignment) {
     OV_ALLOCATOR_STATEMENT(return _impl->allocate(bytes, alignment));
 }
-void Allocator::deallocate(void* handle, const size_t bytes, const size_t alignment) {
-    OV_ALLOCATOR_STATEMENT(_impl->deallocate(handle, bytes, alignment));
+void Allocator::deallocate(void* handle, const size_t bytes, const size_t alignment) noexcept {
+    OV_ALLOCATOR_NO_THROW_STATEMENT(_impl->deallocate(handle, bytes, alignment));
 }
 bool Allocator::operator==(const Allocator& other) const {
     OV_ALLOCATOR_STATEMENT({

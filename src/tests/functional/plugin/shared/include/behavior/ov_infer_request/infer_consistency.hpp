@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <string>
 
-#include <openvino/openvino.hpp>
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/openvino.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
-namespace IE = InferenceEngine;
 // for deviceConfigs, the deviceConfigs[0] is target device which need to be tested.
 // deviceConfigs[1], deviceConfigs[2],deviceConfigs[n] are the devices which will
 // be compared with target device, the result of target should be in one of the compared

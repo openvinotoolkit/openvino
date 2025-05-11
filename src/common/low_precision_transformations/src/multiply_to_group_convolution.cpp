@@ -1,39 +1,42 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/negative.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
     const Params& params,
-    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : LayerTransformation(params), restrictions(restrictions), groupSize(1ul) {
+    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : CleanupTransformation(params), restrictions(restrictions), groupSize(1ul) {
     MATCHER_SCOPE(MultiplyToGroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
@@ -54,7 +57,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex, defaultPrecisions);
     }
 
-    element::Type weightsPrecision = element::undefined;
+    element::Type weightsPrecision = element::dynamic;
     if (updatePrecisions) {
         // try to find restrictions on weights for GroupConvolution
         if (restrictions.size() > 1ul) {
@@ -65,7 +68,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         }
 
         // if restrictions are absent precisions attribute is used
-        if (weightsPrecision == element::undefined) {
+        if (weightsPrecision == element::dynamic) {
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
                 defaultPrecisions :
@@ -111,9 +114,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     const auto weightsNode = std::make_shared<ov::opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
 
     const size_t spatialDimsSize = pShape.rank().get_length() - 2;
-    ngraph::Strides strides(spatialDimsSize, 1ul);
-    ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
-    ngraph::Strides dilations(spatialDimsSize, 1ul);
+    ov::Strides strides(spatialDimsSize, 1ul);
+    ov::CoordinateDiff pads(spatialDimsSize, 0ul);
+    ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },
@@ -142,7 +145,11 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
+        return false;
+    }
+
     const PartialShape outPShape = operation->get_output_partial_shape(0);
     const auto rank = outPShape.rank();
     if (rank.is_dynamic()) {
@@ -202,7 +209,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
 }
 
 bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    const std::vector<ov::element::Type>& defaultPrecisions) const {
     return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
 }
 
@@ -266,4 +273,4 @@ bool MultiplyToGroupConvolutionTransformation::isPrecisionPreserved(std::shared_
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

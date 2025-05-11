@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,10 +65,6 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                     if (!out_inputs.get_element_type().is_real())
                         continue;
 
-                    // todo xxx-101766: if we don't skip Results there is an error on GPU
-                    if (std::dynamic_pointer_cast<ov::op::v0::Result>(out_node))
-                        continue;
-
                     // element_type of this convert will be changed automatically to f16 after
                     // ConvertPrecision(f32 -> f16). It's kept here f32 to keep ov::Model validatable
                     auto convert = std::make_shared<ov::op::v0::Convert>(output, out_inputs.get_element_type());
@@ -88,8 +84,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
         if (!fp16_compression_is_disabled(node))
             continue;
 
-        is_changed |= insert_converts_before_if_needed(node);
-        is_changed |= insert_converts_after_if_needed(node);
+        is_changed = insert_converts_before_if_needed(node) || is_changed;
+        is_changed = insert_converts_after_if_needed(node) || is_changed;
     }
 
     return is_changed;

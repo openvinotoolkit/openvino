@@ -1,9 +1,7 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/sink.hpp"
+#include "openvino/op/sink.hpp"
 
-using namespace ngraph;
-
-op::Sink::~Sink() = default;
+ov::op::Sink::~Sink() = default;

@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
+
 
 class BasicError(Exception):
     """ Base class for all exceptions in Model Conversion API

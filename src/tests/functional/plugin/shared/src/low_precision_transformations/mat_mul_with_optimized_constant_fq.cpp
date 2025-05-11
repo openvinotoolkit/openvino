@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,23 +9,18 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/mat_mul_with_optimized_constant_fake_quantize_function.hpp"
+#include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+    ov::element::Type netPrecision;
+    std::pair<ov::PartialShape, ov::PartialShape> shapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
 
     std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
@@ -40,15 +35,15 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    threshold = 0.01f;
-
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type precision;
+    std::pair<ov::PartialShape, ov::PartialShape> shapes;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
+    init_input_shapes({ shapes.first, shapes.second });
+
+    function = ov::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
         precision,
         shapes.first,
         shapes.second,
@@ -57,7 +52,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 }
 
 TEST_P(MatMulWithOptimizedConstantFq, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

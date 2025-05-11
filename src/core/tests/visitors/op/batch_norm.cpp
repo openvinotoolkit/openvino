@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ TEST(attributes, batch_norm_inference_op_v5) {
     element::Type et = element::f32;
     double epsilon = 0.001;
 
-    test::NodeBuilder::get_ops().register_factory<op::v5::BatchNormInference>();
+    test::NodeBuilder::opset().insert<op::v5::BatchNormInference>();
     auto data_batch = make_shared<ov::op::v0::Parameter>(et, in_shape);
     auto gamma = make_shared<ov::op::v0::Parameter>(et, ch_shape);
     auto beta = make_shared<ov::op::v0::Parameter>(et, ch_shape);
@@ -41,7 +41,7 @@ TEST(attributes, batch_norm_inference_op_v0) {
     element::Type et = element::f32;
     double epsilon = 0.001;
 
-    test::NodeBuilder::get_ops().register_factory<op::v0::BatchNormInference>();
+    test::NodeBuilder::opset().insert<op::v0::BatchNormInference>();
     auto data_batch = make_shared<ov::op::v0::Parameter>(et, in_shape);
     auto gamma = make_shared<ov::op::v0::Parameter>(et, ch_shape);
     auto beta = make_shared<ov::op::v0::Parameter>(et, ch_shape);

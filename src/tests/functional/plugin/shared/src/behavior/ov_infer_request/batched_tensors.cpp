@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "openvino/opsets/opset8.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "behavior/ov_infer_request/batched_tensors.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include <chrono>
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -37,9 +39,9 @@ void OVInferRequestBatchedTests::SetUp() {
 
 void OVInferRequestBatchedTests::TearDown() {
     if (m_need_reset_core) {
-        ie->set_property({{CONFIG_KEY(CACHE_DIR), {}}});
+        ie->set_property({ov::cache_dir()});
         ie.reset();
-        PluginCache::get().reset();
+        ov::test::utils::PluginCache::get().reset();
         ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
         ov::test::utils::removeDir(m_cache_dir);
     }
@@ -52,14 +54,14 @@ std::shared_ptr<Model> OVInferRequestBatchedTests::create_n_inputs(size_t n, ele
     ParameterVector params;
     for (size_t i = 0; i < n; i++) {
         auto index_str = std::to_string(i);
-        auto data1 = std::make_shared<opset8::Parameter>(type, shape);
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
         data1->set_friendly_name("input" + index_str);
         data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
         data1->set_layout(layout);
         auto constant = opset8::Constant::create(type, {1}, {1});
-        auto op1 = std::make_shared<opset8::Add>(data1, constant);
+        auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
         op1->set_friendly_name("Add" + index_str);
-        auto res1 = std::make_shared<opset8::Result>(op1);
+        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
         res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
@@ -180,7 +182,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
     auto batch_shape = Shape{batch, 2, 2, 2};
     auto one_shape_size = ov::shape_size(one_shape);
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "N...");
-    ie->set_property({{CONFIG_KEY(CACHE_DIR), m_cache_dir}});
+    ie->set_property({ov::cache_dir(m_cache_dir)});
     auto execNet_no_cache = ie->compile_model(model, target_device);
     auto execNet_cache = ie->compile_model(model, target_device);
     // Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
@@ -459,7 +461,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Correct_all) {
     std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
-    ASSERT_NO_THROW(req.set_input_tensors(tensors));
+    OV_ASSERT_NO_THROW(req.set_input_tensors(tensors));
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
@@ -469,7 +471,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     std::vector<float> buffer(ov::shape_size(batch_shape), 1);
     std::vector<float> buffer_out(ov::shape_size(batch_shape), 1);
     auto model = OVInferRequestBatchedTests::create_n_inputs(2, element::f32, batch_shape, "NCHW");
-    ie->set_property({{CONFIG_KEY(CACHE_DIR), m_cache_dir}});
+    ie->set_property({ov::cache_dir(m_cache_dir)});
     auto execNet_no_cache = ie->compile_model(model, target_device);
     auto execNet = ie->compile_model(model, target_device);
     ov::InferRequest req;
@@ -482,8 +484,8 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
     auto out_tensor = ov::Tensor(element::f32, batch_shape, buffer_out.data());
     // Verify that infer request still has its own copy of input/output, user can use old names
-    ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
-    ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
+    OV_ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_element_type) {

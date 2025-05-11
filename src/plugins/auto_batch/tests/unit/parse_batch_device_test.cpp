@@ -1,24 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using batch_device_config_params = std::tuple<std::string,  // Batch devices
                                               std::string,  // Expected device name

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@ namespace ov {
 /// \param order   return vector of nodes for output which can be processed for bound evaluation.
 /// \return True if bounds can be propagated for output and order vector has valid data, otherwise false.
 OPENVINO_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
+
+namespace util {
 
 /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
 /// estimation through it.
@@ -31,4 +33,5 @@ OPENVINO_API Tensor evaluate_upper_bound(const Output<Node>& output);
 /// \param output Node output pointing to the tensor for estimation.
 /// \return pair with Tensors for lower and upper value estimation.
 OPENVINO_API std::pair<Tensor, Tensor> evaluate_both_bounds(const Output<Node>& output);
+}  // namespace util
 }  // namespace ov

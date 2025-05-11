@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
 
+    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -34,11 +35,11 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData BroadcastKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData BroadcastKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority BroadcastKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority BroadcastKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

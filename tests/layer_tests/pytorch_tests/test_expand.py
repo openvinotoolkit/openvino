@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import random
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -35,8 +36,35 @@ class TestExpand(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["expand", "broadcast_to"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(dims, op_type), ie_device, precision, ir_version)
+
+class TestExpandCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32),)
+
+    def create_model(self, dim):
+        import torch
+
+        class aten_expand_copy(torch.nn.Module):
+            def __init__(self, dims):
+                super(aten_expand_copy, self).__init__()
+                self.dims = dims
+
+            def forward(self, x):
+                return torch.expand_copy(x, self.dims)
+
+        ref_net = None
+
+        return aten_expand_copy(dim), ref_net, f"aten::expand_copy"
+
+    @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
+    @pytest.mark.precommit_fx_backend
+    def test_expand_copy(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)
 
 class TestExpandList(PytorchLayerTest):
     def _prepare_input(self, broadcast_shape):
@@ -68,6 +96,8 @@ class TestExpandList(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["expand", "broadcast_to"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims})
 
@@ -104,6 +134,34 @@ class TestExpandAs(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_expand(self, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(), ie_device, precision,
                    ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+
+class TestDynamicExpand(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        last_dym = random.randint(2,8)
+        return (np.random.randn(1, 3, 1).astype(np.float32), last_dym)
+
+    def create_model(self, dim):
+        import torch
+
+        class aten_expand(torch.nn.Module):
+            def __init__(self, dims):
+                super(aten_expand, self).__init__()
+                self.dims = dims
+
+            # TODO: Remove the add op after fixing the issue with expand being the last node
+            def forward(self, x, dym):
+                return torch.add(x.expand((self.dims+(dym,))), 0)
+
+        ref_net = None
+
+        return aten_expand(dim), ref_net, f"aten::expand"
+
+    @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
+    @pytest.mark.precommit_fx_backend
+    def test_dynamic_expand(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)

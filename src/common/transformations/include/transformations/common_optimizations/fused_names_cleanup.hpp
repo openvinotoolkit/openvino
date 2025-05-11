@@ -16,11 +16,11 @@ class TRANSFORMATIONS_API FusedNamesCleanup;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FusedNamesCleanup removes fused_names attribute
  */
 class ov::pass::FusedNamesCleanup : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("FusedNamesCleanup", "0");
+    OPENVINO_MODEL_PASS_RTTI("FusedNamesCleanup");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

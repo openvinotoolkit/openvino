@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,10 @@ using namespace ov::pass::transpose_sinking::utils;
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
-    create_pattern<ov::op::v8::Gather>(true, {0});
+    create_pattern<ov::op::v8::Gather>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
         if (!gather) {
             return false;
@@ -49,24 +49,29 @@ TSGatherForward::TSGatherForward() {
         }
 
         const auto& order_val = transpose_order->cast_vector<size_t>();
-        auto batch_dims = static_cast<size_t>(gather->get_batch_dims());
-        for (size_t i = 0; i < batch_dims; ++i) {
+        auto batch_dims = gather->get_batch_dims();
+        if (batch_dims < 0) {
+            return false;
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(batch_dims); ++i) {
             // transpose changes the order of batch dims
             if (order_val[i] != i) {
                 return false;
             }
         }
 
-        size_t axis;
+        size_t order_axis;
         if (axes[0] < 0) {
             auto data_rank = main_node->get_input_partial_shape(0).rank();
             if (data_rank.is_dynamic()) {
                 return false;
             }
-            axis = static_cast<size_t>(axes[0] + data_rank.get_length());
+            order_axis = static_cast<size_t>(axes[0] + data_rank.get_length());
         } else {
-            axis = static_cast<size_t>(axes[0]);
+            order_axis = static_cast<size_t>(axes[0]);
         }
+        const size_t axis = order_val[order_axis];
         /*
             https://docs.openvino.ai/2023.0/openvino_docs_ops_movement_Gather_8.html
             The Gather output shape has the same shape as the input,
@@ -136,8 +141,7 @@ TSGatherForward::TSGatherForward() {
         if (!success) {
             return false;
         }
-        auto new_axis =
-            ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
+        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {axis});
         main_node->input(2).replace_source_output(new_axis);
         copy_runtime_info(gather_axis, new_axis);
 
@@ -158,18 +162,18 @@ TSGatherBackward::TSGatherBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
         auto main_node = as_type_ptr<ov::op::v8::Gather>(pattern_to_output.at(gather_label));
-        if (transformation_callback(main_node) || !main_node) {
+        if (!transpose || !main_node || transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
-        if (!transpose || !transpose_order || !gather_axis) {
+        if (!transpose_order || !gather_axis) {
             return false;
         }
 
@@ -184,8 +188,13 @@ TSGatherBackward::TSGatherBackward() {
         }
 
         auto order_val = transpose_order->cast_vector<size_t>();
-        auto batch_dims = static_cast<size_t>(main_node->get_batch_dims());
-        for (size_t i = 0; i < batch_dims; ++i) {
+
+        auto batch_dims = main_node->get_batch_dims();
+        if (batch_dims < 0) {
+            return false;
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(batch_dims); ++i) {
             // transpose changes the order of batch dims
             if (order_val[i] != i) {
                 return false;
@@ -260,7 +269,11 @@ TSGatherBackward::TSGatherBackward() {
                 main_node->input(1).replace_source_output(squeeze->input_value(0));
             }
         }
+        std::vector<size_t> new_axes_val;
         if (!axes_val.empty()) {
+            for (size_t i = 0; i < axes_val.size(); ++i) {
+                new_axes_val.push_back(order_val[axes_val[i]]);
+            }
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
@@ -303,7 +316,7 @@ TSGatherBackward::TSGatherBackward() {
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
-            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {axes_val.size()}, axes_val);
+            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {new_axes_val.size()}, new_axes_val);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(main_node, unsqueeze_axes);
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,9 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -14,10 +16,18 @@
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
-namespace intel_gpu {
+namespace op {
+namespace internal {
+using GatherCompressed = ov::op::internal::GatherCompressed;
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ov::intel_gpu {
 
 template <typename T>
-void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false) {
+void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false,
+                        bool weights_compressed = false) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -89,8 +99,12 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     const auto input_shape = op->get_input_partial_shape(0);
     const auto input_rank = input_shape.rank().get_length();
     const auto& indices = op->input_value(1);
+    const auto& indices_node = indices.get_node_shared_ptr();
+    auto indices_constant = ov::as_type_ptr<ov::op::v0::Constant>(indices_node);
+    bool is_indices_constant = (indices_constant) ? true : false;
+
     if (is_static && axis == 0 && input_rank > 1 && indices.get_partial_shape().rank().get_length() == 0 &&
-        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1)) {
+        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1) && is_indices_constant) {
         // Gather -> Crop
         // this Gather simply divides an input tensor along Batch axis
         auto get_crop_layer_name = [&](std::string name, size_t idx)->std::string {
@@ -98,15 +112,20 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         };
 
         // Get indices info to calculate offset
-        const auto& indices_node = indices.get_node_shared_ptr();
-        auto indices_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(indices_node);
         float result = 0.f;
         OPENVINO_ASSERT(ov::op::util::get_single_value(indices_constant, result),
                         "Unsupported indices node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         // Set tensors for crop shape and offset
         ov::Shape start_offset(input_shape.size());
-        start_offset[0] = static_cast<size_t>(result);
+        int32_t new_offset0 = static_cast<int32_t>(result);
+        if (support_neg_ind && new_offset0 < 0) {
+            // According to Gather-8,
+            // Negative values of indices indicate reverse indexing from data.shape[axis]
+            new_offset0 += static_cast<int32_t>(input_shape.get_shape()[axis]);
+        }
+
+        start_offset[0] = static_cast<size_t>(new_offset0);
         auto offsetTensor = tensor_from_dims(start_offset, 0);
         auto outTensor = tensor_from_dims(out_shape, 1);
 
@@ -115,14 +134,47 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         auto cropPrim = cldnn::crop(layerName, reordered_inputs[0], outTensor, offsetTensor);
         p.add_primitive(*op, cropPrim);
     } else {
-        auto gatherPrim = cldnn::gather(layerName,
-                                        reordered_inputs[0],
-                                        reordered_inputs[1],
-                                        axis,
-                                        out_shape,
-                                        batch_dim,
-                                        support_neg_ind);
-        p.add_primitive(*op, gatherPrim);
+        if (!weights_compressed) {
+            auto gatherPrim = cldnn::gather(layerName,
+                                            reordered_inputs[0],
+                                            reordered_inputs[1],
+                                            axis,
+                                            input_rank,
+                                            out_shape,
+                                            batch_dim,
+                                            support_neg_ind);
+            p.add_primitive(*op, gatherPrim);
+        } else {
+            float zp_value = 0.0f;
+            bool has_scalar_zp = false;
+            if (op->get_input_size() == 5) {
+                std::shared_ptr<ov::op::v0::Constant> zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
+                if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
+                    has_scalar_zp = true;
+                    zp_value = zp_const->cast_vector<float>()[0];
+                }
+            }
+
+            std::shared_ptr<ov::op::internal::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::op::internal::GatherCompressed>(op);
+
+            auto gatherPrim = cldnn::gather(layerName,
+                                            reordered_inputs[0],
+                                            reordered_inputs[1],
+                                            axis,
+                                            reordered_inputs[3],
+                                            (has_scalar_zp || op->get_input_size() == 4) ? cldnn::input_info() : reordered_inputs[4],
+                                            op_compressed->get_output_element_type(0),
+                                            input_rank,
+                                            out_shape,
+                                            batch_dim,
+                                            support_neg_ind);
+
+            if (has_scalar_zp) {
+                gatherPrim.decompression_zero_point_scalar = zp_value;
+            }
+
+            p.add_primitive(*op, gatherPrim);
+        }
     }
 
     // Add reorder and reshape for scalar indice
@@ -168,5 +220,11 @@ static void CreateGatherOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::
 
 REGISTER_FACTORY_IMPL(v8, Gather);
 
-}  // namespace intel_gpu
-}  // namespace ov
+static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatherCompressed>& op) {
+    validate_inputs_count(op, {4, 5});
+    CreateGatherOpBase<ov::op::internal::GatherCompressed>(p, op, op->get_batch_dims(), true, true);
+}
+
+REGISTER_FACTORY_IMPL(internal, GatherCompressed);
+
+}  // namespace ov::intel_gpu

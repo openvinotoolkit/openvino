@@ -5,13 +5,14 @@
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
 ov::pass::transpose_sinking::TSShapeOfForward::TSShapeOfForward() {
     MATCHER_SCOPE(TSShapeOfForward);
 
-    create_pattern<op::util::ShapeOfBase>(true);
+    create_pattern<op::util::ShapeOfBase>();
     auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
                                       const utils::TransposeInputsInfo& transpose_info) -> bool {
         main_node->input(0).replace_source_output(transpose_info.transpose->input_value(0));

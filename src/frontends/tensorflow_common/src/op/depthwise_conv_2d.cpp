@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -14,7 +17,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"DepthwiseConv2dNative"});
+    default_op_checks(node, 2, {"DepthwiseConv2dNative", "DEPTHWISE_CONV_2D"});
     auto input = node.get_input(0);
     auto filter = node.get_input(1);
 
@@ -40,26 +43,22 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     Strides dilations(2);
     convert_nhwc_to_hw(is_nhwc, tf_strides, strides);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, dilations);
-
-    Shape ng_image_shape(2);
-    Shape ng_kernel_shape(2);
-
     convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(4));
 
     // prepare filter to have a number of groups equal to CIN
     auto unsqueeze_filter =
-        make_shared<Unsqueeze>(filter, make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}));
-    auto transposed_filter =
-        make_shared<Transpose>(unsqueeze_filter,
-                               make_shared<Constant>(element::i64, Shape{5}, std::vector<int64_t>{2, 4, 3, 0, 1}));
+        make_shared<v0::Unsqueeze>(filter, make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}));
+    auto transposed_filter = make_shared<v1::Transpose>(
+        unsqueeze_filter,
+        make_shared<v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{2, 4, 3, 0, 1}));
 
-    ov::Output<ov::Node> group_conv = make_shared<GroupConvolution>(input,
-                                                                    transposed_filter,
-                                                                    strides,
-                                                                    CoordinateDiff({}),
-                                                                    CoordinateDiff({}),
-                                                                    dilations,
-                                                                    auto_pad);
+    ov::Output<ov::Node> group_conv = make_shared<v1::GroupConvolution>(input,
+                                                                        transposed_filter,
+                                                                        strides,
+                                                                        CoordinateDiff({}),
+                                                                        CoordinateDiff({}),
+                                                                        dilations,
+                                                                        auto_pad);
     ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, group_conv, ov::Rank(4));
     ov::frontend::tensorflow::set_node_name(node.get_name(), group_conv.get_node_shared_ptr());
     return {group_conv};

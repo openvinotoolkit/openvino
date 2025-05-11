@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, split_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Split>();
+    NodeBuilder::opset().insert<ov::op::v1::Split>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
     auto num_splits = 2;
@@ -25,7 +25,7 @@ TEST(attributes, split_op) {
 }
 
 TEST(attributes, split_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Split>();
+    NodeBuilder::opset().insert<ov::op::v1::Split>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{300});
     auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
     auto num_splits = 3;

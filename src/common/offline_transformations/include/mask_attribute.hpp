@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@
 namespace ov {
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief each element in vector represents dimension and each element
  * in set is an id of dimensions which contains zeros.
  */
@@ -208,9 +208,10 @@ public:
     }
 
     bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
+#ifdef ENABLE_OPENVINO_DEBUG
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
-            OPENVINO_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
-
+            OPENVINO_DEBUG("Attempt to rewrite callback, could lead to unexpected behaviour");
+#endif
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
         return true;

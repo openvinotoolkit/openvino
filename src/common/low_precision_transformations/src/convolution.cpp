@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,21 +10,28 @@
 #include <vector>
 #include <cassert>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include "low_precision/network_helper.hpp"
-#include <transformations/rt_info/disable_constant_folding.hpp>
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
 
-namespace ngraph {
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
     MATCHER_SCOPE(ConvolutionTransformation);
-    auto matcher = ngraph::pattern::wrap_type<ov::opset1::Convolution>({
-        ngraph::pattern::wrap_type<ov::opset1::Multiply>(),
-        std::make_shared<pattern::op::Or>(OutputVector {
+    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Convolution>({
+        ov::pass::pattern::wrap_type<ov::opset1::Multiply>(),
+        std::make_shared<pass::pattern::op::Or>(OutputVector {
             pattern::wrap_type<ov::opset1::Multiply>(),
             pattern::wrap_type<ov::opset1::FakeQuantize>()
         })
@@ -36,33 +43,33 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 bool ConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    const std::vector<ov::element::Type>& defaultPrecisions) const {
     return ConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
 bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    const std::vector<ov::element::Type>& defaultPrecisions) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false, defaultPrecisions);
 }
 
-size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Node> conv) const {
     const auto channels = conv->get_input_partial_shape(1)[1];
-    assert(channels.is_static());
+    OPENVINO_ASSERT(channels.is_static());
     return channels.get_length();
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!canConvolutionBeTransformed(context, convolution, defaultPrecisions)) {
+    if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -70,7 +77,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                                                     NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            std::shared_ptr<ov::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<ov::opset1::Reshape>(
                         resultConstant,
@@ -94,7 +101,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     auto newFQ = std::get<1>(res_tuple);
     auto dequantize = std::get<2>(res_tuple);
     if (newFQ != nullptr && dequantize != nullptr)
-        updateOutput(context, dequantize, newFQ);
+        updateOutput(dequantize, newFQ);
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
@@ -190,6 +197,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
+        newMultiplyAfterConst = foldConvert(newMultiplyAfterConst, deqPrecision);
         newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
@@ -220,7 +228,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         dequantization = reshapeFromWeights == nullptr ?
             NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul) :
             NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
-        assert(!dequantization.empty());
+        OPENVINO_ASSERT(!dequantization.empty());
         if (const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
             const auto newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
@@ -258,14 +266,17 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 return new_shape;
             }();
 
-            newMultiplyAfter = std::make_shared<ov::opset1::Multiply>(
-                newConvolution,
-                foldConvert(
-                    fold_reshape<ov::opset1::Reshape>(
-                        multiplyFromWeights->input_value(1),
-                        std::make_shared<ov::opset1::Constant>(element::i32, Shape{ newScaleShape.size() }, newScaleShape),
-                        false),
-                    convolution->get_output_element_type(0)));
+            const auto newMultiplyAfterConst = foldConvert(
+                fold_reshape<ov::opset1::Reshape>(
+                    multiplyFromWeights->input_value(1),
+                    std::make_shared<ov::opset1::Constant>(element::i32, Shape{newScaleShape.size()}, newScaleShape),
+                    false),
+                deqPrecision);
+            newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{dequantization.multiply->get_output_element_type(0)},
+                ov::op::TemporaryReplaceOutputType(newConvolution, deqPrecision).get(),
+                ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
             NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, newConvolution);
             convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
@@ -281,7 +292,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(optimizedSubtract);
 
                 const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
-                assert(weightsPShape.is_static());
+                OPENVINO_ASSERT(weightsPShape.is_static());
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();
                 Shape zeroPointShape(weightsRankValue, 1ul);
@@ -331,7 +342,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolution);
+    updateOutput(finalDequantization, convolution);
+
+    const auto onActiviation = convolution->get_input_node_shared_ptr(0);
+    if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {
+        DisableCleanupAttribute::create(onActiviation);
+    }
 
     auto onWeights = convolution->get_input_node_shared_ptr(1);
     if (ov::is_type<ov::opset1::Reshape>(onWeights)) {
@@ -341,8 +357,10 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     if (ov::is_type<ov::opset1::Subtract>(onWeights)) {
         ov::disable_constant_folding(onWeights);
     }
+
+    OPENVINO_DEBUG("LPT: done: ", convolution);
     return true;
 }
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

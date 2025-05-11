@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestConvTranspose(OnnxRuntimeLayerTest):
@@ -106,7 +106,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_conv_transpose_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_conv_transpose_model')
 
         #
         #   Create reference IR net
@@ -184,12 +184,12 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("auto_pad", ["NOTSET"])
     @pytest.mark.precommit
     def test_conv_transpose_4D_precommit(self, params, bias, ie_device, precision, ir_version,
-                                         auto_pad, temp_dir, use_old_api):
+                                         auto_pad, temp_dir):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
         self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
                                                auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", explicit_pads_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
@@ -197,12 +197,12 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_4D(self, params, bias, ie_device, precision, ir_version, auto_pad,
-                               temp_dir, use_old_api):
+                               temp_dir):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
         self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
                                                auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", valid_auto_pad_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
@@ -210,12 +210,12 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_valid_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
-                                              auto_pad, temp_dir, use_old_api):
+                                              auto_pad, temp_dir):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
         self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
                                                auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", same_auto_pad_tests_4D)
     @pytest.mark.parametrize("bias", [False, True])
@@ -223,9 +223,9 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_same_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
-                                             auto_pad, temp_dir, use_old_api):
+                                             auto_pad, temp_dir):
         if ie_device == 'GPU' and 'dilations' in params:
             pytest.xfail('dilations are not supported on GPU')
         self._test(*self.create_conv_transpose(**params, ir_version=ir_version, bias=bias,
                                                auto_pad=auto_pad),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

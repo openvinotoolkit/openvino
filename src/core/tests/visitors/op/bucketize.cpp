@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, bucketize_v3_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::Bucketize>();
+    NodeBuilder::opset().insert<ov::op::v3::Bucketize>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     auto buckets = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
     auto bucketize = make_shared<ov::op::v3::Bucketize>(data, buckets);
@@ -27,7 +27,7 @@ TEST(attributes, bucketize_v3_op_default_attributes) {
 }
 
 TEST(attributes, bucketize_v3_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::Bucketize>();
+    NodeBuilder::opset().insert<ov::op::v3::Bucketize>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     auto buckets = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
     element::Type output_type = element::i32;

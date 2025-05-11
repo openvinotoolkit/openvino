@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     copy_runtime_info(indices.get_node_shared_ptr(), gather);
     return gather;
 }
+
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
                         const std::shared_ptr<ov::op::v0::Constant>& axis) {
@@ -67,9 +68,22 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices) {
+bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+    if (!transpose || !transpose_order)
+        return false;
+    const auto partial_shape_rank = transpose->get_input_partial_shape(0).rank();
+    const auto order = transpose_order->get_axis_vector_val();
+    if (partial_shape_rank.is_dynamic() && order.empty())
+        return false;
+    return true;
+}
+
+TransposeInputsInfo GetFirstTransposeInput(
+    const NodePtr& node,
+    const std::vector<size_t>& indices,
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& if_transpose_sinkable) {
     auto indices_to_check = indices;
     if (indices.empty()) {
         indices_to_check.resize(node->get_input_size());
@@ -82,7 +96,7 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (const_transpose_order && !constant_node)
+        if (!if_transpose_sinkable(transpose_node, constant_node))
             continue;
         {
             TransposeInputsInfo input_info;
@@ -108,12 +122,6 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto node2_legacy_output_names = get_ov_tensor_legacy_name(output2.get_tensor());
-    set_ov_tensor_legacy_name(output2.get_tensor(), get_ov_tensor_legacy_name(output1.get_tensor()));
-    set_ov_tensor_legacy_name(output1.get_tensor(), node2_legacy_output_names);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
@@ -146,9 +154,11 @@ bool HasDynamicRankInput(const NodePtr& node) {
     return false;
 }
 
-ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
+ov::Rank::value_type GetMaxInputRank(const NodePtr& node, const std::vector<size_t>& input_indexes) {
     ov::Rank::value_type max_input_rank = 0;
-    for (auto& input_node : node->input_values()) {
+
+    for (const auto& idx : input_indexes) {
+        const auto& input_node = node->get_input_source_output(idx);
         const ov::Rank output_rank = input_node.get_partial_shape().rank();
         if (output_rank.is_dynamic())
             return -1;
@@ -175,12 +185,18 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node,
 }  // namespace
 
 namespace sink_forward {
+
+namespace {
+
 AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty()) {
         return {};
     }
     auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_shape()));
     const auto rank = output.get_partial_shape().rank();
+    if (rank.is_dynamic()) {
+        return {};
+    }
     const auto rank_val = rank.get_length();
     AxisVector new_transpose_order;
     if (rank_val > num_of_val) {
@@ -197,6 +213,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
+}  // namespace
+
 bool UpdateInputTransposes(const NodePtr& main_node,
                            const TransposeInputsInfo& transpose_input_info,
                            std::vector<size_t> input_indexes) {
@@ -207,7 +225,7 @@ bool UpdateInputTransposes(const NodePtr& main_node,
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return false;
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = GetMaxInputRank(main_node, input_indexes);
     if (max_input_rank < 0)
         return false;
 
@@ -297,7 +315,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 
     NodeVector new_nodes;
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = GetMaxInputRank(main_node, input_indexes);
     if (max_input_rank < 0)
         return {};
 
@@ -323,7 +341,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> GetTransposeConstant(Node* node) {
-    auto transpose_node = dynamic_cast<ov::op::v1::Transpose*>(node);
+    auto transpose_node = ov::as_type<ov::op::v1::Transpose>(node);
     if (!transpose_node)
         return {};
 
@@ -394,7 +412,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
     ov::op::v1::Transpose* transpose_connected_to_result = nullptr;
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& consumer_input : node->get_output_target_inputs(output_idx)) {
-            auto transpose = dynamic_cast<ov::op::v1::Transpose*>(consumer_input.get_node());
+            auto transpose = ov::as_type<ov::op::v1::Transpose>(consumer_input.get_node());
             if (!transpose) {
                 // should never happen
                 // the check that all consumers of the main node are Transposes is added
@@ -404,7 +422,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
             out_idx_to_redundant_transposes[output_idx].push_back(transpose);
 
             for (const auto& transpose_consumer_input : transpose->output(0).get_target_inputs()) {
-                if (dynamic_cast<ov::op::v0::Result*>(transpose_consumer_input.get_node())) {
+                if (ov::as_type<ov::op::v0::Result>(transpose_consumer_input.get_node())) {
                     transpose_connected_to_result = transpose;
                 }
             }

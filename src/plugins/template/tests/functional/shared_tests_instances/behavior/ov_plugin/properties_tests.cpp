@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,13 +16,12 @@ const std::vector<ov::AnyMap> inproperties = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE, ov::test::utils::DEVICE_HETERO,
-                                                              ov::test::utils::DEVICE_MULTI, ov::test::utils::DEVICE_BATCH),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
-    {ov::enable_profiling(true)},
+    {ov::enable_profiling(false)},
     {ov::device::id(0)},
 };
 
@@ -41,43 +40,10 @@ const std::vector<ov::AnyMap> properties = {
     {ov::device::id(0)},
 };
 
-const std::vector<ov::AnyMap> hetero_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id(0)},
-};
-
-const std::vector<ov::AnyMap> multi_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id(0)},
-};
-
-const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_TEMPLATE}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_TEMPLATE}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(properties)),
-                         OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(hetero_properties)),
-                         OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multi_properties)),
-                         OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_properties)),
                          OVPropertiesTests::getTestCaseName);
 
 //

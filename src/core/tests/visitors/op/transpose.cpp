@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, transpose_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Transpose>();
+    NodeBuilder::opset().insert<ov::op::v1::Transpose>();
     const auto data_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     const auto axes_order_input = make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
 

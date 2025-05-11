@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,12 @@ public:
 
     /// \brief Constructs a ReadValue operation.
     ///
+    /// \param variable Class for storing and synchronizing element types, shapes and
+    /// identifiers between pairs of Assign/ReadValue nodes.
+    explicit ReadValue(const std::shared_ptr<util::Variable>& variable);
+
+    /// \brief Constructs a ReadValue operation.
+    ///
     /// \param init_value Node that produces the input tensor.
     /// \param variable Class for storing and synchronizing element types, shapes and
     /// identifiers
@@ -69,14 +75,12 @@ public:
         return m_variable->get_info().variable_id;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs,
-                  const HostTensorVector& inputs,
+    bool evaluate(TensorVector& outputs,
+                  const TensorVector& inputs,
                   const EvaluationContext& evaluation_context) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 };
 }  // namespace v6
 }  // namespace op

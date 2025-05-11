@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
 import numpy as np
-import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, Shape
+import openvino.opset8 as ov
+from openvino import Model, Shape
 
-from openvino.runtime.op.util import (
+from openvino.op.util import (
     InvariantInputDescription,
     BodyOutputDescription,
     SliceInputDescription,
     MergedInputDescription,
     ConcatOutputDescription,
 )
+from tests.utils.helpers import compare_models
 
 
 def test_simple_loop():
@@ -43,6 +45,60 @@ def test_simple_loop():
     loop.set_invariant_input(y_i, param_y.output(0))
     loop.set_merged_input(m_body, param_m.output(0), zo.output(0))
     loop.set_special_body_ports([-1, 0])
+
+    out0 = loop.get_iter_value(body_condition.output(0), -1)
+    out1 = loop.get_iter_value(zo.output(0), -1)
+    out2 = loop.get_concatenated_slices(zo.output(0), 0, 1, 1, -1, 1)
+
+    result0 = ov.result(out0)
+    result1 = ov.result(out1)
+    result2 = ov.result(out2)
+
+    out0_shape = [1]
+    out1_shape = [32, 1, 10]
+    out2_shape = [32, 10, 10]
+
+    assert list(result0.get_output_shape(0)) == out0_shape
+    assert list(result1.get_output_shape(0)) == out1_shape
+    assert list(result2.get_output_shape(0)) == out2_shape
+
+    assert list(loop.get_output_shape(0)) == out0_shape
+    assert list(loop.get_output_shape(1)) == out1_shape
+    assert list(loop.get_output_shape(2)) == out2_shape
+
+
+def test_loop_inputs_are_nodes():
+    param_x = ov.parameter(Shape([32, 1, 10]), np.float32, "X")
+    param_y = ov.parameter(Shape([32, 1, 10]), np.float32, "Y")
+    param_m = ov.parameter(Shape([32, 1, 10]), np.float32, "M")
+
+    input_shape = Shape([])
+
+    current_iteration = ov.parameter(Shape([1]), np.int64)
+    x_i = ov.parameter(input_shape, np.float32)
+    y_i = ov.parameter(input_shape, np.float32)
+    m_body = ov.parameter(input_shape, np.float32)
+    bool_val = np.array([1], dtype=bool)
+    bool_val[0] = True
+    body_condition = ov.constant(bool_val)
+    trip_shape = ov.parameter([10], np.int64, "trip_shapeof")
+    trip_count = ov.shape_of(trip_shape)
+    exp_shape_size = ov.constant(10, np.int64)
+    exec_condition = ov.equal(exp_shape_size, trip_count)
+
+    add = ov.add(x_i, y_i)
+    zo = ov.multiply(add, m_body)
+
+    body = Model([body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function")
+
+    loop = ov.loop(trip_count, exec_condition)
+    loop.set_function(body)
+    loop.set_invariant_input(x_i, param_x.output(0))
+    loop.set_invariant_input(y_i, param_y.output(0))
+    loop.set_merged_input(m_body, param_m.output(0), zo.output(0))
+    loop.set_special_body_ports([-1, 0])
+
+    loop.constructor_validate_and_infer_types()
 
     out0 = loop.get_iter_value(body_condition.output(0), -1)
     out1 = loop.get_iter_value(zo.output(0), -1)
@@ -139,7 +195,11 @@ def test_loop_basic():
     loop.get_iter_value(curr_cma.output(0), -1)
     loop.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
-    assert loop.get_function() == graph_body
+    subgraph_func = loop.get_function()
+
+    assert isinstance(subgraph_func, type(graph_body))
+    assert subgraph_func._get_raw_address() == graph_body._get_raw_address()
+    assert compare_models(subgraph_func, graph_body)
     assert loop.get_special_body_ports() == body_ports
     assert loop.get_num_iterations() == 16
 

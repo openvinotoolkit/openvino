@@ -1,11 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
-
-from unit_tests.utils.graph import build_graph
 
 
 class TestResamplePattern(CommonTFLayerTest):
@@ -14,7 +12,7 @@ class TestResamplePattern(CommonTFLayerTest):
             inputs_dict[input] = np.random.randint(1, 256, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_resample_net(self, shape, factor, use_new_frontend):
+    def create_resample_net(self, shape, factor):
         """
             The sub-graph in TF that could be expressed as a single Resample operation.
         """
@@ -39,42 +37,16 @@ class TestResamplePattern(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
-        if not use_new_frontend:
-            new_shape = shape.copy()
-            new_shape[2] *= factor
-            new_shape[3] *= factor
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Input'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST',
-                             "factor": factor,
-                             "height": 0, "width": 0, "antialias": 0},
-                'resample_data': {'shape': new_shape, 'kind': 'data'},
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'resample'),
-                                   ('resample', 'resample_data')
-                                   ])
 
         return tf_net, ref_net
 
-    test_data = [pytest.param(dict(shape=[1, 1, 100, 200], factor=2), marks=pytest.mark.precommit_tf_fe),
+    test_data = [pytest.param(dict(shape=[1, 1, 100, 200], factor=2), marks=pytest.mark.precommit),
                  dict(shape=[1, 1, 200, 300], factor=3)]
 
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      use_old_api):
-        self._test(*self.create_resample_net(params['shape'], params['factor'], use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+    def test_resample(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_resample_net(params['shape'], params['factor']),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

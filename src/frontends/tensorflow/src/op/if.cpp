@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/if.hpp"
+
 #include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -54,7 +55,7 @@ OutputVector translate_if_op(const NodeContext& node) {
                             "number of inputs in else branch do not match.");
 
     // create If operation and set body graphs
-    auto if_op = std::make_shared<If>(cond);
+    auto if_op = std::make_shared<v8::If>(cond);
     if_op->set_then_body(then_branch_body);
     if_op->set_else_body(else_branch_body);
 

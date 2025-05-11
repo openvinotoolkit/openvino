@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::MulticlassNms>();
+    NodeBuilder::opset().insert<ov::op::v8::MulticlassNms>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -62,7 +62,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::MulticlassNms>();
+    NodeBuilder::opset().insert<ov::op::v8::MulticlassNms>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
@@ -88,7 +88,7 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    NodeBuilder::opset().insert<ov::op::v9::MulticlassNms>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
     auto roisnum = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
@@ -138,7 +138,7 @@ TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    NodeBuilder::opset().insert<ov::op::v9::MulticlassNms>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
     auto roisnum = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
@@ -165,7 +165,7 @@ TEST(attributes, multiclass_nms_v9_op_default_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_default_attributes2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    NodeBuilder::opset().insert<ov::op::v9::MulticlassNms>();
     auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 3, 2});
 

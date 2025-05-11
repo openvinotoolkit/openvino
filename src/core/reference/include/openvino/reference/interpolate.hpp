@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,24 @@
 #include <map>
 
 #include "interpolate_pil.hpp"
-#include "ngraph/op/interpolate.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "transpose.hpp"
 
 namespace ov {
 namespace reference {
-using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+using Nearest_mode = op::v4::Interpolate::NearestMode;
+using Transform_mode = op::v4::Interpolate::CoordinateTransformMode;
+using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+
+/// \brief Gets the function to calculate the nearest pixel.
+///
+/// \param mode the calculation mode
+///
+/// \return The function to calculate the nearest pixel.
+using NearestFuncPtr = int64_t (*)(float, bool);
+NearestFuncPtr get_func(Nearest_mode mode);
 
 /// \brief Calculation of nearest pixel.
 class GetNearestPixel final {
@@ -48,47 +56,16 @@ public:
     }
 
 private:
-    using Func = std::function<int64_t(float, bool)>;
-
-    Func m_func;
-
-    /// \brief Gets the function to calculate the nearest pixel.
-    ///
-    /// \param mode the calculation mode
-    ///
-    /// \return The function to calculate the nearest pixel.
-    Func get_func(Nearest_mode mode) {
-        switch (mode) {
-        case Nearest_mode::ROUND_PREFER_CEIL:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::round(x_original));
-            };
-        case Nearest_mode::FLOOR:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::floor(x_original));
-            };
-        case Nearest_mode::CEIL:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::ceil(x_original));
-            };
-        case Nearest_mode::SIMPLE:
-            return [](float x_original, bool is_downsample) {
-                if (is_downsample) {
-                    return static_cast<int64_t>(std::ceil(x_original));
-                } else {
-                    return static_cast<int64_t>(x_original);
-                }
-            };
-        default:;
-        }
-        return [](float x_original, bool) {
-            if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
-                return static_cast<int64_t>(std::floor(x_original));
-            }
-            return static_cast<int64_t>(std::round(x_original));
-        };
-    }
+    NearestFuncPtr m_func;
 };
+
+/// \brief Gets the function to calculate the source coordinate.
+///
+/// \param mode the calculation mode
+///
+/// \return The function to calculate the source coordinate.
+using TransformFuncPtr = float (*)(float, float, float, float);
+TransformFuncPtr get_func(Transform_mode mode);
 
 /// \brief Calculation of the source coordinate using the resized coordinate
 class GetOriginalCoordinate final {
@@ -119,43 +96,7 @@ public:
     }
 
 private:
-    using Func = std::function<float(float, float, float, float)>;
-
-    Func m_func;
-
-    /// \brief Gets the function to calculate the source coordinate.
-    ///
-    /// \param mode the calculation mode
-    ///
-    /// \return The function to calculate the source coordinate.
-    Func get_func(Transform_mode mode) {
-        switch (mode) {
-        case Transform_mode::PYTORCH_HALF_PIXEL:
-            return [](float x_resized, float x_scale, float length_resized, float) {
-                return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
-            };
-            break;
-        case Transform_mode::ASYMMETRIC:
-            return [](float x_resized, float x_scale, float, float) {
-                return x_resized / x_scale;
-            };
-            break;
-        case Transform_mode::TF_HALF_PIXEL_FOR_NN:
-            return [](float x_resized, float x_scale, float, float) {
-                return (x_resized + 0.5f) / x_scale;
-            };
-            break;
-        case Transform_mode::ALIGN_CORNERS:
-            return [](float x_resized, float, float length_resized, float length_original) {
-                return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
-            };
-            break;
-        default:;
-        }
-        return [](float x_resized, float x_scale, float, float) {
-            return ((x_resized + 0.5f) / x_scale) - 0.5f;
-        };
-    }
+    TransformFuncPtr m_func;
 };
 
 /// \brief Helper class to implent non-template parts of the interpolation calculation.
@@ -211,7 +152,7 @@ public:
         float prod_a;
         std::vector<float> a;
         std::vector<int64_t> r;
-        Shape shape_for_indeces;
+        Shape shape_for_indices;
     };
 
     InfoForLinearMode get_info_for_linear_mode();
@@ -362,9 +303,7 @@ template <typename T>
 void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
     auto info = helper.get_info_for_linear_mode();
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
 
     for (const Coordinate& output_coord : output_transform) {
         auto icoords_data = helper.get_icoords(output_coord);
@@ -372,29 +311,30 @@ void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
         float summa = 0.0f;
         float wsum = 0.0f;
 
-        CoordinateTransform indices{info.shape_for_indeces};
+        const CoordinateTransformBasic indices{info.shape_for_indices};
         for (const auto& index : indices) {
             auto inner_result = helper.inner_calculation(output_coord, icoords_data, info, index);
             if (!inner_result.condition) {
                 continue;
             }
 
+            const auto input_index = coordinate_index(inner_result.inner_coord, m_input_data_shape);
             wsum += inner_result.w;
-            summa += inner_result.w * static_cast<float>(input_data[input_transform.index(inner_result.inner_coord)]);
+            summa += inner_result.w * static_cast<float>(input_data[input_index]);
         }
 
+        const auto out_index = coordinate_index(output_coord, m_out_shape);
         if (wsum == 0.0f) {
-            out[output_transform.index(output_coord)] = T{};
+            out[out_index] = T{};
         } else {
             if (std::is_integral<T>()) {
                 // Round value for integral return types
-                out[output_transform.index(output_coord)] = static_cast<T>(std::round(summa / wsum));
+                out[out_index] = static_cast<T>(std::round(summa / wsum));
             } else {
-                out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
+                out[out_index] = static_cast<T>(summa / wsum);
             }
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -532,9 +472,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
     size_t input_rank = m_input_data_shape.size();
     size_t num_of_axes = m_axes.size();
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
     Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
 
     for (const Coordinate& output_coord : output_transform) {
@@ -551,7 +489,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
         }
 
         float summa = 0.0f;
-        CoordinateTransform indices{indices_shape};
+        const CoordinateTransformBasic indices{indices_shape};
 
         for (const Coordinate& idx : indices) {
             auto coords_for_sum = output_coord;
@@ -567,12 +505,12 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
                 coeffs_prod *= cubic_coeffs[axis][idx[i]];
             }
 
-            summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
+            const auto input_index = coordinate_index(coords_for_sum, m_input_data_shape);
+            summa += coeffs_prod * static_cast<float>(input_data[input_index]);
         }
 
-        out[output_transform.index(output_coord)] = static_cast<T>(summa);
+        out[coordinate_index(output_coord, m_out_shape)] = static_cast<T>(summa);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -639,7 +577,7 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
                   reinterpret_cast<char*>(transposed_in.data()),
                   m_input_data_shape,
                   sizeof(T),
-                  in_transp_axes_order.data(),
+                  in_transp_axes_order,
                   transp_input_shape);
 
         std::vector<T> transposed_out(shape_size(m_out_shape));
@@ -670,128 +608,37 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
                   reinterpret_cast<char*>(out),
                   transp_output_shape,
                   sizeof(T),
-                  out_transp_axes_order.data(),
+                  out_transp_axes_order,
                   m_out_shape);
     }
 }
 
 template <typename T>
 void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
 
     for (const Coordinate& output_coord : output_transform) {
         auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
-        out[output_transform.index(output_coord)] = input_data[input_transform.index(input_coord)];
+        const auto input_index = coordinate_index(input_coord, m_input_data_shape);
+        const auto out_index = coordinate_index(output_coord, m_out_shape);
+        out[out_index] = input_data[input_index];
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-inline void pad_input_data(const uint8_t* data_ptr,
-                           uint8_t* padded_data_ptr,
-                           size_t type_size,
-                           const ov::Shape& input_shape,
-                           const ov::Shape& padded_input_shape,
-                           const std::vector<size_t>& pads_begin) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform input_transform(input_shape);
-    CoordinateTransform padded_transform(padded_input_shape);
+void pad_input_data(const uint8_t* data_ptr,
+                    uint8_t* padded_data_ptr,
+                    size_t type_size,
+                    const ov::Shape& input_shape,
+                    const ov::Shape& padded_input_shape,
+                    const std::vector<size_t>& pads_begin);
 
-    for (const Coordinate& input_coord : input_transform) {
-        auto padded_coord = input_coord;
-        size_t i = 0;
-        for (size_t pad : pads_begin) {
-            padded_coord[i] += pad;
-            ++i;
-        }
-        uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
-        memcpy(dst_ptr, src_ptr, type_size);
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
+PartialShape get_padded_input_shape(const PartialShape& input_shape, const op::v0::Interpolate::Attributes& attrs);
 
-inline PartialShape get_padded_input_shape(const PartialShape& input_shape,
-                                           const op::v0::Interpolate::Attributes& attrs) {
-    const auto input_rank = input_shape.rank().get_length();
-
-    PartialShape padded_input_shape = input_shape;
-
-    for (int64_t i = 0; i < input_rank; ++i) {
-        if (input_shape[i].is_static()) {
-            auto new_length = attrs.pads_begin[i] + attrs.pads_end[i] + input_shape[i].get_length();
-            padded_input_shape[i] = Dimension(new_length);
-        }
-    }
-
-    return padded_input_shape;
-}
-
-inline std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
-                                     const Shape& out_shape,
-                                     const op::v0::Interpolate::Attributes& attrs) {
-    std::vector<float> scales(attrs.axes.size(), 1.0f);
-    auto input_shape = input_data_partial_shape.to_shape();
-    size_t i = 0;
-    for (size_t axis : attrs.axes) {
-        scales[i] = static_cast<float>(out_shape.at(axis)) / input_shape.at(axis);
-        i++;
-    }
-
-    return scales;
-}
-
-inline op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
-                                                                const op::v0::Interpolate::Attributes& attrs_v0) {
-    auto input_shape_rank = input_partial_shape.rank().get_length();
-
-    op::v4::Interpolate::InterpolateAttrs attrs_v4;
-    if (attrs_v0.mode == "nearest") {
-        attrs_v4.mode = InterpolateMode::NEAREST;
-    } else if (attrs_v0.mode == "linear") {
-        if (input_shape_rank < 5) {
-            attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
-        } else if (input_shape_rank == 5) {
-            attrs_v4.mode = InterpolateMode::LINEAR;
-        } else {
-            OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
-        }
-    } else if (attrs_v0.mode == "cubic") {
-        attrs_v4.mode = InterpolateMode::CUBIC;
-    } else if (attrs_v0.mode == "linear_onnx") {
-        attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
-    } else {
-        OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
-    }
-
-    attrs_v4.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;
-    attrs_v4.nearest_mode = Nearest_mode::SIMPLE;
-    attrs_v4.pads_begin = attrs_v0.pads_begin;
-    attrs_v4.pads_end = attrs_v0.pads_end;
-    attrs_v4.antialias = attrs_v0.antialias;
-    attrs_v4.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
-    attrs_v4.cube_coeff = -0.75f;
-
-    if (attrs_v0.align_corners) {
-        attrs_v4.coordinate_transformation_mode = Transform_mode::ALIGN_CORNERS;
-    } else if ((attrs_v4.mode == InterpolateMode::LINEAR_ONNX || attrs_v4.mode == InterpolateMode::LINEAR) &&
-               std::all_of(attrs_v4.pads_begin.begin(),
-                           attrs_v4.pads_begin.end(),
-                           [](size_t i) {
-                               return i == 0;
-                           }) &&
-               std::all_of(attrs_v4.pads_end.begin(),
-                           attrs_v4.pads_end.end(),
-                           [](size_t i) {
-                               return i == 0;
-                           }) &&
-               !(input_shape_rank - 2 == 2 && attrs_v0.axes == AxisSet{2, 3})) {
-        attrs_v4.coordinate_transformation_mode = Transform_mode::HALF_PIXEL;
-    }
-
-    return attrs_v4;
-}
+std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
+                              const Shape& out_shape,
+                              const op::v0::Interpolate::Attributes& attrs);
+op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
+                                                         const op::v0::Interpolate::Attributes& attrs_v0);
 
 template <typename T>
 void interpolate(const T* input_data,
@@ -806,7 +653,7 @@ void interpolate(const T* input_data,
 }
 
 template <typename T>
-void interpolate(T* input_data,
+void interpolate(const T* input_data,
                  const PartialShape& input_data_shape,
                  T* out,
                  const Shape& out_shape,
@@ -820,7 +667,7 @@ void interpolate(T* input_data,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
     uint8_t* padded_data_ptr = padded_input_data.data();
-    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
+    pad_input_data(reinterpret_cast<const uint8_t*>(input_data),
                    padded_data_ptr,
                    sizeof(T),
                    input_data_shape.to_shape(),

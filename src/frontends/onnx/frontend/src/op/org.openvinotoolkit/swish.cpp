@@ -1,35 +1,37 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/swish.hpp"
+#include "openvino/op/swish.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/op/normalize_l2.hpp"
-#include "op/org.openvinotoolkit/normalize.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
+using namespace ov::op;
+using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector swish(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
+ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
 
-    Output<ngraph::Node> beta;
-    if (ng_inputs.size() > 1) {
-        beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
+    ov::Output<ov::Node> beta;
+    if (ov_inputs.size() > 1) {
+        beta = ov::frontend::onnx::reshape::interpret_as_scalar(ov_inputs.at(1));
     } else {
-        beta = default_opset::Constant::create(element::f32, Shape{}, {1.0});
+        beta = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0});
     }
 
-    return {std::make_shared<default_opset::Swish>(ng_inputs.at(0), beta)};
+    return {std::make_shared<v4::Swish>(ov_inputs.at(0), beta)};
 }
 
-}  // namespace set_1
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+ONNX_OP("Swish", OPSET_SINCE(1), org_openvinotoolkit::opset_1::swish, OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

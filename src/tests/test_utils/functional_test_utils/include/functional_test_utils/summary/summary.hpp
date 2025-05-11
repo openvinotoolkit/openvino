@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
+extern bool is_print_rel_influence_coef;
+
 struct PassRate {
     enum Statuses { PASSED, FAILED, SKIPPED, CRASHED, HANGED };
     unsigned long passed = 0;
@@ -25,6 +27,9 @@ struct PassRate {
 
     double rel_passed = 0;
     double rel_all = 0;
+
+    bool isCrashReported = false;
+    bool isHangReported = false;
 
     PassRate() = default;
 
@@ -51,8 +56,6 @@ protected:
     std::string ts = ov::test::utils::GetTimestamp();
 
     static size_t saveReportTimeout;
-    static bool isCrashReported;
-    static bool isHangReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
     static const char* outputFolder;
@@ -65,18 +68,6 @@ public:
     void setDeviceName(std::string device);
 
     std::string getDeviceName() const;
-
-    // #define IE_TEST_DEBUG
-
-#ifdef IE_TEST_DEBUG
-    void saveDebugReport(const char* className,
-                         const char* opName,
-                         unsigned long passed,
-                         unsigned long failed,
-                         unsigned long skipped,
-                         unsigned long crashed,
-                         unsigned long hanged);
-#endif  // IE_TEST_DEBUG
 
     virtual void saveReport() {}
 

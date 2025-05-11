@@ -6,8 +6,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
 
@@ -21,6 +23,9 @@ std::string to_string(const ov::Shape& shape);
 ov::ParameterVector filter_parameters(const ov::OutputVector& out_vec);
 
 ov::OutputVector set_transpose_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);
+ov::OutputVector set_transpose_with_order(const std::vector<size_t>& idxs,
+                                          const ov::OutputVector& out_vec,
+                                          const std::vector<size_t>& transpose_order_axes);
 ov::OutputVector set_gather_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);
 std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_t num_ops, const FactoryPtr& creator);
 

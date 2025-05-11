@@ -1,13 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "translate_session.hpp"
 
+#include "helper_ops/enter.hpp"
+#include "helper_ops/keep_in_graph_op.hpp"
+#include "helper_ops/loop_cond.hpp"
+#include "helper_ops/merge.hpp"
+#include "helper_ops/next_iteration.hpp"
+#include "helper_ops/switch.hpp"
 #include "input_model.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -21,21 +29,29 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
         // in case unspecified names, return the initial order of operations
         return ops;
     }
-    FRONT_END_GENERAL_CHECK(names.size() == ops.size(),
+    // some body graph input can turn to be a constant node
+    FRONT_END_GENERAL_CHECK(names.size() >= ops.size(),
                             "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The number "
                             "of names mismatches the number of operations.");
     std::vector<T> resulted_ops(ops.size(), nullptr);
+
     for (const auto& op : ops) {
         const auto& op_name = op->get_friendly_name();
         auto iter = std::find(names.begin(), names.end(), op_name);
         FRONT_END_GENERAL_CHECK(iter != names.end(),
                                 "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The "
                                 "requested name is not found among operations.");
-        auto ind = std::distance(names.begin(), iter);
-        FRONT_END_GENERAL_CHECK(resulted_ops[ind] == nullptr,
-                                "[TensorFlow Frontend] Internal error: incorrect reordering of operations. "
-                                "Found two operations that are mapped to the same name.");
-        resulted_ops[ind] = op;
+    }
+
+    size_t ind = 0;
+    for (const auto& name : names) {
+        for (const auto& op : ops) {
+            if (op->get_friendly_name() == name) {
+                resulted_ops[ind] = op;
+                ind++;
+                break;
+            }
+        }
     }
     return resulted_ops;
 };
@@ -50,11 +66,11 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
     // 1. check if it is the input or output tensor of the model
     // perform the adjustment only for the input and output tensors of the model
-    auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
+    auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(ov_output.get_node_shared_ptr());
     bool is_input_tensor = (param_node ? true : false);
     ov::ResultVector results;
     for (const auto& consumer : ov_output.get_target_inputs()) {
-        if (const auto& result = ov::as_type_ptr<ov::opset10::Result>(consumer.get_node()->shared_from_this())) {
+        if (const auto& result = ov::as_type_ptr<ov::op::v0::Result>(consumer.get_node()->shared_from_this())) {
             results.push_back(result);
         }
     }
@@ -147,6 +163,222 @@ size_t get_flat_index_by_name_and_id(const ov::frontend::NamedOutputVector& outp
         return idx;
     }
 }
+
+// create Parameter node that will produce given tensor
+std::shared_ptr<ov::op::v0::Parameter> create_parameter_node_for_tensor(ov::Output<ov::Node> output_tensor) {
+    auto param =
+        std::make_shared<ov::op::v0::Parameter>(output_tensor.get_element_type(), output_tensor.get_partial_shape());
+    param->output(0).set_names(output_tensor.get_names());
+    output_tensor.replace(param->output(0));
+    return param;
+}
+
+void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
+                    NameTensorMapPtr ov_tensors_map,
+                    const std::vector<std::shared_ptr<Enter>>& enter_ops) {
+    // ov_tensors_map maps a operation name to a vector of its output tensors
+    auto node_name = loop_cond->get_friendly_name();
+    // find key points for condition and body graphs
+    FRONT_END_GENERAL_CHECK(loop_cond, "[TensorFlow Frontend] internal error: pointer to LoopCond node is nullptr");
+
+    // extract condition and body graphs
+    // scan LoopCond node vicinity
+    // 1. LoopCond has just one output
+    // walk through all consuming inputs that are expected to be only for Switch nodes
+    std::vector<std::shared_ptr<Switch>> switch_nodes;
+    for (const auto& consuming_input : loop_cond->get_output_target_inputs(0)) {
+        auto switch_node = ov::as_type_ptr<Switch>(consuming_input.get_node()->shared_from_this());
+        FRONT_END_GENERAL_CHECK(switch_node,
+                                "[TensorFlow Frontend] internal error or inconsistent model: consumer of LoopCond "
+                                "output is not Switch operation");
+        switch_nodes.push_back(switch_node);
+    }
+
+    // collect all output tensors for Loop
+    // the created Loop node outputs will be connected with ov_outputs
+    size_t num_inputs = switch_nodes.size();
+    FRONT_END_GENERAL_CHECK(num_inputs > 0,
+                            "[TensorFlow Frontend] internal error: LoopCond node has no output Switch nodes");
+    ov::OutputVector ov_outputs(num_inputs);
+    // collect ov_inputs (a list of Tensors) that will provide input data for the created Loop node
+    ov::OutputVector ov_inputs(num_inputs);
+    ov::ParameterVector cond_params(num_inputs);
+    ov::ParameterVector body_params(num_inputs);
+    ov::OutputVector ov_body_outputs(num_inputs);
+    std::vector<std::string> output_tensor_names(num_inputs);
+    std::set<std::shared_ptr<Enter>> met_enter_ops;
+    std::string frame_name;
+    for (size_t ind = 0; ind < num_inputs; ++ind) {
+        // Switch node has two outputs:
+        // 0 (output_false) - interrupt the loop, 1 (output_true) - continue the loop
+        // check if Exit node exists
+        auto switch_node = switch_nodes[ind];
+        FRONT_END_GENERAL_CHECK(
+            switch_node->get_output_target_inputs(0).size() < 2,
+            "[TensorFlow Frontend] internal error or inconsistent model: Switch node has more than one Exit nodes");
+        if (switch_node->get_output_target_inputs(0).size() == 1) {
+            auto exit_node = (*switch_node->get_output_target_inputs(0).begin()).get_node();
+            ov_outputs[ind] = exit_node->output(0);
+            output_tensor_names[ind] = exit_node->get_friendly_name() + ":0";
+        }
+
+        auto merge_node = ov::as_type_ptr<Merge>(switch_node->input_value(0).get_node_shared_ptr());
+        FRONT_END_GENERAL_CHECK(merge_node,
+                                "[TensorFlow Frontend] internal error or inconsistent model: Data for Switch node is "
+                                "not produced by Merge node for While operation");
+
+        // create Parameter node for condition graph
+        cond_params[ind] = create_parameter_node_for_tensor(merge_node->output(0));
+        body_params[ind] = create_parameter_node_for_tensor(switch_node->output(1));
+
+        // check that Merge node has Enter and NextIteration producers
+        auto enter = ov::as_type_ptr<Enter>(merge_node->input_value(0).get_node_shared_ptr());
+        auto next_iteration = ov::as_type_ptr<NextIteration>(merge_node->input_value(0).get_node_shared_ptr());
+        if (!enter) {
+            enter = ov::as_type_ptr<Enter>(merge_node->input_value(1).get_node_shared_ptr());
+        }
+        if (!next_iteration) {
+            next_iteration = ov::as_type_ptr<NextIteration>(merge_node->input_value(1).get_node_shared_ptr());
+        }
+        FRONT_END_GENERAL_CHECK(enter && next_iteration,
+                                "[TensorFlow Frontend] internal error or inconsistent model: inputs of Merge node in "
+                                "While sub-graph are not Enter and NextIteration");
+        ov_inputs[ind] = enter->input_value(0);
+        met_enter_ops.insert(enter);
+        frame_name = enter->get_frame_name();
+
+        // retrieve output tensor for body graph that is an input to NextIteration node
+        std::string producer_name;
+        size_t producer_output_port_idx;
+        next_iteration->get_producer(producer_name, producer_output_port_idx);
+        FRONT_END_GENERAL_CHECK(
+            ov_tensors_map->count(producer_name) > 0,
+            "[TensorFlow Frontend] internal error: NextIteration producer is not found in the tensor map");
+        auto producer_outputs = ov_tensors_map->at(producer_name);
+        FRONT_END_GENERAL_CHECK(
+            producer_output_port_idx < producer_outputs.size(),
+            "[TensorFlow Frontend] internal error: NextIteration producer has insufficient number of outputs");
+        auto ov_body_output = producer_outputs[producer_output_port_idx].port;
+        if (ov_body_output.get_node_shared_ptr() == switch_node) {
+            // this is case when NextIteration node is connected with Switch node
+            ov_body_outputs[ind] = body_params[ind]->output(0);
+        } else {
+            ov_body_outputs[ind] = ov_body_output;
+        }
+    }
+    auto ov_cond_output = loop_cond->input_values();
+
+    // insert additional inputs for future Loop node
+    for (auto& enter : enter_ops) {
+        if (met_enter_ops.find(enter) == met_enter_ops.end() && enter->get_frame_name() == frame_name) {
+            ov_inputs.push_back(enter->input_value(0));
+            auto additional_param = create_parameter_node_for_tensor(enter->output(0));
+            cond_params.push_back(additional_param);
+            body_params.push_back(additional_param);
+        }
+    }
+
+    // create a copy of conditional graph
+    auto cond_model = std::make_shared<ov::Model>(ov_cond_output, cond_params);
+    auto body_model = std::make_shared<ov::Model>(ov_body_outputs, body_params);
+
+    // check if condition model has NextIteration->Merge construction
+    // if yes, it means we need to create separate condition for initial check prior to While execution
+    // and separate one for Loop inside
+    auto prior_cond_model = cond_model->clone();
+    for (const auto& op : prior_cond_model->get_ordered_ops()) {
+        auto merge = ov::as_type_ptr<Merge>(op);
+        if (!merge) {
+            continue;
+        }
+
+        auto next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(0).get_node_shared_ptr());
+        if (!next_iteration) {
+            next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        if (!param_node) {
+            param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        if (!next_iteration || !param_node) {
+            continue;
+        }
+        merge->output(0).replace(param_node->output(0));
+    }
+
+    // create condition model to inject inside Loop operaion
+    auto cond_model_params = cond_model->get_parameters();
+    for (const auto& op : cond_model->get_ordered_ops()) {
+        auto merge = ov::as_type_ptr<Merge>(op);
+        if (!merge) {
+            continue;
+        }
+
+        auto next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(0).get_node_shared_ptr());
+        if (!next_iteration) {
+            next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        if (!param_node) {
+            param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(1).get_node_shared_ptr());
+        }
+
+        if (!next_iteration || !param_node) {
+            continue;
+        }
+
+        std::string producer_name;
+        size_t producer_output_port_idx;
+        next_iteration->get_producer(producer_name, producer_output_port_idx);
+        FRONT_END_GENERAL_CHECK(
+            ov_tensors_map->count(producer_name) > 0,
+            "[TensorFlow Frontend] internal error: NextIteration producer is not found in the tensor map");
+        auto producer_outputs = ov_tensors_map->at(producer_name);
+        FRONT_END_GENERAL_CHECK(
+            producer_output_port_idx < producer_outputs.size(),
+            "[TensorFlow Frontend] internal error: NextIteration producer has insufficient number of outputs");
+        auto next_iteration_output = producer_outputs[producer_output_port_idx].port;
+
+        // create auxiliary body model having separate instances of ov::Nodes to avoid cycles in graph during Loop
+        // construction node
+        auto aux_cond_model =
+            std::make_shared<ov::Model>(ov::OutputVector{next_iteration_output}, body_params)->clone();
+        auto aux_cond_params = aux_cond_model->get_parameters();
+        auto aux_cond_results = aux_cond_model->get_results();
+        auto params_size = aux_cond_params.size();
+        // insert the auxiliary body model into condition model
+        for (size_t param_ind = 0; param_ind < params_size; ++param_ind) {
+            auto cond_param = cond_model_params[param_ind];
+            aux_cond_params[param_ind]->output(0).replace(cond_model_params[param_ind]->output(0));
+        }
+        merge->output(0).replace(aux_cond_results[0]->input_value(0));
+    }
+
+    auto loop_node = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
+    auto loop_model = std::make_shared<ov::Model>(loop_node->outputs());
+
+    size_t loop_node_output_size = loop_node->get_output_size();
+    FRONT_END_GENERAL_CHECK(loop_node_output_size == num_inputs,
+                            "[TensorFlow Frontend] internal error: the created Loop node to replace TF1 While has "
+                            "unexpected number of outputs");
+    for (size_t output_ind = 0; output_ind < loop_node_output_size; ++output_ind) {
+        auto producer_node = ov_outputs[output_ind].get_node_shared_ptr();
+        if (producer_node) {
+            std::string producer_name = producer_node->get_friendly_name();
+            size_t producer_output_port_idx = ov_outputs[output_ind].get_index();
+            // work only for non-empty ov::Output<ov::Node>
+            ov_outputs[output_ind].replace(loop_node->output(output_ind));
+            ov_outputs[output_ind].set_names({output_tensor_names[output_ind]});
+            if (ov_tensors_map->count(producer_name) &&
+                producer_output_port_idx < ov_tensors_map->at(producer_name).size()) {
+                ov_tensors_map->at(producer_name)[producer_output_port_idx] = ov_outputs[output_ind];
+            }
+        }
+    }
+}
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -156,7 +388,8 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
       m_translator_map(translator_map),
       m_model_name(model_name),
       m_ov_model(nullptr),
-      m_cached_body_models(std::make_shared<CachedBodyModelsType>()) {}
+      m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
+      m_variables_map(std::make_shared<VariableMap>()) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -166,40 +399,17 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     return m_ov_model;
 }
 
-void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
-                                         const std::string& operation_type,
-                                         const ov::OutputVector& ov_inputs,
-                                         ov::OutputVector& ov_outputs) {
-    ov_outputs.clear();
-    auto body_parameters = body_model->get_parameters();
-    FRONT_END_GENERAL_CHECK(body_parameters.size() == ov_inputs.size(),
-                            "[TensorFlow Error] Internal error or incorrect input models: number of "
-                            "inputs and arguments to the function " +
-                                operation_type + " do not match.");
-    for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
-        auto orig_type = body_parameters[param_ind]->get_element_type();
-        body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
-        if (auto ext_parameter = as_type_ptr<ov::opset8::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
-            // save type of a Parameter as converted in the body
-            // this is important if the external conversion extension is applied to body graph node
-            // with setting its own type
-            if (orig_type != element::dynamic) {
-                ext_parameter->set_element_type(orig_type);
-            }
-        }
-    }
-    for (const auto& result_node : body_model->get_results()) {
-        ov_outputs.push_back(result_node->input_value(0));
-    }
-}
-
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
-    OpMap ng_op_map;
+    NameTensorMapPtr ov_tensors_map = std::make_shared<NameTensorMap>();
+    VariableMap::Ptr ov_variables_map = get_variable_map();
     ControlDepsMap control_deps_map;
+    std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
+    std::vector<std::shared_ptr<Enter>> enter_ops;
 
     ov::ParameterVector params;
     ov::ResultVector results;
+    ov::SinkVector sinks;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
@@ -208,26 +418,28 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
     const auto& saved_model_inputs = model_tf->get_saved_model_input_names();
     const auto& saved_model_outputs = model_tf->get_saved_model_output_names();
+    bool is_body_graph = (model_tf->get_input_names().size() > 0);
 
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
         const auto& frozen_input_name = frozen_input.first;
         const auto& frozen_input_value = frozen_input.second;
-        FRONT_END_GENERAL_CHECK(ng_op_map.count(frozen_input_name) == 0,
+        FRONT_END_GENERAL_CHECK(ov_tensors_map->count(frozen_input_name) == 0,
                                 "Input with frozen value has been already met: " + frozen_input_name);
-        ng_op_map[frozen_input_name] = {frozen_input_value};
+        (*ov_tensors_map)[frozen_input_name] = {frozen_input_value};
     }
     // create parameter nodes for all tensor places corresponding to inputs
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
-        if (ng_op_map.count(input_name)) {
+        if (ov_tensors_map->count(input_name)) {
             // probably this input is frozen
             continue;
         }
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
+        auto input_op_name = input_tensor_place->get_operation_name();
 
         // in case of cutting graph, types of custom inputs can be dynamic,
         // according to MO help, fp32 is used by default in such cases
@@ -235,18 +447,24 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             input_type = element::f32;
         }
 
-        auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
-        set_node_name(input_name, param);
-        params.push_back(param);
-        ng_op_map[input_name] = {NamedOutput(param)};
+        if (const auto& input_var = model_tf->get_variable(input_place)) {
+            (*ov_tensors_map)[input_name] = {NamedOutput(input_var->output(0))};
+        } else {
+            auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
+            param->set_friendly_name(input_name);
+            set_out_name(input_name, param);
+            params.push_back(param);
+            (*ov_tensors_map)[input_op_name] = {NamedOutput(param)};
+        }
     }
 
     // create the OV ops from TensorFlow ops
+    std::vector<std::string> data_producer_names;
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
         // output for parameter nodes has been already generated
-        if (ng_op_map.count(operation_name)) {
+        if (ov_tensors_map->count(operation_name)) {
             continue;
         }
 
@@ -266,8 +484,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 std::string producer_port_name;
                 operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_name, producer_port_idx);
                 if (!producer_port_name.empty()) {
-                    producer_port_idx =
-                        get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
+                    producer_port_idx = get_flat_index_by_name_and_id(ov_tensors_map->at(producer_name),
+                                                                      producer_port_name,
+                                                                      producer_port_idx);
                 }
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
@@ -282,6 +501,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 // control dependency contains "^" in the beginning
                 control_dependencies_names.push_back(producer_name.substr(1));
                 continue;
+            } else {
+                // save all node names producing data
+                data_producer_names.push_back(producer_name);
             }
 
             // TODO: re-implement the logic below once Place graph structure is implemented
@@ -291,27 +513,28 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             // check if output vector for places have been already defined and the order of this check is important
             // it moves from places corresponding to input port of the current operation node to output port of original
             // producers
-            if (ng_op_map.count(std::to_string(input_port_idx) + ":" + operation_name)) {
-                const auto& input_outputs_vector = ng_op_map.at(std::to_string(input_port_idx) + ":" + operation_name);
-                FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
-                                        "Input created with pruning must have one output");
-                ov_inputs.push_back(input_outputs_vector.at(0).port);
-            } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
+            if (ov_tensors_map->count(std::to_string(input_port_idx) + ":" + operation_name)) {
                 const auto& input_outputs_vector =
-                    ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
+                    ov_tensors_map->at(std::to_string(input_port_idx) + ":" + operation_name);
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ov_inputs.push_back(input_outputs_vector.at(0).port);
-            } else if (ng_op_map.count(producer_name)) {
-                const auto& input_outputs_vector = ng_op_map.at(producer_name);
+            } else if (ov_tensors_map->count(producer_name + ":" + std::to_string(producer_port_idx))) {
+                const auto& input_outputs_vector =
+                    ov_tensors_map->at(producer_name + ":" + std::to_string(producer_port_idx));
+                FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
+                                        "Input created with pruning must have one output");
+                ov_inputs.push_back(input_outputs_vector.at(0).port);
+            } else if (ov_tensors_map->count(producer_name)) {
+                const auto& input_outputs_vector = ov_tensors_map->at(producer_name);
                 if (input_outputs_vector.size() <= producer_port_idx) {
                     auto producer_node = input_outputs_vector[0].port.get_node_shared_ptr();
-                    if (std::dynamic_pointer_cast<FrameworkNode>(producer_node)) {
+                    if (ov::as_type_ptr<FrameworkNode>(producer_node)) {
                         // FrameworkNode node does not know in advance how many output ports will be used
                         // so we can increase number of outputs by demand
                         producer_node->set_output_type(producer_port_idx, element::dynamic, PartialShape::dynamic());
                         // update output vector in node map
-                        ng_op_map[producer_name] = named_from_indexed(producer_node->outputs());
+                        (*ov_tensors_map)[producer_name] = named_from_indexed(producer_node->outputs());
                     }
                 }
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
@@ -324,13 +547,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
         }
 
+        // update variables state map for the current node
+        ov_variables_map->initialize_variable_state_map_for_node(control_dependencies_names,
+                                                                 data_producer_names,
+                                                                 operation_name);
+
         // generate OV node output vector for the current operation node
         NamedOutputVector ov_outputs;
         auto operation_type = operation_decoder->get_op_type();
         if (m_translator_map->count(operation_type)) {
             try {
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
-                NodeContext node_context(operation_decoder, ov_inputs, this);
+                NodeContext node_context(operation_decoder, ov_inputs, ov_variables_map, this);
                 ov_outputs = translator(node_context);
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
@@ -348,6 +576,25 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    operation_name,
                                                                    "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
+            }
+
+            for (auto output : ov_outputs) {
+                auto node = output.port.get_node_shared_ptr();
+                // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,
+                // which we might need to remove from graph
+                if (ov::as_type_ptr<KeepInGraphOp>(node)) {
+                    sinks.push_back(ov::as_type_ptr<ov::op::Sink>(node));
+                } else {
+                    auto multi_subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
+                    if (multi_subgraph) {
+                        for (const auto& body_model : multi_subgraph->get_functions()) {
+                            if (body_model->get_sinks().size()) {
+                                sinks.push_back(ov::as_type_ptr<ov::op::Sink>(multi_subgraph));
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type, ov_inputs)) {
             OutputVector indexed_ov_outputs;
@@ -368,6 +615,19 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             ov_outputs = named_from_indexed(fw_node->outputs());
         }
 
+        // save LoopCond operations in topological order for further fusing
+        if (ov_outputs.size() == 1 && as_type_ptr<LoopCond>(ov_outputs[0].port.get_node_shared_ptr())) {
+            loop_cond_ops.push_back(as_type_ptr<LoopCond>(ov_outputs[0].port.get_node_shared_ptr()));
+        } else if (ov_outputs.size() == 1 && as_type_ptr<Enter>(ov_outputs[0].port.get_node_shared_ptr())) {
+            enter_ops.push_back(as_type_ptr<Enter>(ov_outputs[0].port.get_node_shared_ptr()));
+        } else if (ov_outputs.size() == 1 && as_type_ptr<NextIteration>(ov_outputs[0].port.get_node_shared_ptr())) {
+            std::string producer_name;
+            size_t producer_output_port_idx;
+            operation_place->get_next_iteration_back_edge(producer_name, producer_output_port_idx);
+            auto next_iteration = as_type_ptr<NextIteration>(ov_outputs[0].port.get_node_shared_ptr());
+            next_iteration->set_producer(producer_name, producer_output_port_idx);
+        }
+
         // create input control dependencies set for the current operation node
         std::set<ov::Output<ov::Node>> input_control_deps;
         for (const auto& control_dep_name : control_dependencies_names) {
@@ -384,16 +644,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = as_type_ptr<ov::opset10::Result>(output.port.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::op::v0::Result>(output.port.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = as_type_ptr<ov::opset8::Parameter>(output.port.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::op::v0::Parameter>(output.port.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && std::find(params.begin(), params.end(), param) == params.end()) {
+                if (param && std::find(params.begin(), params.end(), param) == params.end() && !is_body_graph) {
                     params.push_back(param);
                 }
-                ng_op_map[operation_name].push_back(output);
+                (*ov_tensors_map)[operation_name].push_back(output);
             }
         }
     }
@@ -412,21 +672,20 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       port_type);
 
             if (port_type == "none") {
-                for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
-                    auto result_node = std::make_shared<ov::opset8::Result>(node_output);
+                for (const auto& node_output : indexed_from_named((*ov_tensors_map)[operation_name])) {
+                    auto result_node = std::make_shared<ov::op::v0::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                     result_node->set_friendly_name(model_output_name + ":0");
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
-                const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
-                FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
-                                        "Output port with index " + std::to_string(port_index) + " of " +
-                                            operation_name + "node specified as custom output does not exist");
-                auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
-                result_node->set_friendly_name(model_output_name);
-                results.push_back(result_node);
+                const auto& node_outputs = indexed_from_named((*ov_tensors_map)[operation_name]);
+                if (node_outputs.size() > port_index) {
+                    auto result_node = std::make_shared<ov::op::v0::Result>(node_outputs[port_index]);
+                    result_node->set_friendly_name(model_output_name);
+                    results.push_back(result_node);
+                }
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
                 std::shared_ptr<OpPlace> operation_place = nullptr;
@@ -446,7 +705,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 try {
                     operation_decoder->get_input_node(port_index, producer_name, producer_port_name, producer_port_idx);
                     if (!producer_port_name.empty()) {
-                        producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name],
+                        producer_port_idx = get_flat_index_by_name_and_id((*ov_tensors_map)[producer_name],
                                                                           producer_port_name,
                                                                           producer_port_idx);
                     }
@@ -458,11 +717,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
 
                 // add Result node for this producer output port
-                const auto& node_outputs = indexed_from_named(ng_op_map[producer_name]);
+                const auto& node_outputs = indexed_from_named((*ov_tensors_map)[producer_name]);
                 FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
-                auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
+                auto result_node = std::make_shared<ov::op::v0::Result>(node_outputs[producer_port_idx]);
                 // to be aligned with Legacy Frontend we set a name of the output tensor name
                 // of the producer to the Result node
                 // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
@@ -475,14 +734,14 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     // TODO: it may be redundant step since models_output is filled in InputModel constructor
     // find all terminal nodes in OV graph to complete list of results
     if (results.empty()) {
-        for (const auto& node_output_vector : ng_op_map) {
+        for (const auto& node_output_vector : *ov_tensors_map) {
             for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
                 auto output = node_output_vector.second[output_ind].port;
                 if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
+                    !ov::as_type_ptr<ov::op::v0::Result>(output.get_node_shared_ptr())) {
                     auto model_output_name =
                         output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
-                    auto result_node = std::make_shared<ov::opset8::Result>(output);
+                    auto result_node = std::make_shared<ov::op::v0::Result>(output);
                     result_node->set_friendly_name(model_output_name);
                     results.push_back(result_node);
                 }
@@ -519,7 +778,14 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
+    // before adding Result nodes to terminal nodes
+    // it fuses TF1 Control flow based While operation to Loop operation
+    // it needs to perform this in the reverse order
+    std::reverse(loop_cond_ops.begin(), loop_cond_ops.end());
+    for (auto& loop_cond_op : loop_cond_ops) {
+        fuse_loop_cond(loop_cond_op, ov_tensors_map, enter_ops);
+    }
+    ov_model = std::make_shared<ov::Model>(ordered_results, sinks, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,
@@ -549,18 +815,46 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         // set input shapes and types for InputModel of the body graph
         // it allows to get more optimized model after the conversion,
         // for example, to get less sub-graphs with ShapeOf and Convert operations
-        auto inputs = body_input_model->get_inputs();
-        size_t num_inputs = inputs.size();
-        FRONT_END_GENERAL_CHECK(num_inputs == ov_inputs.size(),
-                                "[TensorFlow Frontend] internal error: a number of external  and internal inputs for a "
-                                "body graph mismatch");
-        for (size_t input_ind = 0; input_ind < num_inputs; ++input_ind) {
-            auto input_place = inputs[input_ind];
-            if (input_types[input_ind].is_static()) {
-                body_input_model->set_element_type(input_place, input_types[input_ind]);
+        // input names set an order of body graph inputs
+        auto input_names = body_input_model->get_input_names();
+        auto body_inputs = body_input_model->get_inputs();
+        size_t int_num_inputs = body_inputs.size();
+        size_t ext_num_inputs = ov_inputs.size();
+        FRONT_END_GENERAL_CHECK(int_num_inputs <= ext_num_inputs,
+                                "[TensorFlow Frontend] internal error: a number of external and "
+                                "internal inputs for a body graph mismatch");
+        FRONT_END_GENERAL_CHECK(input_names.size() == ext_num_inputs,
+                                "[TensorFlow Frontend] internal error: a number of body graph names and external "
+                                "inputs to body must match");
+        for (size_t input_ind = 0; input_ind < ext_num_inputs; ++input_ind) {
+            auto required_input_name = input_names[input_ind];
+            bool is_found_body_input = false;
+            size_t body_found_ind = 0;
+            for (size_t internal_ind = 0; internal_ind < int_num_inputs; ++internal_ind) {
+                auto body_input_place = body_inputs[internal_ind];
+                auto body_input_names = body_input_place->get_names();
+                if (std::find(body_input_names.begin(), body_input_names.end(), required_input_name) !=
+                    body_input_names.end()) {
+                    is_found_body_input = true;
+                    body_found_ind = internal_ind;
+                    break;
+                }
             }
-            if (input_shapes[input_ind].rank().is_static()) {
-                body_input_model->set_partial_shape(input_place, input_shapes[input_ind]);
+            if (is_found_body_input) {
+                auto body_input_place = body_inputs[body_found_ind];
+                // if body input with required name is found, set its type
+                if (input_types[input_ind].is_static()) {
+                    body_input_model->set_element_type(body_input_place, input_types[input_ind]);
+                }
+                if (input_shapes[input_ind].rank().is_static()) {
+                    body_input_model->set_partial_shape(body_input_place, input_shapes[input_ind]);
+                }
+                // set variable to the corresponding place
+                // it is needed to propogate variable values inside a body graph like HashTable
+                // without this, conversion of LookupTableFind operations will not be possible
+                if (const auto& input_var = as_type_ptr<Variable>(ov_inputs[input_ind].get_node_shared_ptr())) {
+                    body_input_model->set_variable(body_input_place, input_var);
+                }
             }
         }
 

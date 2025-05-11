@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -16,8 +16,10 @@ def squeeze(name : str, x, axes : list):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.fluid.layers.squeeze(node_x, axes=axes, name='squeeze')
-
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.squeeze(node_x, axis=axes, name='squeeze')
+        else:
+            out = paddle.fluid.layers.squeeze(node_x, axes=axes, name='squeeze')
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -27,7 +29,7 @@ def squeeze(name : str, x, axes : list):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

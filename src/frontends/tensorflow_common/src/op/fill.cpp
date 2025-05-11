@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -14,9 +14,11 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_fill_op(const NodeContext& node) {
-    auto ng_dims = node.get_input(0);
-    auto ng_value = node.get_input(1);
-    auto res = make_shared<Broadcast>(ng_value, ng_dims);
+    default_op_checks(node, 2, {"Fill", "FILL"});
+    auto dims = node.get_input(0);
+    auto value = node.get_input(1);
+
+    auto res = make_shared<v3::Broadcast>(value, dims);
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -21,7 +21,8 @@ std::vector<TRShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* 
     const auto is_flatten = op->get_attrs().flatten;
     const size_t output_size = is_flatten ? 2 : 4;
 
-    TRShape output_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
     output_shape.resize(output_size);
     output_shape[output_size - 1] = 4;
 
@@ -69,7 +70,7 @@ std::vector<TRShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* 
         }
     }
 
-    return {output_shape};
+    return output_shapes;
 }
 }  // namespace v6
 }  // namespace op

@@ -4,16 +4,18 @@
 
 #include "grid_sample_kernel_selector.hpp"
 
+#include "grid_sample_kernel_opt_bilinear_zeros.hpp"
 #include "grid_sample_kernel_ref.hpp"
 
 namespace kernel_selector {
 
 grid_sample_kernel_selector::grid_sample_kernel_selector() {
+    Attach<GridSampleKernelOpt_BilinearZeros>();
     Attach<GridSampleKernelRef>();
 }
 
-KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GRID_SAMPLE);
+KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GRID_SAMPLE);
 }
 
 grid_sample_kernel_selector& grid_sample_kernel_selector::Instance() {

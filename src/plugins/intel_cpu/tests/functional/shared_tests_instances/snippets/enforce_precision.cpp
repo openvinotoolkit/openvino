@@ -4,7 +4,6 @@
 
 #include "snippets/enforce_precision.hpp"
 #include <gtest/gtest.h>
-#include <ngraph/ngraph.hpp>
 
 namespace ov {
 namespace test {

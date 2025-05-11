@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,19 +6,21 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng(32345)
+
 
 class TestIfFloat(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'cond' in inputs_info, "Test error: inputs_info must contain `cond`"
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        cond_shape = inputs_info['cond']
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'cond:0' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        cond_shape = inputs_info['cond:0']
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.float32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['x:0'] = rng.integers(1, 10, x_shape).astype(np.float32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, x_shape, y_shape, lower_control_flow):
@@ -65,29 +67,27 @@ class TestIfFloat(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestIfInt(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'cond' in inputs_info, "Test error: inputs_info must contain `cond`"
-        assert 'ind' in inputs_info, "Test error: inputs_info must contain `ind`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        cond_shape = inputs_info['cond']
-        ind_shape = inputs_info['ind']
-        y_shape = inputs_info['y']
+        assert 'cond:0' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'ind:0' in inputs_info, "Test error: inputs_info must contain `ind`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        cond_shape = inputs_info['cond:0']
+        ind_shape = inputs_info['ind:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['ind'] = np.random.randint(1, 10, ind_shape).astype(np.int32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['ind:0'] = rng.integers(1, 10, ind_shape).astype(np.int32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, ind_shape, y_shape, lower_control_flow):
@@ -135,29 +135,27 @@ class TestIfInt(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestNestedIf(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `cond`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'z' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
-        z_shape = inputs_info['z']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'z:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
+        z_shape = inputs_info['z:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(0, 6, x_shape).astype(np.int32)
-        inputs_data['y'] = np.random.randint(1, 10, y_shape).astype(np.float32)
-        inputs_data['z'] = np.random.randint(-50, 50, z_shape).astype(np.float32)
+        inputs_data['x:0'] = rng.integers(0, 6, x_shape).astype(np.int32)
+        inputs_data['y:0'] = rng.integers(1, 10, y_shape).astype(np.float32)
+        inputs_data['z:0'] = rng.integers(-50, 50, z_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, y_shape, z_shape, lower_control_flow):
@@ -213,29 +211,27 @@ class TestNestedIf(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSequantialIfs(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'cond' in inputs_info, "Test error: inputs_info must contain `cond`"
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        cond_shape = inputs_info['cond']
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'cond:0' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        cond_shape = inputs_info['cond:0']
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.float32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['x:0'] = rng.integers(1, 10, x_shape).astype(np.float32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_sequential_ifs_net(self, x_shape, y_shape, lower_control_flow):
@@ -303,12 +299,10 @@ class TestSequantialIfs(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend, use_old_api):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_sequential_ifs_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

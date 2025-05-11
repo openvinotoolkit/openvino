@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
@@ -13,7 +13,7 @@ class ov_model_test : public ov_capi_test_base {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_model_test, ::testing::Values(""));
+INSTANTIATE_TEST_SUITE_P(ov_model, ov_model_test, ::testing::Values(""));
 
 TEST_P(ov_model_test, ov_model_const_input) {
     ov_core_t* core = nullptr;

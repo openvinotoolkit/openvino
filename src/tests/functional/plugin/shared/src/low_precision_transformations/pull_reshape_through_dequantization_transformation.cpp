@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,29 +9,24 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::Shape elementwiseConstantShapes;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        inputShape << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           inputShape << "_" <<
         elementwiseConstantShapes << "_" <<
         testValues.precisionBeforeDequantization << "_" <<
         testValues.dequantizationOnActivations << "_" <<
@@ -42,14 +37,14 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 }
 
 void PullReshapeThroughDequantizationTransformation::SetUp() {
-    // threshold = 0.1f;
-
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::Shape elementwiseConstantShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     // to prevent test cases increasing let's parameterize test by dequantization shape and
     // initialize values here
@@ -61,7 +56,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         testValues.dequantizationOnWeights.multiply.constantShape = elementwiseConstantShapes;
     }
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         testValues.precisionBeforeDequantization,
         inputShape,
         testValues.fakeQuantizeOnData,
@@ -79,17 +74,17 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         "GroupConvolution");
 }
 
-void PullReshapeThroughDequantizationTransformation::Run() {
-    LayerTestsCommon::Run();
+void PullReshapeThroughDequantizationTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
-    const auto actualType = getRuntimePrecision(params.operationName);
+    const auto actualType = get_runtime_precision(params.operationName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(PullReshapeThroughDequantizationTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

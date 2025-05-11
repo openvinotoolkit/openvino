@@ -1,17 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <openvino/opsets/opset10.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/subtract.hpp"
 #include "tf_utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 using namespace ov::frontend::tensorflow::tests;
 
 TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
@@ -19,8 +24,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
         model = convert_model("saved_model_program-only");
 
         // check tensor names in the resulted model
-        unordered_set<string> input_tensor_names = {"y"};
-        unordered_set<string> output_tensor_names = {"z"};
+        unordered_set<std::string> input_tensor_names = {"y"};
+        unordered_set<std::string> output_tensor_names = {"z"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 1);
@@ -32,9 +37,9 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
     }
     {
         // create a reference graph
-        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
-        auto y = make_shared<Parameter>(element::f32, Shape{1});
-        auto add = make_shared<Add>(x, y);
+        auto x = make_shared<v0::Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<v0::Parameter>(element::f32, Shape{1});
+        auto add = make_shared<v1::Add>(x, y);
 
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
     }
@@ -44,9 +49,9 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelVariables) {
     { model = convert_model("saved_model_variables"); }
     {
         // create a reference graph
-        auto x = make_shared<Parameter>(element::f32, Shape{1});
-        auto y = make_shared<Constant>(element::f32, Shape{}, vector<float>{123});
-        auto multiply = make_shared<Multiply>(x, y);
+        auto x = make_shared<v0::Parameter>(element::f32, Shape{1});
+        auto y = make_shared<v0::Constant>(element::f32, Shape{}, vector<float>{123});
+        auto multiply = make_shared<v1::Multiply>(x, y);
 
         model_ref = make_shared<Model>(OutputVector{multiply}, ParameterVector{x});
     }
@@ -61,9 +66,9 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithInputIntegerType) {
                               {PartialShape{10, 5}, PartialShape{3}});
 
         // check tensor names in the resulted model
-        unordered_set<string> input_tensor_name1 = {"params"};
-        unordered_set<string> input_tensor_name2 = {"indices"};
-        unordered_set<string> output_tensor_names = {"test_output_name"};
+        unordered_set<std::string> input_tensor_name1 = {"params"};
+        unordered_set<std::string> input_tensor_name2 = {"indices"};
+        unordered_set<std::string> output_tensor_names = {"test_output_name"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 2);
@@ -77,13 +82,13 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithInputIntegerType) {
     }
     {
         // create a reference graph
-        auto params = make_shared<Parameter>(element::f32, Shape{10, 5});
-        auto indices = make_shared<Parameter>(element::i32, Shape{3});
-        auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
-        auto gather = make_shared<Gather>(params, indices, gather_axis);
+        auto params = make_shared<v0::Parameter>(element::f32, Shape{10, 5});
+        auto indices = make_shared<v0::Parameter>(element::i32, Shape{3});
+        auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather = make_shared<v8::Gather>(params, indices, gather_axis);
 
-        auto const_mul = make_shared<Constant>(element::f32, Shape{}, 5);
-        auto mul = make_shared<Multiply>(gather, const_mul);
+        auto const_mul = make_shared<v0::Constant>(element::f32, Shape{}, 5);
+        auto mul = make_shared<v1::Multiply>(gather, const_mul);
 
         model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{params, indices});
     }
@@ -97,7 +102,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
         model = convert_model("saved_model_parameter_result");
 
         // check tensor names in the resulted model
-        unordered_set<string> tensor_names = {"params", "test_output_name"};
+        unordered_set<std::string> tensor_names = {"params", "test_output_name"};
         ASSERT_EQ(model->get_results().size(), 1);
         ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == tensor_names);
         ASSERT_EQ(model->get_parameters().size(), 1);
@@ -109,8 +114,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
     }
     {
         // create a reference graph
-        auto x = make_shared<Parameter>(element::f32, Shape{20, 5});
-        auto result = make_shared<Result>(x);
+        auto x = make_shared<v0::Parameter>(element::f32, Shape{20, 5});
+        auto result = make_shared<v0::Result>(x);
         model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
     }
 }
@@ -119,7 +124,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
     { model = convert_model("saved_model_broadcast_issue"); }
     {
         // create a reference graph
-        auto x = make_shared<Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
+        auto x = make_shared<v0::Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
 
         model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
     }
@@ -131,9 +136,9 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
     { model = convert_model("saved_model_multi-graph"); }
     {
         // create a reference graph
-        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
-        auto y = make_shared<Parameter>(element::f32, Shape{1});
-        auto add = make_shared<Add>(x, y);
+        auto x = make_shared<v0::Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<v0::Parameter>(element::f32, Shape{1});
+        auto add = make_shared<v1::Add>(x, y);
 
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
     }
@@ -148,12 +153,12 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) 
     }
     {
         // create a reference graph
-        auto input1 = make_shared<Parameter>(element::f32, Shape{2});
-        auto input2 = make_shared<Parameter>(element::f32, Shape{2});
-        auto add = make_shared<Add>(input1, input2);
-        auto sub = make_shared<Subtract>(input2, add);
-        auto result1 = make_shared<Result>(add);
-        auto result2 = make_shared<Result>(sub);
+        auto input1 = make_shared<v0::Parameter>(element::f32, Shape{2});
+        auto input2 = make_shared<v0::Parameter>(element::f32, Shape{2});
+        auto add = make_shared<v1::Add>(input1, input2);
+        auto sub = make_shared<v1::Subtract>(input2, add);
+        auto result1 = make_shared<v0::Result>(add);
+        auto result2 = make_shared<v0::Result>(sub);
         model_ref = make_shared<Model>(OutputVector{result1, result2}, ParameterVector{input1, input2});
     }
 }
@@ -171,17 +176,17 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     { model = convert_model("saved_model_with_numerical_names"); }
     {
         // create a reference graph
-        auto x = make_shared<Parameter>(element::f32, Shape{1});
+        auto x = make_shared<v0::Parameter>(element::f32, Shape{1});
         x->output(0).set_names({"0"});
-        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto y = make_shared<v0::Parameter>(element::f32, Shape{1});
         y->output(0).set_names({"1"});
-        auto z = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<v0::Parameter>(element::f32, Shape{1});
         z->output(0).set_names({"2"});
-        auto add = make_shared<Add>(x, y);
-        add->output(0).set_names({"3", "3:0"});
-        auto sub = make_shared<Subtract>(add, z);
+        auto add = make_shared<v1::Add>(x, y);
+        add->output(0).set_names({"3:0"});
+        auto sub = make_shared<v1::Subtract>(add, z);
         sub->output(0).set_names({"4"});
-        auto result = make_shared<Result>(sub);
+        auto result = make_shared<v0::Result>(sub);
         result->output(0).set_names({"4"});
         model_ref = make_shared<Model>(ResultVector{result}, ParameterVector{x, y, z});
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,14 +44,14 @@ bool evaluate_prior_box(const Tensor& arg0,
                         const op::v0::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
     default:
         rc = false;
         break;
@@ -186,14 +186,14 @@ bool evaluate_prior_box(const Tensor& arg0,
                         const op::v8::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
     default:
         rc = false;
         break;

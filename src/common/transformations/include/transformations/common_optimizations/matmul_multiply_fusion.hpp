@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MatMulMultiplyFusion transformation matches following graph:
  *
  *         +----------+            +----------+
@@ -58,6 +58,6 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
  */
 class ov::pass::MatMulMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulMultiplyFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MatMulMultiplyFusion");
     MatMulMultiplyFusion();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, keep_dims_3D) {
 
     bool keep_dims = true;
 
-    ov::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ov::test::NodeBuilder::opset().insert<OP_Type>();
     const auto data = make_shared<ov::op::v0::Parameter>(in_et, in_shape);
     const auto reduction_axes = make_shared<ov::op::v0::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);
@@ -67,7 +67,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, do_not_keep_dims_3D) {
 
     bool keep_dims = false;
 
-    ov::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ov::test::NodeBuilder::opset().insert<OP_Type>();
     const auto data = make_shared<ov::op::v0::Parameter>(in_et, in_shape);
     const auto reduction_axes = make_shared<ov::op::v0::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);

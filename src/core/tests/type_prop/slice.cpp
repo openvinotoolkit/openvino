@@ -1,14 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/slice.hpp"
 
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "sequnce_generator.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/subtract.hpp"
+#include "sequence_generator.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -142,11 +144,11 @@ TEST(type_prop, slice_v8_basic_const_inputs_unordered_axes) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
-TEST(type_prop, slice_v8_const_inputs_not_all_axes_unordered_prop_labels) {
+TEST(type_prop, slice_v8_const_inputs_not_all_axes_unordered_prop_symbols) {
     PartialShape data_shape{10, 10, 10, 10, 10, 20, Dimension(20, 30), 30, Dimension(2, 5), Dimension(-1)};
     PartialShape expected_out_shape{4, 7, 10, 10, 9, 20, Dimension(10, 15), 30, Dimension(2, 5), Dimension(-1)};
 
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     std::vector<int32_t> start_val{1, 1, -20, 9, 10, 9};
     std::vector<int32_t> stop_val{8, 8, 20, -11, 25, 0};
@@ -161,8 +163,17 @@ TEST(type_prop, slice_v8_const_inputs_not_all_axes_unordered_prop_labels) {
 
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(ov::no_label, ov::no_label, 12, 13, ov::no_label, 15, ov::no_label, 17, 18, 19));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(nullptr,
+                            nullptr,
+                            symbols[2],
+                            symbols[3],
+                            nullptr,
+                            symbols[5],
+                            nullptr,
+                            symbols[7],
+                            symbols[8],
+                            symbols[9]));
 }
 
 TEST(type_prop, slice_v8_basic_const_inputs_data_dynamic_bounds_dimensions) {
@@ -206,7 +217,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_data_dynamic_rank) {
     EXPECT_TRUE(op->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TEST(type_prop, slice_v8_basic_param_inputs_default_axes_labels_prop) {
+TEST(type_prop, slice_v8_basic_param_inputs_default_axes_symbols_prop) {
     PartialShape data_shape{Dimension(0, 10),
                             Dimension(1, 10),
                             10,
@@ -225,7 +236,7 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_labels_prop) {
                                     Dimension(0, 8),
                                     Dimension(4, 8),
                                     16};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape start_shape{7};
     PartialShape stop_shape{7};
@@ -242,8 +253,9 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_labels_prop) {
 
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, 14, ov::no_label, 16, 17, 18));
+    EXPECT_THAT(
+        get_shape_symbols(op->get_output_partial_shape(0)),
+        ElementsAre(symbols[0], nullptr, nullptr, nullptr, nullptr, nullptr, symbols[6], symbols[7], symbols[8]));
 }
 
 TEST(type_prop, slice_v8_sss_param_inputs_mixed_neg_const_axes) {
@@ -1012,14 +1024,14 @@ TEST(type_prop, slice_v8_basic_const_inputs_out_axes_val) {
         std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
         OV_EXPECT_THROW(const auto op = make_slice_op_const_inputs(input_vals, data_shape, et),
                         NodeValidationFailure,
-                        HasSubstr("axis -20 out of the tensor rank range [-8, 7]"));
+                        HasSubstr("Axis -20 out of the tensor rank range [-8, 7]"));
     }
     {
         std::vector<int32_t> axes_val{2, 0, 9, 7, 1, 20, 6, 4};
         std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
         OV_EXPECT_THROW(const auto op = make_slice_op_const_inputs(input_vals, data_shape, et),
                         NodeValidationFailure,
-                        HasSubstr("axis 9 out of the tensor rank range [-8, 7]"));
+                        HasSubstr("Axis 9 out of the tensor rank range [-8, 7]"));
     }
 
     const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
@@ -1030,7 +1042,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_out_axes_val) {
 
     OV_EXPECT_THROW(const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes),
                     NodeValidationFailure,
-                    HasSubstr("axis -15 out of the tensor rank range [-8, 7]"));
+                    HasSubstr("Axis -15 out of the tensor rank range [-8, 7]"));
 }
 
 TEST(type_prop, slice_v8_basic_const_inputs_step_zero) {
@@ -1061,9 +1073,10 @@ TEST(type_prop, slice_v8_dynamic_rank_inputs) {
     EXPECT_EQ(op->get_output_partial_shape(0), dyn_rank_shape);
 }
 
-TEST(type_prop, slice_v8_dynamic_value_and_label_propagation) {
+TEST(type_prop, slice_v8_dynamic_value_and_symbol_propagation) {
     Dimension marked_0 = Dimension(3, 7);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -1081,7 +1094,7 @@ TEST(type_prop, slice_v8_dynamic_value_and_label_propagation) {
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, (PartialShape{{3, 7}}));
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol);
 }
 
 TEST(type_prop, slice_v8_dynamic_dimension_but_slice_min_is_lt_input_min_size) {
@@ -1118,7 +1131,7 @@ TEST(type_prop, slice_v8_use_default_ctor) {
 
 TEST(type_prop, slice_v8_stop_is_shape_of_with_bounds) {
     auto shape = PartialShape{1, {5, 7}};
-    set_shape_labels(shape, 20);
+    set_shape_symbols(shape);
     const auto p_stop = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
     const auto shape_of_stop = std::make_shared<op::v0::ShapeOf>(p_stop);
 
@@ -1129,12 +1142,12 @@ TEST(type_prop, slice_v8_stop_is_shape_of_with_bounds) {
     auto slice = std::make_shared<op::v8::Slice>(data, start, shape_of_stop, steps);
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
-    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(slice->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, slice_v8_start_is_shape_of_with_bounds) {
     auto shape = PartialShape{0, {3, 5}};
-    set_shape_labels(shape, 20);
+    set_shape_symbols(shape);
     const auto p_start = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
     const auto shape_of_start = std::make_shared<op::v0::ShapeOf>(p_start);
 
@@ -1145,14 +1158,14 @@ TEST(type_prop, slice_v8_start_is_shape_of_with_bounds) {
     auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, stop, steps);
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {2, 4}}));
-    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(slice->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
     auto start_shape = PartialShape{0, {3, 5}};
     auto stop_shape = PartialShape{2, {6, 7}};
-    set_shape_labels(start_shape, 10);
-    set_shape_labels(stop_shape, 20);
+    set_shape_symbols(start_shape);
+    set_shape_symbols(stop_shape);
     const auto p_start = std::make_shared<ov::op::v0::Parameter>(element::i64, start_shape);
     const auto p_stop = std::make_shared<ov::op::v0::Parameter>(element::i64, stop_shape);
     const auto shape_of_start = std::make_shared<op::v0::ShapeOf>(p_start);
@@ -1164,7 +1177,7 @@ TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
     auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, shape_of_stop, steps);
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {1, 4}}));
-    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(slice->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, slice_v8_unknowns_axes) {
@@ -1229,20 +1242,20 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                 SliceV8IntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
 
 TEST_P(SliceV8IntervalTest, start_stop_as_interval) {
-    using namespace ov::opset9;
-
-    const auto p_start = std::make_shared<Parameter>(element::i64, start_shape);
-    const auto shape_of_start = std::make_shared<ShapeOf>(p_start);
+    const auto p_start = std::make_shared<op::v0::Parameter>(element::i64, start_shape);
+    const auto shape_of_start = std::make_shared<op::v3::ShapeOf>(p_start);
     const auto start =
-        std::make_shared<Subtract>(shape_of_start, Constant::create(element::i64, Shape{1}, {start_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_start,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {start_offset}));
 
-    const auto p_stop = std::make_shared<Parameter>(element::i64, stop_shape);
-    const auto shape_of_stop = std::make_shared<ShapeOf>(p_stop);
+    const auto p_stop = std::make_shared<op::v0::Parameter>(element::i64, stop_shape);
+    const auto shape_of_stop = std::make_shared<op::v3::ShapeOf>(p_stop);
     const auto stop =
-        std::make_shared<Subtract>(shape_of_stop, Constant::create(element::i64, Shape{1}, {stop_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_stop,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {stop_offset}));
 
-    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
-    const auto steps = Constant::create(element::i64, Shape{1}, {step});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto steps = op::v0::Constant::create(element::i64, Shape{1}, {step});
 
     const auto op = make_op(data, start, stop, steps);
 

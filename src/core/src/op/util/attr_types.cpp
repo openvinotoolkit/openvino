@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,14 @@ OPENVINO_API EnumNames<ov::op::PadMode>& EnumNames<ov::op::PadMode>::get() {
 }
 
 template <>
+OPENVINO_API EnumNames<ov::op::FillMode>& EnumNames<ov::op::FillMode>::get() {
+    static auto enum_names =
+        EnumNames<ov::op::FillMode>("ov::op::FillMode",
+                                    {{"zero", ov::op::FillMode::ZERO}, {"lowest", ov::op::FillMode::LOWEST}});
+    return enum_names;
+}
+
+template <>
 OPENVINO_API EnumNames<ov::op::PadType>& EnumNames<ov::op::PadType>::get() {
     static auto enum_names = EnumNames<ov::op::PadType>("ov::op::PadType",
                                                         {{"explicit", ov::op::PadType::EXPLICIT},
@@ -33,9 +41,10 @@ OPENVINO_API EnumNames<ov::op::PadType>& EnumNames<ov::op::PadType>::get() {
 
 template <>
 OPENVINO_API EnumNames<ov::op::RoundingType>& EnumNames<ov::op::RoundingType>::get() {
-    static auto enum_names =
-        EnumNames<ov::op::RoundingType>("ov::op::RoundingType",
-                                        {{"floor", ov::op::RoundingType::FLOOR}, {"ceil", ov::op::RoundingType::CEIL}});
+    static auto enum_names = EnumNames<ov::op::RoundingType>("ov::op::RoundingType",
+                                                             {{"floor", ov::op::RoundingType::FLOOR},
+                                                              {"ceil", ov::op::RoundingType::CEIL},
+                                                              {"ceil_torch", ov::op::RoundingType::CEIL_TORCH}});
     return enum_names;
 }
 
@@ -84,6 +93,15 @@ OPENVINO_API EnumNames<ov::op::TopKMode>& EnumNames<ov::op::TopKMode>::get() {
     return enum_names;
 }
 
+template <>
+OPENVINO_API EnumNames<ov::op::PhiloxAlignment>& EnumNames<ov::op::PhiloxAlignment>::get() {
+    static auto enum_names = EnumNames<ov::op::PhiloxAlignment>("ov::op::PhiloxAlignment",
+                                                                {{"pytorch", ov::op::PhiloxAlignment::PYTORCH},
+                                                                 {"tensorflow", ov::op::PhiloxAlignment::TENSORFLOW},
+                                                                 {"mock", ov::op::PhiloxAlignment::MOCK}});
+    return enum_names;
+}
+
 bool AttributeAdapter<ov::op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
     std::string name = visitor.finish_structure();
@@ -122,6 +140,10 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::PadMode& type) {
     return s << as_string(type);
 }
 
+std::ostream& op::operator<<(std::ostream& s, const ov::op::FillMode& type) {
+    return s << as_string(type);
+}
+
 std::ostream& op::operator<<(std::ostream& s, const ov::op::PadType& type) {
     return s << as_string(type);
 }
@@ -150,6 +172,10 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::TopKMode& type) {
     return s << as_string(type);
 }
 
+std::ostream& op::operator<<(std::ostream& s, const ov::op::PhiloxAlignment& type) {
+    return s << as_string(type);
+}
+
 op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const {
     auto lowercase_type = type;
     std::transform(lowercase_type.begin(), lowercase_type.end(), lowercase_type.begin(), [](char c) {
@@ -169,4 +195,18 @@ op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string&
 std::ostream& op::operator<<(std::ostream& s, const ov::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+
+AttributeAdapter<op::PadMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::FillMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PadType>::~AttributeAdapter() = default;
+AttributeAdapter<op::RoundingType>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::EpsMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKSortType>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PhiloxAlignment>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastModeSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::RecurrentSequenceDirection>::~AttributeAdapter() = default;
 }  // namespace ov

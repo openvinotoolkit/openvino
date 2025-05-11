@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -344,7 +344,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -455,7 +455,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             if (dt == data_types::f32) {
                 compare_nearest_typed<float>(input, output, 0);
             } else if (dt == data_types::f16) {
-                compare_nearest_typed<FLOAT16>(input, output, 0);
+                compare_nearest_typed<ov::float16>(input, output, 0);
             } else if (dt == data_types::i8) {
                 compare_nearest_typed<int8_t>(input, output, 0);
             } else if (dt == data_types::u8) {
@@ -588,7 +588,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -680,7 +680,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -1928,6 +1928,43 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     }
 }
 
+TEST(resample_gpu, downsampling_u8) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ { 1, 1, 9, 16 }, data_types::u8, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(resample("resample", input_info("input"), {1, 1, 3, 5}, {}, {0, 1, 2, 3}));
+
+    set_values<uint8_t>(input, {
+        124, 126, 128, 130, 131, 131, 129, 128, 119, 119, 119, 119, 119, 119, 119, 119,
+        125, 124, 120, 118, 115, 111, 109, 106, 103, 109, 95, 120, 155, 150, 142, 139,
+        129, 128, 122, 110, 98, 85, 81, 78, 79, 78, 76, 75, 74, 75, 76, 77,
+        78, 77, 77, 76, 76, 77, 77, 78, 80, 77, 75, 75, 78, 81, 83, 83,
+        79, 79, 78, 78, 78, 77, 75, 75, 70, 71, 73, 74, 76, 76, 75, 74,
+        74, 72, 71, 70, 71, 72, 75, 76, 74, 73, 74, 72, 73, 73, 72, 72,
+        71, 71, 71, 72, 72, 72, 73, 73, 73, 71, 69, 71, 75, 78, 78, 75,
+        72, 72, 75, 77, 79, 79, 79, 78, 76, 75, 74, 72, 72, 73, 74, 75,
+        74, 74, 75, 75, 75, 75, 75, 75, 77, 74, 70, 67, 67, 69, 73, 76
+    });
+
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network net{ engine, topology, config };
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("resample").get_memory();
+    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+
+    std::vector<uint8_t> ref_out = { 124, 114, 104, 112, 143, 79, 78, 72, 74, 75, 72, 79, 77, 73, 74 };
+
+    for (size_t i = 0; i < ref_out.size(); ++i) {
+        ASSERT_EQ(ref_out[i], output_ptr[i]);
+    }
+}
+
 struct resample_opt_random_test_params {
     data_types input_type;
     tensor input_size;
@@ -1982,7 +2019,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -2018,7 +2055,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                             auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                             auto opt_out_val = opt_ptr[opt_out_offset];
                             ASSERT_EQ(ref_out_offset, opt_out_offset);
-                            if (std::is_same<T, FLOAT16>::value) {
+                            if (std::is_same<T, ov::float16>::value) {
                                 ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                             } else {
                                 ASSERT_EQ(opt_out_val, ref_out_val);
@@ -2085,7 +2122,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -2099,46 +2136,6 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
 struct resample_opt_random_test_ext : resample_opt_random_test
 {
-    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
-                                const std::string& primitive_id)
-    {
-        using namespace std::chrono;
-        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
-        e->wait(); // should ensure execution completion, if not segfault will occur
-        double avg_time = 0.0;
-        auto intervals = e->get_profiling_info();
-        for (const auto& q : intervals)
-        {
-            if (q.stage == instrumentation::profiling_stage::executing) {
-                continue;
-            }
-            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-            break;
-        }
-        return avg_time;
-    }
-
-    static void print_all_perf(std::map<primitive_id, network_output> outputs)
-    {
-        std::cout << "Print last run time" << std::endl;
-        using namespace std::chrono;
-        for( const auto &n : outputs ) {
-            std::shared_ptr<event> e = n.second.get_event();
-            auto intervals = e->get_profiling_info();
-            double time = 0.0;
-            for (const auto& q : intervals)
-            {
-                if (q.stage == instrumentation::profiling_stage::executing) {
-                    continue;
-                }
-                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-                break;
-            }
-            std::cout << n.first << ":" << time << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
     void execute_perf_test(const resample_opt_random_test_params& params, const std::string& kernel, const bool do_planar = false) {
         auto& engine = get_test_engine();
 
@@ -2174,11 +2171,11 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         double exectime = 0.f;
         for (int i = 0; i < r; ++i) {
             result_opt = net_opt.execute();
-            exectime += get_exectime(result_opt, "resample_opt");
+            exectime += get_profiling_exectime(result_opt, "resample_opt");
         }
         exectime /= r;
         std::string frm_str = format(working_format).to_string();
-        std::string input_type = data_type_traits::name(params.input_type);
+        std::string input_type = ov::element::Type(params.input_type).get_type_name();
         std::string is_opt = (do_planar == true) ? " not optimazed " : " optimized ";
         std::string mode;
         switch (params.operation_type) {
@@ -2197,7 +2194,92 @@ struct resample_opt_random_test_ext : resample_opt_random_test
                   << frm_str << " " << input_type << " " << exectime << std::endl;
 
         // Uncomment line below if you like to see the latencies of all operations from last iteration
-        //print_all_perf(result_opt);
+        //print_profiling_all_exectimes(result_opt);
+    }
+};
+
+struct resample_onnx_random_test : resample_opt_random_test {
+    template <typename T>
+    void compare(const memory::ptr out_ref, const memory::ptr out_opt) {
+        auto ref_count = out_ref->count();
+        auto opt_count = out_opt->count();
+
+        ASSERT_EQ(ref_count, opt_count);
+
+        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
+        for (size_t i = 0; i < ref_count; ++i) {
+            ASSERT_NEAR(static_cast<float>(opt_ptr[i]), static_cast<float>(ref_ptr[i]), 1.e-1f);
+        }
+    }
+
+    void execute_compare(const resample_opt_random_test_params& params, bool check_result) {
+        auto& engine = get_test_engine();
+
+        const format origin_format = format::dimension(params.in_format) == 4 ? format::bfyx : format::bfzyx;
+        auto in_layout = layout(params.input_type, origin_format, params.input_size);
+        auto in_mem = engine.allocate_memory(in_layout);
+        fill_random(in_mem);
+
+        /// bfyx or bfzyx
+        cldnn::topology topo;
+        topo.add(input_layout("in", in_layout));
+        topo.add(reorder("in_to_input_type", input_info("in"), params.in_format, params.input_type));
+        auto prim = resample("resample", input_info("in_to_input_type"), params.output_size, params.num_filter, params.operation_type);
+        topo.add(prim);
+        topo.add(reorder("res_to_bfyx", input_info("resample"), origin_format, params.input_type));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample", "res_to_bfyx"}));
+        ov::intel_gpu::ImplementationDesc resample_impl = { params.in_format, "resample_ref", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", resample_impl } }));
+
+        network net(engine, topo, config);
+        net.set_input_data("in", in_mem);
+
+        // first execution of ref
+        auto result = net.execute();
+        auto output = result.at("resample").get_memory();
+
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("in", in_layout));
+        topo_opt.add(reorder("in_to_input_type", input_info("in"), params.in_format, params.input_type));
+        auto prim_opt = resample("resample_opt", input_info("in_to_input_type"), params.output_size, params.num_filter, params.operation_type);
+        topo_opt.add(prim_opt);
+        topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
+
+        ExecutionConfig config_opt = get_test_default_config(engine);
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
+        ov::intel_gpu::ImplementationDesc resample_opt_impl = { params.in_format, "resample_onnx", impl_types::ocl };
+        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_opt", resample_opt_impl } }));
+
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), false);
+
+        // Use in_mem from ref network
+        net_opt->set_input_data("in", in_mem);
+
+        // first execution of opt
+        auto result_opt = net_opt->execute();
+        auto output_opt = result_opt.at("resample_opt").get_memory();
+        if (!format::is_simple_data_format(params.in_format)) {
+            ASSERT_FALSE(format::is_simple_data_format(result_opt.at("resample_opt").get_memory()->get_layout().format));
+        }
+
+        // Compares not only outputs but also padding values for block format.
+        if (check_result == true) {
+            // Check data_types
+            if (params.input_type == data_types::f32) {
+                compare<float>(output, output_opt);
+            } else if (params.input_type == data_types::f16) {
+                compare<ov::float16>(output, output_opt);
+            } else if (params.input_type == data_types::i8) {
+                compare<int8_t>(output, output_opt);
+            } else if (params.input_type == data_types::u8) {
+                compare<uint8_t>(output, output_opt);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        }
     }
 };
 
@@ -2215,6 +2297,37 @@ TEST_P(resample_opt_random_test_ext, DISABLED_random) {
     execute_perf_test(param, "resample_ref", false);
     execute_perf_test(param, "resample_ref", true);
 }
+
+TEST_P(resample_onnx_random_test, random) {
+    auto param = GetParam();
+    execute_compare(param, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(resample_onnx_smoke_not_aligned,
+                         resample_onnx_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+                                { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+
+                                { data_types::f16, {1,  9, 13, 13, 5}, { 1, 9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f32, {1,  9, 13, 13, 5}, { 1, 9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                { data_types::f32, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                { data_types::f16, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                { data_types::f32, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+
+                                { data_types::i8, {1,  9, 13, 13, 5}, {1,  9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                { data_types::u8, {1,  9, 13, 13, 5}, {1,  9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                { data_types::i8, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                { data_types::u8, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                { data_types::i8, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::u8, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                            }
+                        ));
 
 INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                          resample_opt_random_test,
@@ -2258,6 +2371,7 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
                             }
                         ));
 

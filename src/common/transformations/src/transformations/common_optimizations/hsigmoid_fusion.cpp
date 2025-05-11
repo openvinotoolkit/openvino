@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
@@ -32,16 +33,16 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({min, div_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0) &&
                                      op::util::has_constant_value<float>(min_const_value, 6.0) &&
@@ -82,16 +83,16 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_second = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({min, mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
                                      op::util::has_constant_value<float>(min_const_value, 6.0f) &&
@@ -131,18 +132,18 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({min, div_constant});
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, div});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto max_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(max_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(max_constant).get_node_shared_ptr());
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
                                      op::util::has_constant_value<float>(max_const_value, 0.0f) &&
@@ -179,14 +180,14 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({clamp, mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0) &&
                                      op::util::has_constant_value(mul_const_value, (1.0 / 6.0), 0.0001);
@@ -195,8 +196,7 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
             return false;
         }
 
-        auto clamp_node =
-            std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node = ov::as_type_ptr<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 
@@ -225,14 +225,14 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({clamp, div_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
         bool valid_constant_values =
             op::util::has_constant_value(add_const_value, 3.0) && op::util::has_constant_value(div_const_value, 6.0);
@@ -241,8 +241,7 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
             return false;
         }
 
-        auto clamp_node =
-            std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node = ov::as_type_ptr<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -15,8 +15,11 @@ def relu6(name: str, x, threshold: float = 6.0, data_type='float32'):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.fluid.layers.relu6(node_x, threshold=threshold, name='relu6')
-
+        
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.nn.functional.relu6(node_x, name='relu6')
+        else:
+            out = paddle.fluid.layers.relu6(node_x, name='relu6')
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -26,7 +29,7 @@ def relu6(name: str, x, threshold: float = 6.0, data_type='float32'):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

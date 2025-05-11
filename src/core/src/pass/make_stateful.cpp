@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 namespace {
 
@@ -70,7 +70,7 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
                         " are already involved in the transformation.");
         uniq_res.insert(unused_res);
 
-        if (auto casted = std::dynamic_pointer_cast<ov::op::v0::Result>(unused_res->shared_from_this()))
+        if (auto casted = ov::as_type_ptr<ov::op::v0::Result>(unused_res->shared_from_this()))
             pairs_to_replace.emplace_back(*param, casted);
         variable_names.push_back(param_name + res_name);
     }
@@ -99,22 +99,16 @@ bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
         const auto& param = m_param_res_pairs[i].first;
         const auto& res = m_param_res_pairs[i].second;
 
-        OPENVINO_ASSERT(param->get_partial_shape().is_static(),
-                        "Shape of Parameter ",
-                        param->get_friendly_name(),
-                        " must be static. MakeStateful transformation doesn't support dynamic shapes.");
-
         // Create Variable
-        std::string var_name = variable_names[i];
+        const auto& var_name = variable_names[i];
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{param->get_shape(), param->get_element_type(), var_name});
+            ov::op::util::VariableInfo{param->get_partial_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue
-        auto const_zero = std::make_shared<ov::op::v0::Constant>(param->get_element_type(), param->get_shape(), 0);
-        auto read_val = std::make_shared<ov::op::v6::ReadValue>(const_zero, variable);
+        auto read_val = std::make_shared<ov::op::v6::ReadValue>(variable);
         replace_node(param, read_val);
-        ov::copy_runtime_info(param, {read_val, const_zero});
+        ov::copy_runtime_info(param, read_val);
 
         // Create Assign
         auto assign = std::make_shared<ov::op::v6::Assign>(res->input_value(0), variable);

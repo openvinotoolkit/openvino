@@ -1,31 +1,29 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cast.hpp"
-
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils/common.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 
-OutputVector cast(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
-    element::Type elem_type = common::get_ngraph_element_type(target_type);
+    ov::element::Type elem_type = common::get_ov_element_type(target_type);
 
-    return {std::make_shared<default_opset::Convert>(data, elem_type)};
+    return {std::make_shared<v0::Convert>(data, elem_type)};
 }
 
-}  // namespace set_1
-}  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("Cast", OPSET_SINCE(1), ai_onnx::opset_1::cast);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

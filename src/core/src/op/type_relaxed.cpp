@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,68 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/descriptor_tensor.hpp"
+
 namespace ov {
 namespace op {
+
 TypeRelaxedBase::~TypeRelaxedBase() = default;
+
+void TypeRelaxedBase::remember_input_data_types(Node& node, element::TypeVector& old_input_types) {
+    // Remember all input data types
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        old_input_types.push_back(node.get_input_element_type(i));
+    }
+
+    // Reset input data types to m_output_data_type.
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        auto origin_input_type = get_origin_input_type(i);
+        if (origin_input_type.is_static()) {
+            ov::descriptor::set_tensor_type(node.get_input_tensor(i),
+                                            origin_input_type,
+                                            node.get_input_partial_shape(i));
+        }
+    }
+}
+
+void TypeRelaxedBase::restore_input_data_types(Node& node, const element::TypeVector& old_input_types) {
+    // Restore original input data types
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        ov::descriptor::set_tensor_type(node.get_input_tensor(i), old_input_types[i], node.get_input_partial_shape(i));
+    }
+
+    if (m_original_output_data_types.empty()) {
+        m_original_output_data_types = element::TypeVector(node.get_output_size());
+    }
+
+    // Save inferred output types
+    for (size_t i = 0; i < node.get_output_size(); ++i) {
+        m_original_output_data_types[i] = node.get_output_element_type(i);
+    }
+
+    // Override (some) output types
+    for (size_t i = 0; i < node.get_output_size(); ++i) {
+        auto overridden_output_type = get_overridden_output_type(i);
+        if (overridden_output_type.is_static()) {
+            node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
+        }
+    }
+}
+
+TemporaryReplaceOutputType::TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type)
+    : m_output(std::move(output)),
+      orig_type(m_output.get_element_type()) {
+    // save original element type in order to restore it in the destructor
+    ov::descriptor::set_element_type(m_output.get_tensor(), tmp_type);
+}
+
+Output<Node> TemporaryReplaceOutputType::get() const {
+    return m_output;
+}
+
+TemporaryReplaceOutputType::~TemporaryReplaceOutputType() {
+    ov::descriptor::set_element_type(m_output.get_tensor(), orig_type);
+}
 
 namespace {
 void convert_types(std::shared_ptr<v0::Parameter>& parameter,
@@ -35,9 +94,7 @@ void convert_types(std::shared_ptr<v0::Parameter>& parameter,
     auto& tensor = output.get_tensor();
 
     if (lower_success || upper_success) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(new_type);  // deprecated piece
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::descriptor::set_element_type(tensor, new_type);
     }
     if (lower_success)
         tensor.set_lower_value(lower_tensor[0]);
@@ -79,11 +136,11 @@ std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> convert_input_type
         auto& input = inputs[i];
         const auto& fake_type = input.get_element_type();
         const auto& original_type = types[i];
-        if (original_type == fake_type || original_type == element::undefined)
+        if (original_type == fake_type || original_type == element::dynamic)
             continue;  // this input type wasn't changed
         if (parameter == nullptr || convert == nullptr) {
-            parameter = std::make_shared<op::v0::Parameter>(element::undefined, PartialShape());
-            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::undefined);
+            parameter = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape());
+            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::dynamic);
         }
         ov::op::convert_types(parameter, convert, input, original_type);
         original_inputs[i] = {parameter->get_output_tensor(0).get_lower_value(),
@@ -115,9 +172,7 @@ void reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov
         const auto& etype =
             item.second.first ? item.second.first.get_element_type() : item.second.second.get_element_type();
         auto& tensor = inputs[item.first].get_tensor();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(etype);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::descriptor::set_element_type(tensor, etype);
         if (item.second.first)
             tensor.set_lower_value(item.second.first);
         if (item.second.second)
@@ -135,8 +190,8 @@ bool convert_outputs_to_fake_type(ov::TensorVector& outputs, ov::TensorVector& o
         if (fake_type == original_type)
             continue;
         if (parameter == nullptr || convert == nullptr) {
-            parameter = std::make_shared<op::v0::Parameter>(element::undefined, PartialShape());
-            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::undefined);
+            parameter = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape());
+            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::dynamic);
         }
         reset_convert(parameter, convert, original_outputs[i], fake_type, is_upper);
         TensorVector local_outputs = {outputs[i]};

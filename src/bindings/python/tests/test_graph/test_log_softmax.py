@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime.opset8 as ov
-from openvino.runtime import Shape, Type
+import openvino.opset8 as ov
+from openvino import Shape, Type
 
 
 def test_log_softmax():

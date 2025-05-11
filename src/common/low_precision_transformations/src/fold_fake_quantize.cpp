@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,13 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,25 +22,25 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
     MATCHER_SCOPE(FoldFakeQuantizeTransformation);
     auto fakeQuantize = pattern::wrap_type<ov::opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(fakeQuantize, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FoldFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
 
-    if (!canBeTransformed(context, fakeQuantize)) {
+    if (!canBeTransformed(fakeQuantize)) {
         return false;
     }
 
@@ -57,7 +58,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     return false;
 }
 
-bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ngraph::Node> node) const {
+bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> node) const {
     const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
     if (!fakeQuantize) {
         return false;
@@ -76,7 +77,7 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ngraph::No
     return vecLow == vecHigh;
 }
 
-bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool FoldFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
     if (!NetworkHelper::isConstantPath(op) && !isConstantOutput(op)) {
         return false;
     }
@@ -102,4 +103,4 @@ bool FoldFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> 
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

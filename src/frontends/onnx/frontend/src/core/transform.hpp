@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,17 +6,17 @@
 
 #include <onnx/onnx_pb.h>
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace transform {
 
-static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
-                                                                  "Celu",
-                                                                  "GreaterOrEqual",
-                                                                  "LessOrEqual",
-                                                                  "NegativeLogLikelihoodLoss",
-                                                                  "SoftmaxCrossEntropyLoss",
-                                                                  "LayerNormalization"};
+using ::ONNX_NAMESPACE::ModelProto;
+
+static const std::vector<std::string> onnx_functions_to_expand = {"AffineGrid",
+                                                                  "Bernoulli",
+                                                                  "CenterCropPad",
+                                                                  "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///
@@ -26,7 +26,7 @@ static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
 /// with their expanded subgraphs.
 ///
 /// \param model_proto Protobuf message with ONNX model to transform.
-void expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto);
+void expand_onnx_functions(ModelProto& model_proto);
 
 static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
                                                              "DetectionOutput",
@@ -50,11 +50,12 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
 /// Some legacy models use custom operators (listed in legacy_ops_to_fixup vector) which
 /// were registered in the default ONNX domain. This function updates nodes with these
 /// operations to use OPENVINO_ONNX_DOMAIN in order to process them correctly
-/// in the nGraph ONNX Importer.
+/// in the OpenVINO ONNX Frontend.
 ///
 /// \param model_proto Protobuf message with ONNX model to transform.
-void fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto);
+void fixup_legacy_operators(ModelProto& model_proto);
 
 }  // namespace transform
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

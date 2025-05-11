@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -13,9 +13,7 @@ namespace detail {
 
 class OPENVINO_API SOExtension : public Extension {
 public:
-    ~SOExtension() {
-        m_ext = {};
-    }
+    virtual ~SOExtension() override;
 
     SOExtension(const Extension::Ptr& ext, const std::shared_ptr<void>& so) : m_ext(ext), m_so(so) {}
 
@@ -28,8 +26,20 @@ private:
     std::shared_ptr<void> m_so;
 };
 
+inline std::string resolve_extension_path(const std::string& path) {
+    std::string retvalue;
+    try {
+        const std::string absolute_path = ov::util::get_absolute_file_path(path);
+        retvalue = ov::util::file_exists(absolute_path) ? absolute_path : path;
+    } catch (const std::runtime_error&) {
+        retvalue = path;
+    }
+    return retvalue;
+}
+
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
-    auto so = ov::util::load_shared_object(path.c_str());
+    const std::string resolved_path = resolve_extension_path(path);
+    auto so = ov::util::load_shared_object(resolved_path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
     reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "create_extensions"))(extensions);

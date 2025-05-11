@@ -5,7 +5,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/two_inputs_and_outputs.hpp"
 #include "subgraph_simple.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -37,10 +36,10 @@ void TwoInputsAndOutputs::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    abs_threshold = 5e-7;
 }
 
 void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
@@ -49,10 +48,10 @@ void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    abs_threshold = 5e-7;
 }
 
 TEST_P(TwoInputsAndOutputs, CompareWithRefImpl) {

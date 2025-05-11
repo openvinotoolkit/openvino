@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ using GenerateProposals = ov::op::v9::GenerateProposals;
 using Attrs = ov::op::v9::GenerateProposals::Attributes;
 
 TEST(attributes, generate_proposals) {
-    NodeBuilder::get_ops().register_factory<GenerateProposals>();
+    NodeBuilder::opset().insert<GenerateProposals>();
 
     Attrs attrs;
     attrs.min_size = 0.0f;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,13 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/group_normalization.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
@@ -65,10 +67,10 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
 
     auto group_norm_pattern = pattern::wrap_type<v12::GroupNormalization>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& matcher) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& matcher) {
         NodeRegistry reg;
 
-        const auto group_norm_node = std::dynamic_pointer_cast<v12::GroupNormalization>(matcher.get_match_root());
+        const auto group_norm_node = ov::as_type_ptr<v12::GroupNormalization>(matcher.get_match_root());
         if (!group_norm_node || transformation_callback(group_norm_node) || group_norm_node->get_input_size() != 3) {
             return false;
         }

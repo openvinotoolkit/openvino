@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
@@ -13,14 +13,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/relu.hpp"
 
 using namespace testing;
 using namespace ov;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FQDecompositionWithSharedConstants : public LayerTransformation, public WithParamInterface<bool> {
 public:
@@ -43,15 +44,15 @@ public:
             if (addIntervalsAlignment) {
                 addAttributes(
                     {fq_before, fq_after},
-                    {ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
-                addAttributes({fq_after, relu}, {ngraph::QuantizationAlignmentAttribute(true)});
+                    {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
+                addAttributes({fq_after, relu}, {ov::QuantizationAlignmentAttribute(true)});
             }
             ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
             actualFunction = std::make_shared<Model>(results, ParameterVector{input}, "FakeQuantizeFunction");
         }
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             LayerTransformation::createParamsU8I8());
         transform.transform(actualFunction);
 

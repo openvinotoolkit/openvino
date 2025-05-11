@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,31 +33,70 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
 template<typename ShapeType>
 std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
-    auto input0_layout = impl_param.get_input_layout(0);
+    const auto& input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
 
     auto& constant_mem = impl_param.memory_deps;
-    auto begin_data = desc->begin;
-    auto end_data = desc->end;
-    auto strides_data = desc->strides;
+    const auto& begin_data = desc->begin;
+    const auto& end_data = desc->end;
+    const auto& strides_data = desc->strides;
 
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
         || (strides_data.empty() && !constant_mem.count(3))) {
-        auto input0_pshape = input0_layout.get_partial_shape();
+        auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
+            size_t count = 0;
+            for (size_t i = 0; i < mask.size(); i++)
+                if (mask[i]) count++;
+            return count;
+        };
+
+        const auto& input0_pshape = input0_layout.get_partial_shape();
         auto input0_len = input0_pshape.size();
-        auto out_shape = ov::PartialShape::dynamic(input0_len);
+        auto num_of_new_axis_bit = num_of_axis_mask_bit(desc->new_axis_mask);
+        auto num_of_shrink_axis_bit = num_of_axis_mask_bit(desc->shrink_axis_mask);
+
+        auto output_len = input0_len;
+        if (num_of_new_axis_bit)
+            output_len += num_of_new_axis_bit;
+        else if (num_of_shrink_axis_bit)
+            output_len -= num_of_shrink_axis_bit;
+
+        auto output_shape = ov::PartialShape::dynamic(output_len);
         if (input0_layout.is_dynamic()) {
-            // fill with static shape until it finds dynamic
-            for (size_t i = 0; i < input0_len; i++) {
-                if (input0_pshape[i].is_static())
-                    out_shape[i] = input0_pshape[i];
-                else
+            // Fill with static shape until it finds dynamic while scaling output shape size based on the attributes
+            //    1) new_axis_mask    : increase by the number of bits in new_axis_mask.
+            //    2) shrink_axis_mask : decrease by the number of bits in shrink_mask.
+            //
+            // Notice :
+            //     According to op implementation,
+            //     new_axis_mask has higher priority than shrink_axis_mask,
+            //     so that in case where bits of new_axis_mask is at the same position to that of shrink_axis_mask,
+            //     the bits of shrink_axis_mask are ignored.
+            //
+            // To-Do :
+            //    1) Consider the case where ellipsis_mask is enabled.
+            //    2) Consider each combination of new_axis_mask, shrink_axis_mask and ellipsis_mask.
+            size_t output_idx = 0;
+            size_t input_idx = 0;
+            for (size_t i = 0; i < output_len; i++) {
+                if (num_of_new_axis_bit && desc->new_axis_mask[i]) {
+                    output_shape[output_idx++] = {1};
+                    continue;
+                } else if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i]) {
+                    continue;
+                }
+
+                if (input0_pshape[input_idx].is_static()) {
+                    output_shape[output_idx++] = input0_pshape[input_idx];
+                    input_idx++;
+                } else {
                     break;
+                }
             }
         }
 
-        return { layout{out_shape, input0_layout.data_type, format::get_default_format(input0_len)} };
+        return { layout{output_shape, input0_layout.data_type, format::get_default_format(output_len)} };
     }
 
     ov::op::v1::StridedSlice op;
@@ -73,6 +112,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         strides_shape
     };
 
+    op.set_friendly_name(desc->id);
     op.set_begin_mask(desc->begin_mask);
     op.set_end_mask(desc->end_mask);
     op.set_new_axis_mask(desc->new_axis_mask);
@@ -82,9 +122,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     std::unordered_map<size_t, ov::Tensor> const_data;
     const auto ta = ov::make_tensor_accessor(const_data);
     if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
-        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
-        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
-        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
+        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(begin_data.data())));
+        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(end_data.data())));
+        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(strides_data.data())));
 
         const_data.emplace(1, begin_tensor);
         const_data.emplace(2, end_tensor);
@@ -128,8 +168,8 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
     std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
-    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
-        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    for (size_t i = 1; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i - 1], node.get_dependency(i).id());
     }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);
@@ -144,6 +184,36 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+void strided_slice_inst::on_execute() {
+    update_output_memory();
+}
+
+void strided_slice_inst::update_output_memory() {
+    OPENVINO_ASSERT(!_outputs.empty(), "outputs is empty.");
+    OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr.");
+    if (!can_be_optimized())
+        return;
+
+    if (get_node().get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+        return;
+
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    build_deps();
+
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
+    }
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
 }
 
 strided_slice_inst::typed_primitive_inst(network& network, strided_slice_node const& node)

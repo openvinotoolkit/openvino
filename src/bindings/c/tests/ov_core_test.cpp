@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,37 @@ public:
         ov_capi_test_base::TearDown();
     }
 };
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test, ::testing::Values("CPU"));
+
+class ov_core_test_gpu : public ov_capi_test_base {
+public:
+    void SetUp() override {
+        core = nullptr;
+        OV_EXPECT_OK(ov_core_create(&core));
+        EXPECT_NE(nullptr, core);
+
+        // Check gpu plugin and hardware available.
+        bool gpu_device_available = false;
+        char* info = nullptr;
+        const char* key = ov_property_key_available_devices;
+        if (ov_core_get_property(core, "GPU", key, &info) == ov_status_e::OK) {
+            if (strlen(info) > 0) {
+                gpu_device_available = true;
+            }
+        }
+        ov_free(info);
+        if (!gpu_device_available) {
+            GTEST_SKIP();
+        }
+    }
+
+    void TearDown() override {
+        ov_core_free(core);
+    }
+
+    ov_core_t* core;
+};
+
+INSTANTIATE_TEST_SUITE_P(ov_core, ov_core_test, ::testing::Values("CPU"));
 
 TEST_P(ov_core_test, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
@@ -77,7 +107,7 @@ TEST_P(ov_core_test, ov_core_read_model_no_bin) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core_test, ov_core_read_model_from_memory) {
+TEST_P(ov_core_test, ov_core_read_model_from_memory_buffer_with_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -93,8 +123,11 @@ TEST_P(ov_core_test, ov_core_read_model_from_memory) {
 
     std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(
-        ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
+    OV_EXPECT_OK(ov_core_read_model_from_memory_buffer(core,
+                                                       reinterpret_cast<const char*>(xml_content.data()),
+                                                       xml_content.size(),
+                                                       tensor,
+                                                       &model));
     EXPECT_NE(nullptr, model);
 
     ov_shape_free(&shape);
@@ -122,6 +155,15 @@ TEST_P(ov_core_test, ov_core_compile_model) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core_test, ov_core_add_extension) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    OV_EXPECT_OK(ov_core_add_extension(core, extension_file_path.c_str()));
+    ov_core_free(core);
+}
+
 TEST_P(ov_core_test, ov_core_compile_model_with_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -140,12 +182,7 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: fix once ARM plugin supports multi-stream
-    EXPECT_STREQ(property_value, "1");
-#else
     EXPECT_STREQ(property_value, "2");
-#endif
     ov_free(property_value);
 
     ov_compiled_model_free(compiled_model);
@@ -356,18 +393,16 @@ TEST_F(ov_core_test, ov_core_set_and_get_property_no_device) {
 TEST_P(ov_core_test, ov_core_set_and_get_property_bool_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
+    char* ret = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     const char* key = ov_property_key_enable_profiling;
-    const char* enable = "TEST";
-    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
-
-    char* ret = nullptr;
-    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
-    EXPECT_STRNE(enable, ret);
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     ov_free(ret);
 
+    const char* enable = "TEST";
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
     ov_core_free(core);
 }
 
@@ -577,6 +612,62 @@ TEST_P(ov_core_test, ov_core_import_model) {
     ov_core_free(core);
 }
 
+static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
+
+static void codec_xor(const char* in, const size_t in_size, char* out, size_t* out_size) {
+    if (!out || *out_size < in_size) {
+        *out_size = in_size;
+        return;
+    }
+    size_t key_size = sizeof(codec_key);
+    for (size_t i = 0; i < in_size; i++) {
+        out[i] = in[i] ^ codec_key[i % key_size];
+    }
+    *out_size = in_size;
+}
+
+TEST_P(ov_core_test, ov_core_import_model_with_encryption) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    char* optimization_capabilites = NULL;
+    ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
+    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+        GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
+    }
+
+    const char* key = ov_property_key_cache_encryption_callbacks;
+    ov_encryption_callbacks encryption_callbacks{codec_xor, codec_xor};
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core,
+                                                 xml_file_name.c_str(),
+                                                 device_name.c_str(),
+                                                 2,
+                                                 &compiled_model,
+                                                 key,
+                                                 &encryption_callbacks));
+    EXPECT_NE(nullptr, compiled_model);
+
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
+    OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
+    ov_compiled_model_free(compiled_model);
+
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
+    ov_compiled_model_t* compiled_model_imported = nullptr;
+    OV_EXPECT_OK(ov_core_import_model(core,
+                                      reinterpret_cast<const char*>(buffer.data()),
+                                      buffer.size(),
+                                      device_name.c_str(),
+                                      &compiled_model_imported));
+    EXPECT_NE(nullptr, compiled_model_imported);
+    ov_compiled_model_free(compiled_model_imported);
+    ov_core_free(core);
+}
+
 TEST_P(ov_core_test, ov_core_get_versions_by_device_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -667,5 +758,57 @@ TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
     ov_core_free(core);
 }
 #endif
+
+INSTANTIATE_TEST_SUITE_P(ov_core_gpu, ov_core_test_gpu, ::testing::Values("GPU"));
+
+TEST_P(ov_core_test_gpu, ov_core_set_get_property_gpu) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key_config = ov_property_key_intel_gpu_config_file;
+
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_config, TEST_CUSTOM_OP_CONFIG_PATH));
+
+    char* property_value_config = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_config, &property_value_config));
+    EXPECT_STREQ(TEST_CUSTOM_OP_CONFIG_PATH, property_value_config);
+
+    ov_core_free(core);
+}
+
+using ov_util_test = ov_core_test;
+INSTANTIATE_TEST_SUITE_P(ov_capi_test, ov_util_test, ::testing::Values("CPU"));
+
+TEST_P(ov_util_test, ov_get_last_err_msg_check) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key = ov_property_key_inference_num_threads;
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, "abc"));
+
+    char* ret = nullptr;
+    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+
+    auto err_msg = ov_get_last_err_msg();
+    EXPECT_NE(nullptr, err_msg);
+    ov_free(err_msg);
+    ov_free(ret);
+    ov_core_free(core);
+}
+
+TEST_P(ov_util_test, ov_get_last_err_msg_check_empty_msg) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    auto err_msg = ov_get_last_err_msg();
+    EXPECT_EQ(nullptr, err_msg);
+    ov_core_free(core);
+}
 
 }  // namespace

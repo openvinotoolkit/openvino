@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -18,11 +19,12 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
     auto softmax = pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>();
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto m_softmax = m.get_match_root();
         Output<Node> input;
         int64_t softmax_axis;
@@ -31,10 +33,10 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
         }
 
-        if (auto m_softmax_v1 = std::dynamic_pointer_cast<ov::op::v1::Softmax>(m_softmax)) {
+        if (auto m_softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(m_softmax)) {
             input = m_softmax_v1->input_value(0);
             softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());
-        } else if (auto m_softmax_v8 = std::dynamic_pointer_cast<ov::op::v8::Softmax>(m_softmax)) {
+        } else if (auto m_softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(m_softmax)) {
             input = m_softmax_v8->input_value(0);
             softmax_axis = m_softmax_v8->get_axis();
         } else {

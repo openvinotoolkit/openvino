@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief Provides parser for device name
- * @file openvino/runtime/device_id_paeser.hpp
+ * @file openvino/runtime/device_id_parser.hpp
  */
 
 #pragma once

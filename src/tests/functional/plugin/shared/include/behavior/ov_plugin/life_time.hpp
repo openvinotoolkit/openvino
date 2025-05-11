@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ public:
 
 protected:
     std::string deathTestStyle;
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 class OVHoldersTestOnImportedNetwork : public OVPluginTestBase,
@@ -31,7 +31,7 @@ public:
     void TearDown() override;
 
 protected:
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     std::string deathTestStyle;
 };
 

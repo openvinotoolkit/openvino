@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gelu_op_erf) {
-    NodeBuilder::get_ops().register_factory<ov::op::v7::Gelu>();
+    NodeBuilder::opset().insert<ov::op::v7::Gelu>();
     const auto data_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     const auto approximation_mode = op::GeluApproximationMode::ERF;
     const auto gelu = make_shared<ov::op::v7::Gelu>(data_input, approximation_mode);
@@ -25,7 +25,7 @@ TEST(attributes, gelu_op_erf) {
 }
 
 TEST(attributes, gelu_op_tanh) {
-    NodeBuilder::get_ops().register_factory<ov::op::v7::Gelu>();
+    NodeBuilder::opset().insert<ov::op::v7::Gelu>();
     const auto data_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     const auto approximation_mode = op::GeluApproximationMode::TANH;
     const auto gelu = make_shared<ov::op::v7::Gelu>(data_input, approximation_mode);
@@ -36,7 +36,7 @@ TEST(attributes, gelu_op_tanh) {
 }
 
 TEST(attributes, gelu_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v7::Gelu>();
+    NodeBuilder::opset().insert<ov::op::v7::Gelu>();
     const auto data_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     const auto gelu = make_shared<ov::op::v7::Gelu>(data_input);
     NodeBuilder builder(gelu, {data_input});
@@ -46,7 +46,7 @@ TEST(attributes, gelu_op) {
 }
 
 TEST(attributes, gelu_v0_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Gelu>();
+    NodeBuilder::opset().insert<ov::op::v0::Gelu>();
     const auto data_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     const auto gelu = make_shared<ov::op::v0::Gelu>(data_input);
     NodeBuilder builder(gelu, {data_input});

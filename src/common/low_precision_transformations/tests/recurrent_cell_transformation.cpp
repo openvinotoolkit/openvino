@@ -4,50 +4,49 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/recurrent_cell.hpp>
-#include <low_precision/fold_convert.hpp>
-#include <low_precision/fuse_convert.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/recurrent_cell.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include <memory>
 #include <sstream>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/recurrent_cell_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/recurrent_cell.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include <ngraph/opsets/opset5.hpp>
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 namespace {
 
 class RecurrentCellTransformationValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_X;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_X;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_X;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_H;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_H;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_H;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_W;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_W;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_W;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_R;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert_R;
-    ngraph::builder::subgraph::DequantizationOperations dequantization_R;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_X;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_X;
+    ov::builder::subgraph::DequantizationOperations dequantization_X;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_H;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_H;
+    ov::builder::subgraph::DequantizationOperations dequantization_H;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_W;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_W;
+    ov::builder::subgraph::DequantizationOperations dequantization_W;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_R;
+    ov::builder::subgraph::DequantizationOperations::Convert convert_R;
+    ov::builder::subgraph::DequantizationOperations dequantization_R;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransformationValues& values) {
@@ -81,18 +80,18 @@ inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransforma
     return out << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple<ov::element::Type, std::vector<ngraph::PartialShape>, std::vector<ov::Shape>, RecurrentCellTransformationTestValues>
+typedef std::tuple<ov::element::Type, std::vector<ov::PartialShape>, std::vector<ov::Shape>, RecurrentCellTransformationTestValues>
     RecurrentCellTransformationParams;
 
 class RecurrentCellTransformation : public LayerTransformation, public testing::WithParamInterface<RecurrentCellTransformationParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const std::vector<ngraph::PartialShape> activations_shapes = std::get<1>(GetParam());
+        const std::vector<ov::PartialShape> activations_shapes = std::get<1>(GetParam());
         const std::vector<ov::Shape> weights_shapes = std::get<2>(GetParam());
         RecurrentCellTransformationTestValues testValues = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+        actualFunction = ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
                                                                       testValues.type,
@@ -118,14 +117,14 @@ public:
         const auto params = TestTransformationParams::toParams(testValues.params);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::RecurrentCellTransformation>(params);
+        transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::RecurrentCellTransformation>(params);
         transformer.transform(actualFunction);
 
         SimpleLowPrecisionTransformer clenup_transformer;
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseConvertTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FoldConvertTransformation>(params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FuseConvertTransformation>(params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
         clenup_transformer.transform(actualFunction);
 
         // dequantization output precision depends on input precision
@@ -135,7 +134,7 @@ public:
         }
 
         referenceFunction =
-            ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+            ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                          activations_shapes,
                                                                          weights_shapes,
                                                                          testValues.type,
@@ -161,7 +160,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
         const ov::element::Type precision = std::get<0>(obj.param);
-        const std::vector<ngraph::PartialShape> activations_shapes = std::get<1>(obj.param);
+        const std::vector<ov::PartialShape> activations_shapes = std::get<1>(obj.param);
         const std::vector<ov::Shape> weights_shapes = std::get<2>(obj.param);
         const RecurrentCellTransformationTestValues testValues = std::get<3>(obj.param);
 
@@ -186,7 +185,7 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 namespace testValues2 {
-const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 1, 16}, {1, 1, 128}, {1, 1, 128}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 1, 16}, {1, 1, 128}, {1, 1, 128}}};
 
 const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
 
@@ -268,7 +267,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 2, 3}, {1, 1, 3}, {}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 2, 3}, {1, 1, 3}, {}}};
 
 const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
 

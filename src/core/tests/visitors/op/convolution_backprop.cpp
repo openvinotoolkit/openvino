@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, convolution_backprop_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::ConvolutionBackpropData>();
+    NodeBuilder::opset().insert<ov::op::v1::ConvolutionBackpropData>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{16, 2, 3, 3});
     auto strides = Strides{1, 1};
@@ -41,7 +41,7 @@ TEST(attributes, convolution_backprop_op) {
 }
 
 TEST(attributes, convolution_backprop_output_shape_output_padding) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::ConvolutionBackpropData>();
+    NodeBuilder::opset().insert<ov::op::v1::ConvolutionBackpropData>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 16, 124, 124});
     const auto filter = make_shared<ov::op::v0::Parameter>(element::f32, Shape{16, 2, 3, 3});
     const auto output_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});

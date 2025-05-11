@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,7 @@ file(MAKE_DIRECTORY "${REPORT_DIR}")
 
 execute_process(
     COMMAND
-        "${PYTHON_EXECUTABLE}"
+        "${Python3_EXECUTABLE}"
         "${CONVERT_SCRIPT}"
         "--file=${INPUT_FILE}"
         "--report-dir=${REPORT_DIR}"

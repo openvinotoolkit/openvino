@@ -3,11 +3,3 @@
 //
 
 #include "deconv.hpp"
-
-namespace ov {
-namespace intel_cpu {
-
-using namespace InferenceEngine;
-
-}   // namespace intel_cpu
-}   // namespace ov

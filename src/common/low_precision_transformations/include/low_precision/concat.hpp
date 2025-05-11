@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,33 +10,33 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
+
 
 #include "layer_transformation.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConcatTransformation propagates dequantization operations through Concat operation.
  *
  * For more details about the transformation, refer to
  * [ConcatTransformation](@ref openvino_docs_OV_UG_lpt_ConcatTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("ConcatTransformation", "0");
+    OPENVINO_RTTI("ConcatTransformation", "0", LayerTransformation);
     ConcatTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
 };
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

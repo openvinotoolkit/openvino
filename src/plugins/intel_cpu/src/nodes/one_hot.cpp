@@ -1,37 +1,37 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-#include <dnnl_types.h>
-#include "ie_parallel.hpp"
-#include <selective_build.h>
 #include "one_hot.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
+
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "dnnl_types.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 
-using namespace InferenceEngine;
+namespace ov::intel_cpu::node {
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-
-bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
+        const auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(op);
         if (!oneHot) {
             errorMessage = "Only opset1 OneHot operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
+        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) == nullptr) {
+        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) ==
+            nullptr) {
             errorMessage = "Only const 'off_value' input is supported";
             return false;
         }
@@ -41,28 +41,27 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
-    const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
-    const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
+    const auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(op);
+    const auto depthNode = ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
     axis = oneHot->get_axis();
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
-    if (ngraph::is_scalar(srcDims)) {
-        srcDims = SizeVector{1};
+    if (ov::is_scalar(srcDims)) {
+        srcDims = VectorDims{1};
     }
     VectorDims dstDims = getOutputShapeAtPort(0).getDims();
-    if (ngraph::is_scalar(dstDims)) {
-        dstDims = SizeVector{1};
+    if (ov::is_scalar(dstDims)) {
+        dstDims = VectorDims{1};
     }
 
     int output_dims_size = dstDims.size();
@@ -70,16 +69,17 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
         axis += output_dims_size;
     }
     if (axis < 0 || axis >= output_dims_size) {
-        IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
+        THROW_CPU_NODE_ERR("has unsupported 'axis' attribute: ", oneHot->get_axis());
     }
 
     if (!(((1 + srcDims.size()) == dstDims.size()) ||
-            (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
-        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+          (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
+    }
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->getData());
+    const auto depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
@@ -89,13 +89,14 @@ bool OneHot::needShapeInfer() const {
 }
 
 void OneHot::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
-    if (input_precision != Precision::I32) {
-        IE_THROW() << errorPrefix << " has incorrect input precision for the input. Only I32 is supported!";
+    if (input_precision != ov::element::i32) {
+        THROW_CPU_NODE_ERR("has incorrect input precision for the input. Only I32 is supported!");
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
@@ -107,13 +108,13 @@ void OneHot::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-template<typename out_type>
+template <typename out_type>
 void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
-    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto* src_data = getSrcDataAtPortAs<const in_type>(0);
+    auto* dst_data = getDstDataAtPortAs<out_type>(0);
 
-    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->getData())[0];
-    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->getData())[0];
+    const out_type on_value = getSrcDataAtPortAs<const out_type>(2)[0];
+    const out_type off_value = getSrcDataAtPortAs<const out_type>(3)[0];
 
     // fill the output with off_value
     std::size_t dst_size = prefix_size * depth * suffix_size;
@@ -133,22 +134,26 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
-void OneHot::executeDynamicImpl(dnnl::stream strm) {
+void OneHot::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void OneHot::execute(dnnl::stream strm) {
+void OneHot::execute([[maybe_unused]] const dnnl::stream& strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
     std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
-    for (size_t i = 0; i < actual_axis; ++i)
+    for (size_t i = 0; i < actual_axis; ++i) {
         prefix_size *= input_dims[i];
+    }
 
     std::size_t suffix_size = getParentEdgeAt(0)->getMemory().getShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
-    OV_SWITCH(intel_cpu, OneHotExecute, ctx, output_precision.size(),
+    OV_SWITCH(intel_cpu,
+              OneHotExecute,
+              ctx,
+              output_precision.size(),
               OV_CASE(sizeof(uint32_t), uint32_t),
               OV_CASE(sizeof(uint16_t), uint16_t),
               OV_CASE(sizeof(uint8_t), uint8_t))
@@ -158,6 +163,4 @@ bool OneHot::created() const {
     return getType() == Type::OneHot;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::node

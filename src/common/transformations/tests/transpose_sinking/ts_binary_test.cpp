@@ -9,7 +9,19 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
@@ -1324,4 +1336,19 @@ TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabSpecialRank1) {
     }
 
     manager.register_pass<TSBinaryBackward>();
+}
+
+TEST_F(TransformationTestsF, TSBinaryForwardDynamic) {
+    auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+    auto transpose = std::make_shared<Transpose>(X, ts_order);
+
+    auto c1 = std::make_shared<Constant>(element::f32, Shape{0}, Shape{});
+
+    auto add = std::make_shared<Add>(transpose, c1);
+
+    model = std::make_shared<Model>(ov::OutputVector{add}, ov::ParameterVector{X});
+    model_ref = model->clone();
+
+    manager.register_pass<TSBinaryForward>();
 }

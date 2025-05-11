@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/convolution.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/convolution.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -13,29 +14,43 @@ using namespace ov;
 namespace {
 struct ConvolutionParams {
     template <class IT>
-    ConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape, const PartialShape& outputShape,
+    ConvolutionParams(const Shape& inputShape,
+                      const Shape& filterShape,
+                      const Shape& outputShape,
                       const element::Type& iType,
-                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues, const std::vector<IT>& oValues,
-                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations)
+                      const std::vector<IT>& iValues,
+                      const std::vector<IT>& filterValues,
+                      const std::vector<IT>& oValues,
+                      const Strides& strides,
+                      const CoordinateDiff& padBegin,
+                      const CoordinateDiff& padEnd,
+                      const Strides& dialations)
         : inputShape(inputShape),
           filterShape(filterShape),
           outputShape(outputShape),
           inType(iType),
           filterType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          filterData(CreateTensor(iType, filterValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
+          filterData(CreateTensor(filterShape, iType, filterValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           strides(strides),
           padBegin(padBegin),
           padEnd(padEnd),
           dialations(dialations) {}
 
     template <class IT>
-    ConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape, const PartialShape& outputShape,
+    ConvolutionParams(const Shape& inputShape,
+                      const Shape& filterShape,
+                      const Shape& outputShape,
                       const element::Type& iType,
-                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues, const std::vector<IT>& oValues,
-                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations,
+                      const std::vector<IT>& iValues,
+                      const std::vector<IT>& filterValues,
+                      const std::vector<IT>& oValues,
+                      const Strides& strides,
+                      const CoordinateDiff& padBegin,
+                      const CoordinateDiff& padEnd,
+                      const Strides& dialations,
                       const bool convolutionOutlining)
         : inputShape(inputShape),
           filterShape(filterShape),
@@ -43,18 +58,18 @@ struct ConvolutionParams {
           inType(iType),
           filterType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          filterData(CreateTensor(iType, filterValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
+          filterData(CreateTensor(filterShape, iType, filterValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           strides(strides),
           padBegin(padBegin),
           padEnd(padEnd),
           dialations(dialations),
           convolutionOutlining(convolutionOutlining) {}
 
-    PartialShape inputShape;
-    PartialShape filterShape;
-    PartialShape outputShape;
+    Shape inputShape;
+    Shape filterShape;
+    Shape outputShape;
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type outType;
@@ -109,15 +124,15 @@ private:
 
         if (params.convolutionOutlining == true) {
             const auto Convolution2 = std::make_shared<op::v1::Convolution>(Convolution,
-                                                                           filter,
-                                                                           params.strides,
-                                                                           params.padBegin,
-                                                                           params.padEnd,
-                                                                           params.dialations,
-                                                                           auto_pad);
-            return std::make_shared<ov::Model>(NodeVector {Convolution2}, ParameterVector {in, filter});
+                                                                            filter,
+                                                                            params.strides,
+                                                                            params.padBegin,
+                                                                            params.padEnd,
+                                                                            params.dialations,
+                                                                            auto_pad);
+            return std::make_shared<ov::Model>(OutputVector{Convolution2}, ParameterVector{in, filter});
         } else {
-            return std::make_shared<ov::Model>(NodeVector {Convolution}, ParameterVector {in, filter});
+            return std::make_shared<ov::Model>(OutputVector{Convolution}, ParameterVector{in, filter});
         }
     }
 };
@@ -130,12 +145,12 @@ template <element::Type_t IN_ET>
 std::vector<ConvolutionParams> generateConvolutionI8Params() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ConvolutionParams> convolutionParams {
-// --------------------- 1D convolution ------------------------------------------
-// clang-format off
-        ConvolutionParams(PartialShape {1, 1, 6},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 4},
+    std::vector<ConvolutionParams> convolutionParams{
+        // --------------------- 1D convolution ------------------------------------------
+        // clang-format off
+        ConvolutionParams(Shape{1, 1, 6},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0, 1, 2},
                           std::vector<T>{2, 0, 1},
@@ -144,9 +159,9 @@ std::vector<ConvolutionParams> generateConvolutionI8Params() {
                           {0},
                           {0},
                           {1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7,
                                          7, 5, 3, 1,
@@ -161,9 +176,9 @@ std::vector<ConvolutionParams> generateConvolutionI8Params() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4, 4},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {1, 1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4, 4},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{1, 1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -220,9 +235,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
 
     std::vector<ConvolutionParams> convolutionParams {
 // --------------------- 1D convolution ------------------------------------------
-        ConvolutionParams(PartialShape {1, 1, 6},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 4},
+        ConvolutionParams(Shape{1, 1, 6},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0, 1, 2},
                           std::vector<T>{2, 0, 1},
@@ -231,9 +246,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {0},
                           {1}),
-        ConvolutionParams(PartialShape {1, 1, 4},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 4},
+        ConvolutionParams(Shape{1, 1, 4},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0},
                           std::vector<T>{2, 0, 1},
@@ -242,9 +257,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {1},
                           {1},
                           {1}),
-        ConvolutionParams(PartialShape {1, 1, 5},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 2},
+        ConvolutionParams(Shape{1, 1, 5},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0, 1},
                           std::vector<T>{2, 0, 1},
@@ -253,9 +268,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {0},
                           {1}),
-        ConvolutionParams(PartialShape {1, 1, 7},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 3},
+        ConvolutionParams(Shape{1, 1, 7},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 3},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0, 1, 2, 3},
                           std::vector<T>{2, 0, 1},
@@ -264,9 +279,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {0},
                           {2}),
-        ConvolutionParams(PartialShape {1, 1, 7},
-                          PartialShape {1, 1, 3},
-                          PartialShape {1, 1, 4},
+        ConvolutionParams(Shape{1, 1, 7},
+                          Shape{1, 1, 3},
+                          Shape{1, 1, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 3, 0, 1, 2, 3},
                           std::vector<T>{2, 0, 1},
@@ -275,9 +290,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {2},
                           {2},
                           {2}),
-        ConvolutionParams(PartialShape {1, 2, 4},
-                          PartialShape {1, 2, 3},
-                          PartialShape {1, 1, 2},
+        ConvolutionParams(Shape{1, 2, 4},
+                          Shape{1, 2, 3},
+                          Shape{1, 1, 2},
                           IN_ET,
                           std::vector<T>{
                                         // channel 1
@@ -294,9 +309,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {0},
                           {1}),
-        ConvolutionParams(PartialShape {1, 1, 4},
-                          PartialShape {2, 1, 3},
-                          PartialShape {1, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4},
+                          Shape{2, 1, 3},
+                          Shape{1, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 2, 1},
                           std::vector<T>{
@@ -313,9 +328,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {0},
                           {1}),
-        ConvolutionParams(PartialShape {2, 1, 4},
-                          PartialShape {1, 1, 3},
-                          PartialShape {2, 1, 2},
+        ConvolutionParams(Shape{2, 1, 4},
+                          Shape{1, 1, 3},
+                          Shape{2, 1, 2},
                           IN_ET,
                           std::vector<T>{
                                         // batch 1
@@ -333,9 +348,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0},
                           {1}),
 // --------------------- 2D convolution ------------------------------------------
-        ConvolutionParams(PartialShape {1, 1, 4, 4},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7,
                                          7, 5, 3, 1,
@@ -350,9 +365,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 4, 4},
+        ConvolutionParams(Shape{1, 1, 4, 4},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 4, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7,
                                          7, 5, 3, 1,
@@ -369,9 +384,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 5, 5},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 2, 2},
+        ConvolutionParams(Shape{1, 1, 5, 5},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7, 9,
                                          7, 5, 3, 1, 0,
@@ -387,9 +402,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 7, 7},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 3, 3},
+        ConvolutionParams(Shape{1, 1, 7, 7},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 3, 3},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7, 9, 11, 13,
                                          7, 5, 3, 1, -1, -3, -5,
@@ -408,9 +423,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {2, 2}),
-        ConvolutionParams(PartialShape {1, 1, 7, 7},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {1, 1, 4, 4},
+        ConvolutionParams(Shape{1, 1, 7, 7},
+                          Shape{1, 1, 3, 3},
+                          Shape{1, 1, 4, 4},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7, 9, 11, 13,
                                          7, 5, 3, 1, -1, -3, -5,
@@ -430,9 +445,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {2, 2},
                           {2, 2},
                           {2, 2}),
-        ConvolutionParams(PartialShape {1, 2, 4, 4},
-                          PartialShape {1, 2, 3, 3},
-                          PartialShape {1, 1, 2, 2},
+        ConvolutionParams(Shape{1, 2, 4, 4},
+                          Shape{1, 2, 3, 3},
+                          Shape{1, 1, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                          // channel 1
@@ -460,9 +475,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4},
-                          PartialShape {2, 1, 3, 3},
-                          PartialShape {1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4},
+                          Shape{2, 1, 3, 3},
+                          Shape{1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 3, 5, 7,
                                          7, 5, 3, 1,
@@ -488,9 +503,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {2, 1, 4, 4},
-                          PartialShape {1, 1, 3, 3},
-                          PartialShape {2, 1, 2, 2},
+        ConvolutionParams(Shape{2, 1, 4, 4},
+                          Shape{1, 1, 3, 3},
+                          Shape{2, 1, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                          // batch 1
@@ -518,9 +533,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {1, 1}),
 // --------------------- 3D convolution ------------------------------------------
-        ConvolutionParams(PartialShape {1, 1, 4, 4, 4},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {1, 1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4, 4},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{1, 1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -567,9 +582,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0, 0},
                           {0, 0, 0},
                           {1, 1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4, 4},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {1, 1, 4, 4, 4},
+        ConvolutionParams(Shape{1, 1, 4, 4, 4},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{1, 1, 4, 4, 4},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -630,9 +645,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {1, 1, 1},
                           {1, 1, 1},
                           {1, 1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 5, 5, 5},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {1, 1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 1, 5, 5, 5},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{1, 1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -689,9 +704,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0, 0},
                           {0, 0, 0},
                           {1, 1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 7, 7, 7},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {1, 1, 4, 4, 4},
+        ConvolutionParams(Shape{1, 1, 7, 7, 7},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{1, 1, 4, 4, 4},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -788,9 +803,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {2, 2, 2},
                           {2, 2, 2},
                           {2, 2, 2}),
-        ConvolutionParams(PartialShape {1, 2, 4, 4, 4},
-                          PartialShape {1, 2, 3, 3, 3},
-                          PartialShape {1, 1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 2, 4, 4, 4},
+                          Shape{1, 2, 3, 3, 3},
+                          Shape{1, 1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // -- channel 1 --
@@ -873,9 +888,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0, 0},
                           {0, 0, 0},
                           {1, 1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 4, 4, 4},
-                          PartialShape {2, 1, 3, 3, 3},
-                          PartialShape {1, 2, 2, 2, 2},
+        ConvolutionParams(Shape{1, 1, 4, 4, 4},
+                          Shape{2, 1, 3, 3, 3},
+                          Shape{1, 2, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // depth: 1
@@ -944,9 +959,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0, 0},
                           {0, 0, 0},
                           {1, 1, 1}),
-        ConvolutionParams(PartialShape {2, 1, 4, 4, 4},
-                          PartialShape {1, 1, 3, 3, 3},
-                          PartialShape {2, 1, 2, 2, 2},
+        ConvolutionParams(Shape{2, 1, 4, 4, 4},
+                          Shape{1, 1, 3, 3, 3},
+                          Shape{2, 1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{
                                     // -- batch 1 --
@@ -1024,9 +1039,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0, 0},
                           {1, 1, 1}),
 // ----------------------  other tests ------------------------------------------
-        ConvolutionParams(PartialShape {1, 2, 2, 2},
-                          PartialShape {2, 2, 1, 1},
-                          PartialShape {1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 2, 2, 2},
+                          Shape{2, 2, 1, 1},
+                          Shape{1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 1, 1, 1, 1, 1, 1, 1},
                           std::vector<T>{1, 1, 1, 1},
@@ -1036,9 +1051,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {1, 1},
                           true),
-        ConvolutionParams(PartialShape {1, 2, 2, 2},
-                          PartialShape {2, 2, 1, 1},
-                          PartialShape {1, 2, 2, 2},
+        ConvolutionParams(Shape{1, 2, 2, 2},
+                          Shape{2, 2, 1, 1},
+                          Shape{1, 2, 2, 2},
                           IN_ET,
                           std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
                           std::vector<T>{3, 3, 3, 3},
@@ -1047,9 +1062,9 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        ConvolutionParams(PartialShape {1, 1, 2, 2},
-                          PartialShape {1, 1, 1, 1},
-                          PartialShape {1, 1, 5, 5},
+        ConvolutionParams(Shape{1, 1, 2, 2},
+                          Shape{1, 1, 1, 1},
+                          Shape{1, 1, 5, 5},
                           IN_ET,
                           std::vector<T>{1, 2, 3, 4},
                           std::vector<T>{2},
@@ -1069,12 +1084,11 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
 // clang-format on
 
 std::vector<ConvolutionParams> generateConvolutionCombinedParams() {
-    const std::vector<std::vector<ConvolutionParams>> convolutionTypeParams {
+    const std::vector<std::vector<ConvolutionParams>> convolutionTypeParams{
         generateConvolutionFloatParams<element::Type_t::f32>(),
         generateConvolutionFloatParams<element::Type_t::f16>(),
         generateConvolutionFloatParams<element::Type_t::bf16>(),
-        generateConvolutionI8Params<element::Type_t::i8>()
-        };
+        generateConvolutionI8Params<element::Type_t::i8>()};
     std::vector<ConvolutionParams> combinedParams;
 
     for (const auto& params : convolutionTypeParams) {
@@ -1083,7 +1097,9 @@ std::vector<ConvolutionParams> generateConvolutionCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution_With_Hardcoded_Refs, ReferenceConvolutionLayerTest,
-    testing::ValuesIn(generateConvolutionCombinedParams()), ReferenceConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution_With_Hardcoded_Refs,
+                         ReferenceConvolutionLayerTest,
+                         testing::ValuesIn(generateConvolutionCombinedParams()),
+                         ReferenceConvolutionLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
+#include "reorder.hpp"
 #include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
@@ -16,12 +17,21 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::reorder_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::reorder_params, kernel_selector::reorder_optional_params>;
+    using kernel_params_t = kernel_selector::reorder_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return make_deep_copy<reorder_impl, kernel_params_t>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:
@@ -45,10 +55,9 @@ public:
         const auto& primitive = impl_param.typed_desc<reorder>();
         auto&& output_layout = impl_param.get_output_layout();
         auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::reorder_optional_params>(impl_param.get_program());
 
         auto inputs_count = primitive->input.size();
-        bool has_mean = !primitive->mean.empty();
+        bool has_mean = primitive->mean.is_valid();
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
@@ -103,12 +112,17 @@ public:
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
         params.truncate = impl_param.typed_desc<reorder>()->truncate;
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
@@ -126,6 +140,8 @@ public:
         const auto& weights_params = prim->weights_reorder_params;
         auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
 
+        OPENVINO_ASSERT(weights_params != nullptr, "[GPU] Attempt to create reorder weights without weights params");
+
         OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
                         "[GPU] Input layout doesn't match required reorder weights layout");
 
@@ -134,42 +150,31 @@ public:
 
         r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
         r_params.output = convert_weights_tensor(weights_params->get_output_layout());
-        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
+        r_params.original_input_rank = weights_params->get_input_layout().get_partial_shape().size();
+        r_params.original_output_rank = weights_params->get_output_layout().get_partial_shape().size();
 
-        kernel_selector::reorder_optional_params optional_params;
-        auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
-        return make_unique<reorder_impl>(best_kernel);
+        return std::make_unique<reorder_impl>(best_kernel);
     }
 };
 
-namespace detail {
-
-attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
-
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-        data_types::i32,
-        data_types::i64,
-    };
-
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
-
-    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<reorder>());
+    return ocl::reorder_impl::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return ocl::reorder_impl::create_reorder_weights(params);
+}
+
 }  // namespace ocl
 }  // namespace cldnn
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -11,13 +11,13 @@ class TestRange(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
         if self.negative_delta:
-            inputs_data['start'] = np.random.randint(1, 10, []).astype(self.input_type)
-            inputs_data['limit'] = np.random.randint(-10, 0, []).astype(self.input_type)
-            inputs_data['delta'] = np.random.randint(-5, -1, []).astype(self.input_type)
+            inputs_data['start:0'] = np.random.randint(1, 10, []).astype(self.input_type)
+            inputs_data['limit:0'] = np.random.randint(-10, 0, []).astype(self.input_type)
+            inputs_data['delta:0'] = np.random.randint(-5, -1, []).astype(self.input_type)
         else:
-            inputs_data['start'] = np.random.randint(1, 10, []).astype(self.input_type)
-            inputs_data['limit'] = np.random.randint(10, 30, []).astype(self.input_type)
-            inputs_data['delta'] = np.random.randint(1, 5, []).astype(self.input_type)
+            inputs_data['start:0'] = np.random.randint(1, 10, []).astype(self.input_type)
+            inputs_data['limit:0'] = np.random.randint(10, 30, []).astype(self.input_type)
+            inputs_data['delta:0'] = np.random.randint(1, 5, []).astype(self.input_type)
 
         return inputs_data
 
@@ -49,10 +49,8 @@ class TestRange(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_range_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend, use_old_api):
+    def test_range_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_range_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

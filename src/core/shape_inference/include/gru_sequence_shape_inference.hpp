@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/gru_sequence.hpp>
-
+#include "openvino/op/gru_sequence.hpp"
 #include "rnn_base_shape_inference.hpp"
 #include "utils.hpp"
 

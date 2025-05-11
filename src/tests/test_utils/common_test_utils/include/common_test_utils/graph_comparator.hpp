@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,9 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 
 class FunctionsComparator {
 public:
@@ -74,9 +77,16 @@ public:
         return compare(f, f_ref);
     }
 
+    void set_accuracy_thresholds(float abs_threshold, float rel_threshold) {
+        m_abs_threshold = abs_threshold;
+        m_rel_threshold = rel_threshold;
+    }
+
 private:
     explicit FunctionsComparator(CmpValues f) noexcept : m_comparison_flags(f) {}
     CmpValues m_comparison_flags;
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 ///
@@ -118,6 +128,7 @@ namespace ov {
 namespace pass {
 class InjectionPass : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("InjectionPass");
     using injection_callback = std::function<void(std::shared_ptr<ov::Model>)>;
 
     explicit InjectionPass(injection_callback callback) : ModelPass(), m_callback(std::move(callback)) {}
@@ -259,6 +270,7 @@ class InitUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
+    OPENVINO_MODEL_PASS_RTTI("InitUniqueNames");
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         m_unh->init_names(f);
@@ -270,6 +282,7 @@ class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
+    OPENVINO_MODEL_PASS_RTTI("CheckUniqueNames");
     CheckUniqueNames(UniqueNamesHolder::Ptr unh,
                      bool soft_names_comparison = false,
                      bool result_friendly_names_check = true)
@@ -294,7 +307,10 @@ public:
     using Result = FunctionsComparator::Result;
     using ComparedNodes = std::pair<ov::Node*, ov::Node*>;
 
-    explicit Comparator(CmpValues f) : m_comparison_flags(f) {}
+    explicit Comparator(CmpValues f, float abs_threshold = 1e-7f, float rel_threshold = 1e-7f)
+        : m_comparison_flags(f),
+          m_abs_threshold(abs_threshold),
+          m_rel_threshold(rel_threshold) {}
 
     Result compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
 
@@ -336,6 +352,9 @@ private:
 
     std::queue<ComparedNodes> q;
     std::unordered_set<ov::Node*> used;
+
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 inline namespace tools {
@@ -456,7 +475,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
                 private AttributeStorage<std::shared_ptr<ov::op::util::Variable>>,
                 private AttributeStorage<ov::PartialShape>,
-                private AttributeStorage<ov::Dimension> {
+                private AttributeStorage<ov::Dimension>,
+                private AttributeStorage<std::shared_ptr<ov::StringAlignedBuffer>> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -490,7 +510,8 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ov::op::util::Variable>>().get_attributes_number() +
-               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number() +
+               storage<std::shared_ptr<ov::StringAlignedBuffer>>().get_attributes_number();
     }
 };
 
@@ -500,10 +521,8 @@ class ReadAndStoreAttributes : public ov::AttributeVisitor, protected storage::S
 public:
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-#define ON_ADAPTER(TYPE)                                                                  \
-    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
-        insert(name, adapter.get());                                                      \
-    }
+#define ON_ADAPTER(TYPE) \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { insert(name, adapter.get()); }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -756,6 +775,12 @@ struct Equal<std::shared_ptr<Constant>> {
             return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
             break;
         }
+        case ov::element::Type_t::string: {
+            const auto& lhs_v = lhs->cast_vector<std::string>();
+            const auto& rhs_v = rhs->cast_vector<std::string>();
+            return Equal<std::vector<std::string>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         default: {
             const auto& lhs_v = lhs->cast_vector<double>();
             const auto& rhs_v = rhs->cast_vector<double>();
@@ -890,10 +915,8 @@ public:
         verify_others(name, adapter);
     }
 
-#define ON_ADAPTER(TYPE)                                                                  \
-    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
-        verify(name, adapter.get());                                                      \
-    }
+#define ON_ADAPTER(TYPE) \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { verify(name, adapter.get()); }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -945,9 +968,8 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    void verify_mem_buf(const std::string& name, const std::shared_ptr<ov::AlignedBuffer>& buffer);
+    void verify_string_aligned_buffer(const std::string& name, const std::shared_ptr<ov::StringAlignedBuffer>& buffer);
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 
@@ -1009,4 +1031,6 @@ struct AccuracyCheckResult {
 };
 
 AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
-                                   const std::shared_ptr<ov::Model>& cur_function);
+                                   const std::shared_ptr<ov::Model>& cur_function,
+                                   float abs_threshold,
+                                   float rel_threshold);

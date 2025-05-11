@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -125,6 +126,12 @@ protected:
     };
 
     /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+
+    /**
      * @brief Converts batched tensors to tensor
      */
     void convert_batched_tensors();
@@ -156,13 +163,14 @@ protected:
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
-    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
-
-    /**
-     * @brief Finds input or output port
-     * @return structure which contains index of Input/Output or report that port wasn't found
-     */
-    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+    mutable std::unordered_map<std::shared_ptr<descriptor::Tensor>,
+                               ov::SoPtr<ov::ITensor>,
+                               descriptor::TensorExtension::Hasher,
+                               descriptor::TensorExtension::Equal>
+        m_tensors;
+    // Cache ports
+    mutable std::unordered_map<size_t, FoundPort> m_cached_ports;
+    mutable std::mutex m_cache_mutex;
 };
 
 };  // namespace ov

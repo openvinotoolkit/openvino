@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "gather_shape_inference.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
@@ -47,6 +48,7 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
+        case format::bfwzyx:
         case format::b_fs_zyx_fsv16:
         case format::b_fs_zyx_fsv32:
             output_format = format::get_default_format(dims_converted.size());
@@ -56,8 +58,11 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         }
     }
     auto output_type = input_layout.data_type;
+    if (impl_param.typed_desc<gather>()->compressed_weights) {
+        output_type = impl_param.typed_desc<gather>()->decompressed_type;
+    }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     return layout{output_type,
@@ -73,8 +78,11 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
     auto input1_layout = impl_param.get_input_layout(1);
 
     auto output_type = input0_layout.data_type;
+    if (impl_param.typed_desc<gather>()->compressed_weights) {
+        output_type = impl_param.typed_desc<gather>()->decompressed_type;
+    }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::op::v8::Gather op;
@@ -111,11 +119,43 @@ std::string gather_inst::to_string(gather_node const& node) {
     gather_info.add("axis", desc->axis);
     gather_info.add("batch_dim", desc->batch_dim);
     gather_info.add("output shape", cldnn::to_string(desc->output_shape));
+    gather_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        gather_info.add("decompression scale id", desc->decompression_scale.pid);
+        gather_info.add("decompression zp id", desc->decompression_zero_point.pid);
+        if (desc->decompression_zero_point_scalar.has_value()) {
+            gather_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
+        }
+    }
 
     node_info->add("gather info", gather_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+void gather_inst::on_execute() {
+    update_output_memory();
+}
+
+void gather_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    build_deps();
+
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+    }
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
 }
 
 gather_inst::typed_primitive_inst(network& network, gather_node const& node) : parent(network, node) {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 #include <string>
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include <base/behavior_test_utils.hpp>
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {

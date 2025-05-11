@@ -1,9 +1,12 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
 import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -69,6 +72,22 @@ class TestNorm(PytorchLayerTest):
     def test_norm_tensor(self, ie_device, precision, ir_version, p, dim, keepdim):
         self._test(*self.create_model_tensor_norm(p, dim, keepdim),
                    ie_device, precision, ir_version)
+
+class TestWeightNorm(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return (np.random.randn(1, 60, 20).astype(np.float32),)
+
+    def create_model(self):
+        from torch import nn
+        from torch.nn.utils import weight_norm
+
+        return weight_norm(nn.Linear(20, 40), name='weight'), None, "aten::_weight_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_weight_norm(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, freeze_model=False)
 
 
 class TestFrobeniusNorm(PytorchLayerTest):
@@ -245,6 +264,10 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122715')
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
@@ -253,11 +276,11 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
 
 class TestLinalgNorm(PytorchLayerTest):
 
-    def _prepare_input(self, out=False, out_dtype=None):
+    def _prepare_input(self, out=False, out_dtype=None, input_shape=(3, 3)):
         if not out:
-            return (np.random.randn(3, 3).astype(np.float32),)
-        x = np.random.randn(3, 3).astype(np.float32)
-        y = np.random.randn(3, 3).astype(
+            return (np.random.randn(*input_shape).astype(np.float32),)
+        x = np.random.randn(*input_shape).astype(np.float32)
+        y = np.random.randn(*input_shape).astype(
             out_dtype if out_dtype is not None else np.float32)
         return (x, y)
 
@@ -318,7 +341,65 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
-    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
+    @pytest.mark.parametrize("input_shape", [[1, 3], [3, 3], [1, 3, 3]])
+    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
+                   kwargs_to_prepare_input={
+                       "out": out or prim_dtype,
+                       "out_dtype": dtype if prim_dtype else None,
+                       "input_shape": input_shape
+        })
+
+
+class TestTrickyNorm(PytorchLayerTest):
+
+    def _prepare_input(self, input_shape=(3, 3)):
+        return (np.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self):
+        class aten_norm(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.normalize(x, eps=2)
+
+        return aten_norm(), None, ["aten::linalg_vector_norm", "aten::clamp_min"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [[15, 15, 17]])
+    def test_tricky_norm(self, input_shape, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)
+
+
+class TestRMSNorm(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(2, 5, 10, 10).astype(np.float32),)
+
+    def create_model(self, normalized_shape, eps, gamma):
+        class aten_rms_norm(torch.nn.Module):
+            def __init__(self, normalized_shape, eps, gamma) -> None:
+                super().__init__()
+                self.rms = torch.nn.RMSNorm(normalized_shape,
+                                            eps=eps,
+                                            elementwise_affine=gamma)
+
+            def forward(self, input_data):
+                return self.rms(input_data)
+
+        return aten_rms_norm(normalized_shape, eps, gamma), None, "aten::rms_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4"),
+                        reason="Not supported in PyTorch versions earlier than 2.4.")
+    @pytest.mark.parametrize("normalized_shape", [[10,],
+                                                  [10, 10],
+                                                  [5, 10, 10]])
+    @pytest.mark.parametrize('gamma', [True, False])
+    @pytest.mark.parametrize('eps', [None, 1e-5])
+    def test_rms_norm(self, ie_device, precision, ir_version,
+                      normalized_shape, eps, gamma):
+        self._test(*self.create_model(normalized_shape, eps, gamma),
+                   ie_device, precision, ir_version)

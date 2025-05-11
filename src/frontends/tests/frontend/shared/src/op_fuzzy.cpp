@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ inline void addInputOutput(const cnpy::NpyArray& npy_array, ov::test::TestCase& 
         test_case.add_expected_output(npy_array.shape, data);
 }
 
-static bool ends_with(std::string const& value, std::string const& ending) {
+static bool ends_with(const std::string& value, const std::string& ending) {
     if (ending.size() > value.size())
         return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
@@ -107,9 +107,14 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Model> mod
     }
 }
 
+#if defined OPENVINO_ARCH_ARM64 || defined OPENVINO_ARCH_ARM
+// Ticket: 126830, 153158
+TEST_P(FrontEndFuzzyOpTest, DISABLED_testOpFuzzy) {
+#else
 TEST_P(FrontEndFuzzyOpTest, testOpFuzzy) {
+#endif
     // load
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
 
     // convert
     std::shared_ptr<ov::Model> model;

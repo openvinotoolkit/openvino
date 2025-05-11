@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/idft.hpp"
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/idft.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,19 +17,19 @@ namespace {
 struct IDFTParams {
     template <class T>
     IDFTParams(const Shape& input_shape,
-              const Shape& expected_shape,
-              const element::Type_t& input_type,
-              const element::Type_t& expected_type,
-              const std::vector<T>& input_value,
-              const std::vector<T>& expected_value,
-              const std::shared_ptr<op::v0::Constant>& axes,
-              const std::shared_ptr<op::v0::Constant>& signal) {
+               const Shape& expected_shape,
+               const element::Type_t& input_type,
+               const element::Type_t& expected_type,
+               const std::vector<T>& input_value,
+               const std::vector<T>& expected_value,
+               const std::shared_ptr<op::v0::Constant>& axes,
+               const std::shared_ptr<op::v0::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_signal = signal;
     }
@@ -1157,12 +1158,12 @@ std::vector<IDFTParams> generateParamsForIDFT() {
         // idft1d_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
-                  ET,
-                  ET,
-                  idft1d_input_data_1,
-                  data_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
-                  NULL),
+                   ET,
+                   ET,
+                   idft1d_input_data_1,
+                   data_1,
+                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                   NULL),
         // idft1d_eval
         IDFTParams(Shape{2, 10, 10, 2},
                    Shape{2, 10, 10, 2},
@@ -1237,7 +1238,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    NULL),
         // idft2d_signal_size_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{5, 6, 9, 2},
                    ET,
                    ET,
                    data_1,
@@ -1255,7 +1256,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // idft2d_signal_size_eval_3
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{3, 6, 4, 2},
                    ET,
                    ET,
                    data_1,
@@ -1273,7 +1274,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // idft2d_signal_size_eval_5
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{5, 6, 4, 2},
                    ET,
                    ET,
                    data_1,
@@ -1282,7 +1283,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // idft3d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{3, 7, 5, 2},
                    ET,
                    ET,
                    data_1,
@@ -1291,7 +1292,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
         // idft1d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{4, 7, 8, 2},
                    ET,
                    ET,
                    data_1,
@@ -1393,10 +1394,9 @@ std::vector<IDFTParams> generateCombinedParamsForIDFT() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_IDFT_With_Hardcoded_Refs,
-    ReferenceIDFTLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForIDFT()),
-    ReferenceIDFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_IDFT_With_Hardcoded_Refs,
+                         ReferenceIDFTLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForIDFT()),
+                         ReferenceIDFTLayerTest::getTestCaseName);
 
 }  // namespace

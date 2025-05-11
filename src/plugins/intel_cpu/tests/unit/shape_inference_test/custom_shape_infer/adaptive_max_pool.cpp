@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/constant.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

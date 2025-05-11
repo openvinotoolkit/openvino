@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,13 @@ ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input
     : m_input_index(input_index),
       m_body_parameter_index(body_parameter_index) {}
 
+ov::op::util::MultiSubGraphOp::InputDescription::~InputDescription() = default;
+
 ov::op::util::MultiSubGraphOp::OutputDescription::OutputDescription(uint64_t body_value_index, uint64_t output_index)
     : m_body_value_index(body_value_index),
       m_output_index(output_index) {}
+
+ov::op::util::MultiSubGraphOp::OutputDescription::~OutputDescription() = default;
 
 ov::op::util::MultiSubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
                                                                             uint64_t body_parameter_index,
@@ -92,7 +96,7 @@ ov::op::util::MultiSubGraphOp::BodyOutputDescription::copy() const {
     return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
 }
 
-ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args) : Op(args) {}
+ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args) : ov::op::Sink(args) {}
 
 ov::op::util::MultiSubGraphOp::MultiSubGraphOp(size_t number_of_bodies) {
     m_bodies.resize(number_of_bodies);
@@ -152,7 +156,7 @@ void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
         auto index = input_description->m_input_index;
 
         auto body_parameter = params.at(input_description->m_body_parameter_index);
-        auto input_partial_shape = input_value(index).get_partial_shape();
+        const auto& input_partial_shape = input_value(index).get_partial_shape();
         auto dtype = input_value(index).get_element_type();
         body_parameter->set_partial_shape(input_partial_shape);
         body_parameter->set_element_type(dtype);
@@ -183,3 +187,8 @@ ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapp
 
     return outputs_map;
 }
+
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>::~AttributeAdapter() = default;
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>::~AttributeAdapter() = default;

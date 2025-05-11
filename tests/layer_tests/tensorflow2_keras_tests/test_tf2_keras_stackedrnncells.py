@@ -1,13 +1,23 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
+
+rng = np.random.default_rng(23423556)
 
 
 class TestKerasStackedRNNCells(CommonTF2LayerTest):
+    def _prepare_input(self, inputs_info):
+        input_names = list(inputs_info.keys())
+        assert len(input_names) == 1, "Test expects only one input"
+        x_shape = inputs_info[input_names[0]]
+        inputs_data = {}
+        inputs_data[input_names[0]] = rng.uniform(-1.0, 1.0, x_shape).astype(np.float32)
+        return inputs_data
+
     def create_keras_stackedrnncells_net(self, input_names, input_shapes, input_type, rnn_cells,
                                          ir_version):
         cells_structure = {
@@ -40,9 +50,7 @@ class TestKerasStackedRNNCells(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
-    def test_keras_stackedrnncells(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
-                                   use_new_frontend):
+    def test_keras_stackedrnncells(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_stackedrnncells_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)

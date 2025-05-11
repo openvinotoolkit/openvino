@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,17 @@
 #include <fstream>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 /*
  * As we are visualizing the graph, we will make some tweaks to the generated dot file to make
@@ -165,8 +169,63 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
+static std::string name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
+                                         const std::string& current_file_name,
+                                         const size_t& i) {
+    // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
+    auto node_name = op->get_friendly_name();
+    std::replace(node_name.begin(), node_name.end(), '/', '-');
+    auto postfix = "_node_" + node_name + "_subgraph_#" + std::to_string(i);
+    auto file_name = current_file_name;
+    auto insert_pos = file_name.find_last_of('.');
+    file_name.insert(insert_pos, postfix);
+    return file_name;
+}
+
+static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
+                                        std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number) {
+    size_t n = symbol_to_number.size() + 1;
+    for (const auto& node : m->get_ops()) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node))
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
+                if (const auto& sub_graph = multi_subgraph_op->get_function(i))
+                    collect_symbol_print_values(sub_graph, symbol_to_number);
+
+        for (const auto& output : node->outputs()) {
+            const auto& shape = output.get_partial_shape();
+            if (shape.rank().is_dynamic())
+                continue;
+            for (const auto& dim : shape)
+                if (auto symbol = dim.get_symbol()) {
+                    const auto& root = ov::symbol::ancestor_of(symbol);
+                    if (symbol_to_number.count(root))
+                        continue;
+                    symbol_to_number[root] = n++;
+                }
+            const auto& value_symbols = output.get_tensor().get_value_symbol();
+            for (const auto& value_symbol : value_symbols)
+                if (value_symbol) {
+                    const auto& root = ov::symbol::ancestor_of(value_symbol);
+                    if (symbol_to_number.count(root))
+                        continue;
+                    symbol_to_number[root] = n++;
+                }
+        }
+    }
+}
+
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
+
+    static const bool ovasp = ov::util::getenv_bool("OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION");
+    if (ovasp) {
+        std::cerr << "Warning: OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION enabled. ov::pass::SymbolicPropagation will be "
+                     "triggered"
+                  << std::endl;
+        ov::pass::SymbolicPropagation().run_on_model(f);
+        std::cerr << "ov::pass::SymbolicPropagation finished successfully" << std::endl;
+    }
+
     std::unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {
@@ -179,8 +238,18 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     auto nodes = topological_sort(f->get_ops());
 
+    collect_symbol_print_values(f, m_symbol_to_name);
+
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
         auto& node = *it;
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
+                if (const auto& sub_graph = multi_subgraph_op->get_function(i))
+                    ov::pass::VisualizeTree(name_of_subgraph_file(multi_subgraph_op, m_name, i),
+                                            m_node_modifiers,
+                                            m_dot_only)
+                        .run_on_model(sub_graph);
+        }
         for (auto& output : node->outputs()) {
             for (auto& input : output.get_target_inputs()) {
                 auto target_node = input.get_node();
@@ -193,7 +262,7 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     size_t fake_node_ctr = 0;
 
-    traverse_nodes(f, [&](std::shared_ptr<Node> node) {
+    traverse_nodes(f, [&](const std::shared_ptr<Node>& node) {
         add_node_arguments(node, height_maps, fake_node_ctr);
     });
 
@@ -201,22 +270,26 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     // Clean up local variable not to hold node pointers
     m_nodes_with_attributes.clear();
-
+    if (ovasp) {
+        std::cerr << "Warning: Due to previously triggered SymbolicPropagation we need to clean-up the model from "
+                     "symbols. It includes model revalidation"
+                  << std::endl;
+        ov::remove_skip_invalidation_rti(f);
+        std::cerr << "Model revalidation finished successfully" << std::endl;
+    }
     return false;
 }
 
 ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
     : m_name{file_name},
-      m_node_modifiers{nm},
-      m_dot_only(dot_only) {}
+      m_node_modifiers{std::move(nm)},
+      m_dot_only{dot_only} {}
 
 void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                  std::unordered_map<Node*, HeightMap>& height_maps,
                                                  size_t& fake_node_ctr) {
-    static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-
     size_t arg_index = 0;
-    for (auto input_value : node->input_values()) {
+    for (const auto& input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
         if (ov::is_type<ov::op::v0::Constant>(arg) || ov::is_type<ov::op::v0::Parameter>(arg)) {
@@ -225,15 +298,15 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                 std::string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + std::string("\"");
             std::vector<std::string> attributes{"shape=\"box\"",
                                                 "style=\"dashed\"",
-                                                color,
+                                                std::move(color),
                                                 std::string("label=\"") + get_node_name(arg) + std::string("\n") +
-                                                    get_constant_value(arg, const_max_elements) + std::string("\"")};
+                                                    get_constant_value(arg) + std::string("\"")};
 
             if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
                 m_node_modifiers(*arg, attributes);
             }
             m_ss << "    " << clone_name << "[";
-            for (auto attr : attributes) {
+            for (const auto& attr : attributes) {
                 m_ss << " " << attr << " ";
             }
             m_ss << "]\n";
@@ -272,22 +345,40 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
 std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
     std::string rc;
     if (m_nodes_with_attributes.find(node) == m_nodes_with_attributes.end()) {
-        m_nodes_with_attributes.insert(node);
         rc = get_attributes(node);
+        m_nodes_with_attributes.insert(std::move(node));
     }
     return rc;
 }
 
-static std::string pretty_partial_shape(const ov::PartialShape& shape) {
-    std::stringstream ss;
-
-    if (shape.rank().is_dynamic()) {
-        ss << "?";
+static std::string pretty_partial_shape(
+    const ov::PartialShape& shape,
+    const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
+    std::stringstream str;
+    if (shape.rank().is_static()) {
+        str << "[";
+        bool first = true;
+        for (auto& d : shape) {
+            if (!first) {
+                str << ",";
+            }
+            if (d.is_dynamic()) {
+                if (const auto& symbol = d.get_symbol()) {
+                    const auto& root = ov::symbol::ancestor_of(symbol);
+                    if (symbol_map.count(root))
+                        str << "<" << symbol_map.at(root) << ">";
+                    else
+                        str << "<?>";
+                }
+            }
+            str << d;
+            first = false;
+        }
+        str << "]";
     } else {
-        ss << shape;
+        str << "[...]";
     }
-
-    return ss.str();
+    return str.str();
 }
 
 template <typename T>
@@ -327,21 +418,11 @@ static std::string pretty_min_max_denormal_value(const std::vector<T>& values) {
 }
 
 template <typename T>
-static std::string pretty_value(const std::vector<T>& values, size_t max_elements, bool allow_obfuscate = false) {
+static std::string pretty_value(const std::vector<T>& values, bool allow_obfuscate = false) {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i) {
-        if (i < max_elements) {
-            if (i != 0 && i % 8 == 0) {
-                ss << std::endl;
-            }
-        } else {
-            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
-                return el == values[0];
-            });
-            ss << "..." << (all_same ? " same" : "");
-            break;
-        }
-
+        if (i != 0 && i % 8 == 0)
+            ss << std::endl;
         const auto& value = values[i];
         if (i > 0)
             ss << ", ";
@@ -361,69 +442,94 @@ static std::string pretty_value(const std::vector<T>& values, size_t max_element
     return ss.str();
 }
 
-static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant,
-                             size_t max_elements,
-                             bool allow_obfuscate = false) {
+static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant, bool allow_obfuscate = false) {
+    static const int max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
     std::stringstream ss;
+    ss << "[ ";
     switch (constant->get_output_element_type(0)) {
-    case ov::element::Type_t::undefined:
-        ss << "[ undefined value ]";
-        break;
     case ov::element::Type_t::dynamic:
-        ss << "[ dynamic value ]";
-        break;
     case ov::element::Type_t::u1:
-        ss << "[ u1 value ]";
-        break;
+    case ov::element::Type_t::u2:
+    case ov::element::Type_t::u3:
     case ov::element::Type_t::u4:
-        ss << "[ u4 value ]";
-        break;
+    case ov::element::Type_t::u6:
+    case ov::element::Type_t::nf4:
     case ov::element::Type_t::i4:
-        ss << "[ i4 value ]";
+    case ov::element::Type_t::f8e4m3:
+    case ov::element::Type_t::f8e5m2:
+    case ov::element::Type_t::f4e2m1:
+    case ov::element::Type_t::f8e8m0:
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     case ov::element::Type_t::bf16:
     case ov::element::Type_t::f16:
     case ov::element::Type_t::f32:
     case ov::element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<double>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::i8:
     case ov::element::Type_t::i16:
     case ov::element::Type_t::i32:
     case ov::element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<int64_t>(max_elements), allow_obfuscate);
         break;
     case ov::element::Type_t::boolean:
     case ov::element::Type_t::u8:
     case ov::element::Type_t::u16:
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
+        ss << pretty_value(constant->cast_vector<uint64_t>(max_elements), allow_obfuscate);
+        break;
+    case ov::element::Type_t::string:
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
     }
+    const auto num_elements_in_constant = static_cast<int>(shape_size(constant->get_shape()));
+    if (num_elements_in_constant == 0)
+        ss << "empty";
+    else if (max_elements == 0)
+        ss << "suppressed";
+    else if (num_elements_in_constant > max_elements)
+        ss << ", ...";
+    ss << " ]";
     return ss.str();
 }
 
-static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) {
+static std::string pretty_symbol_value(const ov::TensorSymbol& symbols,
+                                       const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
+    std::vector<size_t> mapped_symbols;
+    for (const auto& symbol : symbols) {
+        if (symbol) {
+            const auto& root = ov::symbol::ancestor_of(symbol);
+            if (symbol_map.count(root)) {
+                mapped_symbols.push_back(symbol_map.at(root));
+                continue;
+            }
+        }
+        mapped_symbols.push_back(0);
+    }
+    return pretty_value(mapped_symbols);
+}
+
+static std::string get_bounds_and_label_info(
+    const ov::Output<ov::Node> output,
+    const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
     const auto& tensor = output.get_tensor();
     const auto& lower = tensor.get_lower_value();
     const auto& upper = tensor.get_upper_value();
-    const auto& value_label = tensor.get_value_label();
+    const auto& value_symbol = tensor.get_value_symbol();
 
-    if (!lower && !upper && value_label.empty())
+    if (!lower && !upper && value_symbol.empty())
         return "";
 
     std::stringstream label;
-    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_label.size();
+    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_symbol.size();
     if (size == 0) {
         label << "empty";
     } else {
-        static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-        label << " lower: "
-              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
-        label << " upper: "
-              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
-        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+        label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), true) : "NONE");
+        label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), true) : "NONE");
+        label << " symbl: " << (value_symbol.empty() ? "NONE" : pretty_symbol_value(value_symbol, symbol_map));
     }
     return label.str();
 }
@@ -431,10 +537,11 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
 std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
     ss << "{" << node->get_element_type().to_string() << "}";
-    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+    ss << pretty_partial_shape(node->get_output_partial_shape(0), m_symbol_to_name);
 
-    if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node))
+    if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
         ss << "\nvalue: " << get_value(constant, max_elements);
+    }
     return ss.str();
 }
 
@@ -454,10 +561,8 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
         std::stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") ||
-                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") ||
-                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtos = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = ov::util::getenv_bool("OV_VISUALIZE_TREE_IO");
         static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
         static const bool ovpvl = ov::util::getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");
@@ -469,7 +574,7 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
                     if (nvtot)
                         label << "{" << input.get_element_type().to_string() << "}";
                     if (nvtos)
-                        label << pretty_partial_shape(input.get_partial_shape());
+                        label << pretty_partial_shape(input.get_partial_shape(), m_symbol_to_name);
                     label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
                           << input.get_source_output().get_index();
 
@@ -484,13 +589,13 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
                 if (nvtot)
                     label << "{" << output.get_element_type().to_string() << "}";
                 if (nvtos)
-                    label << pretty_partial_shape(output.get_partial_shape());
+                    label << pretty_partial_shape(output.get_partial_shape(), m_symbol_to_name);  // TODO
 
                 if (nvtrti) {
                     label << get_attribute_values(output.get_rt_info());
                 }
                 if (ovpvl)
-                    label << get_bounds_and_label_info(output);
+                    label << get_bounds_and_label_info(output, m_symbol_to_name);  // TODO
             }
         }
 
@@ -518,7 +623,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? std::string("name: ") : "") + node->get_name();
     }
-    const auto type_info = node->get_type_info();
+    const auto& type_info = node->get_type_info();
     rc += "\\n" + (nvtmn ? std::string("type_name: ") : "") + std::string(type_info.version_id) +
           "::" + std::string(type_info.name);
 
@@ -562,7 +667,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
 
     static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
-        const auto rt = node->get_rt_info();
+        const auto& rt = node->get_rt_info();
         if (!rt.empty()) {
             rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
         }
@@ -585,8 +690,11 @@ void ov::pass::VisualizeTree::render() const {
         out.close();
 
         if (!m_dot_only && ov::util::to_lower(ext) != ".dot") {
-#ifndef _WIN32
+#if defined(ENABLE_OPENVINO_DEBUG) && !defined(_WIN32)
             std::stringstream ss;
+            if (system("command -v dot > /dev/null 2>&1") != 0) {
+                OPENVINO_THROW("Graphviz 'dot' command not found in PATH");
+            }
             ss << "dot -T" << output_format << " " << dot_file << " -o" << m_name;
             auto cmd = ss.str();
             auto stream = popen(cmd.c_str(), "r");

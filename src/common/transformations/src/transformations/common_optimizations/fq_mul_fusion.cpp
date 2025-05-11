@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -54,7 +55,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto mul_node_p =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& data = pattern_map.at(data_p);
@@ -68,7 +69,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         if (!is_single_value) {
             float v;
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul_constant);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(mul_constant);
             if (constant) {
                 is_single_value = op::util::get_single_value(constant, v);
                 if (is_single_value) {
@@ -107,9 +108,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         auto get_adjusted_output_range = [&](const Output<Node>& node) -> std::shared_ptr<Node> {
             auto ret = std::make_shared<ov::op::v1::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto constant = get_constant_from_source(ret);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            auto constant = ov::util::get_constant_from_source(ret);
             if (constant)
                 return constant;
             return ret;
@@ -120,10 +119,8 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  fq_node->input_value(2),
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
-        OPENVINO_SUPPRESS_DEPRECATED_START
         bool fq_on_weights =
-            is_type<ov::op::v0::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            is_type<ov::op::v0::Constant>(data.get_node()) || ov::util::get_constant_from_source(data) != nullptr;
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 
@@ -134,7 +131,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         // will lead to shape inconsistency in remaining graph. This check must be
         // removed in future when FQ will have correct validate_and_infer function
         // for cases with NUMPY broadcast.
-        auto fq_casted = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(new_fq_node);
+        auto fq_casted = ov::as_type_ptr<ov::op::v0::FakeQuantize>(new_fq_node);
         if (!fq_casted) {
             return false;
         }

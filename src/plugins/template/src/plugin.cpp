@@ -1,27 +1,90 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "plugin.hpp"
 
+#include <fstream>
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
 static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
 static constexpr const char* template_exclusive_executor = "TemplateExecutor";
+
+uint64_t get_blob_data_size(std::istream& model) {
+    uint64_t size = 0;
+    model.read(reinterpret_cast<char*>(&size), sizeof(size));
+    return size;
+}
+
+std::string get_model_str(std::istream& model) {
+    const auto model_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    std::string xml;
+    xml.resize(model_size);
+    model.read(xml.data(), model_size);
+    return xml;
+}
+
+ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
+    ov::Tensor weights(ov::element::from<uint8_t>(), ov::Shape{weights_size});
+    model.read(reinterpret_cast<char*>(weights.data()), weights_size);
+    return weights;
+}
+
+ov::Tensor get_model_weights(std::istream& model) {
+    const auto weights_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
+}
+
+ov::Tensor get_model_weights(const ov::AnyMap& properties) {
+    ov::Tensor weights;
+    if (auto weights_path = properties.find(ov::weights_path.name()); weights_path != properties.end()) {
+        const auto w_path = std::filesystem::path(weights_path->second.as<std::string>());
+        if (auto size = ov::util::file_size(w_path); size > 0) {
+            auto f_weights = std::ifstream(w_path, std::ios::binary | std::ios::in);
+            weights = read_weights(f_weights, size);
+        }
+    }
+    return weights;
+}
+
+std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plugin& plugin,
+                                                  ov::Tensor& weights,
+                                                  size_t offset,
+                                                  const ov::AnyMap& properties) {
+    if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
+        if (auto blob = blob_it->second.as<ov::Tensor>(); blob) {
+            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+            std::istream blob_stream(&shared_buffer);
+            blob_stream.seekg(offset, std::ios::beg);
+            const auto model = get_model_str(blob_stream);
+            try {
+                return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
+            } catch (...) {
+            }
+        }
+    }
+    return nullptr;
+};
 }  // namespace
 
 // ! [plugin:ctor]
@@ -29,7 +92,7 @@ ov::template_plugin::Plugin::Plugin() {
     // TODO: fill with actual device name, backend engine
     set_device_name("TEMPLATE");
 
-    // create ngraph backend which performs inference using ngraph reference implementations
+    // create backend which performs inference using openvino reference implementations
     m_backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
@@ -61,11 +124,13 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 // ! [plugin:transform_model]
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
-    ov::pass::Manager passManager;
+    ov::pass::Manager passManager("Plugin:Template");
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
     passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertMaxPool14ToMaxPool8>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertAvgPool14ToAvgPool1>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Register any other transformations
@@ -98,19 +163,33 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const ov::SoPtr<ov::IRemoteContext>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
-    auto fullConfig = Configuration{properties, m_cfg};
+    Configuration fullConfig;
+    {
+        auto _properties = properties;
+        // remove not supported properties which are consumed by compile_model
+        _properties.erase(ov::loaded_from_cache.name());
+        _properties.erase(ov::hint::compiled_blob.name());
+        fullConfig = Configuration{_properties, m_cfg};
+    }
+
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    streamsExecutorConfig._name = stream_executor_name;
-    auto compiled_model = std::make_shared<CompiledModel>(
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
+
+    return std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
         context,
         fullConfig.exclusive_async_requests
             ? get_executor_manager()->get_executor(template_exclusive_executor)
             : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-        fullConfig);
-    return compiled_model;
+        fullConfig,
+        false);
 }
 // ! [plugin:compile_model_with_remote]
 
@@ -128,33 +207,57 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
-    auto fullConfig = Configuration{properties, m_cfg};
-    // read XML content
-    std::string xmlString;
-    std::uint64_t dataSize = 0;
-    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    xmlString.resize(dataSize);
-    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
-
-    // read blob content
-    ov::Tensor weights;
-    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    if (0 != dataSize) {
-        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-        model.read(weights.data<char>(), dataSize);
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
+    auto _properties = properties;
+    const auto& it = _properties.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _properties.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _properties.erase(it);
     }
+    _properties.erase(ov::hint::compiled_blob.name());
 
-    auto ov_model = get_core()->read_model(xmlString, weights);
+    auto fullConfig = Configuration{_properties, m_cfg};
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
+    auto weights = get_model_weights(properties);
+    if (!weights) {
+        if (auto model_hint = properties.find(ov::hint::model.name()); model_hint != properties.end()) {
+            if (auto m = model_hint->second.as<std::shared_ptr<ov::Model>>()) {
+                if (m->has_rt_info("__weights_path")) {
+                    AnyMap rt_info;
+                    auto p = m->get_rt_info<std::string>("__weights_path");
+                    rt_info[ov::weights_path.name()] = m->get_rt_info<ov::Any>("__weights_path");
+                    weights = get_model_weights(rt_info);
+                }
+            }
+        }
+    }
+    auto ov_model = get_ov_model_from_blob(*this, weights, model.tellg(), properties);
+    if (!ov_model) {
+        // read XML content
+        std::string xmlString = get_model_str(model);
+
+        // read blob content
+        if (!weights) {
+            weights = get_model_weights(model);
+        }
+
+        ov_model = get_core()->read_model(xmlString, weights);
+    }
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    streamsExecutorConfig._name = stream_executor_name;
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
                                         context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig,
-                                        true);
+                                        loaded_from_cache);
     return compiled_model;
 }
 // ! [plugin:import_model_with_remote]
@@ -177,9 +280,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
-        [&](std::shared_ptr<ngraph::Node> node) {
+        [&](std::shared_ptr<ov::Node> node) {
             // 2. Сheck whether node is supported
-            ngraph::OpSet op_super_set;
+            ov::OpSet op_super_set;
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
         // clang-format off
 #include "openvino/opsets/opset1_tbl.hpp"
@@ -194,6 +297,10 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
+#include "openvino/opsets/opset14_tbl.hpp"
+#include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
@@ -217,31 +324,38 @@ void ov::template_plugin::Plugin::set_property(const ov::AnyMap& properties) {
 
 // ! [plugin:get_property]
 ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::available_devices,
                                                     ov::supported_properties,
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
-                                                    ov::range_for_async_infer_requests};
+                                                    ov::device::type,
+                                                    ov::range_for_async_infer_requests,
+                                                    ov::execution_devices};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::hint::performance_mode,
-                                                    ov::template_plugin::disable_transformations};
+        std::vector<ov::PropertyName> rw_properties{
+            ov::device::id,
+            ov::enable_profiling,
+            ov::hint::performance_mode,
+            ov::hint::num_requests,
+            ov::hint::inference_precision,
+            ov::hint::execution_mode,
+            ov::num_streams,
+            ov::template_plugin::disable_transformations,
+            ov::log::level,
+            ov::hint::model_priority,
+            ov::hint::enable_hyper_threading,
+            ov::hint::enable_cpu_pinning,
+            ov::hint::scheduling_core_type,
+            ov::compilation_num_threads,
+            ov::inference_num_threads,
+            ov::weights_path,
+            ov::cache_mode,
+        };
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
@@ -251,33 +365,34 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
-        std::vector<std::string> available_devices = {""};
-        return decltype(ov::available_devices)::value_type(available_devices);
+        return decltype(ov::available_devices)::value_type{{""}};
     } else if (ov::device::full_name == name) {
-        std::string device_name = "Template Device Full Name";
-        return decltype(ov::device::full_name)::value_type(device_name);
+        return decltype(ov::device::full_name)::value_type{"Template Device Full Name"};
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = "TEMPLATE";
-        return decltype(ov::device::architecture)::value_type(arch);
+        return decltype(ov::device::architecture)::value_type{get_device_name()};
+    } else if (ov::device::type == name) {
+        return decltype(ov::device::type)::value_type{ov::device::Type::INTEGRATED};
     } else if (ov::internal::caching_properties == name) {
-        std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
-        return decltype(ov::internal::caching_properties)::value_type(caching_properties);
+        return decltype(ov::internal::caching_properties)::value_type{ov::device::architecture};
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
-        std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
-        return decltype(ov::device::capabilities)::value_type(capabilities);
+        return decltype(ov::device::capabilities)::value_type{ov::device::capability::FP32,
+                                                              ov::device::capability::EXPORT_IMPORT};
+    } else if (ov::execution_devices == name) {
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (ov::range_for_async_infer_requests == name) {
-        // TODO: fill with actual values
-        using uint = unsigned int;
-        return decltype(ov::range_for_async_infer_requests)::value_type(std::make_tuple(uint{1}, uint{1}, uint{1}));
+        return decltype(ov::range_for_async_infer_requests)::value_type{1, 1, 1};
     } else {
         return m_cfg.Get(name);
     }

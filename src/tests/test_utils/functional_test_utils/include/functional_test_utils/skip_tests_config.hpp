@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,17 +23,6 @@ bool current_test_is_disabled();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-
-// TODO: Remove after migration of internal components
-namespace FuncTestUtils {
-namespace SkipTestsConfig {
-
-inline bool currentTestIsDisabled() {
-    return ov::test::utils::current_test_is_disabled();
-}
-
-}  // namespace SkipTestsConfig
-}  // namespace FuncTestUtils
 
 #define SKIP_IF_CURRENT_TEST_IS_DISABLED()                                     \
     {                                                                          \

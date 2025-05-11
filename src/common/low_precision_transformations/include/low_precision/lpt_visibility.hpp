@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @file lpt_visibility.hpp
- * @brief Defines visibility settings for Inference Engine LP Transformations library
+ * @brief Defines visibility settings for OpenVINO LP Transformations library
  */
 
 #ifdef OPENVINO_STATIC_LIBRARY

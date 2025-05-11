@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "deformable_convolution_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
 namespace ov {
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
@@ -95,9 +94,7 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
                               mask_et);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -201,9 +198,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
     if (num_spatial != convolution::num_spatial_undefined) {

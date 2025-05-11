@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "ov_tensorflow/xla_data.pb.h"
 #include "utils.hpp"
-#include "xla_data.pb.h"
 
 using namespace std;
 using namespace ov;

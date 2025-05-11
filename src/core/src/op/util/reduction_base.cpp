@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/util/reduction_base.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "reduce_shape_inference.hpp"
 
@@ -24,18 +25,14 @@ bool ov::op::util::ReductionBase::reduction_axes_constant() const {
 }
 
 const ov::AxisSet ov::op::util::ReductionBase::get_reduction_axes() const {
-    AxisSet axes;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& const_op = get_constant_from_source(input_value(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        const auto const_data = const_op->cast_vector<int64_t>();
-        const auto input_data_rank = get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        axes = AxisSet{normalized_axes};
+    if (const auto& const_op = ov::util::get_constant_from_source(input_value(1))) {
+        const auto data_rank = get_input_partial_shape(0).rank();
+        return data_rank.is_static()
+                   ? ov::util::try_get_normalized_axis_set(const_op->get_tensor_view(), data_rank, *this)
+                   : AxisSet{const_op->cast_vector<size_t>()};
+    } else {
+        return {};
     }
-    return axes;
 }
 
 void ov::op::util::ReductionBase::set_reduction_axes(const AxisSet& reduction_axes) {

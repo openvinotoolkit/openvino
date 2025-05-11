@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -16,7 +16,10 @@ def paddle_range(name : str, x, start, end, step, out_type):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         # Range op only support fill_constant input, since dynamic op is not supported in ov
-        out = paddle.fluid.layers.range(start, end, step, out_type)
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.arange(start, end, step, out_type)
+        else:
+            out = paddle.fluid.layers.range(start, end, step, out_type)
         out = paddle.cast(out, np.float32)
         out = paddle.add(node_x, out)
         #out = paddle.cast(out, np.float32)
@@ -29,7 +32,7 @@ def paddle_range(name : str, x, start, end, step, out_type):
                 feed={'x': x},
                 fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

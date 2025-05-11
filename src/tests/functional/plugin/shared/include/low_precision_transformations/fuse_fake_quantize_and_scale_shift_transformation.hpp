@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,17 +6,17 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
-    ngraph::builder::subgraph::FakeQuantizeOnData> FuseFakeQuantizeAndScaleShiftTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params,
+    ov::builder::subgraph::FakeQuantizeOnData> FuseFakeQuantizeAndScaleShiftTransformationParams;
 
 class FuseFakeQuantizeAndScaleShiftTransformation :
     public testing::WithParamInterface<FuseFakeQuantizeAndScaleShiftTransformationParams>,

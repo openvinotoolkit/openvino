@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,18 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/matmul.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -29,10 +33,10 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     auto mul_m = pattern::wrap_type<ov::opset1::Multiply>({ input, mul_const_m });
     auto reshape_pattern_const = pattern::wrap_type<ov::opset1::Constant>();
     auto reshape_pattern_nonconst = ov::pass::pattern::any_input();
-    auto reshape_pattern = std::make_shared<pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
+    auto reshape_pattern = std::make_shared<pass::pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
     auto matcher = pattern::wrap_type<ov::opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -42,21 +46,21 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
         const auto& pattern_map = m.get_pattern_value_map();
         if (pattern_map.count(reshape_pattern_nonconst)) {
             const auto mul_const = as_type_ptr<ov::opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
-            if (!mul_const || ngraph::shape_size(mul_const->get_shape()) != 1) {
+            if (!mul_const || ov::shape_size(mul_const->get_shape()) != 1) {
                 return false;
             }
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 namespace {
 
-void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::vector<ov::element::Type>& defaultPrecisions) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
@@ -145,19 +149,21 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 
 } // namespace
 
-bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool ReshapeTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Reshape> reshape = ov::as_type_ptr<ov::opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
     }
 
-    if (!canBeTransformed(context, reshape)) {
+    if (!canBeTransformed(reshape)) {
         return false;
     }
 
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
+    const auto newOperation = moveDequantizationAfter(reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
+
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
@@ -185,8 +191,8 @@ inline size_t getFirstChangedDimension(const PartialShape& shape1, const Partial
     return i;
 }
 
-bool ReshapeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool ReshapeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 
@@ -200,7 +206,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         const auto inputs = op->get_output_target_inputs(0);
         if (inputs.size() == 1ul) {
             const auto consumer = inputs.begin()->get_node();
-            ignorePerTensorQuantizationCheck = ngraph::as_type<ov::opset1::MatMul>(consumer) != nullptr;
+            ignorePerTensorQuantizationCheck = ov::as_type<ov::opset1::MatMul>(consumer) != nullptr;
         }
     }
 
@@ -256,10 +262,10 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool ReshapeTransformation::canBeTransformed(
-    const ngraph::Shape& subtractShape,
-    const ngraph::Shape& multiplyShape,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::PartialShape& outputShape) {
+    const ov::Shape& subtractShape,
+    const ov::Shape& multiplyShape,
+    const ov::PartialShape& inputShape,
+    const ov::PartialShape& outputShape) {
     const size_t inputRank = inputShape.rank().get_length();
     const size_t outputRank = outputShape.rank().get_length();
 
@@ -283,4 +289,4 @@ bool ReshapeTransformation::canBeTransformed(
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

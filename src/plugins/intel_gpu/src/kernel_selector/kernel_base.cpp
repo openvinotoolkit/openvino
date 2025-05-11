@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,9 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     // Changed data type from unit type to output data type to fix the issue case that
     // the activation function makes cl kernel build error when the output data type
     // and unit type are different and activation param is existed
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType()));
+    bool convert_input_to_output_dt = (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
+    // If input is FP16 and output is FP32, convert input to float before running activation function.
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "", false, false, convert_input_to_output_dt));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
@@ -128,7 +130,7 @@ bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) c
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MakeBaseParamsJitConstants
+// MakeFusedOpsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
                                                   const std::vector<FusedOpsConfiguration> &conf) const {
@@ -138,8 +140,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
-    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
+    if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(),
+        [](fused_operation_desc desc) { return desc.GetType() == KernelType::REORDER; })) {
         return jit;
+    }
 
     try {
         for (auto& c : conf) {
@@ -201,6 +205,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         return jit;
 
     std::string input_decls = "";
+    std::string input_args = "";
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
@@ -211,10 +216,12 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
             input_decls += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_DECLS";
+            input_args += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_ARGS";
         }
     }
 
     jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("FUSED_OPS_ARGS", input_args));
     jit.AddConstant(MakeJitConstant("HAS_FUSED_OPS", true));
     jit.AddConstant(MakeJitConstant("HAS_FUSED_OPS_DECLS", !input_decls.empty()));
 
@@ -234,7 +241,7 @@ std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
 }
 
-DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const {
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;

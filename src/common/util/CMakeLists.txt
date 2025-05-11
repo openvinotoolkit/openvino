@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME openvino_util)
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${UTIL_INCLUDE_DIR}/*.hpp)
 
 if (WIN32)
     # Remove linux specific files
@@ -37,17 +37,49 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::util ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+    "#include <experimental/filesystem>\nint main(int argc, char ** argv) {\n  std::experimental::filesystem::path p(argv[0]);\n  return p.string().length();\n}")
+
+try_compile(STD_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}
+            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+            COMPILE_DEFINITIONS -std=c++11)
+try_compile(STD_FS_NEEDS_STDCXXFS ${CMAKE_CURRENT_BINARY_DIR}
+            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+            COMPILE_DEFINITIONS -std=c++11
+            LINK_LIBRARIES stdc++fs)
+try_compile(STD_FS_NEEDS_CXXFS ${CMAKE_CURRENT_BINARY_DIR}
+            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+            COMPILE_DEFINITIONS -std=c++11
+            LINK_LIBRARIES c++fs)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  message(STATUS "MSVC - No explicit filesystem linker setting required.")
+elseif(STD_FS_NEEDS_STDCXXFS)
+  message(STATUS "STD_FS_NEEDS_STDCXXFS - Add explicit filesystem linker setting: 'stdc++fs'.")
+  set(STD_FS_LIB stdc++fs)
+elseif(STD_FS_NEEDS_CXXFS)
+  message(STATUS "STD_FS_NEEDS_CXXFS - Add explicit filesystem linker setting: 'c++fs'.")
+  set(STD_FS_LIB c++fs)
+elseif(STD_FS_NO_LIB_NEEDED)
+  message(STATUS "STD_FS_NO_LIB_NEEDED - No explicit filesystem linker setting required.")
+else()
+  message(WARNING "Unknown C++ build setup - No explicit filesystem linker setting set")
+endif()
+
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml ${STD_FS_LIB})
 if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
-ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+# install & export
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${UTIL_INCLUDE_DIR}/")

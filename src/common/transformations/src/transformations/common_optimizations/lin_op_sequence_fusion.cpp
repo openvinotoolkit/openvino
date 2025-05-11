@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -16,6 +17,13 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
+namespace {
+const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
+    const auto is_single_output = pass::pattern::consumers_count(1);
+    return is_single_output(output) && output.get_node()->has_evaluate();
+};
+}
 
 ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
@@ -26,7 +34,7 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m_mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_add, m_mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
@@ -51,11 +59,10 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto new_mul = register_new_node<ov::op::v1::Multiply>(input, mul_const);
 
         // Add two constants using opset3::Add constant folding and create new Add operation
-        auto new_add =
-            std::make_shared<ov::op::v1::Add>(new_mul,
-                                              op::util::eltwise_fold<ov::op::v1::Multiply>(add_const, mul_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Multiply>(add_const, mul_const);
+        auto new_add = std::make_shared<ov::op::v1::Add>(new_mul, new_const);
 
-        copy_runtime_info({add, mul}, {new_mul, new_add});
+        copy_runtime_info({add, mul}, {new_mul, new_add, new_const});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
         return true;
@@ -74,7 +81,7 @@ ov::pass::AddAddFusion::AddAddFusion() {
     auto m_add2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_add1, m_add2_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
@@ -86,10 +93,10 @@ ov::pass::AddAddFusion::AddAddFusion() {
 
         // Replace Add->Add with single Add
         // Add operation will be added to the list of ops requested for pattern matching
-        auto new_add =
-            register_new_node<ov::op::v1::Add>(input, op::util::eltwise_fold<ov::op::v1::Add>(add1_const, add2_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Add>(add1_const, add2_const);
+        auto new_add = register_new_node<ov::op::v1::Add>(input, new_const);
 
-        copy_runtime_info({add1, add2}, new_add);
+        copy_runtime_info({add1, add2}, {new_add, new_const});
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
         return true;
@@ -105,11 +112,11 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_data = pass::pattern::any_input();
     auto m_mul1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul1 =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, is_eltwise_supported_type);
     auto m_mul2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_mul1, m_mul2_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
@@ -121,11 +128,10 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
-        auto new_mul = register_new_node<ov::op::v1::Multiply>(
-            input,
-            op::util::eltwise_fold<ov::op::v1::Multiply>(mul1_const, mul2_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Multiply>(mul1_const, mul2_const);
+        auto new_mul = register_new_node<ov::op::v1::Multiply>(input, new_const);
 
-        copy_runtime_info({mul1, mul2}, new_mul);
+        copy_runtime_info({mul1, mul2}, {new_mul, new_const});
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
         return true;

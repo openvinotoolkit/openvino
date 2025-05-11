@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,8 +81,9 @@ public:
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
         ASSERT_EQ(outputs_ref.size(), size_t(1));
 
+        std::vector<float> val_opt;
         auto val_ref = get_output_values_to_float(not_fused, outputs_ref.begin()->second);
-        auto val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second);
+        ASSERT_NO_THROW(val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second));
         ASSERT_EQ(val_ref.size(), val_opt.size());
         for (size_t i = 0; i < val_ref.size(); i++) {
             ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)
@@ -114,14 +115,14 @@ public:
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
-        if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+        if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i4 || l.data_type == data_types::u4) {
+            VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(l.bytes_count(), min_random, max_random);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
+            VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
@@ -134,11 +135,8 @@ public:
     cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
-        if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec(s.count(), float_to_half(fill_value));
+        if (l.data_type == data_types::f16) {
+            VF<uint16_t> rnd_vec(s.count(), ov::float16(fill_value).to_bits());
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f32) {
             VF<float> rnd_vec(s.count(), fill_value);
@@ -148,6 +146,12 @@ public:
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec(s.count(), static_cast<int8_t>(fill_value));
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::u4) {
+            VF<uint8_t> rnd_vec(s.count()/2, static_cast<uint8_t>(fill_value));
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i4) {
+            VF<int8_t> rnd_vec(s.count()/2, static_cast<int8_t>(fill_value));
             set_values(prim, rnd_vec);
         } else {
             throw std::runtime_error("get_mem: Unsupported precision");
@@ -163,14 +167,10 @@ public:
             VF<float> rnd_vec = rg.generate_random_norepetitions<float>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = rg.generate_random_norepetitions<FLOAT16>(s.count(), min, max);
+            VF<ov::float16> rnd_vec = rg.generate_random_norepetitions<ov::float16>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec = rg.generate_random_norepetitions<int8_t>(s.count(), min, max);
-            set_values(prim, rnd_vec);
-        }
-        else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = rg.generate_random_norepetitions<int32_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
         }
 
@@ -184,7 +184,7 @@ public:
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = rg.generate_random_1d<FLOAT16>(s.count(), min, max);
+            VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(s.count(), min, max);
@@ -192,8 +192,11 @@ public:
         } else if (l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min, max);
+        } else if (l.data_type == data_types::i4) {
+            VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(s.count()/2, min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::u4) {
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count()/2, min, max);
             set_values(prim, rnd_vec);
         }
 

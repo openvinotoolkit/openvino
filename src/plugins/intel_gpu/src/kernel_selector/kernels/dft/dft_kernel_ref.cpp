@@ -87,8 +87,8 @@ void MakeJitConstForParam(JitConstants& jit, const std::string& name, size_t ran
 
 }  // namespace
 
-KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData DFTKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -131,7 +131,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
 
         // Set internal buffer
         kd.internalBufferDataType = idft_input.GetDType();
-        kd.internalBufferSizes.push_back(idft_output.PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(idft_output.PhysicalSizeInBytes());
 
         // Fill IRDFT kernel data
         auto irdft_params = derived_params;
@@ -152,7 +152,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
             std::tie(kernel_params, kernel_arguments) = kernels_params[i];
 
             const auto dispatch_data = SetDefault(kernel_params);
-            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options, i);
+            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, i);
             const auto jit_constants = GetJitConstants(kernel_params);
             const auto jit = CreateJit(kernelName, jit_constants, entry_point);
             auto& clKernelData = kd.kernels[i];
@@ -161,7 +161,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
         }
     } else {
         const auto dispatch_data = SetDefault(derived_params);
-        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params, options);
+        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params);
         const auto jit_constants = GetJitConstants(derived_params);
         const auto jit = CreateJit(kernelName, jit_constants, entry_point);
         auto& clKernelData = kd.kernels[0];
@@ -185,8 +185,8 @@ ParamsKey DFTKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool DFTKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::DFT || o.GetType() != KernelType::DFT) {
+bool DFTKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::DFT) {
         return false;
     }
 
@@ -202,6 +202,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
     const auto out_rank = params.outputs.front().Dimentions();
     const auto out_sizes = params.outputs.front().LogicalDims();
+    const auto in_rank = params.inputs.front().Dimentions();
     const auto in_sizes = params.inputs.front().LogicalDims();
     const auto dims_size = in_sizes.size() - 1;
     auto signal_sizes = out_sizes;
@@ -210,6 +211,16 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     for (size_t i = 0; i < params.axes.size(); ++i) {
         // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
         auto axis = params.axes[i];
+
+        // when axis is negative value, convert to positive.
+        if (axis < 0) {
+            // RDFT has converted by r + a, others r -1 + a by op specification
+            if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::forward)
+                axis = out_rank -1 + axis; // (out_rank-1) is in_rank
+            else
+                axis = in_rank -1 + axis;
+        }
+
         auto inverted_axis = dims_size - axis;
         auto signal_size = params.signal_size[i];
 

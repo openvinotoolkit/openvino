@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ struct InterpolateV1Params {
           outShape(oShape),
           inType(iType),
           outType(oType),
-          inData(CreateTensor(iType, iValues)),
-          outData(CreateTensor(oType, oValues)),
+          inData(CreateTensor(iShape, iType, iValues)),
+          outData(CreateTensor(oShape, oType, oValues)),
           outShapeInput(outShapeInput) {
         attrs.axes = axes;
         attrs.mode = mode;
@@ -50,8 +50,8 @@ struct InterpolateV1Params {
     Shape outShape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inData;
-    runtime::Tensor outData;
+    ov::Tensor inData;
+    ov::Tensor outData;
     std::shared_ptr<op::v0::Constant> outShapeInput;
     op::v0::Interpolate::Attributes attrs;
 };
@@ -72,8 +72,8 @@ struct InterpolateV4Params {
           outShape(oShape),
           inType(iType),
           outType(oType),
-          inData(CreateTensor(iType, iValues)),
-          outData(CreateTensor(oType, oValues)),
+          inData(CreateTensor(iShape, iType, iValues)),
+          outData(CreateTensor(oShape, oType, oValues)),
           outShapeInput(outShapeInput),
           outShapeInputType(outShapeInputType),
           scales(scales),
@@ -82,8 +82,8 @@ struct InterpolateV4Params {
     Shape outShape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inData;
-    runtime::Tensor outData;
+    ov::Tensor inData;
+    ov::Tensor outData;
     std::vector<size_t> outShapeInput;
     element::Type outShapeInputType;
     std::vector<float> scales;
@@ -113,7 +113,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const InterpolateV1Params& params) {
         const auto input = std::make_shared<op::v0::Parameter>(params.inType, params.inShape);
         const auto interpolate = std::make_shared<op::v0::Interpolate>(input, params.outShapeInput, params.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 };
 
@@ -144,7 +144,7 @@ private:
         const auto node_scales = op::v0::Constant::create(element::Type_t::f32, {params.scales.size()}, params.scales);
         auto interpolate =
             std::make_shared<op::v4::Interpolate>(node_input, node_output_shape_input, node_scales, params.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{node_input});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{node_input});
     }
 };
 
@@ -779,7 +779,7 @@ private:
         auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
         auto interpolate =
             std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, param.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
     }
 };
 
@@ -823,8 +823,8 @@ public:
           scales_data(scales_data),
           axes_data(axes_data),
           attrs(interp_attrs),
-          m_input_data(CreateTensor(inType, input_data)),
-          m_expected_result(CreateTensor(inType, expected_results)),
+          m_input_data(CreateTensor(input_data_shape, inType, input_data)),
+          m_expected_result(CreateTensor(output_shape, inType, expected_results)),
           inType(inType) {
         attrs.cube_coeff = cube_coeff_a;
     };
@@ -838,8 +838,8 @@ public:
           scales_data(v4_params.scales_data),
           axes_data(v4_params.axes_data),
           attrs(v4_params.attrs),
-          m_input_data(CreateTensor(element::from<Data_t>(), v4_params.input_data)),
-          m_expected_result(CreateTensor(element::from<Data_t>(), v4_params.expected_results)),
+          m_input_data(CreateTensor(v4_params.input_data_shape, element::from<Data_t>(), v4_params.input_data)),
+          m_expected_result(CreateTensor(v4_params.output_shape, element::from<Data_t>(), v4_params.expected_results)),
           inType(element::from<Data_t>()){};
 
     std::string test_name;
@@ -1100,7 +1100,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             "bicubic.downsample_sizes_1x1x8x8_nchw",
             Shape{1, 1, 8, 8},
             {4, 4},
-            Shape{4, 4},
+            Shape{1, 1, 4, 4},
             {},
             {2, 3},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
@@ -1114,7 +1114,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             "bicubic.downsample_sizes_1x8x8x1_nhwc",
             Shape{1, 8, 8, 1},
             {4, 4},
-            Shape{4, 4},
+            Shape{1, 4, 4, 1},
             {},
             {1, 2},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
@@ -1235,8 +1235,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
     }};
 }
 
-template <typename Data_t = float>
+template <element::Type_t ET>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_float() {
+    using Data_t = typename element_type_traits<ET>::value_type;
     return {
         {
             "bilinear.downsample_2D_sizes",
@@ -1268,7 +1269,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             "bilinear.downsample_to_2x3_2D_scales",
             Shape{5, 6},
             {},
-            Shape{2, 4},
+            Shape{2, 3},
             {0.4f, 0.6666f},
             {0, 1},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
@@ -1308,61 +1309,8 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
 }
 
 template <element::Type_t ET>
-std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_f16() {
-    using Data_t = typename element_type_traits<ET>::value_type;
-    return {
-        {
-            "bilinear.downsample_2D_sizes",
-            Shape{5, 6},
-            {2, 4},
-            Shape{2, 4},
-            {},
-            {0, 1},
-            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
-            std::vector<Data_t>{121, 131, 193, 243, 8.875,  37,  210, 242, 63.75, 80,  222, 108, 70,  212,   66,
-                                105, 164, 140, 22,  7.0625, 222, 192, 214, 138,   209, 84,  116, 202, 31.75, 77.5},
-            std::vector<Data_t>{159, 141, 138, 111, 96, 128, 158, 128},
-        },
-        {
-            "bilinear.downsample_2D_scales",
-            Shape{5, 6},
-            {},
-            Shape{2, 4},
-            {0.4f, 0.7f},
-            {0, 1},
-            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
-            std::vector<Data_t>{121, 131, 193, 243, 8.875,  37,  210, 242, 63.75, 80,  222, 108, 70,  212,   66,
-                                105, 164, 140, 22,  7.0625, 222, 192, 214, 138,   209, 84,  116, 202, 31.75, 77.5},
-            std::vector<Data_t>{159, 141, 138, 111, 96, 128, 158, 128},
-        },
-        {
-            "bilinear.upsample_2D_sizes",
-            Shape{2, 4},
-            {5, 6},
-            Shape{5, 6},
-            {},
-            {0, 1},
-            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
-            std::vector<Data_t>{214, 67, 28, 76, 106, 208, 115.5, 23.5},
-            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 70,  160, 148,  126,
-                                82,  60.75, 49.75, 116,  155, 178, 120, 67.5, 28.75, 106, 157,  192, 130, 69.5, 23.5},
-        },
-        {
-            "bilinear.upsample_2D_scales",
-            Shape{2, 4},
-            {},
-            Shape{5, 6},
-            {2.5f, 1.5f},
-            {0, 1},
-            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
-            std::vector<Data_t>{214, 67, 28, 76, 106, 208, 115.5, 23.5},
-            std::vector<Data_t>{214, 140,   60.5,  34.5, 52,  76,  202, 142,  74,    44,  53.5, 70,  160, 148,  126,
-                                82,  60.75, 49.75, 116,  155, 178, 120, 67.5, 28.75, 106, 157,  192, 130, 69.5, 23.5},
-        }};
-}
-
-template <typename Data_t = float>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_float() {
+    using Data_t = typename element_type_traits<ET>::value_type;
     return {
         {
             "bicubic.downsample_2D_sizes",
@@ -1589,12 +1537,12 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
 
 std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11() {
     const std::vector<std::vector<InterpolateV11TestParams>> allTypeParamsV11{
-        generateParamsForInterpolate_bilinear_pil_float<float>(),
-        generateParamsForInterpolate_bicubic_pil_float<float>(),
-        generateParamsForInterpolate_bilinear_pil_f16<element::Type_t::bf16>(),
-        generateParamsForInterpolate_bilinear_pil_f16<element::Type_t::f16>(),
-        generateParamsForInterpolate_bicubic_pil_f16<element::Type_t::bf16>(),
-        generateParamsForInterpolate_bicubic_pil_f16<element::Type_t::f16>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f32>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::f32>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::bf16>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::bf16>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f16>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::f16>(),
         generateParamsForInterpolate_bilinear_pil_int_common<uint8_t>(),
         generateParamsForInterpolate_bilinear_pil_int_common<int32_t>(),
         generateParamsForInterpolate_bilinear_pil_int8<int8_t>(),
@@ -1661,10 +1609,10 @@ private:
         if (!axes_data.empty()) {
             auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
             auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, axes, param.attrs);
-            return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+            return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
         }
         auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, param.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
     }
 };
 

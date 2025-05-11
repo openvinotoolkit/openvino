@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ std::tuple<int, int> GetMaxBoxes(const matrix_nms_params& params) {
 }
 }  // anonymous namespace
 
-KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -90,12 +90,12 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
 
-    kernel_data.internalBufferSizes.push_back(box_info_buffer_size);
-    kernel_data.internalBufferSizes.push_back(sel_boxes_num_buffer_size);
+    kernel_data.internalBuffers.push_back(box_info_buffer_size);
+    kernel_data.internalBuffers.push_back(sel_boxes_num_buffer_size);
     kernel_data.internalBufferDataType = Datatype::F32;
 
     for (size_t i{}; i < kernels_num; ++i) {
-        auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto jit_constants = GetJitConstants(new_params);
         jit_constants.AddConstant(MakeJitConstant("MATRIX_NMS_STAGE_" + std::to_string(i), "true"));
 
@@ -116,19 +116,14 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
     return {kernel_data};
 }
 
-float MatrixNmsKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+float MatrixNmsKernelRef::GetKernelsPriority(const Params& params) const {
     return FORCE_PRIORITY_9;
 }
 
-bool MatrixNmsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::MATRIX_NMS || o.GetType() != KernelType::MATRIX_NMS) {
+bool MatrixNmsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::MATRIX_NMS) {
         return false;
     }
-
-    const matrix_nms_params& params = static_cast<const matrix_nms_params&>(p);
-    // inputs: boxes, scores, second output, third output
-    if (params.inputs.size() != 4)
-        return false;
 
     return true;
 }
@@ -175,7 +170,7 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
         break;
 
     case 1:
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         break;
@@ -183,8 +178,8 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
     case 2:
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         break;
 

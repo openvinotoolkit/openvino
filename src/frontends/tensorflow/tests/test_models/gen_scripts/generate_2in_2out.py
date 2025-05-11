@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import os
 import sys
+
+import numpy as np
 import tensorflow as tf
 
 tf.compat.v1.reset_default_graph()
@@ -33,3 +34,5 @@ with tf.compat.v1.Session() as sess:
     tf_net = sess.graph_def
 
 tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "2in_2out"), '2in_2out.pb', False)
+tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "2in_2out"), '2in_2out.pb.frozen', False)
+tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "2in_2out"), '2in_2out.pb.frozen_text', True)

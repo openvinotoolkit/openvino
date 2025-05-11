@@ -3,15 +3,15 @@
 ```mermaid
 flowchart LR
     ir[("IR (*.xml)")]
-        
+
     style ir fill:#427cb0
 
     ir_fe["OpenVINO IR Frontend"]
-    
+
     openvino(openvino library)
     ir--Read ir---ir_fe
     ir_fe--Create ov::Model--->openvino
-    click ir "https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html"
+    click ir "https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets.html"
 ```
 
 The primary function of the OpenVINO IR Frontend is to load an OpenVINO IR into memory.

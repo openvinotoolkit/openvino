@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -37,10 +37,9 @@ class TestKerasMaxPool2D(CommonTF2LayerTest):
              strides=None, padding='valid', dataformat='channels_last'),
         dict(input_names=["x"], input_shapes=[[5, 4, 5, 12]], input_type=tf.float32, pool_size=1,
              strides=4, padding='valid', dataformat='channels_last'),
-        pytest.param(dict(input_names=["x"], input_shapes=[[5, 4, 6, 6]], input_type=tf.float32,
+        dict(input_names=["x"], input_shapes=[[5, 4, 6, 6]], input_type=tf.float32,
                           pool_size=(2, 3),
                           strides=(3, 3), padding='valid', dataformat='channels_last'),
-                     marks=pytest.mark.precommit_tf_fe),
         dict(input_names=["x"], input_shapes=[[5, 4, 4, 8]], input_type=tf.float32, pool_size=2,
              strides=2, padding='valid', dataformat='channels_last'),
     ]
@@ -49,7 +48,7 @@ class TestKerasMaxPool2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_maxpool2D_pool_strides_float32(self, params, ie_device, precision, temp_dir,
-                                                  ir_version, use_old_api, use_new_frontend):
+                                                  ir_version):
         self._test(*self.create_keras_maxpool2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)

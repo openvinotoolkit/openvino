@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,16 @@
 
 #include "shared_test_classes/subgraph/range_add.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(RangeAddSubgraphTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
 TEST_P(RangeNumpyAddSubgraphTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,6 +13,5 @@ ov_add_test_target(
             openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            TF_COMMON
+            OV UNIT TF_COMMON
 )

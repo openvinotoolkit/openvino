@@ -33,7 +33,7 @@ ParamsKey ReverseKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData ReverseKernelRef::SetDefault(const reverse_params& params, const optional_params&) const {
+CommonDispatchData ReverseKernelRef::SetDefault(const reverse_params& params) const {
     CommonDispatchData dispatchData;
     auto in = params.inputs[0];
     auto out_layout = params.outputs[0].GetLayout();
@@ -68,14 +68,14 @@ JitConstants ReverseKernelRef::GetJitConstants(const reverse_params& params) con
     return jit;
 }
 
-KernelsData ReverseKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReverseKernelRef::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<reverse_params>(params);
     reverse_params& newParams = *static_cast<reverse_params*>(kd.params.get());
 
     assert(params.GetType() == KernelType::REVERSE);
 
-    const auto dispatchData = SetDefault(newParams, options);
-    const auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    const auto dispatchData = SetDefault(newParams);
+    const auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     const auto cldnn_jit = GetJitConstants(newParams);
     const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -86,8 +86,7 @@ KernelsData ReverseKernelRef::GetKernelsData(const Params& params, const optiona
     return {kd};
 }
 
-KernelsPriority ReverseKernelRef::GetKernelsPriority(const Params& /*params*/,
-                                                     const optional_params& /*options*/) const {
+KernelsPriority ReverseKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

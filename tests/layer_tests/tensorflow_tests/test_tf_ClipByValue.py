@@ -9,14 +9,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestClipByValue(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 't' in inputs_info, "Test error: inputs_info must contain `t`"
-        t_shape = inputs_info['t']
-        clip_value_min_shape = inputs_info['clip_value_min']
-        clip_value_max_shape = inputs_info['clip_value_max']
+        assert 't:0' in inputs_info, "Test error: inputs_info must contain `t`"
+        t_shape = inputs_info['t:0']
+        clip_value_min_shape = inputs_info['clip_value_min:0']
+        clip_value_max_shape = inputs_info['clip_value_max:0']
         inputs_data = {}
-        inputs_data['t'] = np.random.randint(-10, 10, t_shape).astype(np.float32)
-        inputs_data['clip_value_min'] = np.random.randint(-10, 10, clip_value_min_shape).astype(np.float32)
-        inputs_data['clip_value_max'] = np.random.randint(-10, 10, clip_value_max_shape).astype(np.float32)
+        inputs_data['t:0'] = np.random.randint(-10, 10, t_shape).astype(np.float32)
+        inputs_data['clip_value_min:0'] = np.random.randint(-10, 10, clip_value_min_shape).astype(np.float32)
+        inputs_data['clip_value_max:0'] = np.random.randint(-10, 10, clip_value_max_shape).astype(np.float32)
         return inputs_data
 
     def create_clip_by_value_net(self, t_shape):
@@ -40,11 +40,10 @@ class TestClipByValue(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_clip_by_value_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend, use_old_api):
+    def test_clip_by_value_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_clip_by_value_net(**params), ie_device,
-            precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-            use_old_api=use_old_api, **params)
+            precision, temp_dir=temp_dir, ir_version=ir_version,
+            **params)

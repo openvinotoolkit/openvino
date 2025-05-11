@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "strided_slice_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/strided_slice.hpp"
 
@@ -32,7 +31,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<strided_slice_impl>(*this);
+        return std::make_unique<strided_slice_impl>(*this);
     }
 
     strided_slice_impl() : parent("strided_slice_cpu_impl") {}
@@ -56,6 +55,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << begin_data;
         ob << end_data;
         ob << strides_data;
@@ -68,6 +68,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> begin_data;
         ib >> end_data;
         ib >> strides_data;
@@ -83,11 +84,16 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "strided_slice::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
+        if (instance.can_be_optimized()) {
+            return stream.group_events(events);
         }
 
-        auto ev = stream.create_user_event(false);
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
+
+        if (!pass_through_events) {
+            stream.wait_for_events(events);
+        }
+
         auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
@@ -158,18 +164,20 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         input_mem_ptr->unlock(stream);
         output_mem_ptr->unlock(stream);
 
-        ev->set();
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<strided_slice_impl>();
+        return std::make_unique<strided_slice_impl>();
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,17 +10,21 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
-#include <low_precision/interpolate.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
+#include "low_precision/interpolate.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -30,8 +34,8 @@ namespace {
 
 class ConcatTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationActualValues& values) {
@@ -40,12 +44,12 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationAct
 
 class ConcatTransformationResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOperations1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::DequantizationOperations dequantizationOperations1;
     ov::element::Type precisionBeforeOp;
     ov::element::Type precisionAfterOperation;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
+    ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
     ov::element::Type precisionAfterDequantization;
 };
 
@@ -73,7 +77,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ov::element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
@@ -81,10 +85,10 @@ class ConcatWithIntermediateWithConstantTransformation : public LayerTransformat
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape shape = std::get<1>(GetParam());
+        const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateWithConstant(
+        actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediateWithConstant(
             precision,
             shape,
             testValues.transparentIntermediate,
@@ -92,19 +96,19 @@ public:
             testValues.actual.fakeQuantize2);
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()
             });
 
         SimpleLowPrecisionTransformer transform({}, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateWithConstant(
+        referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithIntermediateWithConstant(
             precision,
             shape,
             testValues.transparentIntermediate,
@@ -119,7 +123,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
         const ov::element::Type precision = std::get<0>(obj.param);
-        const ngraph::PartialShape shape = std::get<1>(obj.param);
+        const ov::PartialShape shape = std::get<1>(obj.param);
         ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -144,7 +148,7 @@ const std::vector<ov::element::Type> precisions = {
     // ov::element::f16
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 9, 9 },
     { 4, 3, 9, 9 },
     { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                                                const Output<Node>& scores,
                                                                const op::util::MulticlassNmsBase::Attributes& attrs)
-    : opset9::MulticlassNms(boxes, scores, attrs) {
+    : ov::op::v9::MulticlassNms(boxes, scores, attrs) {
     constructor_validate_and_infer_types();
 }
 
@@ -21,7 +21,7 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
                                                                const Output<Node>& scores,
                                                                const Output<Node>& roisnum,
                                                                const op::util::MulticlassNmsBase::Attributes& attrs)
-    : opset9::MulticlassNms(boxes, scores, roisnum, attrs) {
+    : ov::op::v9::MulticlassNms(boxes, scores, roisnum, attrs) {
     constructor_validate_and_infer_types();
 }
 
@@ -39,9 +39,7 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes, false, true);
 

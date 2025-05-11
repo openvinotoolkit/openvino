@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "custom_shape_infer.hpp"
+
 #include <gtest/gtest.h>
 
-#include "custom_shape_infer.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "shape_inference/custom/adaptive_pooling.hpp"
 #include "shape_inference/custom/color_convert.hpp"
+#include "shape_inference/custom/convolution.hpp"
 #include "shape_inference/custom/eltwise.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
 #include "shape_inference/custom/gather.hpp"
@@ -21,10 +21,12 @@
 #include "shape_inference/custom/priorbox.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 #include "shape_inference/custom/reshape.hpp"
+#include "shape_inference/custom/scaled_attn.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 #include "shape_inference/custom/transpose.hpp"
 #include "shape_inference/shape_inference_status.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,6 +62,8 @@ public:
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::SDPAShapeInferFactory, Type::ScaledDotProductAttention);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::ConvolutionShapeInferFactory, Type::Convolution);
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
     }
 
@@ -127,7 +131,7 @@ void cpu_test_shape_infer(ov::Node* op,
                     elementType = const_op->get_element_type();
                 }
                 CpuBlockedMemoryDesc desc(
-                        InferenceEngine::details::convertPrecision(elementType),
+                        elementType,
                         ov::intel_cpu::Shape(tmpInputShapes[port]));
                 MemoryPtr memoryPtr = std::make_shared<Memory>(eng, desc, data, true);
                 cusInputValues[port] = memoryPtr;

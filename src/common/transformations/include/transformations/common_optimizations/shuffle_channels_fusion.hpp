@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ShuffleChannelsFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ShuffleChannelsFusion transformation detects Reshape-Transpose-Reshape pattern
  * and tries to fuse it into a single ShuffleChannels layer with axis = 1.
  *
@@ -34,6 +34,6 @@ class TRANSFORMATIONS_API ShuffleChannelsFusion;
 
 class ov::pass::ShuffleChannelsFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ShuffleChannelsFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ShuffleChannelsFusion");
     ShuffleChannelsFusion(const bool reshape_constants_check);
 };

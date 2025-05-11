@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+#include "openvino/op/space_to_depth.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
+using SpaceToDepth = ov::op::v0::SpaceToDepth;
 
 /// @brief SpaceToDepth operation rearranges data from the spatial dimensions of the input tensor into depth dimension of the output tensor.
 /// @details SpaceToDepth operation permutes element from the input tensor with shape [b, f, y, x]
@@ -44,25 +46,19 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
     space_to_depth() : primitive_base("", {}) {}
 
-    enum depth_mode {
-        depth_first,
-        blocks_first
-    };
-
     /// @brief Constructs space_to_depth primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
-    /// @param depth_mode Depth mode (blocks_first / depth_first).
+    /// @param depth_mode Depth mode (BLOCKS_FIRST / DEPTH_FIRST).
     /// @param block_size Block size (optional).
     space_to_depth(const primitive_id& id,
                    const input_info& input,
-                   depth_mode mode,
-                   const size_t block_size = 1,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), mode(mode), block_size(block_size) {}
+                   SpaceToDepth::SpaceToDepthMode mode,
+                   const size_t block_size = 1)
+        : primitive_base(id, {input}), mode(mode), block_size(block_size) {}
 
     /// @brief Depth mode.
-    depth_mode mode = depth_mode::depth_first;
+    SpaceToDepth::SpaceToDepthMode mode = SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
 
     /// @brief Block size.
     size_t block_size = 1;
@@ -86,13 +82,13 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<space_to_depth>::save(ob);
-        ob << make_data(&mode, sizeof(depth_mode));
+        ob << make_data(&mode, sizeof(SpaceToDepth::SpaceToDepthMode));
         ob << block_size;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<space_to_depth>::load(ib);
-        ib >> make_data(&mode, sizeof(depth_mode));
+        ib >> make_data(&mode, sizeof(SpaceToDepth::SpaceToDepthMode));
         ib >> block_size;
     }
 };

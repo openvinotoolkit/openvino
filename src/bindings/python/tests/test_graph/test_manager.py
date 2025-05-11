@@ -1,34 +1,34 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-# flake8: noqa
 
 import os
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset10 as ops
-from openvino.runtime import Core, Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
+import openvino.opset10 as ops
+from openvino import Core, Model
+from openvino.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
+
 
 def create_model():
     shape = [100, 100, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
-    model = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
-    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-    return func
+    floor_op = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
+    model = Model(floor_op, [parameter_a, parameter_b, parameter_c], "Model")
+    return model
 
 
 def test_constant_folding():
     node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ops.ceiling(node_constant)
-    model = Model(node_ceil, [], "TestFunction")
+    model = Model(node_ceil, [], "TestModel")
 
     assert count_ops_of_type(model, node_ceil) == 1
     assert count_ops_of_type(model, node_constant) == 1
@@ -40,7 +40,8 @@ def test_constant_folding():
     assert count_ops_of_type(model, node_ceil) == 0
     assert count_ops_of_type(model, node_constant) == 1
 
-    new_const = model.get_results()[0].input(0).get_source_output().get_node()
+    result = model.get_results()[0]
+    new_const = result.input(0).get_source_output().get_node()
     values_out = new_const.get_vector()
     values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
 
@@ -50,12 +51,12 @@ def test_constant_folding():
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.fixture
 def prepare_ir_paths(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     yield xml_path, bin_path
-    
+
     # IR Files deletion should be done after `Model` is destructed.
-    # It may be achieved by splitting scopes (`Model` will be destructed 
+    # It may be achieved by splitting scopes (`Model` will be destructed
     # just after test scope finished), or by calling `del Model`
     os.remove(xml_path)
     os.remove(bin_path)
@@ -104,7 +105,7 @@ def test_serialize_separate_paths_args(prepare_ir_paths):
 
 def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
     core = Core()
-    
+
     shape = [3, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
@@ -123,7 +124,7 @@ def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
 
 def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
     core = Core()
-    
+
     xml_path, bin_path = prepare_ir_paths
     model = create_model()
     pass_manager = Manager()
@@ -137,7 +138,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_wrong_num_of_args(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
@@ -175,7 +176,7 @@ def test_default_version(prepare_ir_paths):
     assert compare_models(model, res_model)
 
 
-def test_default_version_IR_V11_separate_paths(prepare_ir_paths):
+def test_default_version_ir_v11_separate_paths(prepare_ir_paths):
     core = Core()
 
     xml_path, bin_path = prepare_ir_paths

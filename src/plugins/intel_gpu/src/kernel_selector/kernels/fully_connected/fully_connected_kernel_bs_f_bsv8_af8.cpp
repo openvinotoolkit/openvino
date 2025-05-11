@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,15 +22,15 @@ ParamsKey FullyConnected_bs_f_bsv8_af8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
 FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefault(const fully_connected_params& arg,
-                                                                                    int) const {
+                                                                                    int, int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
@@ -51,8 +51,8 @@ static bool check_output_layout(const DataTensor& t) {
     return b16_layout;
 }
 
-bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedBlockKernelBase::Validate(p, o)) {
+bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p) const {
+    if (!FullyConnectedBlockKernelBase::Validate(p)) {
         return false;
     }
 
@@ -82,11 +82,10 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
     return true;
 }
 
-KernelsData FullyConnected_bs_f_bsv8_af8::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_bs_f_bsv8_af8::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::bs_f_bsv8__af8,
                                                     WeightsLayout::os_i_osv8__ai8,
                                                     static_cast<int>(i));
@@ -98,7 +97,7 @@ KernelsData FullyConnected_bs_f_bsv8_af8::GetKernelsData(const Params& params, c
     return res;
 }
 
-KernelsPriority FullyConnected_bs_f_bsv8_af8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bs_f_bsv8_af8::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -18,12 +18,12 @@ class TRANSFORMATIONS_API DivideFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief DivideFusion transformation replaces a sub-graph
  * Pow(y, -1) * x or x * Pow(y, -1) with Divide(x,y)
  */
 class ov::pass::DivideFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DivideFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DivideFusion");
     DivideFusion();
 };

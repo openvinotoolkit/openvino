@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/shape_of.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -39,21 +39,7 @@ TEST(CpuShapeInfer, v3ShapeOf5DTest) {
     unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInfer, ShapeOf0DTest) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
-
-    auto shapeof =
-            std::make_shared<op::v3::ShapeOf>(data);
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{}},
-            static_output_shapes = {StaticShape{}};
-    // TODO , can't pass implementation don't support 0D shape input
-    unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
-}
-
 } // namespace cpu_shape_infer
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
@@ -24,7 +25,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);
     auto gru_cell = ov::pass::pattern::wrap_type<ov::op::v3::GRUCell>();
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto gru_cell = std::dynamic_pointer_cast<ov::op::v3::GRUCell>(m.get_match_root());
+        auto gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(m.get_match_root());
         if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
         }

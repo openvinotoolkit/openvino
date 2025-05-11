@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fold_fake_quantize.hpp>
-#include <openvino/pass/constant_folding.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fold_fake_quantize.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_on_weights_and_unsupported_child_function.hpp"
+#include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -28,13 +28,13 @@ public:
     class Actual {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     TestTransformationParams params;
@@ -55,23 +55,23 @@ public:
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
             inputShape,
             testValues.precision,
             testValues.actual.weights,
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         ov::pass::Manager cleanupManager;
-        cleanupManager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>();
+        cleanupManager.register_pass<ov::pass::low_precision::FoldFakeQuantizeTransformation>();
         cleanupManager.register_pass<ov::pass::ConstantFolding>();
         cleanupManager.run_passes(actualFunction);
 
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
             inputShape,
             testValues.precision,
             testValues.expected.weights,

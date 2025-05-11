@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,18 +18,17 @@ OutputVector translate_quantized_linear(const NodeContext& context) {
     // int Y_zero_point_i) -> Tensor Y"
     num_inputs_check(context, 4, 4);
     auto x = context.get_input(0);
-    auto packed_params_node =
-        std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
-    FRONT_END_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
+    auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
+    PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
-    FRONT_END_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
-                                  "Packed params input node does not contain information about op type.");
-    FRONT_END_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
-                                  "Incorrect packed params input node operator type, expected prim::GetAttr.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
+                                "Packed params input node does not contain information about op type.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
+                                "Incorrect packed params input node operator type, expected prim::GetAttr.");
 
     auto packed_params = packed_params_node->inputs();
-    FRONT_END_OP_CONVERSION_CHECK(packed_params.size() == 2,
-                                  "Packed parameters for quantized linear should contain 2 items.");
+    PYTORCH_OP_CONVERSION_CHECK(packed_params.size() == 2,
+                                "Packed parameters for quantized linear should contain 2 items.");
     auto weights = packed_params[0].get_source_output();
     auto bias = packed_params[1].get_source_output();
 

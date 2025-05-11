@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -42,8 +44,6 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
     std::shared_ptr<Node> node;
     node = make_shared<Add>(X, Y);
     auto result0 = make_shared<Result>(node);
-    if (insert_squeeze)
-        node = make_shared<Squeeze>(node);
     auto result1 = make_shared<Result>(node);
 
     if (!use_friendly_names) {
@@ -62,16 +62,14 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
 std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
-    auto variable_x = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
-    auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-    auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
+    auto variable_x =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "xres0"});
+    auto read_val_x = make_shared<ReadValue>(variable_x);
 
     // create ReadValue for Y
-    auto variable_y = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-    auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
-    auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
+    auto variable_y =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{Shape{32, 1, 10}, element::f32, "yres1"});
+    auto read_val_y = make_shared<ReadValue>(variable_y);
 
     if (!use_friendly_names) {
         read_val_x->get_output_tensor(0).add_names({"x"});
@@ -94,10 +92,6 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
         node->get_output_tensor(0).add_names({"res0"});
     } else {
         node->set_friendly_name("res0");
-    }
-
-    if (insert_squeeze) {
-        node = make_shared<Squeeze>(node);
     }
 
     auto assign_y = make_shared<Assign>(node, variable_y);
@@ -126,7 +120,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(true, false); }
@@ -145,7 +139,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(true, true); }
@@ -197,7 +191,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(false, false); }
@@ -216,7 +210,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(false, true); }

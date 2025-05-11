@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,20 @@
 #include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 
-#include <ngraph/file_util.hpp>
+#include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
-#include "ngraph/except.hpp"
+using namespace ::ONNX_NAMESPACE;
 
-namespace ngraph {
-namespace onnx_common {
-ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
+ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        OPENVINO_THROW("Could not open the file: " + file_path);
+        OPENVINO_THROW("Could not open the file: \"" + file_path, '"');
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -27,13 +30,11 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
+ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        OPENVINO_THROW("Could not open the file: " + file_util::wstring_to_string(file_path));
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_THROW("Could not open the file: \"", ov::util::wstring_to_string(file_path), '"');
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -42,7 +43,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
 }
 #endif
 
-ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
+ModelProto parse_from_istream(std::istream& model_stream) {
     if (!model_stream.good()) {
         model_stream.clear();
         model_stream.seekg(0);
@@ -51,7 +52,7 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
         }
     }
 
-    ONNX_NAMESPACE::ModelProto model_proto;
+    ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
         OPENVINO_THROW("Error during import of ONNX model provided as input stream "
                        " with binary protobuf message.");
@@ -59,5 +60,8 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
 
     return model_proto;
 }
-}  // namespace onnx_common
-}  // namespace ngraph
+
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

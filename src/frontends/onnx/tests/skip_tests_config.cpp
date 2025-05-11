@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,11 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-#ifndef BUILD_SHARED_LIBS
+#ifdef OPENVINO_STATIC_LIBRARY
         // Disable tests for static libraries
-        ".*FrontendLibCloseTest.*"
+        ".*FrontendLibCloseTest.*",
 #endif
+        // CVS-123201
+        ".*testUnloadLibBeforeDeletingDependentObject.*",
     };
 }

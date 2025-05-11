@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @file cpu_streams_info.hpp
- * @brief A header file for Inference Engine CPU streams info table implementation.
+ * @brief A header file for OpenVINO CPU streams info table implementation.
  */
 
 #pragma once

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,35 +8,36 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         testValues.fqOnData,
@@ -49,16 +50,17 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
         testValues.dequantizationAfter);
 }
 
-void FakeQuantizeWithNotOptimalTransformation::Run() {
-    LayerTestsCommon::Run();
+void FakeQuantizeWithNotOptimalTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecisionByType("Convolution");
+    const auto actualType = get_runtime_precision_by_type("Convolution");
     EXPECT_EQ(actualType, params.expectedPrecision);
 }
 
 TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareWithRefImpl) {
-    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

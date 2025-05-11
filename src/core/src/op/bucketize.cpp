@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/op/bucketize.hpp"
@@ -7,9 +7,6 @@
 
 #include "bucketize_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
-
-using namespace std;
 
 namespace ov {
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
@@ -47,9 +44,7 @@ void op::v3::Bucketize::validate_and_infer_types() {
                           "Output type must be i32 or i64. Got: ",
                           m_output_type);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     if (get_input_partial_shape(0).is_dynamic()) {
@@ -58,10 +53,10 @@ void op::v3::Bucketize::validate_and_infer_types() {
     set_output_type(0, m_output_type, output_shapes[0]);
 }
 
-shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const {
     OV_OP_SCOPE(v3_Bucketize_clone_with_new_inputs);
     check_new_args_count(this, inputs);
 
-    return make_shared<v3::Bucketize>(inputs.at(0), inputs.at(1), m_output_type, m_with_right_bound);
+    return std::make_shared<v3::Bucketize>(inputs.at(0), inputs.at(1), m_output_type, m_with_right_bound);
 }
 }  // namespace ov

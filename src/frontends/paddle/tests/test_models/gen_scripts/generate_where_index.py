@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -16,7 +16,10 @@ def where_index(name: str, x, force_boolean=False):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         if force_boolean:
-            node_x_bl = paddle.fluid.layers.cast(node_x, "bool")
+            if paddle.__version__ >= '2.0.0':
+                node_x_bl = paddle.cast(node_x, "bool")
+            else:
+                node_x_bl = paddle.fluid.layers.cast(node_x, "bool")
             out = paddle.nonzero(node_x_bl)
         else:
             out = paddle.nonzero(node_x)
@@ -29,7 +32,7 @@ def where_index(name: str, x, force_boolean=False):
         outs = exe.run(
             feed={'x': x},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[
                   x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

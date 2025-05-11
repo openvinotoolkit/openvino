@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "utils.hpp"
 
@@ -49,7 +48,8 @@ std::vector<TRShape> shape_infer(const EmbeddingSegmentsSum* op,
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
-    TRShape result_shape = emb_table_shape;
+    auto output_shapes = std::vector<TRShape>{emb_table_shape};
+    auto& result_shape = output_shapes[0];
     if (emb_table_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
         if (auto segments_value = get_input_const_data_as_shape<TRShape>(op, NUM_SEGMENTS, ta)) {
@@ -58,7 +58,7 @@ std::vector<TRShape> shape_infer(const EmbeddingSegmentsSum* op,
             result_shape[0] = Dimension::dynamic();
         }
     }
-    return {result_shape};
+    return output_shapes;
 }
 }  // namespace v3
 }  // namespace op

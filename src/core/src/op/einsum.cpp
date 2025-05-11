@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/einsum.hpp"
+#include "openvino/op/einsum.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -11,11 +11,8 @@
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 namespace {
 
 /// \brief      Check that a subscript contains only alphabetic letters or
@@ -105,26 +102,29 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     input_subscripts.clear();
     std::istringstream input;
     input.str(input_subscripts_str);
-    for (std::string input_subscript; std::getline(input, input_subscript, ',');) {
+    constexpr char delimeter = ',';
+    const auto input_subscripts_count = std::count(input_subscripts_str.begin(), input_subscripts_str.end(), delimeter);
+    for (auto i = 0; i <= input_subscripts_count; ++i) {
+        auto& input_subscript = input_subscripts.emplace_back();
+        std::getline(input, input_subscript, delimeter);
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
-        NGRAPH_CHECK(is_subscript_correct(input_subscript, local_is_ellipsis_met),
-                     "Input subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
+        OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
+                        "Input subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
 
         // mark that ellipsis is met at least in one input subscript
         if (local_is_ellipsis_met) {
             is_ellipsis_met = true;
         }
-        input_subscripts.push_back(input_subscript);
     }
 
     if (pos_output_delimeter == std::string::npos) {
         // equation is in implicit mode so recover output subscript
         output_subscript = "";
         for (size_t ind = 0; ind < input_subscripts.size(); ++ind) {
-            auto const& input_subscript = input_subscripts[ind];
-            for (auto const& label : extract_labels(input_subscript)) {
+            const auto& input_subscript = input_subscripts[ind];
+            for (const auto& label : extract_labels(input_subscript)) {
                 if (label != ellipsis && (is_label_elsewhere(input_subscripts, label, {ind}) == false)) {
                     output_subscript += label;
                 }
@@ -139,14 +139,9 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         bool output_is_ellipsis_met = false;
 
         // check that the output subscript has the correct format
-        NGRAPH_CHECK(is_subscript_correct(output_subscript, output_is_ellipsis_met),
-                     "Output subscript of Einsum equation must consist of either only "
-                     "alphabetic letters or alphabetic letters with one ellipsis.");
-
-        // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        NGRAPH_CHECK(is_ellipsis_met == output_is_ellipsis_met,
-                     "Output subscript of Einsum equation must contain one ellipsis if "
-                     "ellipsis is met in any input subscript.");
+        OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
+                        "Output subscript of Einsum equation must consist of either only "
+                        "alphabetic letters or alphabetic letters with one ellipsis.");
     }
 }
 
@@ -164,7 +159,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
             // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         } else {
-            NGRAPH_CHECK(false, "Einsum equation has invalid label.");
+            OPENVINO_ASSERT(false, "Einsum equation has invalid label.");
         }
     }
 
@@ -190,9 +185,7 @@ void op::v7::Einsum::validate_and_infer_types() {
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -205,13 +198,14 @@ bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v7::Einsum>(new_args, m_equation);
+    return std::make_shared<v7::Einsum>(new_args, m_equation);
 }
 
 void op::v7::Einsum::set_equation(std::string equation) {
     remove_whitespaces(equation);
     m_equation = std::move(equation);
 }
+}  // namespace ov

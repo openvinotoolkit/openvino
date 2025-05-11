@@ -1,22 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
+#include <utility>
+
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
 
 struct PermuteParams {
-    InferenceEngine::SizeVector src_block_dims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_block_order;
-    InferenceEngine::SizeVector dst_block_order;
-    InferenceEngine::SizeVector order;
+    VectorDims src_block_dims;
+    VectorDims dst_block_dims;
+    VectorDims src_block_order;
+    VectorDims dst_block_order;
+    VectorDims order;
     size_t data_size;
 
     size_t hash() const;
@@ -25,9 +25,9 @@ struct PermuteParams {
 
 struct jit_permute_config_params {
     uint32_t ndims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_strides;
-    InferenceEngine::SizeVector dst_strides;
+    VectorDims dst_block_dims;
+    VectorDims src_strides;
+    VectorDims dst_strides;
     int n;
     int data_size;
 
@@ -40,14 +40,14 @@ struct jit_args_permute {
 };
 
 struct jit_uni_permute_kernel {
-    void (*ker_)(const jit_args_permute *);
+    void (*ker_)(const jit_args_permute*);
 
-    void operator()(const jit_args_permute *args) {
+    void operator()(const jit_args_permute* args) {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_permute_kernel(jit_permute_config_params jcp_) : ker_(nullptr), jcp(jcp_) {}
+    explicit jit_uni_permute_kernel(jit_permute_config_params jcp_) : ker_(nullptr), jcp(std::move(jcp_)) {}
     virtual ~jit_uni_permute_kernel() {}
 
     virtual void create_ker() = 0;
@@ -73,5 +73,5 @@ private:
     PermuteParams params;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

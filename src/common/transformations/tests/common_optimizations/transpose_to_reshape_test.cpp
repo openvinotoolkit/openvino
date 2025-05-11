@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -65,7 +72,7 @@ private:
         // WA to test cases with transpose elimination
         auto relu = std::make_shared<opset3::Relu>(transpose);
 
-        return std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
     }
 
     std::shared_ptr<ov::Model> get_reference_function(const PartialShape& input_shape,
@@ -95,7 +102,7 @@ private:
 
         last = std::make_shared<opset3::Relu>(last);
 
-        return std::make_shared<ov::Model>(NodeVector{last.get_node_shared_ptr()}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{last.get_node_shared_ptr()}, ParameterVector{data});
     }
 };
 
@@ -108,7 +115,7 @@ TEST_P(TransposeToReshapeTests, CompareFunctions) {
     m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     f->validate_nodes_and_infer_types();
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc =
         FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);

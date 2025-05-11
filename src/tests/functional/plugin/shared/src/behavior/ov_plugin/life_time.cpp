@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <fstream>
 
-#include <ngraph_functions/subgraph_builders.hpp>
-#include <base/behavior_test_utils.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -25,7 +24,7 @@ void OVHoldersTest::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTest::TearDown() {
@@ -37,10 +36,10 @@ void OVHoldersTest::TearDown() {
 EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
 static void release_order_test(std::vector<std::size_t> order, const std::string &deviceName,
-                               std::shared_ptr<ngraph::Function> function) {
+                               std::shared_ptr<ov::Model> function) {
     ov::AnyVector objects;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, deviceName);
         auto request = compiled_model.create_infer_request();
 
@@ -71,7 +70,7 @@ TEST_P(OVHoldersTest, Orders) {
 TEST_P(OVHoldersTest, LoadedState) {
     std::vector<ov::VariableState> states;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         auto request = compiled_model.create_infer_request();
         try {
@@ -83,7 +82,7 @@ TEST_P(OVHoldersTest, LoadedState) {
 TEST_P(OVHoldersTest, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
@@ -93,7 +92,7 @@ TEST_P(OVHoldersTest, LoadedTensor) {
 TEST_P(OVHoldersTest, LoadedAny) {
     ov::Any any;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         any = compiled_model.get_property(ov::supported_properties.name());
     }
@@ -104,7 +103,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         try {
             ctx = compiled_model.get_context();
@@ -115,7 +114,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
 TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         ov::AnyMap property;
         property[ov::intel_auto::device_bind_buffer.name()] = true;
         if (target_device.find("AUTO") != std::string::npos)
@@ -140,7 +139,7 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTestOnImportedNetwork::TearDown() {
@@ -149,7 +148,7 @@ void OVHoldersTestOnImportedNetwork::TearDown() {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device);
@@ -161,7 +160,7 @@ TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device);

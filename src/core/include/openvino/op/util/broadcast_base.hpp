@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -45,9 +45,7 @@ public:
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
 
     const BroadcastModeSpec& get_broadcast_spec() const {
         return m_mode;
@@ -56,15 +54,16 @@ public:
 protected:
     BroadcastModeSpec m_mode;
 
-    bool evaluate_broadcast(const HostTensorPtr& arg0,
-                            const HostTensorPtr& out,
+    bool evaluate_broadcast(const ov::Tensor& arg0,
+                            ov::Tensor& out,
                             const std::pair<bool, AxisSet>& pair_broadcast_axes,
                             const Shape& output_shape) const;
 
-    bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
+    bool evaluate_broadcast(const ov::Tensor& arg0, ov::Tensor& out, const AxisSet& broadcast_axes) const;
 
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
+    bool evaluate_symbol(ov::TensorSymbolVector& output_symbols) const override;
 
     PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,
@@ -83,7 +82,7 @@ protected:
                                     const AxisVector& axes_mapping_val,
                                     const PartialShape& target_shape) const;
 
-    Shape get_target_shape(const HostTensorPtr& input1) const;
+    Shape get_target_shape(const ov::Tensor& input1) const;
 };
 }  // namespace util
 }  // namespace op

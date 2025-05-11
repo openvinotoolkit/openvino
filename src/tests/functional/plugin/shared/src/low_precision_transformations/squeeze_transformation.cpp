@@ -1,19 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
+#include <queue>
+#include <string>
 #include <tuple>
 #include <vector>
 #include <string>
 #include <queue>
-#include <ie_core.hpp>
 
-#include "ngraph/op/op.hpp"
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/squeeze_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "ov_lpt_models/squeeze.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -29,33 +28,17 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
-InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    SqueezeTransformationParam squeezeParam;
-    std::string targetDevice;
-
-    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
-
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
-
-    return FuncTestUtils::createAndFillBlobConsistently(
-        info.getTensorDesc(),
-        static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
-        static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
-        1ul);
-}
 
 std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
     std::tie(netPrecision, targetDevice, params, squeezeParam) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, squeezeParam.shape, targetDevice, params) << "_" <<
-        squeezeParam.fakeQuantize << "_" <<
+    result << get_test_case_name_by_params(netPrecision, squeezeParam.shape, targetDevice, params) << "_" <<
+           squeezeParam.fakeQuantize << "_" <<
         squeezeParam.squeezeAxes << "_" <<
         params.updatePrecisions << "_" <<
         squeezeParam.shape;
@@ -63,13 +46,15 @@ std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
-    function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
+    init_input_shapes(squeezeParam.shape);
+
+    function = ov::builder::subgraph::SqueezeFunction::getOriginal(
         netPrecision,
         squeezeParam.shape,
         squeezeParam.fakeQuantize,
@@ -79,7 +64,7 @@ void SqueezeTransformation::SetUp() {
 }
 
 TEST_P(SqueezeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

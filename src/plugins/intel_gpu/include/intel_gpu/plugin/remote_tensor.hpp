@@ -15,6 +15,7 @@
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
 
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -23,8 +24,7 @@
 #include <map>
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 class RemoteContextImpl;
 
 class RemoteTensorImpl : public ov::IRemoteTensor {
@@ -47,13 +47,19 @@ public:
     const ov::Shape& get_shape() const override;
     const ov::Strides& get_strides() const override;
 
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
+
     void allocate();
     bool deallocate() noexcept;
 
     bool is_allocated() const noexcept;
     bool is_surface() const noexcept;
+    bool is_shared() const noexcept;
     cldnn::memory::ptr get_memory() const;
     cldnn::memory::ptr get_original_memory() const;
+
+    void set_memory(cldnn::memory::ptr memory, size_t actual_size);
 
     std::shared_ptr<RemoteContextImpl> get_context() const;
 
@@ -74,11 +80,12 @@ private:
     uint32_t m_plane;
     size_t m_hash = 0;
 
-    bool is_shared() const;
     bool supports_caching() const;
+    void update_hash();
     void update_strides();
-    void init_properties();
+    void update_properties();
+
+    static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

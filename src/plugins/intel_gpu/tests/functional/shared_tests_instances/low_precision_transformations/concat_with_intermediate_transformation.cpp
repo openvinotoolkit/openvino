@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,14 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
@@ -29,7 +28,7 @@ const std::vector<bool> multiChannelValues = { /*true,*/ false };
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(transparentIntermediateValues),

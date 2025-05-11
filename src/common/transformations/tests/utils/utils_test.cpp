@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <queue>
 #include <string>
 
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 
 using namespace ov;
 
@@ -24,7 +24,7 @@ bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool valu
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    auto constant = ov::as_type_ptr<opset4::Constant>(node);
     if (!constant) {
         return false;
     }

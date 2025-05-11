@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
@@ -19,10 +20,6 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-
-namespace InferenceEngine {
-class ExecutableNetwork;
-}  // namespace InferenceEngine
 
 namespace ov {
 class Plugin;
@@ -213,6 +210,18 @@ struct Read<std::vector<T, A>, typename std::enable_if<std::is_default_construct
     }
 };
 
+template <typename K, typename C, typename A>
+struct Read<std::set<K, C, A>, typename std::enable_if<std::is_default_constructible<K>::value>::type> {
+    void operator()(std::istream& is, std::set<K, C, A>& set) const {
+        while (is.good()) {
+            std::string str;
+            is >> str;
+            auto v = from_string<K>(str);
+            set.insert(std::move(v));
+        }
+    }
+};
+
 template <typename K, typename T, typename C, typename A>
 struct Read<
     std::map<K, T, C, A>,
@@ -347,6 +356,21 @@ struct Write<std::vector<T, A>> {
     }
 };
 
+template <typename K, typename C, typename A>
+struct Write<std::set<K, C, A>> {
+    void operator()(std::ostream& os, const std::set<K, C, A>& set) const {
+        if (!set.empty()) {
+            std::size_t i = 0;
+            for (auto&& v : set) {
+                os << to_string(v);
+                if (i < (set.size() - 1))
+                    os << ' ';
+                ++i;
+            }
+        }
+    }
+};
+
 template <typename K, typename T, typename C, typename A>
 struct Write<std::map<K, T, C, A>> {
     void operator()(std::ostream& os, const std::map<K, T, C, A>& map) const {
@@ -370,6 +394,11 @@ class Node;
 class RuntimeAttribute;
 
 class CompiledModel;
+namespace proxy {
+
+class CompiledModel;
+
+}
 class RemoteContext;
 class RemoteTensor;
 
@@ -456,6 +485,7 @@ class OPENVINO_API Any {
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
         virtual std::vector<std::type_index> base_type_info() const = 0;
+        bool is_base_type_info(const std::type_info& type_info) const;
         virtual const void* addressof() const = 0;
         void* addressof() {
             return const_cast<void*>(const_cast<const Base*>(this)->addressof());
@@ -477,6 +507,9 @@ class OPENVINO_API Any {
         std::string to_string() const;
 
         bool is(const std::type_info& other) const;
+        bool is_signed_integral() const;
+        bool is_unsigned_integral() const;
+        bool is_floating_point() const;
 
         template <class T>
         bool is() const {
@@ -485,18 +518,25 @@ class OPENVINO_API Any {
 
         template <class T>
         T& as() & {
-            type_check(typeid(decay_t<T>));
             return *static_cast<decay_t<T>*>(addressof());
         }
 
         template <class T>
         const T& as() const& {
-            type_check(typeid(decay_t<T>));
             return *static_cast<const decay_t<T>*>(addressof());
         }
 
+        template <class T>
+        T convert() const;
+
     protected:
-        virtual ~Base() = default;
+        template <class U>
+        [[noreturn]] U convert_impl() const;
+
+        template <class U, class T, class... Others>
+        U convert_impl() const;
+
+        virtual ~Base();
     };
 
     template <class T, typename = void>
@@ -570,8 +610,6 @@ class OPENVINO_API Any {
 
         template <typename... Args>
         Impl(Args&&... args) : value(std::forward<Args>(args)...) {}
-
-        virtual ~Impl(){};
 
         const std::type_info& type_info() const override {
             return typeid(T);
@@ -656,9 +694,95 @@ class OPENVINO_API Any {
         T value;
     };
 
+    // Generic if there is no specialization for T.
+    template <class T>
+    T& as_impl(...) {
+        impl_check();
+        if (is<T>()) {
+            return _impl->as<T>();
+        }
+
+        OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+    }
+
+    template <class T, typename std::enable_if<std::is_same<T, std::string>::value>::type* = nullptr>
+    T& as_impl(int) {
+        if (_impl != nullptr) {
+            if (_impl->is<T>()) {
+                return _impl->as<T>();
+            } else {
+                _temp = std::make_shared<Impl<std::string>>();
+                _impl->read_to(*_temp);
+                return _temp->as<std::string>();
+            }
+        } else {
+            _temp = std::make_shared<Impl<std::string>>();
+            return _temp->as<std::string>();
+        }
+    }
+
+    template <
+        class T,
+        typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value>::type* = nullptr>
+    T& as_impl(int) {
+        if (_impl == nullptr) {
+            _temp = std::make_shared<Impl<decay_t<T>>>(T{});
+            return _temp->as<T>();
+        } else {
+            if (_impl->is<T>()) {
+                return _impl->as<T>();
+            } else {
+                auto runtime_attribute = _impl->as_runtime_attribute();
+                if (runtime_attribute == nullptr) {
+                    OPENVINO_THROW("Any does not contains pointer to runtime_attribute. It contains ",
+                                   _impl->type_info().name());
+                }
+                auto vptr = ov::as_type_ptr<typename T::element_type>(runtime_attribute);
+                if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
+                    T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
+                    OPENVINO_THROW("Could not as Any runtime_attribute to ",
+                                   typeid(T).name(),
+                                   " from ",
+                                   _impl->type_info().name(),
+                                   "; from ",
+                                   static_cast<std::string>(runtime_attribute->get_type_info()),
+                                   " to ",
+                                   static_cast<std::string>(T::element_type::get_type_info_static()));
+                }
+                _temp = std::make_shared<Impl<decay_t<T>>>(
+                    std::static_pointer_cast<typename T::element_type>(runtime_attribute));
+                return _temp->as<T>();
+            }
+        }
+    }
+
+    template <class T,
+              typename std::enable_if<std::is_arithmetic<T>::value &&
+                                      !std::is_same<typename std::decay<T>::type, bool>::value>::type* = nullptr>
+    T& as_impl(int);
+
+    template <class T,
+              typename std::enable_if<
+                  (util::Istreamable<T>::value || util::Readable<T>::value) && !std::is_same<T, std::string>::value &&
+                  (!std::is_arithmetic<T>::value || std::is_same<typename std::decay<T>::type, bool>::value)>::type* =
+                  nullptr>
+    T& as_impl(int) {
+        impl_check();
+
+        if (is<T>()) {
+            return _impl->as<T>();
+        } else if (_impl->is<std::string>()) {
+            _temp = std::make_shared<Impl<decay_t<T>>>();
+            _impl->read_to(*_temp);
+            return _temp->as<T>();
+        }
+
+        OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+    }
+
     friend class ::ov::RuntimeAttribute;
-    friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
+    friend class ::ov::proxy::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
     friend class ::ov::Plugin;
@@ -675,11 +799,11 @@ public:
     /// @brief Default constructor
     Any() = default;
 
-    /// @brief Сopy constructor
+    /// @brief Copy constructor
     /// @param other other Any object
     Any(const Any& other);
 
-    /// @brief Сopy assignment operator
+    /// @brief Copy assignment operator
     /// @param other other Any object
     /// @return reference to the current object
     Any& operator=(const Any& other);
@@ -727,8 +851,8 @@ public:
      * @brief Inplace value construction function
      *
      * @tparam T Any type
-     * @tparam Args pack of paramter types passed to T constructor
-     * @param args pack of paramters passed to T constructor
+     * @tparam Args pack of parameter types passed to T constructor
+     * @param args pack of parameters passed to T constructor
      */
     template <typename T, typename... Args>
     static Any make(Args&&... args) {
@@ -757,130 +881,21 @@ public:
      */
     template <class T>
     bool is() const {
-        if (_impl != nullptr) {
-            if (_impl->is(typeid(decay_t<T>))) {
-                return true;
-            }
-            for (const auto& type_index : _impl->base_type_info()) {
-                if (util::equal(type_index, typeid(decay_t<T>))) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return _impl && (_impl->is<T>() || _impl->is_base_type_info(typeid(decay_t<T>)));
     }
 
     /**
-     * Dynamic cast to specified type
+     * Dynamic as to specified type
      * @tparam T type
-     * @return casted object
+     * @return reference to caster object
      */
     template <class T>
-    typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value, T>::type& as() {
-        if (_impl == nullptr) {
-            _temp = std::make_shared<Impl<decay_t<T>>>(T{});
-            return *static_cast<decay_t<T>*>(_temp->addressof());
-        } else {
-            if (_impl->is(typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
-            } else {
-                auto runtime_attribute = _impl->as_runtime_attribute();
-                if (runtime_attribute == nullptr) {
-                    OPENVINO_THROW("Any does not contains pointer to runtime_attribute. It contains ",
-                                   _impl->type_info().name());
-                }
-                auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
-                if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
-                    T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    OPENVINO_THROW("Could not cast Any runtime_attribute to ",
-                                   typeid(T).name(),
-                                   " from ",
-                                   _impl->type_info().name(),
-                                   "; from ",
-                                   static_cast<std::string>(runtime_attribute->get_type_info()),
-                                   " to ",
-                                   static_cast<std::string>(T::element_type::get_type_info_static()));
-                }
-                _temp = std::make_shared<Impl<decay_t<T>>>(
-                    std::static_pointer_cast<typename T::element_type>(runtime_attribute));
-                return *static_cast<decay_t<T>*>(_temp->addressof());
-            }
-        }
+    T& as() {
+        return as_impl<T>(int{});
     }
 
     /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <class T>
-    typename std::enable_if<!std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value &&
-                                !std::is_same<T, std::string>::value && std::is_default_constructible<T>::value &&
-                                (util::Istreamable<T>::value || util::Readable<T>::value),
-                            T>::type&
-    as() {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return *static_cast<decay_t<T>*>(_impl->addressof());
-        } else if (_impl->is(typeid(std::string))) {
-            _temp = std::make_shared<Impl<decay_t<T>>>();
-            _impl->read_to(*_temp);
-            return *static_cast<decay_t<T>*>(_temp->addressof());
-        }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (util::equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
-            }
-        }
-        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <class T>
-    typename std::enable_if<
-        !std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value && !std::is_same<T, std::string>::value &&
-            (!std::is_default_constructible<T>::value || (!util::Istreamable<T>::value && !util::Readable<T>::value)),
-        T>::type&
-    as() {
-        impl_check();
-        if (_impl->is(typeid(decay_t<T>))) {
-            return *static_cast<decay_t<T>*>(_impl->addressof());
-        }
-        for (const auto& type_index : _impl->base_type_info()) {
-            if (util::equal(type_index, typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
-            }
-        }
-        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
-    }
-
-    /**
-     * Dynamic cast to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <class T>
-    typename std::enable_if<std::is_same<T, std::string>::value, T>::type& as() {
-        if (_impl != nullptr) {
-            if (_impl->is(typeid(decay_t<T>))) {
-                return *static_cast<decay_t<T>*>(_impl->addressof());
-            } else {
-                _temp = std::make_shared<Impl<std::string>>();
-                _impl->read_to(*_temp);
-                return *static_cast<std::string*>(_temp->addressof());
-            }
-        } else {
-            _temp = std::make_shared<Impl<std::string>>();
-            return *static_cast<std::string*>(_temp->addressof());
-        }
-    }
-
-    /**
-     * Dynamic cast to specified type
+     * Dynamic as to specified type
      * @tparam T type
      * @return const reference to caster object
      */
@@ -954,4 +969,40 @@ inline static void PrintTo(const Any& any, std::ostream* os) {
 }
 /** @endcond */
 
+template <>
+OPENVINO_API unsigned long long Any::Base::convert<unsigned long long>() const;
+
+template <>
+OPENVINO_API long long Any::Base::convert<long long>() const;
+
+template <>
+OPENVINO_API double Any::Base::convert<double>() const;
+
+template <class T,
+          typename std::enable_if<std::is_arithmetic<T>::value &&
+                                  !std::is_same<typename std::decay<T>::type, bool>::value>::type*>
+T& Any::as_impl(int) {
+    impl_check();
+    if (is<T>()) {
+        return _impl->as<T>();
+    } else if (util::Readable<T>::value && _impl->is<std::string>()) {
+        _temp = std::make_shared<Impl<decay_t<T>>>();
+        _impl->read_to(*_temp);
+        return _temp->as<T>();
+    } else if (_impl->is_signed_integral()) {
+        auto value = _impl->convert<long long>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    } else if (_impl->is_unsigned_integral()) {
+        auto value = _impl->convert<unsigned long long>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    } else if (_impl->is_floating_point()) {
+        auto value = _impl->convert<double>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    }
+
+    OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+}
 }  // namespace ov

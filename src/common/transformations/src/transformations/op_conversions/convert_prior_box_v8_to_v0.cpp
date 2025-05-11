@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -15,7 +16,7 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     auto prior_box_v8 = pattern::wrap_type<ov::op::v8::PriorBox>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto prior_box_v8_node = std::dynamic_pointer_cast<ov::op::v8::PriorBox>(m.get_match_root());
+        auto prior_box_v8_node = ov::as_type_ptr<ov::op::v8::PriorBox>(m.get_match_root());
         if (!prior_box_v8_node)
             return false;
 

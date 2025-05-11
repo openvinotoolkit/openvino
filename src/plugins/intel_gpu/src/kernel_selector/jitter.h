@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -310,7 +310,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         Datatype output_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
-                                        bool disable_type_conversion = false);
+                                        bool disable_type_conversion = false,
+                                        bool convert_input_to_output_dt = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
 
@@ -322,7 +323,7 @@ JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount);
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
 inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
-
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size);
 
 class FusedOpsCodeGenerator {
 public:

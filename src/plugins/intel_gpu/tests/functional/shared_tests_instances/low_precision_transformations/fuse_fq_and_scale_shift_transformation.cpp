@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,22 +6,22 @@
 
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
 // TODO: Issue 39810
 //    {
@@ -37,7 +37,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 9, 9 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 9, 9 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),

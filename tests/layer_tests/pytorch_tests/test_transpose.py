@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -50,6 +50,30 @@ class TestTranspose(PytorchLayerTest):
         self._test(*self.create_model(dim0, dim1, op_type), ie_device, precision, ir_version, trace_model=True)
 
 
+class TestMoveDim(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(2, 3, 4, 5).astype(np.float32),)
+
+    def create_model(self, dim0, dim1):
+        class aten_move_dim(torch.nn.Module):
+            def __init__(self, dim0, dim1):
+                super(aten_move_dim, self).__init__()
+                self.dim0 = dim0
+                self.dim1 = dim1
+
+            def forward(self, x):
+                return torch.movedim(x, self.dim0, self.dim1)
+
+        ref_net = None
+
+        return aten_move_dim(dim0, dim1), ref_net, f"aten::movedim"
+
+    @pytest.mark.parametrize(("dim0", "dim1"), [[0, 1], [-1, 0], [2, -2], [3, 1], [3, 3], [[1, 2], [3, 0]], [[-4, 1], [1, -1]], [[1, 3, 2], [0, 1, 2 ]]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_move_dim(self, dim0, dim1, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim0, dim1), ie_device, precision, ir_version, trace_model=True)
+
 class TestTSmall(PytorchLayerTest):
     def _prepare_input(self, num_dims=2, input_dtype="float32"):
         shape = (2, 3)
@@ -57,12 +81,14 @@ class TestTSmall(PytorchLayerTest):
             return (np.array(num_dims).astype(input_dtype),)
         return (np.random.randn(*shape[:num_dims]).astype(input_dtype),)
 
-    def create_model(self, num_dims=2, inplace=False):
+    def create_model(self, mode):
         class aten_transpose(torch.nn.Module):
-            def __init__(self, inplace):
+            def __init__(self, mode):
                 super(aten_transpose, self).__init__()
-                if inplace:
+                if mode == "inplace":
                     self.forward = self.forward_inplace
+                elif mode == "numpy":
+                    self.forward = self.forward_numpy_t
 
             def forward(self, x):
                 return x.t(), x
@@ -70,20 +96,24 @@ class TestTSmall(PytorchLayerTest):
             def forward_inplace(self, x):
                 return x.t_(), x
 
+            def forward_numpy_t(self, x):
+                return x.T, x
+
         ref_net = None
 
-        return aten_transpose(inplace), ref_net, "aten::t" if not inplace else "aten::t_"
+        return aten_transpose(mode), ref_net, "aten::t_" if mode == "inplace" else ("aten::numpy_T" if mode == "numpy" else "aten::t")
 
     @pytest.mark.parametrize("num_dims", [0, 1, 2])
     @pytest.mark.parametrize("input_dtype", ["float32", "int32"])
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("mode", [None, "inplace", "numpy"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_t_small(self, num_dims, input_dtype, inplace, ie_device, precision, ir_version):
+    def test_t_small(self, num_dims, input_dtype, mode, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(num_dims, inplace),
+            *self.create_model(mode),
             ie_device,
             precision,
             ir_version,
             kwargs_to_prepare_input={"num_dims": num_dims, "input_dtype": input_dtype},
+            use_convert_model=True,
         )

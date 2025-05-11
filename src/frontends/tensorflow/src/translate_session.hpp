@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/frontend/tensorflow/variables_map.hpp"
 
 namespace ov {
 namespace frontend {
@@ -42,11 +44,6 @@ public:
 
     void translate_graph(const ov::frontend::InputModel::Ptr& input_model, std::shared_ptr<ov::Model>& ov_model);
 
-    void inject_body_model(std::shared_ptr<ov::Model> body_model,
-                           const std::string& operation_type,
-                           const ov::OutputVector& ov_inputs,
-                           ov::OutputVector& ov_outputs);
-
     std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name,
                                                  const ov::OutputVector& ov_inputs,
                                                  bool clear_names = true);
@@ -68,9 +65,16 @@ private:
     // the same topology can be converted with different shapes and types so it will be cached separately
     std::shared_ptr<CachedBodyModelsType> m_cached_body_models;
 
+    // stores variables states at each node of the graph
+    VariableMap::Ptr m_variables_map;
+
     void update_cached_body_models(const CachedBodyModelSignature& cached_body_model_signature,
                                    const std::shared_ptr<const ov::Model>& cached_body_model) {
         m_cached_body_models->insert(std::make_pair(cached_body_model_signature, cached_body_model));
+    }
+
+    VariableMap::Ptr get_variable_map(void) const {
+        return m_variables_map;
     }
 };
 

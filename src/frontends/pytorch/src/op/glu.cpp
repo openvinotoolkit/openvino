@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_glu(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     auto dim = context.input_is_none(1) ? context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}))
                                         : context.get_input(1);

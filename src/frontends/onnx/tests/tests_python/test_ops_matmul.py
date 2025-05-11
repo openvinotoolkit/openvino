@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -23,7 +23,7 @@ def make_onnx_model_for_matmul_op(input_left, input_right):
         ],
         [make_tensor_value_info("Z", onnx.TensorProto.FLOAT, output_shape)],
     )
-    model = make_model(graph, producer_name="ngraph ONNXImporter")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     return model
 
 
@@ -70,7 +70,7 @@ def make_onnx_model_for_gemm_op(input_a, input_b, input_c, **kwargs):
         ],
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, output_shape)],
     )
-    model = make_model(graph, producer_name="ngraph ONNXImporter")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     return model
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,6 @@
 
 #include "ctc_loss_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
-
-using namespace std;
 
 namespace ov {
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
@@ -62,10 +59,8 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               input_et);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, logits_type, output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, logits_type, output_shapes[0]);
 }
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor) {
@@ -76,26 +71,26 @@ bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_CTCLoss_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
-        return make_shared<CTCLoss>(new_args.at(0),
-                                    new_args.at(1),
-                                    new_args.at(2),
-                                    new_args.at(3),
-                                    preprocess_collapse_repeated_,
-                                    ctc_merge_repeated_,
-                                    unique_);
+        return std::make_shared<CTCLoss>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         preprocess_collapse_repeated_,
+                                         ctc_merge_repeated_,
+                                         unique_);
     } else if (new_args.size() == 5) {
-        return make_shared<CTCLoss>(new_args.at(0),
-                                    new_args.at(1),
-                                    new_args.at(2),
-                                    new_args.at(3),
-                                    new_args.at(4),
-                                    preprocess_collapse_repeated_,
-                                    ctc_merge_repeated_,
-                                    unique_);
+        return std::make_shared<CTCLoss>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         new_args.at(4),
+                                         preprocess_collapse_repeated_,
+                                         ctc_merge_repeated_,
+                                         unique_);
     } else {
         OPENVINO_THROW("Incorrect number of arguments");
     }

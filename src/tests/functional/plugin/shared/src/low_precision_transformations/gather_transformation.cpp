@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,14 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/gather_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/gather.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<GatherTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     GatherTransformationTestValues testValues;
     int opset_version;
@@ -33,12 +32,14 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
 }
 
 void GatherTransformation::SetUp() {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     GatherTransformationTestValues testValues;
     int opset_version;
     std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();
 
-    function = ngraph::builder::subgraph::GatherFunction::getOriginal(
+    init_input_shapes(testValues.inputShape);
+
+    function = ov::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
         testValues.gatherIndicesShape,
         testValues.gatherIndicesValues,
@@ -50,7 +51,7 @@ void GatherTransformation::SetUp() {
 }
 
 TEST_P(GatherTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

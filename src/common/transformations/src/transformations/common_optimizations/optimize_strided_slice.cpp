@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,16 +8,21 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/slice_plan.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/slice_plan.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
@@ -26,11 +31,8 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
     bool rewritten = false;
     for (auto& node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                rewritten |= run_on_model(sub_graph);
-            }
-        }
+        rewritten = ov::op::util::process_subgraph(*this, node) || rewritten;
+
         bool is_slice = ov::is_type<ov::op::v1::StridedSlice>(node) || ov::is_type<ov::op::v8::Slice>(node);
         if (!is_slice || node->get_output_partial_shape(0).is_dynamic() ||
             node->get_input_partial_shape(0).is_dynamic())
@@ -38,23 +40,22 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
         if (node->get_input_shape(0) != node->get_output_shape(0))
             continue;
 
-        auto stridesNode = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
+        auto stridesNode = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
         if (stridesNode) {
             auto strides = stridesNode->cast_vector<int64_t>();
             if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) {
                     return strd < 0;
                 })) {
-                rewritten |= replace_output_update_name(node->output(0), node->input_value(0));
+                rewritten = replace_output_update_name(node->output(0), node->input_value(0)) || rewritten;
             }
         }
     }
     return rewritten;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
-ngraph::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice) {
+op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice) {
     auto convert_mask_to_axis_set = [](const std::vector<int64_t>& mask) {
         ov::AxisSet axis_set{};
         for (size_t i = 0; i < static_cast<size_t>(mask.size()); ++i) {
@@ -65,11 +66,11 @@ ngraph::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice
     };
 
     auto data = slice->input_value(0).get_node_shared_ptr();
-    auto begin = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-    auto end = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-    auto strides = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+    auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+    auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+    auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
     if (!begin || !end || !strides || slice->input(0).get_partial_shape().is_dynamic())
-        return ngraph::SlicePlan();
+        return op::util::SlicePlan();
 
     auto begin_vec = begin->cast_vector<int64_t>();
     auto end_vec = end->cast_vector<int64_t>();
@@ -77,81 +78,36 @@ ngraph::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> slice
     const auto begin_mask = convert_mask_to_axis_set(slice->get_begin_mask());
     const auto end_mask = convert_mask_to_axis_set(slice->get_end_mask());
 
-    ngraph::SlicePlan plan = ngraph::make_slice_plan(slice->input(0).get_shape(),
-                                                     begin_vec,
-                                                     end_vec,
-                                                     strides_vec,
-                                                     begin_mask,
-                                                     end_mask,
-                                                     convert_mask_to_axis_set(slice->get_new_axis_mask()),
-                                                     convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
-                                                     convert_mask_to_axis_set(slice->get_ellipsis_mask()));
+    const auto plan = op::util::make_slice_plan(slice->input(0).get_shape(),
+                                                begin_vec,
+                                                end_vec,
+                                                strides_vec,
+                                                begin_mask,
+                                                end_mask,
+                                                convert_mask_to_axis_set(slice->get_new_axis_mask()),
+                                                convert_mask_to_axis_set(slice->get_shrink_axis_mask()),
+                                                convert_mask_to_axis_set(slice->get_ellipsis_mask()));
     return plan;
 }
 
-bool strided_slices_perform_the_same(std::shared_ptr<ov::op::v1::StridedSlice> lhs,
-                                     std::shared_ptr<ov::op::v1::StridedSlice> rhs) {
-    auto lhs_plan = get_slice_plan(lhs);
-    auto rhs_plan = get_slice_plan(rhs);
-
-    auto empty_plan = ngraph::SlicePlan();
-    if (lhs_plan == empty_plan || rhs_plan == empty_plan)
-        return false;
-    return lhs_plan == rhs_plan;
-}
-
 }  // namespace
-
-bool ov::pass::SharedStridedSliceEraser::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(SharedStridedSliceEraser);
-    bool graph_rewritten = false;
-
-    std::map<ov::Output<Node>, std::vector<std::shared_ptr<ov::op::v1::StridedSlice>>> source_to_ss;
-    for (const auto& node : f->get_ordered_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_model(sub_graph);
-            }
-        }
-        if (auto ss = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node)) {
-            source_to_ss[ss->input_value(0)].push_back(ss);
-        }
-    }
-
-    for (auto& pair : source_to_ss) {
-        if (pair.second.size() < 2)
-            continue;
-        auto root_ss = pair.second[0];
-        for (auto& child_ss : pair.second) {
-            if (root_ss->get_instance_id() != child_ss->get_instance_id() &&
-                strided_slices_perform_the_same(root_ss, child_ss)) {
-                graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
-            }
-        }
-    }
-    return graph_rewritten;
-}
 
 bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
     bool graph_rewritten = false;
     struct planned_slice {
         std::shared_ptr<ov::op::v1::StridedSlice> ptr;
-        ngraph::SlicePlan plan;
+        op::util::SlicePlan plan;
     };
 
     std::map<ov::Output<Node>, std::vector<planned_slice>> source_to_ss_with_plan;
     for (const auto& node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_model(sub_graph);
-            }
-        }
-        if (auto ss = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node)) {
+        graph_rewritten = ov::op::util::process_subgraph(*this, node) || graph_rewritten;
+
+        if (auto ss = ov::as_type_ptr<ov::op::v1::StridedSlice>(node)) {
             auto slice_plan = get_slice_plan(ss);
-            if (slice_plan == ngraph::SlicePlan())
+            if (slice_plan == op::util::SlicePlan())
                 continue;
             source_to_ss_with_plan[ss->input_value(0)].push_back({ss, slice_plan});
         }
@@ -264,6 +220,8 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
     return graph_rewritten;
 }
 
+namespace {
+
 struct SliceAttrs {
     int64_t start, stop, axis;
 };
@@ -318,6 +276,8 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
     return true;
 }
 
+}  // namespace
+
 bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(GroupedSliceToVSplitOptimization);
     bool graph_rewritten = false;
@@ -329,12 +289,8 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
     std::vector<OutputWithAxis> ordered_outputs;
     for (const auto& node : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
-            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
-                if (sub_graph)
-                    graph_rewritten |= run_on_model(sub_graph);
-            }
-        }
+        graph_rewritten = ov::op::util::process_subgraph(*this, node) || graph_rewritten;
+
         if (auto op = ov::as_type_ptr<op::v8::Slice>(node)) {
             SliceAttrs attributes{};
             if (slice_is_suitable_for_optimization(op, attributes)) {
@@ -403,13 +359,65 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
 
         auto i = 0;
         for (auto& slice_with_attrs : attributes) {
-            graph_rewritten |=
-                ov::replace_output_update_name(slice_with_attrs.slice->output(0), variadic_split->output(i));
+            graph_rewritten =
+                ov::replace_output_update_name(slice_with_attrs.slice->output(0), variadic_split->output(i)) ||
+                graph_rewritten;
             ov::copy_runtime_info(slice_with_attrs.slice, variadic_split);
             ++i;
         }
     }
     return graph_rewritten;
+}
+
+ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
+    MATCHER_SCOPE(SliceSequenceToSingleSlice);
+    using namespace ov::op;
+    using namespace ov::op::util;
+    using namespace ov::pass::pattern;
+
+    auto const_axes_1_pattern = wrap_type<v0::Constant>();
+    auto const_axes_2_pattern = wrap_type<v0::Constant>();
+    auto slice_1_pattern =
+        wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), const_axes_1_pattern},
+                             consumers_count(1));
+    auto slice_2_pattern =
+        wrap_type<v8::Slice>({slice_1_pattern, any_input(), any_input(), any_input(), const_axes_2_pattern});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_map();
+        auto slice_1 = pattern_to_output.at(slice_1_pattern);
+        auto slice_2 = pattern_to_output.at(slice_2_pattern);
+
+        auto const_axes_1 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_1_pattern));
+        auto const_axes_2 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_2_pattern));
+
+        auto axes_1_values = const_axes_1->cast_vector<int64_t>();
+        auto axes_2_values = const_axes_2->cast_vector<int64_t>();
+
+        // supported a simple scenario when the axes_1 values and axes_2 values don't intersect.
+        for (const auto& axis : axes_1_values) {
+            if (std::find(axes_2_values.begin(), axes_2_values.end(), axis) != axes_2_values.end()) {
+                return false;
+            }
+        }
+
+        auto begin = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(1), slice_2->input_value(1)}, 0);
+        auto end = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(2), slice_2->input_value(2)}, 0);
+        auto step = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(3), slice_2->input_value(3)}, 0);
+        auto axes = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(4), slice_2->input_value(4)}, 0);
+        auto one_slice = std::make_shared<ov::op::v8::Slice>(slice_1->input_value(0),
+                                                             try_fold_unary_output(begin),
+                                                             try_fold_unary_output(end),
+                                                             try_fold_unary_output(step),
+                                                             try_fold_unary_output(axes));
+
+        ov::copy_runtime_info({slice_1, slice_2}, {one_slice, begin, end, step, axes});
+        one_slice->set_friendly_name(slice_2->get_friendly_name());
+        ov::replace_node(slice_2, one_slice);
+        return true;
+    };
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(slice_2_pattern, matcher_name);
+    register_matcher(m, callback);
 }
 
 ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
@@ -418,19 +426,15 @@ ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
 
 bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-
-    ov::pass::Manager manager(get_pass_config());
-    using namespace ov::pass;
-    REGISTER_PASS(manager, SliceToStridedSlice, m_use_shapes)
-    manager.run_passes(f);
-
-    bool rewritten = false;
+    ov::pass::Manager manager("StridedSliceOptimization");
+    manager.set_per_pass_validation(false);
     if (m_use_shapes) {
-        rewritten = UselessSliceEraser().run_on_model(f);
-        // Execution of other passes is also needed even if 'rewritten' is already 'true'
-        rewritten = SharedStridedSliceEraser().run_on_model(f) || rewritten;
-        rewritten = GroupedStridedSliceOptimizer().run_on_model(f) || rewritten;
-        rewritten = GroupedSliceToVSplitOptimization().run_on_model(f) || rewritten;
+        manager.register_pass<UselessSliceEraser>();
+        manager.register_pass<SharedOpOptimization>();
+        manager.register_pass<GroupedStridedSliceOptimizer>();
+        manager.register_pass<GroupedSliceToVSplitOptimization>();
     }
-    return rewritten;
+
+    manager.register_pass<SliceSequenceToSingleSlice>();
+    return manager.run_passes(f);
 }

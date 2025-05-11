@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/psroi_pooling.hpp"
-
-#include <vector>
-
-#include "common_test_utils/test_constants.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/psroi_pooling.hpp"
 
 namespace {
+using ov::test::PSROIPoolingLayerTest;
 
 const auto params_average =
     testing::Combine(testing::Values(std::vector<size_t>{3, 8, 16, 16}),  // input shape
@@ -21,7 +16,7 @@ const auto params_average =
                      testing::Values(1),                                  // spatial_bins_x
                      testing::Values(1),                                  // spatial_bins_y
                      testing::Values("average"),                          // mode
-                     testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16),
+                     testing::Values(ov::element::f32, ov::element::f16),
                      testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PSROIPooling_average,
@@ -38,7 +33,7 @@ const auto params_bilinear =
                      testing::Values(4),                                   // spatial_bins_x
                      testing::Values(2),                                   // spatial_bins_y
                      testing::Values("bilinear"),                          // mode
-                     testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16),
+                     testing::Values(ov::element::f32, ov::element::f16),
                      testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PSROIPooling_bilinear,

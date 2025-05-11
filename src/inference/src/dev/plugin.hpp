@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "ie_iextension.h"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -41,8 +40,6 @@ public:
 
     const ov::Version get_version() const;
 
-    void add_extension(const ie::IExtensionPtr& extension);
-
     void set_property(const ov::AnyMap& config);
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -58,7 +55,7 @@ public:
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
@@ -77,7 +74,7 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
-    bool supports_model_caching(bool check_old_api = true) const;
+    bool supports_model_caching(const AnyMap& arguments = {}) const;
 };
 
 }  // namespace ov

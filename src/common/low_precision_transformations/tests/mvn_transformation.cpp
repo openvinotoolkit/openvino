@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,38 +10,38 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/mvn.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/mvn_function.hpp"
+#include "ov_lpt_models/mvn.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MVNTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::AxisSet reductionAxes;
+    ov::AxisSet reductionAxes;
     bool normalizeVariance;
     TestTransformationParams params;
     Actual actual;
@@ -50,7 +50,7 @@ public:
 
 typedef std::tuple<
     ov::element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     MVNTransformationTestValues,
     int
 > MVNTransformationParams;
@@ -59,11 +59,11 @@ class MVNTransformation : public LayerTransformation, public testing::WithParamI
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        const ov::PartialShape inputShape = std::get<1>(GetParam());
         const MVNTransformationTestValues testValues = std::get<2>(GetParam());
         const int opset_version = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MVNFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MVNFunction::getOriginal(
             precision,
             inputShape,
             testValues.reductionAxes,
@@ -73,10 +73,10 @@ public:
             opset_version);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MVNTransformation, ov::op::v0::Interpolate>(testValues.params);
+        transformer.add<ov::pass::low_precision::MVNTransformation, ov::op::v0::Interpolate>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MVNFunction::getReference(
+        referenceFunction = ov::builder::subgraph::MVNFunction::getReference(
             precision,
             inputShape,
             testValues.reductionAxes,
@@ -90,7 +90,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
         const ov::element::Type precision = std::get<0>(obj.param);
-        const ngraph::PartialShape inputShape = std::get<1>(obj.param);
+        const ov::PartialShape inputShape = std::get<1>(obj.param);
         const MVNTransformationTestValues testValues = std::get<2>(obj.param);
         const int opset_version = std::get<3>(obj.param);
 
@@ -128,12 +128,27 @@ const std::vector<int> opset_version = {
 };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 4, 16, 16 },
     { -1, -1, -1, -1 },
 };
 
 const std::vector<MVNTransformationTestValues> testValues = {
+    {
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ov::element::f16,
+            {{ov::element::f16}, {}, {{0.45f}, ov::element::f16, {}, false, 1ul, ov::element::f16}}
+        },
+        {
+            ov::element::f16,
+            { },
+            ov::element::f32,
+            {{}, {}, {1.f}},
+        }
+    },
     {
         {1, 2, 3},
         true,
@@ -268,7 +283,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 2, 2, 2 },
     { -1, -1, -1, -1}
 };
@@ -334,7 +349,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic(),
 };
 

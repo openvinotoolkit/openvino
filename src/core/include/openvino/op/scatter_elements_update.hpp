@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,16 +28,9 @@ public:
                           const Output<Node>& updates,
                           const Output<Node>& axis);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-private:
-    bool evaluate_scatter_elements_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
 };
 }  // namespace v3
 namespace v12 {
@@ -87,12 +80,9 @@ public:
 
     bool has_evaluate() const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
 
 private:
-    bool evaluate_scatter_elements_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
     Reduction m_reduction = Reduction::NONE;
     bool m_use_init_val = true;
 };
@@ -107,6 +97,7 @@ class OPENVINO_API AttributeAdapter<op::v12::ScatterElementsUpdate::Reduction>
 public:
     AttributeAdapter(op::v12::ScatterElementsUpdate::Reduction& value)
         : EnumAttributeAdapterBase<op::v12::ScatterElementsUpdate::Reduction>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<v12::ScatterElementsUpdate::Reduction>");
 };

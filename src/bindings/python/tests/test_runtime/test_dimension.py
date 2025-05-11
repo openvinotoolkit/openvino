@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino import Dimension
+from openvino import Dimension, Symbol
 
 
 def test_dynamic_dimension():
@@ -61,3 +61,36 @@ def test_dim_refine():
     assert Dimension(3).refines(Dimension(3)) is True
     assert Dimension(3).refines(Dimension(4)) is False
     assert Dimension().refines(Dimension(4)) is False
+
+
+def test_symbol():
+    dimension = Dimension()
+    assert not dimension.has_symbol(), "Check: Default created Dimension has no symbol: Dimension.has_symbol()"
+    assert not dimension.get_symbol(), "Check: Default created Dimension symbol is null: Symbol.__bool__"
+
+    symbol = Symbol()
+    dimension.set_symbol(symbol)
+    assert dimension.has_symbol(), "Check: After setting the symbol, Dimension has symbol: Dimension.has_symbol()"
+    assert dimension.get_symbol(), "Check: After setting the symbol, Dimension symbol isn't null: Symbol.__bool__"
+
+    new_dimension = Dimension()
+    assert dimension.get_symbol() != new_dimension.get_symbol(), "Check: Two symbols are not equal: Symbol.__eq__"
+
+    new_dimension.set_symbol(dimension.get_symbol())
+    assert dimension.get_symbol() == new_dimension.get_symbol(), "Check: Two symbols are equal: Symbol.__eq__"
+
+
+def test_symbol_hash():
+    symbol = Symbol()
+    assert isinstance(hash(symbol), int)
+
+    hash1 = hash(symbol)
+    hash2 = hash(symbol)
+    assert hash1 == hash2
+
+    symbol1 = Symbol()
+    symbol2 = Symbol()
+    assert hash(symbol1) != hash(symbol2)
+
+    symbols = {symbol1: "symbol1", symbol2: "symbol2"}
+    assert symbols[symbol1] == "symbol1"

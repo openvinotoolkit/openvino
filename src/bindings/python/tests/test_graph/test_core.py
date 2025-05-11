@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -7,10 +7,9 @@ import copy
 import numpy as np
 import pytest
 
-from openvino import Model, PartialShape, Shape
+from openvino import Dimension, Model, PartialShape, Shape
 
-import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension
+import openvino.opset13 as ov
 
 
 def test_dimension():
@@ -204,7 +203,7 @@ def test_partial_shape():
         PartialShape([range(10)])
     assert (
         "Incorrect type <class 'range'> for dimension. Expected types are: "
-        "int, str, openvino.runtime.Dimension, list/tuple with lower "
+        "int, str, openvino.Dimension, list/tuple with lower "
         "and upper values for dynamic dimension." in str(e.value)
     )
 
@@ -244,6 +243,13 @@ def test_partial_shape():
     shape = PartialShape([Dimension(-1, 100), 25, -1])
     copied_shape = copy.deepcopy(shape)
     assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    ps = PartialShape.dynamic(rank=3)
+    assert not ps.is_static
+    assert ps.is_dynamic
+    assert ps.rank == 3
+    assert list(ps.get_min_shape()) == [0, 0, 0]
+    assert repr(ps) == "<PartialShape: [?,?,?]>"
 
 
 def test_partial_shape_compatible():
@@ -313,6 +319,12 @@ def test_partial_shape_refinement():
     assert not ps2.relaxes(ps1)
 
 
+@pytest.mark.parametrize("shape_to_compare", [[1, 2, 3], (1, 2, 3)])
+def test_shape_equals(shape_to_compare):
+    shape = Shape([1, 2, 3])
+    assert shape == shape_to_compare
+
+
 def test_partial_shape_equals():
     ps1 = PartialShape.dynamic()
     ps2 = PartialShape.dynamic()
@@ -326,6 +338,60 @@ def test_partial_shape_equals():
     ps = PartialShape([1, 2, 3])
     assert shape == ps
     assert shape == ps.to_shape()
+
+    ps1 = PartialShape.dynamic(rank=3)
+    ps2 = PartialShape.dynamic(rank=3)
+    assert ps1 == ps2
+
+    ps = PartialShape([1, 2, 3])
+    tuple_ps = (1, 2, 3)
+    list_ps = [1, 2, 3]
+    assert ps == tuple_ps
+    assert ps == list_ps
+
+    ps = PartialShape.dynamic(rank=3)
+    tuple_ps = (0, 0, 0)
+    list_ps = [0, 0, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape.dynamic()
+    tuple_ps = ()
+    list_ps = []
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])
+    tuple_ps = (1, 2, 3, 0)
+    list_ps = [1, 2, 3, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape([Dimension(1, 10), Dimension(2), Dimension(3)])
+    tuple_ps_min = (1, 2, 3)
+    tuple_ps_max = (10, 2, 3)
+    list_ps_min = [1, 2, 3]
+    list_ps_max = [10, 2, 3]
+    assert ps.get_min_shape() == tuple_ps_min
+    assert ps.get_max_shape() == tuple_ps_max
+    assert ps.get_min_shape() == list_ps_min
+    assert ps.get_max_shape() == list_ps_max
+
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        tuple_ps = ()
+        assert ps == tuple_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'tuple'>" in str(e.value)
+    )
+
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        list_ps = []
+        assert ps == list_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'list'>" in str(e.value)
+    )
 
 
 def test_input_shape_read_only():
@@ -341,18 +407,20 @@ def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-    model = parameter_a + parameter_b
-    function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+    param_sum = parameter_a + parameter_b
+    # set tensor name to have deterministic output name of model (default use unique node name)
+    param_sum.output(0).set_names({"sum"})
+    model = Model(param_sum, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
     assert (
-        repr(function)
+        repr(model)
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
         + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
         + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
-        + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
+        + "\noutputs[\n<ConstOutput: names[sum] shape[?,2] type: f32>\n]>"
     )
 
-    ops = function.get_ordered_ops()
+    ops = model.get_ordered_ops()
     for op in ops:
         assert "[?,2]" in repr(op)
 
@@ -381,3 +449,22 @@ def test_discrete_type_info():
     assert n1.get_type_info().name >= n3.get_type_info().name
     assert n3.get_type_info().name < n1.get_type_info().name
     assert n3.get_type_info().name <= n1.get_type_info().name
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_negative_index(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert shape[-1] == 5
+    assert shape[-3] == 3
+    assert shape[-5] == 1
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_slicing_step(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert list(shape[0:2]) == [1, 2]
+    assert list(shape[0:3:2]) == [1, 3]
+    assert list(shape[::2]) == [1, 3, 5]
+    assert list(shape[1::2]) == [2, 4]
+    assert list(shape[::-1]) == [5, 4, 3, 2, 1]
+    assert list(shape[::-2]) == [5, 3, 1]

@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/topk.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -69,9 +68,7 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
 
     TRShape output_shape = input_shape;
     if (input_shape.rank().is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axis = ov::util::try_normalize_axis(op->get_provided_axis(), input_shape.rank(), *op);
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape =

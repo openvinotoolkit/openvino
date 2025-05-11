@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,11 @@ namespace onnx {
 
 class PlaceInputEdge : public Place {
 public:
-    PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceInputEdge(const InputEdge& edge, std::shared_ptr<ONNXModelEditor> editor);
+    PlaceInputEdge(InputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor);
 
     // internal usage
-    onnx_editor::InputEdge get_input_edge() const;
+    InputEdge get_input_edge() const;
     void check_if_valid() const;
 
     // external usage
@@ -34,18 +34,18 @@ public:
     Place::Ptr get_producing_port() const override;
 
 private:
-    onnx_editor::InputEdge m_edge;
-    const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    InputEdge m_edge;
+    const std::shared_ptr<ONNXModelEditor> m_editor;
     std::string m_initial_source_tensor_name;
 };
 
 class PlaceOutputEdge : public Place {
 public:
-    PlaceOutputEdge(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOutputEdge(const OutputEdge& edge, std::shared_ptr<ONNXModelEditor> editor);
+    PlaceOutputEdge(OutputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor);
 
     // internal usage
-    onnx_editor::OutputEdge get_output_edge() const;
+    OutputEdge get_output_edge() const;
     void check_if_valid() const;
 
     // external usage
@@ -60,15 +60,15 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
 private:
-    onnx_editor::OutputEdge m_edge;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    OutputEdge m_edge;
+    std::shared_ptr<ONNXModelEditor> m_editor;
     std::string m_initial_target_tensor_name;
 };
 
 class PlaceTensor : public Place {
 public:
-    PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceTensor(const std::string& name, std::shared_ptr<ONNXModelEditor> editor);
+    PlaceTensor(std::string&& name, std::shared_ptr<ONNXModelEditor> editor);
 
     // external usage
     std::vector<std::string> get_names() const override;
@@ -86,17 +86,17 @@ public:
 
 private:
     std::string m_name;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<ONNXModelEditor> m_editor;
 };
 
 class PlaceOp : public Place {
 public:
-    PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOp(const EditorNode& node, std::shared_ptr<ONNXModelEditor> editor);
+    PlaceOp(EditorNode&& node, std::shared_ptr<ONNXModelEditor> editor);
     std::vector<std::string> get_names() const override;
 
     // internal usage
-    const onnx_editor::EditorNode& get_editor_node() const;
+    const EditorNode& get_editor_node() const;
     void set_name(const std::string& new_name);
     void check_if_valid() const;
 
@@ -131,8 +131,8 @@ public:
     bool is_output() const override;
 
 private:
-    onnx_editor::EditorNode m_node;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    EditorNode m_node;
+    std::shared_ptr<ONNXModelEditor> m_editor;
     std::string m_initial_first_output;
 };
 

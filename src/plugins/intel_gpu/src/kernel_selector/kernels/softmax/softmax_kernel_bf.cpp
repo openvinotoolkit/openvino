@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -45,7 +45,6 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
-    dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
         // start with 1 thread per data set
         dispatchData.gws[0] = 1;
@@ -86,21 +85,25 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
-KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
-    KernelsData kds = GetCommonKernelsData(params, optionalParams);
+void SoftmaxKernel_bf::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const softmax_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
+KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params) const {
+    KernelsData kds = GetCommonKernelsData(params);
     if (!kds.empty()) {
-        kds[0].update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-            const auto& prim_params = static_cast<const softmax_params&>(params);
-            auto dispatchData = SetDefault(prim_params);
-            OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-            kd.kernels[0].params.workGroups.global = dispatchData.gws;
-            kd.kernels[0].params.workGroups.local = dispatchData.lws;
-            kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-        };
+        GetUpdateDispatchDataFunc(kds[0]);
     }
 
     return kds;
@@ -111,20 +114,29 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         auto softmax_dim_y_bfyx = (params.dim == SoftmaxDim::Y && input.GetLayout() == DataLayout::bfyx);
-        const std::string flatten_bf = "(SOFTMAX_DIM_Y_BFYX&&(" + dims.f() + ">1))";
+        auto softmax_dim_x_bfyx = (params.dim == SoftmaxDim::X && input.GetLayout() == DataLayout::bfyx);
         const std::string lws_0 = "get_local_size(0)";
-        const std::string data_set_count = "(FLATTEN_BF?" + toVectorMulString({dims.f(), dims.b()}) + ":" + dims.b() + ")";
-        const std::string data_set_size = "(FLATTEN_BF?" + dims.y() + ":" + toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()}) + ")";
+
+        std::string data_set_count;
+        std::string data_set_size;
+        if (softmax_dim_y_bfyx) {
+            data_set_count = toVectorMulString({dims.f(), dims.b()});
+            data_set_size = dims.y();
+        } else if (softmax_dim_x_bfyx) {
+            data_set_count = toVectorMulString({dims.f(), dims.b(), dims.y()});
+            data_set_size = dims.x();
+        } else {
+            data_set_count = dims.b();
+            data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
+        }
+
         // It can be expected that the maximum possible itemsNum will not exceed 32
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
-        constexpr size_t stack_size = 33; // The size of stack for my_chunk
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 34(32 + 2(aligned offset + leftovers))
+        constexpr size_t stack_size = 34; // The size of stack for my_chunk
         jit.AddConstants({
-            MakeJitConstant("SOFTMAX_DIM_Y_BFYX", softmax_dim_y_bfyx),
-            MakeJitConstant("FLATTEN_BF", flatten_bf),
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("STACK_SIZE", stack_size),
@@ -133,11 +145,9 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         jit.AddConstants({
             MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
             MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 2), // (aligned offset + leftovers)
         });
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));

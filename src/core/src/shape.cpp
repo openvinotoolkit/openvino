@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/shape.hpp"
 
+#include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
-
-using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     s << "[";
@@ -16,9 +16,9 @@ std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
 }
 
 namespace {
-size_t stringToSizeT(const string& valStr) {
+size_t stringToSizeT(const std::string& valStr) {
     size_t ret{0};
-    istringstream ss(valStr);
+    std::istringstream ss(valStr);
     if (!ss.eof()) {
         ss >> ret;
     }
@@ -68,3 +68,24 @@ std::string ov::Shape::to_string() const {
     shape_str_stream << *this;
     return shape_str_stream.str();
 }
+
+namespace ov {
+
+typename Shape::reference Shape::operator[](std::ptrdiff_t i) {
+    return std::vector<size_t>::operator[](util::normalize(i, size()));
+}
+
+typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
+    return std::vector<size_t>::operator[](util::normalize(i, size()));
+}
+
+typename Shape::reference Shape::at(std::ptrdiff_t i) {
+    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+}
+
+typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
+    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+}
+
+AttributeAdapter<ov::Shape>::~AttributeAdapter() = default;
+}  // namespace ov

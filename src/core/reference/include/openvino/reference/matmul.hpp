@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,8 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/shape_util.hpp"
 #include "openvino/reference/broadcast.hpp"
+#include "openvino/reference/reshape.hpp"
 
 namespace ov {
 namespace reference {
@@ -101,12 +100,12 @@ void matmul(const T* arg0,
         std::vector<T> tmp(shape_size(arg0_shape));
         auto axis_vector = details::get_transpose_order(arg0_shape);
         std::swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
-        ngraph::runtime::opt_kernel::reshape(reinterpret_cast<const char*>(arg0_data),
-                                             reinterpret_cast<char*>(tmp.data()),
-                                             arg0_shape,
-                                             axis_vector,
-                                             arg0_shape_tmp,
-                                             sizeof(T));
+        reshape(reinterpret_cast<const char*>(arg0_data),
+                reinterpret_cast<char*>(tmp.data()),
+                arg0_shape,
+                axis_vector,
+                arg0_shape_tmp,
+                sizeof(T));
         arg0_new_data.swap(tmp);
         arg0_data = arg0_new_data.data();
     }
@@ -115,12 +114,12 @@ void matmul(const T* arg0,
         std::vector<T> tmp(shape_size(arg1_shape));
         auto axis_vector = details::get_transpose_order(arg1_shape);
         std::swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
-        ngraph::runtime::opt_kernel::reshape(reinterpret_cast<const char*>(arg1_data),
-                                             reinterpret_cast<char*>(tmp.data()),
-                                             arg1_shape,
-                                             axis_vector,
-                                             arg1_shape_tmp,
-                                             sizeof(T));
+        reshape(reinterpret_cast<const char*>(arg1_data),
+                reinterpret_cast<char*>(tmp.data()),
+                arg1_shape,
+                axis_vector,
+                arg1_shape_tmp,
+                sizeof(T));
         arg1_new_data.swap(tmp);
         arg1_data = arg1_new_data.data();
     }
@@ -162,7 +161,7 @@ void matmul(const T* arg0,
                           broadcast_axes,
                           sizeof(T));
 
-                arg0_shape_tmp = arg0_br_target_shape;
+                arg0_shape_tmp = std::move(arg0_br_target_shape);
                 arg0_rank = arg0_shape_tmp.size();
                 arg0_new_data.swap(tmp);
                 arg0_data = arg0_new_data.data();
@@ -176,7 +175,7 @@ void matmul(const T* arg0,
                           arg1_br_target_shape,
                           broadcast_axes,
                           sizeof(T));
-                arg1_shape_tmp = arg1_br_target_shape;
+                arg1_shape_tmp = std::move(arg1_br_target_shape);
                 arg1_rank = arg1_shape_tmp.size();
                 arg1_new_data.swap(tmp);
                 arg1_data = arg1_new_data.data();

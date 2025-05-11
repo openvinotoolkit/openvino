@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,23 +8,23 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
 class SqueezeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> squeezeAxes;
-    ngraph::PartialShape shape;
+    ov::PartialShape shape;
 };
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     SqueezeTransformationParam
 > SqueezeTransformationParams;
 
@@ -32,7 +32,6 @@ class SqueezeTransformation :
     public testing::WithParamInterface<SqueezeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
     static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj);
 
 protected:

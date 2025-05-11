@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -27,8 +27,8 @@ namespace {
 
 class TestValues {
 public:
-    ngraph:: builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const TestValues& testValue) {
@@ -39,7 +39,7 @@ class TransformerIsFunctionQuantized : public LayerTransformation, public testin
 public:
     void SetUp() override {
         const TestValues testValues = GetParam();
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::get(
             Shape({ 1, 3, 16, 16 }),
             element::f32,
             testValues.fqOnData,
@@ -56,7 +56,7 @@ public:
 
 TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     actualFunction->validate_nodes_and_infer_types();
-    const bool isFunctionQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
+    const bool isFunctionQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
 
     const TestValues testValues = GetParam();
     const bool expected = !testValues.fqOnData.empty() || !testValues.fqOnWeights.empty();

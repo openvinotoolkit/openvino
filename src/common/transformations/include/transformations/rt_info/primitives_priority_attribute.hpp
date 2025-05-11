@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
@@ -31,7 +31,7 @@ TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<Node
 
 class TRANSFORMATIONS_API PrimitivesPriority : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("primitives_priority", "0");
+    OPENVINO_RTTI("primitives_priority", "0", ov::RuntimeAttribute);
 
     PrimitivesPriority() = default;
 

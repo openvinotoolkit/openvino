@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
@@ -52,7 +53,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         return nullptr;
     }
 
-    auto matmul_casted = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul);
+    auto matmul_casted = ov::as_type_ptr<ov::op::v0::MatMul>(matmul);
     if (!matmul_casted) {
         return nullptr;
     }
@@ -133,9 +134,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         auto transpose = std::make_shared<ov::op::v1::Transpose>(
             new_const,
             ov::op::v0::Constant::create(element::i64, Shape{perm.size()}, perm));
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return get_constant_from_source(transpose);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        return ov::util::get_constant_from_source(transpose);
     };
 
     // If weights meant to be transposed - we need to also transpose constant
@@ -153,15 +152,15 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     auto input_pattern = pattern::any_input();
     auto weights_pattern = pattern::any_input(pattern::has_static_rank());
     auto mul_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-    auto matmul_pattern = pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern});
+    auto matmul_pattern =
+        pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern}, pattern::consumers_count(1));
     auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
-        auto mul_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
+        auto mul_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
@@ -173,9 +172,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         // Constantfold new weights, only if old weights is a constant node.
         // To make sure that subgraphs with e.g. FakeQuantize don't get constant folded here.
         if (ov::is_type<ov::op::v0::Constant>(weights.get_node())) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto constant = get_constant_from_source(new_weights)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto constant = ov::util::get_constant_from_source(new_weights)) {
                 new_weights = constant;
             }
         }

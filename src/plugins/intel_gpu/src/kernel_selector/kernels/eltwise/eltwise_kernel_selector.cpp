@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ eltwise_kernel_selector::eltwise_kernel_selector() {
     Attach<EltwiseKernel_vload8>();
 }
 
-KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ELTWISE);
+KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ELTWISE);
 }
 }  // namespace kernel_selector

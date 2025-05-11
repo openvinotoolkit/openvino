@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import pytest
 
@@ -71,6 +73,12 @@ class TestArgMinArgMax(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "int32", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122715')
     def test_argmin_argmax(self, axes, keep_dims, op_type, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims),
                    ie_device, precision, ir_version, trace_model=True, 

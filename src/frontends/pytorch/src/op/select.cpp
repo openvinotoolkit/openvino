@@ -1,12 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/select.hpp"
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
 namespace ov {

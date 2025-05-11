@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ ov::AxisSet& ov::AxisSet::operator=(const AxisSet& v) {
 }
 
 ov::AxisSet& ov::AxisSet::operator=(AxisSet&& v) noexcept {
-    static_cast<std::set<size_t>*>(this)->operator=(v);
+    static_cast<std::set<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
 
@@ -55,3 +55,5 @@ void ov::AttributeAdapter<ov::AxisSet>::set(const std::vector<int64_t>& value) {
     }
     m_buffer_valid = false;
 }
+
+ov::AttributeAdapter<ov::AxisSet>::~AttributeAdapter() = default;

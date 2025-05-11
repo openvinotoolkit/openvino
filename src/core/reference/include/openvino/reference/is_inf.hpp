@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+
+#include "openvino/op/is_inf.hpp"
 
 namespace ov {
 namespace reference {

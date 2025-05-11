@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,24 +10,25 @@
 #include <cmath>
 #include <vector>
 
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
-#include "low_precision/network_helper.hpp"
-
-#include "ngraph/opsets/opset6.hpp"
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+#include "low_precision/network_helper.hpp"
+#include "openvino/op/mvn.hpp"
+
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 namespace mvn {
 
 template<typename T>
-std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
+std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Constant& originalConst, const ov::element::Type& precision) {
     std::vector<T> source = originalConst.cast_vector<T>();
 
     std::vector<T> newData(source.size());
@@ -35,17 +36,16 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
         newData[i] = source[i] < 0 ? T{-1} : T{1};
     }
 
-    const ngraph::element::Type type = originalConst.get_output_element_type(0);
-    return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
+    return ov::op::v0::Constant::create(precision, originalConst.get_shape(), newData);
 }
 
 } // namespace mvn
 
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MVNTransformation);
-    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
-        pattern::wrap_type<ngraph::op::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }),
-        pattern::wrap_type<ngraph::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() })
+    auto matcher = std::make_shared<pass::pattern::op::Or>(OutputVector{
+        pattern::wrap_type<ov::op::v0::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }),
+        pattern::wrap_type<ov::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() })
     });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -53,15 +53,15 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 
@@ -70,7 +70,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    std::shared_ptr<Node> mvn = ov::as_type_ptr<op::MVN>(operation);
+    std::shared_ptr<Node> mvn = ov::as_type_ptr<op::v0::MVN>(operation);
     if (!mvn) {
         mvn = ov::as_type_ptr<opset6::MVN>(operation);
         if (!mvn) {
@@ -79,8 +79,8 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     AxisSet reduction_axes;
-    if (ov::is_type<op::MVN>(mvn)) {
-        reduction_axes = ov::as_type_ptr<op::MVN>(mvn)->get_reduction_axes();
+    if (ov::is_type<op::v0::MVN>(mvn)) {
+        reduction_axes = ov::as_type_ptr<op::v0::MVN>(mvn)->get_reduction_axes();
     } else {
         // MVN-6 allows negative values in reduction axes: [-r, r-1]
         // given static rank of input data of MVN node, we can recover the exact axis number
@@ -118,47 +118,42 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     return false;
 }
 
-bool MVNTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool MVNTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
-    if (!canBeTransformed(context, operation)) {
+    if (!canBeTransformed(operation)) {
         return false;
     }
 
-    std::shared_ptr<Node> mvn = ov::as_type_ptr<op::MVN>(operation);
-    if (!mvn) {
-        mvn = ov::as_type_ptr<opset6::MVN>(operation);
-    }
-
+    const auto mvn = NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions);
     bool normalizeVariance;
-    if (ov::is_type<op::MVN>(mvn)) {
-        normalizeVariance = ov::as_type_ptr<op::MVN>(mvn)->get_normalize_variance();
+    if (ov::is_type<op::v0::MVN>(mvn)) {
+        normalizeVariance = ov::as_type_ptr<op::v0::MVN>(mvn)->get_normalize_variance();
     } else {
         normalizeVariance = ov::as_type_ptr<opset6::MVN>(mvn)->get_normalize_variance();
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn, defaultPrecisions);
     const auto scalesConst = dequantization.multiplyConstant;
-    const auto type = scalesConst->get_element_type();
 
     auto newScalesConst = scalesConst;
     if (normalizeVariance) {
-        switch (type) {
-            case ngraph::element::Type_t::f16: {
-                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+        switch (deqPrecision) {
+            case ov::element::Type_t::f16: {
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f16>::value_type>(*scalesConst, deqPrecision);
                 break;
             }
-            case ngraph::element::Type_t::f32: {
-                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+            case ov::element::Type_t::f32: {
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f32>::value_type>(*scalesConst, deqPrecision);
                 break;
             }
             default: {
-                THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << type;
+                THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << deqPrecision;
             }
         }
     }
 
     std::shared_ptr<Node> newMVN;
-    if (ov::is_type<op::MVN>(mvn)) {
+    if (ov::is_type<op::v0::MVN>(mvn)) {
         newMVN = mvn->clone_with_new_inputs({dequantization.data});
     } else {
         newMVN = mvn->clone_with_new_inputs({dequantization.data, mvn->input_value(1)});
@@ -173,7 +168,9 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
 
     NetworkHelper::insertDequantizationAfter(mvn, newMultiply, newMVN);
 
-    updateOutput(context, newMultiply, newMVN);
+    updateOutput(newMultiply, newMVN);
+
+    OPENVINO_DEBUG("LPT: done: ", newMVN);
     return true;
 }
 

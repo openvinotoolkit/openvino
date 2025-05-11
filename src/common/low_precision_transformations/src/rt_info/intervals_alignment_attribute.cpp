@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
 using namespace ov;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
 IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
     const IntervalsAlignmentSharedValue::Interval combinedInterval,
@@ -32,7 +32,7 @@ IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
 }
 
 ov::Any IntervalsAlignmentAttribute::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
     if (!ov::is_type<opset1::FakeQuantize>(node)) {
         return nullptr;
@@ -118,8 +118,7 @@ ov::Any IntervalsAlignmentAttribute::create(
             fakeQuantize->get_levels(),
             outputLowValues,
             outputHighValues);
-
-        if (preferablePrecision.precision != element::undefined) {
+        if (preferablePrecision.precision != element::dynamic) {
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
         }
 

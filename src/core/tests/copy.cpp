@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ TEST(copy, concat) {
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(node_cast->get_concatenation_axis() == axis);
+    ASSERT_TRUE(node_cast->get_axis() == axis);
 }
 
 TEST(copy, constant) {
@@ -422,7 +422,7 @@ TEST(copy, loop) {
     OutputVector new_args = {trip_count, exec_condition, X_new, Y_new, M_new};
     auto loop_copy = loop->clone_with_new_inputs(new_args);
 
-    auto node_cast = std::dynamic_pointer_cast<op::v5::Loop>(loop_copy);
+    auto node_cast = ov::as_type_ptr<op::v5::Loop>(loop_copy);
     ASSERT_NE(node_cast, nullptr);
     ASSERT_TRUE(nullptr != loop_copy);
     EXPECT_EQ(loop->get_num_iterations(), node_cast->get_num_iterations());
@@ -447,12 +447,12 @@ TEST(copy, random_uniform) {
 
     const auto min_val_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto max_val_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
-    auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
+    auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, shape);
     auto ru =
         std::make_shared<ov::op::v8::RandomUniform>(out_shape, min_val_param, max_val_param, element::f32, 150, 10);
 
     // Call `evaluate` to update m_state
-    auto outputs = ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()}};
+    auto outputs = ov::TensorVector{{element::i64, {1lu, 2lu, 3lu}}};
     ru->evaluate(outputs,
                  ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()},
                                   {element::f32, min_val_param->get_shape(), &min},

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -16,7 +16,10 @@ def greater_equal(name : str, x, y, data_type, cast_to_fp32=False):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='input_x', shape=x.shape, dtype=data_type)
         node_y = paddle.static.data(name='input_y', shape=y.shape, dtype=data_type)
-        out = paddle.fluid.layers.greater_equal(x=node_x, y=node_y, name='greater_equal')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.greater_equal(x=node_x, y=node_y, name='greater_equal')
+        else:
+            out = paddle.fluid.layers.greater_equal(x=node_x, y=node_y, name='greater_equal')
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:
@@ -32,7 +35,7 @@ def greater_equal(name : str, x, y, data_type, cast_to_fp32=False):
             feed={'input_x': x, 'input_y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x', 'input_y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                   inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

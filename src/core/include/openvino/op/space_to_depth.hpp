@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 protected:
@@ -76,6 +74,7 @@ class OPENVINO_API AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>
 public:
     AttributeAdapter(op::v0::SpaceToDepth::SpaceToDepthMode& value)
         : EnumAttributeAdapterBase<op::v0::SpaceToDepth::SpaceToDepthMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::SpaceToDepth::SpaceToDepthMode>");
 };

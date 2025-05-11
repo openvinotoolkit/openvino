@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,6 @@
 cmake_minimum_required(VERSION 3.13)
 
 project(OpenVINOTemplatePlugin)
-
-set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
 
 find_package(OpenVINODeveloperPackage REQUIRED)
 
@@ -31,6 +29,6 @@ endif()
 # install
 
 if(OpenVINODeveloperPackage_FOUND)
-    ie_cpack(template)
+    ov_cpack(template)
 endif()
 # [cmake:main]

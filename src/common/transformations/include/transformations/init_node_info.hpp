@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API InitNodeInfo;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief InitNodeInfo transformation helps to set runtime info attributes in a single place.
  *
  * Every runtime info attribute that needs to be initialized should be registered
@@ -35,6 +35,6 @@ class TRANSFORMATIONS_API InitNodeInfo;
  */
 class ov::pass::InitNodeInfo : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("InitNodeInfo", "0");
+    OPENVINO_MODEL_PASS_RTTI("InitNodeInfo");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

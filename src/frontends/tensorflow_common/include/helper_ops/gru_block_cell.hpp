@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,15 @@ public:
     ov::Dimension get_hidden_size() const {
         // TODO: it must be deleted once hidden_size is gone from attributes
         return m_hidden_size;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 6,
+                                      "[TensorFlow Frontend] internal error: GRUBlockCell expects 6 inputs");
+        auto gru_block_cell_node =
+            std::make_shared<GRUBlockCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], m_decoder);
+        gru_block_cell_node->set_attrs(get_attrs());
+        return gru_block_cell_node;
     }
 
 private:

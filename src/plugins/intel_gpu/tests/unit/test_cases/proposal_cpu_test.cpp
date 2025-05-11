@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,9 +67,9 @@ class TestRunnerProposal
 
 template <typename Dtype, typename ImInfoType>
 TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test) :
-                            _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
-                            _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
-                            _image_info_layout(cldnn::type_to_data_type<ImInfoType>::value, format::bfyx, image_info_size),
+                            _cls_scores_layout(ov::element::from<Dtype>(), format::bfyx, { 1, 18, 23, 14 } ),
+                            _bbox_pred_layout(ov::element::from<Dtype>(), format::bfyx, { 1, 36, 23, 14 } ),
+                            _image_info_layout(ov::element::from<ImInfoType>(), format::bfyx, image_info_size),
                             _test_layer(layer_name,
                                         cls_scores_name,
                                         bbox_pred_name,
@@ -81,8 +81,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
                                         pre_nms_topn,
                                         post_nms_topn,
                                         ratios,
-                                        scales,
-                                        padding())
+                                        scales)
 {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));
     _topology.add(input_layout(bbox_pred_name, _bbox_pred_layout));
@@ -93,15 +92,17 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
     if (is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(get_test_engine(), _topology);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
+            ob.set_stream(get_test_stream_ptr().get());
+            program::build_program(get_test_engine(), _topology, {})->save(ob);
         }
         {
             std::istream in_mem(&mem_buf);
             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-            _network.reset(new network(ib, get_test_stream_ptr(), get_test_engine(), true, 0));
+            auto imported_prog = std::make_shared<cldnn::program>(get_test_engine());
+            imported_prog->load(ib);
+            _network.reset(new network(imported_prog));
         }
     } else {
         _network.reset(new network(get_test_engine(), _topology));
@@ -156,7 +157,7 @@ TEST(proposal, basic) {
 }
 
 TEST(proposal, fp16) {
-    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic<ov::float16>({ 1, 3, 1, 1 }, false);
 }
 
 TEST(proposal, img_info_batched) {
@@ -186,11 +187,11 @@ void test_proposal_basic_two_types(cldnn::tensor image_info_size, bool is_cachin
 }
 
 TEST(proposal, scores_fp16_im_info_fp32) {
-    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic_two_types<ov::float16, float>({ 1, 3, 1, 1 }, false);
 }
 
 TEST(proposal, scores_fp32_im_info_fp16) {
-    test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic_two_types<float, ov::float16>({ 1, 3, 1, 1 }, false);
 }
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, basic_cached) {
@@ -198,7 +199,7 @@ TEST(proposal, basic_cached) {
 }
 
 TEST(proposal, fp16_cached) {
-    test_proposal_basic<FLOAT16>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic<ov::float16>({ 1, 3, 1, 1 }, true);
 }
 
 TEST(proposal, img_info_batched_cached) {
@@ -210,9 +211,9 @@ TEST(proposal, img_info_batch_only_cached) {
 }
 
 TEST(proposal, scores_fp16_im_info_fp32_cached) {
-    test_proposal_basic_two_types<FLOAT16, float>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic_two_types<ov::float16, float>({ 1, 3, 1, 1 }, true);
 }
 #endif // RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, scores_fp32_im_info_fp16_cached) {
-    test_proposal_basic_two_types<float, FLOAT16>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic_two_types<float, ov::float16>({ 1, 3, 1, 1 }, true);
 }

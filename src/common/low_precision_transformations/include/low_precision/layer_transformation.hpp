@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,55 +11,28 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "transformation_context.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
 /*****************************************************
  * Debug capability
- *  - ORIGINAL_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - TRANSFORMED_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable
- *    dequantization layers printing
- *  - LPT_DISPLAY_PRECISION : Define it to to display precision info
- *    during low precision transformations
- *
+ *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable dequantization info printing: scales, shifts, etc.
  *****************************************************/
-// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/orig.model"
-// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/transformed.model"
 // #define LPT_PRINT_DEQUANTIZATION_INFO
-// #define LPT_DISPLAY_PRECISION
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 namespace precision_set {
-    const std::vector<element::Type> int8_support  = {
-            ngraph::element::u8,  ngraph::element::i8
-    };
-    const std::vector<element::Type> int8_int16_int32_support = {
-            ngraph::element::u8,  ngraph::element::i8,
-            ngraph::element::u16, ngraph::element::i16,
-            ngraph::element::u32, ngraph::element::i32
-    };
-}
-enum levels : size_t {
-    int4 = 16,
-    int4_narrow_range = 15,
-    int8 = 256,
-    int8_narrow_range = 255,
-    int16 = 65536,
-    int16_narrow_range = 65535,
-    int32 = size_t(4294967296),  // for ARM and ia32 platforms where this number bigger than size_t but never used
-    int32_narrow_range = 4294967295
-};
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_support();
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_int16_int32_support();
+} // namespace precision_set
+
 class LP_TRANSFORMATIONS_API DataPrecision {
 public:
-    DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
+    DataPrecision() : precision(element::dynamic), min(0.f), max(0.f), hasZeroPoint(false) {}
 
     explicit DataPrecision(const element::Type& precision) {
         this->precision = precision;
@@ -75,10 +48,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
-        assert(
-            ((precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
-            ((precision != element::undefined) && (max != 0.f)));
-        return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
+        assert(((precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+               ((precision != element::dynamic) && (max != 0.f)));
+        return (precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
     static bool isSupported(const element::Type& precision) {
@@ -94,6 +66,7 @@ public:
         switch (precision) {
             case element::i4:
             case element::u4:
+            case element::nf4:
                 return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
             case element::i8:
             case element::u8:
@@ -109,6 +82,7 @@ public:
         }
     }
 
+    // the lowest value (example, for signed symetric types: -max)
     static float getMinValue(const element::Type precision, const size_t levels) {
         switch (precision) {
             case element::u4:
@@ -148,12 +122,14 @@ public:
                 break;
             case element::f16:
                 return -1.0e15f;
+            case element::bf16:
+                return -3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::lowest();
             default:
-                NGRAPH_CHECK(false, "unexpected precision ", precision);
+                OPENVINO_ASSERT(false, "unexpected precision ", precision);
         }
-        NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
+        OPENVINO_ASSERT(false, "unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {
@@ -186,10 +162,12 @@ public:
                 return 2147483648.f;  // 2147483648.f == 2147483647.f
             case element::f16:
                 return 1.0e15f;
+            case element::bf16:
+                return 3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
-                NGRAPH_CHECK(false, "unexpected precision ", precision);
+                OPENVINO_ASSERT(false, "unexpected precision ", precision);
         }
     }
 
@@ -248,23 +226,26 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Base class for low precision transformation.
  */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::LayerTransformation");
     class Params {
     public:
         Params(
             const bool updatePrecisions = true,
             element::Type deqPrecision = element::f32,
-            const std::vector<ngraph::element::Type> defaultPrecisions =
-            { ngraph::element::u8,  ngraph::element::i8 },
-            const bool reshapeIgnorePerTensorQuantizationCheck = false) :
+            const std::vector<ov::element::Type> defaultPrecisions =
+            { ov::element::u8,  ov::element::i8 },
+            const bool reshapeIgnorePerTensorQuantizationCheck = false,
+            const bool scalingMode = false) :
             updatePrecisions(updatePrecisions),
             deqPrecision(deqPrecision),
             defaultPrecisions(defaultPrecisions),
-            reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck) {}
+            reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck),
+            scalingMode(scalingMode) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
@@ -276,16 +257,21 @@ public:
             return *this;
         }
 
-        Params& setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+        Params& setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions) {
             this->defaultPrecisions = defaultPrecisions;
             return *this;
         }
 
         bool updatePrecisions;
+        // Use deqPrecision only for FakeQuantize operation decomposition,
+        // use existing precisions in other cases.
+        // In this case if FakeQuantize operations were decomposed then original precision will be used.
         element::Type deqPrecision;
-        std::vector<ngraph::element::Type> defaultPrecisions;
+        std::vector<ov::element::Type> defaultPrecisions;
         // to support GPU workarround to keep Reshape and MatMul in FP32
         bool reshapeIgnorePerTensorQuantizationCheck;
+        // to support Activations Scaling
+        bool scalingMode;
     };
 
     class PrecisionDetails {
@@ -301,18 +287,11 @@ public:
     };
 
     LayerTransformation(const Params& params);
-    virtual ~LayerTransformation() = default;
-    virtual bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) = 0;
+    virtual bool transform(ov::pass::pattern::Matcher &m) = 0;
 
-    void setContext(TransformationContext* context) noexcept;
-
-    void setUpdatePrecisions(const bool updatePrecisions);
-
-    void setDefaultPrecisions(const std::vector<ngraph::element::Type>& defaultPrecisions);
-
-    virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
+    virtual bool canBeTransformed(const std::shared_ptr<Node>& layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -326,13 +305,13 @@ public:
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
     virtual bool isQuantized(const std::shared_ptr<const Node>& layer,
-        const std::vector<ngraph::element::Type>& defaultPrecisions) const;
+        const std::vector<ov::element::Type>& defaultPrecisions) const;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
@@ -353,59 +332,32 @@ protected:
         const std::vector<float>& dequantizationShifts);
 #endif
 
-    bool updatePrecisions;
-    element::Type deqPrecision;
-    std::vector<ngraph::element::Type> defaultPrecisions;
-    bool reshapeIgnorePerTensorQuantizationCheck;
+    const bool updatePrecisions;
+    const element::Type deqPrecision;
+    const std::vector<ov::element::Type> defaultPrecisions;
+    const bool reshapeIgnorePerTensorQuantizationCheck;
+    const bool scalingMode;
 
     static constexpr char originalLayerPostfix[] = "_original";
-    TransformationContext* context;
 
 protected:
-    std::shared_ptr<ngraph::Node> moveDequantizationAfter(
-        TransformationContext &context,
-        const std::shared_ptr<ngraph::Node>& operation,
+    std::shared_ptr<ov::Node> moveDequantizationAfter(
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
+        const bool updateOutputPrecision = true,
         const bool moveSubtract = true) const;
 
-    std::shared_ptr<ngraph::Node> moveDequantizationBefore(
-        TransformationContext& context,
-        const std::shared_ptr<ngraph::Node>& operation,
+    std::shared_ptr<ov::Node> moveDequantizationBefore(
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    void updateOutput(
-        TransformationContext &context,
-        std::shared_ptr<ngraph::Node> lastNode,
-        std::shared_ptr<ngraph::Node> originalNode) const;
+    bool updateOutput(const std::shared_ptr<ov::Node>& lastNode, const std::shared_ptr<ov::Node>& originalNode) const;
 
-    void updateOutput(
-        TransformationContext& context,
-        std::shared_ptr<ngraph::Node> lastNode,
-        std::string originalName) const;
-
-    void addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
-
-    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
-    bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-
-    template <typename Operation>
-    void addSingleNodePattern(ov::pass::GraphRewrite& pass, TransformationContext& context) const {
-        using namespace ngraph;
-
-        auto is_op_type = [](std::shared_ptr<Node> n) {
-            return !!as_type_ptr<Operation>(n);
-        };
-        auto p_node = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
-
-        addPattern(pass, context, p_node);
-    }
+    // TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    bool canBeTransformedSpatialDimension(const std::shared_ptr<Node>& layer) const;
 };
-
-typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

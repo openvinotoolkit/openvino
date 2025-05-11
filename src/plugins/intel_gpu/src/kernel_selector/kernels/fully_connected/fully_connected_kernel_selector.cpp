@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "fully_connected_kernel_imad.h"
 #include "fully_connected_kernel_fs_byx_fsv32.h"
 #include "fully_connected_kernel_bf_tiled.h"
+#include "fully_connected_kernel_gemv.h"
 
 namespace kernel_selector {
 
@@ -41,10 +42,10 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnectedKernelIMAD>();
     Attach<FullyConnected_fs_byx_fsv32>();
     Attach<FullyConnected_bf_tiled>();
+    Attach<FullyConnected_GEMV>();
 }
 
-KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params,
-                                                            const optional_params& options) const {
-    return GetAutoTuneBestKernel(params, options, KernelType::FULLY_CONNECTED);
+KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetAutoTuneBestKernel(params, KernelType::FULLY_CONNECTED);
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ class OutputLayersConcat :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;

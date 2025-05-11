@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,27 +8,62 @@
 #include <unordered_set>
 #include <set>
 #include <vector>
-
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include "openvino/opsets/opset12.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/variadic_split.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
+ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
     const std::vector<PrecisionsRestriction>& restrictions,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
+    const std::vector<ov::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
             r.precisionsByVersion.emplace(
@@ -40,7 +75,6 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
                 restriction.operationType.version_id,
                 Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -62,7 +96,7 @@ void setRestriction(
             for (const auto& port : item.first) {
                 Input<Node> input = node->input(port);
                 auto& rt = input.get_rt_info();
-                auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
+                auto precisionsAttribute = ov::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
                 if ((!precisionsAttribute.empty()) && (precisionsAttribute.as<PrecisionsAttribute>().value().empty())) {
                     return;
                 }
@@ -73,7 +107,7 @@ void setRestriction(
 }
 } // namespace
 
-bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPrecisions);
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
@@ -84,7 +118,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
             continue;
         }
 
-        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
                 run_on_model(multiSubGraph->get_function(i));
             continue;
@@ -136,7 +170,7 @@ std::string name() {
     return Operation::get_type_info_static().name;
 }
 
-bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::shared_ptr<Node>& node) {
+bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::shared_ptr<Node>& node) {
     if (isDisabled(node)) {
         return false;
     }
@@ -152,16 +186,24 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<opset1::ReduceMin>() },
         { name<opset1::Relu>() },
         // TODO: there are conditions
+        { name<opset2::BatchToSpace>() },
+        { name<opset1::Broadcast>() },
+        { name<opset3::Broadcast>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
+        { name<opset8::Slice>() },
         { name<opset1::Squeeze>() },
+        { name<opset2::SpaceToBatch>() },
         { name<opset1::Split>() },
         { name<opset1::StridedSlice>() },
         { name<opset1::ShuffleChannels>() },
         { name<opset1::Transpose>() },
         { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<opset1::VariadicSplit>() },
+        { name<opset1::Gather>() },
+        { name<opset7::Gather>() },
+        { name<opset8::Gather>() },
     };
 
     const bool precisionPreserved = precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
@@ -186,10 +228,13 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     return false;
 }
 
-bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
+bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
     static std::unordered_set<std::string> supportedOps = {
         { name<opset1::Add>() },
         { name<opset1::AvgPool>() },
+        { name<opset2::BatchToSpace>() },
+        { name<opset1::Broadcast>() },
+        { name<opset3::Broadcast>() },
         { name<opset1::Clamp>() },
         { name<opset1::Concat>() },
         // ?
@@ -204,7 +249,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::MatMul>() },
         { name<opset1::MaxPool>() },
         { name<opset1::Multiply>() },
-        { name<ngraph::op::MVN>() },
+        { name<ov::op::v0::MVN>() },
         { name<opset6::MVN>() },
         { name<opset1::NormalizeL2>() },
         { name<opset1::Pad>() },
@@ -217,6 +262,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Reshape>() },
+        { name<opset8::Slice>() },
+        { name<opset2::SpaceToBatch>() },
         { name<opset1::Squeeze>() },
         { name<opset1::ShuffleChannels>() },
         { name<opset1::Split>() },
@@ -228,6 +275,9 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::VariadicSplit>() },
         { name<opset5::LSTMSequence>() },
         { name<opset6::GRUSequence>() },
+        { name<opset1::Gather>() },
+        { name<opset7::Gather>() },
+        { name<opset8::Gather>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

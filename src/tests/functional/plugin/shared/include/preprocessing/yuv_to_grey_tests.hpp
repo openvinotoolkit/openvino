@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <gtest/gtest.h>
-
-#include <openvino/core/preprocess/resize_algorithm.hpp>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 

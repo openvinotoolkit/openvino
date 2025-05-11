@@ -49,16 +49,44 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
               indices_output{indices_output},
               index_element_type{index_element_type} {}
 
+    /// @brief Constructs AdaptiveAvgPooling primitive for dynamic shape.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param output_shape Output shape (pooled vector) primitive id.
+    adaptive_pooling(const primitive_id &id,
+                     const input_info &input,
+                     const input_info &output_shape)
+            : primitive_base(id, {input, output_shape}),
+              mode{adaptive_pooling_mode::average},
+              output_size{tensor(0)} {}
+
+    /// @brief Constructs AdaptiveMaxPooling primitive for dynamic shape.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param output_shape Output shape (pooled vector) primitive id.
+    /// @param index_element_type Data type of indices output.
+    adaptive_pooling(const primitive_id &id,
+                     const input_info &input,
+                     const input_info &output_shape,
+                     data_types index_element_type,
+                     data_types output_data_type = data_types::i32,
+                     const size_t num_outputs = 1)
+            : primitive_base(id, {input, output_shape}, num_outputs, {optional_data_type{output_data_type}}),
+              mode{adaptive_pooling_mode::max},
+              output_size{tensor(0)},
+              indices_output{""},
+              index_element_type{index_element_type} {}
+
     adaptive_pooling_mode mode;
     tensor output_size;
-    primitive_id indices_output;
+    input_info indices_output;
     data_types index_element_type{data_types::i64};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, mode);
         seed = hash_combine(seed, index_element_type);
-        seed = hash_combine(seed, indices_output.empty());
+        seed = hash_combine(seed, indices_output.is_valid());
         return seed;
     }
 
@@ -90,10 +118,13 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!indices_output.empty())
-            ret.push_back(indices_output);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (indices_output.is_valid())
+            ret[idx++] = &indices_output;
+
         return ret;
     }
 };

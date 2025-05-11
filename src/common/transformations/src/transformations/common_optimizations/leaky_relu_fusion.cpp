@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -23,7 +24,7 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
     auto max_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& original_alpha_pattern = pattern_map.at(alpha_pattern);
 

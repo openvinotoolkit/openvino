@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/permute.hpp"
 #include "test_utils.h"
 #include "program_helpers.h"
 #include "layout_optimizer.h"
@@ -66,7 +67,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -77,7 +78,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(false, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(false, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -103,7 +104,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
+    lo.clear_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -114,7 +115,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(true, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(true, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -175,7 +176,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
@@ -187,7 +188,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -232,7 +233,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
+    lo.clear_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -243,7 +244,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -266,7 +267,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     layout conv_layout(p.input_data_type, p.output_format, p.out_shape, padding({0, }, 0));
     layout reorder_layout(p.output_data_type, p.output_format, p.out_shape, padding({0, }, 0));
     auto input = engine.allocate_memory({ p.input_data_type, p.input_format, p.in_shape });
-    auto weights = engine.allocate_memory({ p.input_data_type, p.input_format, p.weight_shape });
+    auto weights = engine.allocate_memory({ p.input_data_type, p.weights_format, p.weight_shape });
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
@@ -278,7 +279,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
@@ -290,7 +291,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -298,9 +299,9 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_onednn,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
                                             reorder_test_param{format::bs_fs_yx_bsv8_fsv4, format::b_fs_yx_fsv32, data_types::f32, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
-                                                tensor{1}, tensor{0}, data_types::u8, format::goiyx, true},
+                                                tensor{1}, tensor{0}, data_types::u8, format::oiyx, true},
                                             reorder_test_param{format::bs_fs_yx_bsv8_fsv2, format::b_fs_yx_fsv16, data_types::f32, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
-                                                tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
+                                                tensor{1}, tensor{0}, data_types::f16, format::oiyx, true},
                                             }));
 
 class can_fuse_reorder : public ::testing::TestWithParam<std::tuple<data_types, format>> {};
@@ -339,8 +340,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
         return;
     }
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog);
 
     size_t reorders_count = 0;
     const size_t expected_reorders_count = 1;
@@ -403,8 +403,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     }
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog);
 
     size_t reorders_count = 0;
     const size_t expected_reorders_count = req_format == format::bfyx ? 2 : 3;
@@ -456,8 +455,8 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
-    layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    auto& lo = prog->get_layout_optimizer();
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_onednn_conv(prog, lo, "conv", p.conv_layout);
 
     auto itr = prog->get_processing_order().begin();

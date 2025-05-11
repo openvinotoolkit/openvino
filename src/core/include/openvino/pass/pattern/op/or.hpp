@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ov {
-namespace pass {
-namespace pattern {
-namespace op {
+namespace ov::pass {
+namespace pattern::op {
 /// A submatch on the graph value is performed on each input to the Or; the match
 /// succeeds on the first match. Otherwise the match fails.
 class OPENVINO_API Or : public Pattern {
@@ -25,7 +23,7 @@ public:
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override;
 };
-}  // namespace op
-}  // namespace pattern
-}  // namespace pass
-}  // namespace ov
+}  // namespace pattern::op
+OPENVINO_API std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs);
+OPENVINO_API std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs);
+}  // namespace ov::pass

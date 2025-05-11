@@ -1,17 +1,20 @@
 name: 'Dependency Review'
-on: [pull_request]
+on: [pull_request, merge_group]
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@38ecb5b593bf0eb19e335c03f97670f792489a8b # v4.7.0
         with:
           config-file: './.github/dependency_review.yml'
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_ref }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.ref }}

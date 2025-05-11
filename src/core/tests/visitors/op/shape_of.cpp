@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, shapeof_op1) {
-    NodeBuilder::get_ops().register_factory<op::v0::ShapeOf>();
+    NodeBuilder::opset().insert<op::v0::ShapeOf>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v0::ShapeOf>(data);
     NodeBuilder builder(shapeof, {data});
@@ -24,7 +24,7 @@ TEST(attributes, shapeof_op1) {
 }
 
 TEST(attributes, shapeof_op3) {
-    NodeBuilder::get_ops().register_factory<op::v3::ShapeOf>();
+    NodeBuilder::opset().insert<op::v3::ShapeOf>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v3::ShapeOf>(data, element::Type_t::i64);
     NodeBuilder builder(shapeof, {data});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <string>
 
 #include "common_test_utils/graph_comparator.hpp"
-#include "ie/ie_core.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/add.hpp"
@@ -137,19 +136,6 @@ TEST_F(RTInfoDeserialization, node_v10) {
     auto round = result->get_input_node_ptr(0);
     check_rt_info(round->get_rt_info());
 
-    // read IR v10 with old API
-    {
-        InferenceEngine::Core core;
-        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-        ASSERT_NE(nullptr, f_10.getFunction());
-
-        auto res = compare_functions(f, f_10.getFunction());
-        EXPECT_TRUE(res.first) << res.second;
-
-        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getInputsInfo()["in1"]->getPrecision());
-        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getOutputsInfo()["Round"]->getPrecision());
-    }
-
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
     {
         ov::Shape shape{1, 3, 22, 22};
@@ -263,16 +249,6 @@ TEST_F(RTInfoDeserialization, names_collision_v10) {
     };
     check_version(f, 10);
 
-    // read IR v10 with old API
-    {
-        InferenceEngine::Core core;
-        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-        ASSERT_NE(nullptr, f_10.getFunction());
-
-        auto res = compare_functions(f, f_10.getFunction());
-        EXPECT_TRUE(res.first) << res.second;
-    }
-
     // read IR v10 with new API
     {
         ov::Core core;
@@ -382,19 +358,6 @@ TEST_F(RTInfoDeserialization, input_and_output_v10) {
     check_rt_info(add->input(1).get_rt_info());
     check_rt_info(add->output(0).get_rt_info());
 
-    // read IR v10 with old API
-    {
-        InferenceEngine::Core core;
-        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-        ASSERT_NE(nullptr, f_10.getFunction());
-
-        auto res = compare_functions(f, f_10.getFunction());
-        EXPECT_TRUE(res.first) << res.second;
-
-        EXPECT_EQ(InferenceEngine::Precision::I64, f_10.getInputsInfo()["in1"]->getPrecision());
-        EXPECT_EQ(InferenceEngine::Precision::I32, f_10.getOutputsInfo()["sum"]->getPrecision());
-    }
-
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
     {
         const ov::Shape shape{1, 3, 22, 22};
@@ -442,11 +405,15 @@ TEST_F(RTInfoDeserialization, node_v11) {
                 <attribute name="old_api_map_element_type" version="0" value="f16"/>
                 <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="if no version" value="then ignore"/>
+                <attribute name="fused_names" version="1" comment="unknown version"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
                     <rt_info>
                         <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                        <no_name version="0" value="param1"/>
+                        <empty_node/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
@@ -555,217 +522,6 @@ TEST_F(RTInfoDeserialization, node_v11) {
 
         check_version(f_11, 11);
     }
-
-    // read IR v11 with old API and check that old_api_map is applied
-    {
-        const ov::PartialShape shape{1, 3, 22, 22};
-        auto type = ov::element::f16;
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->set_friendly_name("in1");
-        param->get_output_tensor(0).set_names({"input_tensor"});
-
-        // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
-        auto constant_param =
-            std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
-        auto transpose_param = std::make_shared<ov::op::v1::Transpose>(param, constant_param);
-
-        // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
-        auto convert_param = std::make_shared<ov::op::v0::Convert>(transpose_param, ov::element::f32);
-
-        auto round = std::make_shared<ov::op::v5::Round>(convert_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-        // TODO: runtime information should migrate as well?
-        round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
-
-        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
-        auto constant_result =
-            std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
-        auto transpose_result = std::make_shared<ov::op::v1::Transpose>(round, constant_result);
-
-        transpose_result->set_friendly_name("Round");
-        transpose_result->get_output_tensor(0).set_names({"output_tensor"});
-
-        auto result = std::make_shared<ov::op::v0::Result>(transpose_result);
-        result->set_friendly_name("output");
-
-        auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-        f_10_ref->set_friendly_name("Network");
-
-        InferenceEngine::Core core;
-        auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-        auto f_10_core = cnn_core.getFunction();
-        ASSERT_NE(nullptr, f_10_core);
-
-        check_version(f_10_core, 10);
-
-        ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
-        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
-        ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
-        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
-
-        const auto fc = FunctionsComparator::with_default()
-                            .enable(FunctionsComparator::ATTRIBUTES)
-                            .enable(FunctionsComparator::PRECISIONS)
-                            .enable(FunctionsComparator::RUNTIME_KEYS)
-                            .enable(FunctionsComparator::NAMES)
-                            .enable(FunctionsComparator::CONST_VALUES);
-        auto res = fc.compare(f_10_core, f_10_ref);
-        EXPECT_TRUE(res.valid) << res.message;
-
-        EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
-        EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
-        EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
-        EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
-
-        // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const ov::RTMap& info) {
-            const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
-            EXPECT_EQ(0, info.count(key_order));
-            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
-            EXPECT_EQ(0, info.count(key_type));
-        };
-
-        check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
-        check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
-
-        // check information about layout
-        EXPECT_EQ(f_10_core->get_parameters()[0]->get_layout(), ov::Layout("NCHW"))
-            << f_10_core->get_parameters()[0]->get_layout().to_string();
-        EXPECT_EQ(f_10_core->get_results()[0]->get_layout(), ov::Layout("NCHW"))
-            << f_10_core->get_results()[0]->get_layout().to_string();
-    }
-}
-
-TEST_F(RTInfoDeserialization, node_v11_uint8) {
-    std::string model = R"V0G0N(
-<net name="Network" version="11">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="u8" shape="1,22,22,3"/>
-            <rt_info>
-                <attribute name="old_api_map_element_type" version="0" value="f16"/>
-                <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
-                <attribute name="fused_names" version="0" value="in1"/>
-            </rt_info>
-            <output>
-                <port id="0" precision="FP32" names="input_tensor">
-                    <dim>1</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                    <dim>3</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="Round" id="1" type="Round" version="opset8">
-            <data mode="half_to_even"/>
-            <rt_info>
-                <attribute name="fused_names" version="0" value="Round1,Round2"/>
-            </rt_info>
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                    <dim>3</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32" names="output_tensor">
-                    <dim>1</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                    <dim>3</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset8">
-            <rt_info>
-                <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            </rt_info>
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                    <dim>3</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-    auto f = getWithIRFrontend(model);
-    ASSERT_NE(nullptr, f);
-
-    // read IR v11 with old API and check that old_api_map is applied
-    const ov::PartialShape shape{1, 3, 22, 22};
-    auto type = ov::element::f16;
-    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-    param->set_friendly_name("in1");
-    param->get_output_tensor(0).set_names({"input_tensor"});
-
-    auto constant_param =
-        std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
-    auto transpose_param = std::make_shared<ov::op::v1::Transpose>(param, constant_param);
-
-    auto round = std::make_shared<ov::op::v5::Round>(transpose_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-    round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
-    auto constant_result =
-        std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
-    auto transpose_result = std::make_shared<ov::op::v1::Transpose>(round, constant_result);
-
-    transpose_result->set_friendly_name("Round");
-    transpose_result->get_output_tensor(0).set_names({"output_tensor"});
-
-    auto result = std::make_shared<ov::op::v0::Result>(transpose_result);
-    result->set_friendly_name("output");
-
-    auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-    f_10_ref->set_friendly_name("Network");
-
-    InferenceEngine::Core core;
-    auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-    auto f_10_core = cnn_core.getFunction();
-    ASSERT_NE(nullptr, f_10_core);
-
-    ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
-    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
-    ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
-    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
-
-    const auto fc = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::PRECISIONS)
-                        .enable(FunctionsComparator::RUNTIME_KEYS)
-                        .enable(FunctionsComparator::NAMES)
-                        .enable(FunctionsComparator::CONST_VALUES);
-    auto res = fc.compare(f_10_core, f_10_ref);
-    EXPECT_TRUE(res.valid) << res.message;
-
-    EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
-    EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
-    EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
-    EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
-
-    // check that old api map is removed once applied
-    auto check_old_api_rt_info = [](const ov::RTMap& info) {
-        const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
-        EXPECT_EQ(0, info.count(key_order));
-        const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
-        EXPECT_EQ(0, info.count(key_type));
-    };
-
-    check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
-    check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
-
-    // check information about layout
-    EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
-        << f_10_core->get_parameters()[0]->get_layout().to_string();
-    EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
-        << f_10_core->get_results()[0]->get_layout().to_string();
 }
 
 TEST_F(RTInfoDeserialization, node_v11_multiple_rt_keys) {
@@ -948,33 +704,6 @@ TEST_F(RTInfoDeserialization, input_and_output_v11) {
     check_fused_names(add->input(0).get_rt_info(), "test2,test3");
     check_fused_names(add->input(1).get_rt_info(), "test3,test4");
     check_fused_names(add->output(0).get_rt_info(), "test4,test5");
-
-    // read IR v11 with old API - the function is the same since no old_api_map is applied
-    {
-        InferenceEngine::Core core;
-        auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-        auto f_10 = cnn.getFunction();
-        ASSERT_NE(nullptr, f_10);
-
-        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getInputsInfo()["in1"]->getPrecision());
-        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getOutputsInfo()["sum"]->getPrecision());
-
-        // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const ov::RTMap& info) {
-            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
-            EXPECT_FALSE(info.count(key_type));
-            const std::string& key_order = ov::OldApiMapElementType::get_type_info_static();
-            EXPECT_FALSE(info.count(key_order));
-        };
-
-        check_old_api_rt_info(f_10->get_parameters()[0]->get_rt_info());
-        check_old_api_rt_info(f_10->get_result()->get_rt_info());
-
-        auto res = compare_functions(f, f_10);
-        EXPECT_TRUE(res.first) << res.second;
-
-        check_version(f_10, 10);
-    }
 }
 
 TEST_F(RTInfoDeserialization, indexes_input_and_output_v11) {
@@ -1095,80 +824,49 @@ TEST_F(RTInfoDeserialization, indexes_input_and_output_v11) {
     ASSERT_EQ(f->get_results()[1]->get_friendly_name(), "output1");
 }
 
-TEST_F(RTInfoDeserialization, v11_to_v10_without_rt_info) {
+TEST_F(RTInfoDeserialization, node_naming_v11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="f32" shape="1,3,22,22"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="fused_names" version="0" value="test1,test2"/>
-                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
-                    </rt_info>
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="1" name="sum" type="Add" version="opset1">
-            <input>
-                <port id="0">
-                    <rt_info>
-                        <attribute name="fused_names" version="0" value="test2,test3"/>
-                    </rt_info>
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-                <port id="1">
-                    <rt_info>
-                        <attribute name="fused_names" version="0" value="test3,test4"/>
-                    </rt_info>
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32">
-                    <rt_info>
-                        <attribute name="fused_names" version="0" value="test4,test5"/>
-                    </rt_info>
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset8">
-            <input>
-                <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="fused_names" version="0" value="test5,test6"/>
-                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
-                    </rt_info>
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
+	<layers>
+		<layer id="0" name="input" type="Parameter" version="opset1">
+			<data shape="1,3,224,224" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="input">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>224</dim>
+					<dim>224</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="output" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>224</dim>
+					<dim>224</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+	</edges>
+	<rt_info>
+		<framework>
+			<item0 value="0" /> <!-- Old-style notation, may cause an issue if starts with an unexpected character. Compatibility. -->
+			<info name="item1" value="1" /> <!-- New-style notation, name can contain any characters -->
+		</framework>
+		<info name="conversion_parameters"> <!-- New-style whole block -->
+			<info name="input_model" value="DIR\model.onnx" />
+			<info name="is_python_api_used" value="True" />
+		</info>
+	</rt_info>
 </net>
 )V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
@@ -1176,10 +874,18 @@ TEST_F(RTInfoDeserialization, v11_to_v10_without_rt_info) {
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
         ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
-    InferenceEngine::Core core;
-    auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-    auto f_10 = cnn.getFunction();
-    ASSERT_NE(nullptr, f_10);
+    check_version(f, 11);
 
-    check_version(f_10, 10);
+    auto& rt_info = f->get_rt_info();
+    ASSERT_TRUE(rt_info.count("framework"));
+    ASSERT_TRUE(rt_info.count("conversion_parameters"));
+
+    auto& item0 = f->get_rt_info<std::string>("framework", "item0");
+    ASSERT_EQ(item0, "0");
+
+    auto& item1 = f->get_rt_info<std::string>("framework", "item1");
+    ASSERT_EQ(item1, "1");
+
+    auto& is_python_api_used = f->get_rt_info<std::string>("conversion_parameters", "is_python_api_used");
+    ASSERT_EQ(is_python_api_used, "True");
 }

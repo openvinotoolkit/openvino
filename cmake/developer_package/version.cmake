@@ -1,53 +1,66 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 find_package(Git QUIET)
 
-function (branchName VAR)
-    if(NOT DEFINED repo_root)
-        message(FATAL_ERROR "repo_root is not defined")
-    endif()
+function(ov_branch_name VAR REPO_ROOT)
     if(GIT_FOUND)
         execute_process(
                 COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-                WORKING_DIRECTORY ${repo_root}
+                WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_BRANCH
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+        if(EXIT_CODE EQUAL 0)
+            set(${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
-function (commitHash VAR)
-    if(NOT DEFINED repo_root)
-        message(FATAL_ERROR "repo_root is not defined")
-    endif()
+function(ov_commit_hash VAR REPO_ROOT)
     if(GIT_FOUND)
         execute_process(
                 COMMAND ${GIT_EXECUTABLE} rev-parse --short=11 HEAD
-                WORKING_DIRECTORY ${repo_root}
+                WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_COMMIT_HASH
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+        if(EXIT_CODE EQUAL 0)
+            set(${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
-function (commitNumber VAR)
-    if(NOT DEFINED repo_root)
-        message(FATAL_ERROR "repo_root is not defined")
-    endif()
+function(ov_commit_number VAR REPO_ROOT)
+    set(GIT_COMMIT_NUMBER_FOUND OFF)
     if(GIT_FOUND)
         execute_process(
                 COMMAND ${GIT_EXECUTABLE} rev-list --count --first-parent HEAD
-                WORKING_DIRECTORY ${repo_root}
+                WORKING_DIRECTORY ${REPO_ROOT}
                 OUTPUT_VARIABLE GIT_COMMIT_NUMBER
+                RESULT_VARIABLE EXIT_CODE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-        set (${VAR} ${GIT_COMMIT_NUMBER} PARENT_SCOPE)
+        if(EXIT_CODE EQUAL 0)
+            set(GIT_COMMIT_NUMBER_FOUND ON)
+            set(${VAR} ${GIT_COMMIT_NUMBER} PARENT_SCOPE)
+        endif()
+    endif()
+    if(NOT GIT_COMMIT_NUMBER_FOUND)
+        # set zeros since git is not available
+        set(${VAR} "000" PARENT_SCOPE)
     endif()
 endfunction()
 
-macro(ov_parse_ci_build_number)
-    set(OpenVINO_VERSION_BUILD 000)
+macro(ov_parse_ci_build_number repo_root)
+    # provides OpenVINO version
+    # 1. If CI_BUILD_NUMBER is defined, parses this information
+    # 2. Otherwise, either:
+    #  - parses openvino/core/version.hpp
+    #  - takes from OpenVINOConfig-version.cmake in case of relocatable Developer package
+    if (DEFINED ENV{CI_BUILD_NUMBER})
+        set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
+    endif()
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -63,18 +76,10 @@ macro(ov_parse_ci_build_number)
         message(FATAL_ERROR "Failed to parse CI_BUILD_NUMBER which is ${CI_BUILD_NUMBER}")
     endif()
 
-    if(NOT DEFINED repo_root)
-        message(FATAL_ERROR "repo_root is not defined")
-    endif()
-
-    macro(ov_get_hpp_version)
+    function(ov_compare_version_with_headers)
         if(NOT DEFINED OpenVINO_SOURCE_DIR)
+            # if we are not in OpenVINO source tree, let's ignore this comparison
             return()
-        endif()
-
-        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/src/inference/include/ie/ie_version.hpp")
-        if(NOT EXISTS ${ie_version_hpp})
-            message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
         endif()
 
         set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/src/core/include/openvino/core/version.hpp")
@@ -82,49 +87,39 @@ macro(ov_parse_ci_build_number)
             message(FATAL_ERROR "File openvino/core/version.hpp with OPENVINO_VERSION definitions is not found")
         endif()
 
-        file(STRINGS "${ie_version_hpp}" IE_VERSION_PARTS REGEX "#define IE_VERSION_[A-Z]+[ ]+" )
         file(STRINGS "${ov_version_hpp}" OV_VERSION_PARTS REGEX "#define OPENVINO_VERSION_[A-Z]+[ ]+" )
 
         foreach(suffix MAJOR MINOR PATCH)
-            set(ie_version_name "IE_VERSION_${suffix}")
             set(ov_version_name "OpenVINO_VERSION_${suffix}")
             set(ov_version_name_hpp "OPENVINO_VERSION_${suffix}")
 
-            string(REGEX REPLACE ".+${ie_version_name}[ ]+([0-9]+).*" "\\1"
-                    ${ie_version_name}_HPP "${IE_VERSION_PARTS}")
             string(REGEX REPLACE ".+${ov_version_name_hpp}[ ]+([0-9]+).*" "\\1"
                     ${ov_version_name}_HPP "${OV_VERSION_PARTS}")
-
-            if(NOT ${ie_version_name}_HPP EQUAL ${ov_version_name}_HPP)
-                message(FATAL_ERROR "${ov_version_name} (${${ov_version_name}_HPP})"
-                                    " and ${ie_version_name} (${${ie_version_name}_HPP}) are not equal")
-            endif()
         endforeach()
 
-        # detect commit number
-        commitNumber(OpenVINO_VERSION_BUILD_HPP)
-        if(OpenVINO_VERSION_BUILD STREQUAL "000" AND DEFINED OpenVINO_VERSION_BUILD_HPP)
-            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_HPP}")
-        else()
-            set(OpenVINO_VERSION_BUILD_HPP "${OpenVINO_VERSION_BUILD}")
-        endif()
-
-        set(ov_hpp_version_is_found ON)
-    endmacro()
-
-    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
-    ov_get_hpp_version()
-
-    if(ov_hpp_version_is_found)
-        foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH OpenVINO_VERSION_BUILD)
+        foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
                     and from openvino/core/version.hpp (${${var}_HPP}) are different")
             else()
                 # CI_BUILD_NUMBER is not defined well, take info from openvino/core/version.hpp as a baseline
-                set(${var} ${${var}_HPP})
+                set(${var} ${${var}_HPP} PARENT_SCOPE)
             endif()
         endforeach()
+    endfunction()
+
+    # detect OpenVINO version via openvino/core/version.hpp
+    ov_compare_version_with_headers()
+
+    # detect commit number
+    ov_commit_number(OpenVINO_VERSION_BUILD_FROM_GIT "${repo_root}")
+
+    if(OpenVINO_VERSION_BUILD AND NOT OpenVINO_VERSION_BUILD STREQUAL OpenVINO_VERSION_BUILD_FROM_GIT)
+        # TODO: replace with FATAL_ERROR once NPU version will be discussed
+        message(WARNING "OpenVINO_VERSION_BUILD parsed from CI_BUILD_NUMBER (${OpenVINO_VERSION_BUILD}) \
+            and determined by git (${OpenVINO_VERSION_BUILD_FROM_GIT}) are different")
+    else()
+        set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_FROM_GIT}")
     endif()
 
     set(OpenVINO_SOVERSION "${OpenVINO_VERSION_MAJOR}${OpenVINO_VERSION_MINOR}${OpenVINO_VERSION_PATCH}")
@@ -140,10 +135,10 @@ macro(ov_parse_ci_build_number)
     if(NOT the_whole_version_is_defined_by_ci)
         # create CI_BUILD_NUMBER
 
-        branchName(GIT_BRANCH)
-        commitHash(GIT_COMMIT_HASH)
+        ov_branch_name(GIT_BRANCH "${repo_root}")
+        ov_commit_hash(GIT_COMMIT_HASH "${repo_root}")
 
-        if(NOT GIT_BRANCH STREQUAL "master")
+        if(NOT GIT_BRANCH MATCHES "^(master|HEAD)$")
             set(GIT_BRANCH_POSTFIX "-${GIT_BRANCH}")
         endif()
 
@@ -157,34 +152,6 @@ macro(ov_parse_ci_build_number)
     endif()
 endmacro()
 
-# provides OpenVINO version
-# 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses openvino/core/version.hpp
-if (DEFINED ENV{CI_BUILD_NUMBER})
-    set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
-endif()
-ov_parse_ci_build_number()
-
-macro (addVersionDefines FILE)
-    set(__version_file ${FILE})
-    if(NOT IS_ABSOLUTE ${__version_file})
-        set(__version_file "${CMAKE_CURRENT_SOURCE_DIR}/${__version_file}")
-    endif()
-    if(NOT EXISTS ${__version_file})
-        message(FATAL_ERROR "${FILE} does not exists in current source directory")
-    endif()
-    foreach (VAR ${ARGN})
-        if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
-            set_property(
-                SOURCE ${__version_file}
-                APPEND
-                PROPERTY COMPILE_DEFINITIONS
-                ${VAR}="${${VAR}}")
-        endif()
-    endforeach()
-    unset(__version_file)
-endmacro()
-
 macro (ov_add_version_defines FILE TARGET)
     set(__version_file ${FILE})
     if(NOT IS_ABSOLUTE ${__version_file})
@@ -193,13 +160,18 @@ macro (ov_add_version_defines FILE TARGET)
     if(NOT EXISTS ${__version_file})
         message(FATAL_ERROR "${FILE} does not exists in current source directory")
     endif()
+    if (NOT TARGET ${TARGET})
+        message(FATAL_ERROR "Invalid target ${TARGET}")
+    endif()
     _remove_source_from_target(${TARGET} ${FILE})
     _remove_source_from_target(${TARGET} ${__version_file})
-    if (BUILD_SHARED_LIBS)
-        add_library(${TARGET}_version OBJECT ${__version_file})
+    get_target_property(__target_type ${TARGET} TYPE)
+    if (__target_type STREQUAL "STATIC_LIBRARY")
+        set(__lib_type STATIC)
     else()
-        add_library(${TARGET}_version STATIC ${__version_file})
+        set(__lib_type OBJECT)
     endif()
+    add_library(${TARGET}_version ${__lib_type} ${__version_file})
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(${__version_file}
             PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
@@ -218,7 +190,7 @@ macro (ov_add_version_defines FILE TARGET)
         $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_OPTIONS>
         $<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>)
     set_target_properties(${TARGET}_version
-        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE 
+        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE
         $<TARGET_PROPERTY:${TARGET},INTERPROCEDURAL_OPTIMIZATION_RELEASE>)
 
     target_sources(${TARGET} PRIVATE $<TARGET_OBJECTS:${TARGET}_version>)

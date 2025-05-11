@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,23 +8,23 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
 class ConvolutionWIthIncorrectWeightsParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool isCorrect;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionWIthIncorrectWeightsParam
 > ConvolutionWIthIncorrectWeightsParams;
 

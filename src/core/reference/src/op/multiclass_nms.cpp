@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/multiclass_nms.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,14 +10,13 @@
 #include <queue>
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/multiclass_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 
 namespace ov {
 namespace reference {
 namespace multiclass_nms_impl {
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 using Rectangle = reference::nms_common::Rectangle;
 using BoxInfo = reference::nms_common::BoxInfo;
@@ -49,7 +48,6 @@ static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ,
 // start: start index along axis "M"
 template <class T>
 std::vector<T> slice_image(const T* data, const Shape& data_shape, const int64_t start, const int64_t item_num) {
-    std::vector<T> slice_data;
     const auto class_num = data_shape[0];
     const auto item_size = (data_shape.size() == 3) ? data_shape[2] : 1;
 
@@ -58,7 +56,7 @@ std::vector<T> slice_image(const T* data, const Shape& data_shape, const int64_t
                     "Invaid inputs as it is trying to slice data out of range.");
 
     const auto row_num = item_num * item_size;
-    slice_data.reserve(class_num * row_num);
+    std::vector<T> slice_data(static_cast<size_t>(class_num * row_num));
     T* item_data = slice_data.data();
     T* src = const_cast<T*>(data + start * item_size);
     for (size_t i = 0; i < class_num; i++) {

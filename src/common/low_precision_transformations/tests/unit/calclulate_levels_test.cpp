@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <ie_blob.h>
 
 #include "low_precision/network_helper.hpp"
 
@@ -22,7 +21,7 @@ size_t calculateLevels(const float dataPrecisionMin,
     float updatedOutputLowValue;
     float updatedOutputHighValue;
 
-    const auto levels = ngraph::pass::low_precision::NetworkHelper::calculateLevels(dataPrecisionMin,
+    const auto levels = ov::pass::low_precision::NetworkHelper::calculateLevels(dataPrecisionMin,
                                                                                     dataPrecisionMax,
                                                                                     combinedIntervalLow,
                                                                                     combinedIntervalHigh,
@@ -39,13 +38,13 @@ size_t calculateLevels(const float dataPrecisionMin,
 }  // namespace
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_U8_256) {
     const auto levels =
-        calculateLevels(0.f, ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 2.55f);
+        calculateLevels(0.f, ov::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 2.55f);
     ASSERT_EQ(256ul, levels);
 }
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_I8_256) {
     const auto levels = calculateLevels(0.f,
-                                        ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul),
+                                        ov::pass::low_precision::DataPrecision::getMaxValue(256ul),
                                         -1.28f,
                                         1.27f,
                                         -1.28f,
@@ -55,7 +54,7 @@ TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_I8_256) {
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_U8_128) {
     const auto levels = calculateLevels(0.f,
-                                        ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul),
+                                        ov::pass::low_precision::DataPrecision::getMaxValue(256ul),
                                         0.f,
                                         2.55f,
                                         0.f,
@@ -65,7 +64,7 @@ TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_U8_128) {
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_I8_128) {
     const auto levels = calculateLevels(0.f,
-                                        ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul),
+                                        ov::pass::low_precision::DataPrecision::getMaxValue(256ul),
                                         -1.28f,
                                         1.27f,
                                         -1.28f / 2.f,
@@ -75,12 +74,12 @@ TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_I8_128) {
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_0) {
     const auto levels =
-        calculateLevels(0.f, ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 0.f);
+        calculateLevels(0.f, ov::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 0.f);
     ASSERT_EQ(1ul, levels);
 }
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_3) {
     const auto levels =
-        calculateLevels(0.f, ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 0.0255f);
+        calculateLevels(0.f, ov::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 0.0255f);
     ASSERT_EQ(4ul, levels);
 }

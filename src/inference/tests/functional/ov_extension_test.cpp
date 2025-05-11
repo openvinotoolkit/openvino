@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,34 +8,30 @@
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov::test::utils;
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 namespace {
 
 std::string getOVExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
-}
-
-std::string getOldExtensionPath() {
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("template_extension") + IE_BUILD_POSTFIX);
+                                              std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("incorrect") + IE_BUILD_POSTFIX);
+                                              std::string("incorrect") + OV_BUILD_POSTFIX);
 }
 
 std::string getRelativeOVExtensionPath() {
     std::string absolutePath =
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+                                           std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
     return ov::test::utils::getRelativePath(ov::test::utils::getCurrentWorkingDir(), absolutePath);
 }
 
 }  // namespace
+#endif
 
 class CustomNewIdentity : public ov::op::Op {
 public:
@@ -86,6 +82,10 @@ public:
 };
 
 #if defined(ENABLE_OV_IR_FRONTEND)
+TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsPathLib) {
+    core.add_extension(std::filesystem::path(getOVExtensionPath()));
+    test();
+}
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
     core.add_extension(getOVExtensionPath());
@@ -140,10 +140,6 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
 
 TEST_F(OVExtensionTests, load_new_extension) {
     EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
-}
-
-TEST_F(OVExtensionTests, load_old_extension) {
-    EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
 }
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {

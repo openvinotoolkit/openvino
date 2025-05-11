@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <memory>
+#include <string>
 
-#include "cnn_network_ngraph_impl.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace details {

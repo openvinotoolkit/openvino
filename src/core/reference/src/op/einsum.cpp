@@ -1,22 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/einsum.hpp"
 
 #include <algorithm>
-#include <ngraph/opsets/opset7.hpp>
 
-#include "ngraph/shape.hpp"
+#include "openvino/op/einsum.hpp"
 #include "openvino/reference/broadcast.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/reshape.hpp"
-#include "openvino/reference/sum.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/reference/utils/span.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace reference {
 namespace {
@@ -27,7 +25,7 @@ namespace {
 std::vector<std::pair<size_t, size_t>> compute_einsum_path(size_t num_inputs) {
     // TODO: implement algorithm for finding (pseudo-)optimal einsum_path
     std::vector<std::pair<size_t, size_t>> einsum_path;
-    NGRAPH_CHECK(num_inputs > 0);
+    OPENVINO_ASSERT(num_inputs > 0);
     for (size_t input_ind = num_inputs - 1; input_ind > 0; --input_ind) {
         einsum_path.push_back(std::make_pair(0, input_ind));
     }
@@ -96,7 +94,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript,
         return input_subscript;
     }
 
-    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+    auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     std::string required_subscript = "";
     for (auto index : labels_inds) {
         required_subscript += labels[index];
@@ -105,36 +103,36 @@ std::string generate_grouping_subscript(const std::string& input_subscript,
     return required_subscript;
 }
 
-std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Rank& input_rank,
-                                                                       const std::string& input_subscript) {
+std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const Rank& input_rank,
+                                                                           const std::string& input_subscript) {
     constexpr char ellipsis[] = "...";
-    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+    auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     size_t input_rank_length = labels.size();
-    NGRAPH_CHECK(input_rank.is_static() || (std::find(labels.begin(), labels.end(), ellipsis) == labels.end()),
-                 "Input rank cannot be dynamic in case of ellipsis in input subscript");
+    OPENVINO_ASSERT(input_rank.is_static() || (std::find(labels.begin(), labels.end(), ellipsis) == labels.end()),
+                    "Input rank cannot be dynamic in case of ellipsis in input subscript");
     if (input_rank.is_static()) {
         input_rank_length = input_rank.get_length();
     }
-    std::unordered_map<std::string, ov::TensorLabel> resulted_map;
-    NGRAPH_CHECK(input_rank_length >= labels.size());
+    std::unordered_map<std::string, std::vector<size_t>> resulted_map;
+    OPENVINO_ASSERT(input_rank_length >= labels.size());
     size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
 
     size_t current_dim = 0;
     for (const auto& label : labels) {
         if (label == ellipsis) {
-            ov::TensorLabel label_dims;
+            std::vector<size_t> label_dims;
             for (size_t ind = 0; ind < num_broadcasted_dims; ++ind) {
-                label_dims.push_back(static_cast<ov::label_t>(current_dim + ind));
+                label_dims.push_back(static_cast<size_t>(current_dim + ind));
             }
-            resulted_map[label] = label_dims;
+            resulted_map[label] = std::move(label_dims);
             current_dim += num_broadcasted_dims;
         } else if (resulted_map.find(label) != resulted_map.end()) {
-            resulted_map[label].push_back(static_cast<ov::label_t>(current_dim));
+            resulted_map[label].push_back(static_cast<size_t>(current_dim));
             ++current_dim;
         } else {
-            ov::TensorLabel label_dims;
-            label_dims.push_back(static_cast<ov::label_t>(current_dim));
-            resulted_map[label] = label_dims;
+            std::vector<size_t> label_dims;
+            label_dims.push_back(static_cast<size_t>(current_dim));
+            resulted_map[label] = std::move(label_dims);
             ++current_dim;
         }
     }
@@ -146,7 +144,7 @@ std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Ran
 /// range [s_begin;s_end)
 ///
 Shape compute_sub_shape(const Shape& input_shape, size_t begin, size_t end, bool is_product = false) {
-    NGRAPH_CHECK(end <= input_shape.size());
+    OPENVINO_ASSERT(end <= input_shape.size());
     if (end <= begin) {
         // return empty shape
         return Shape();
@@ -179,17 +177,17 @@ void compute_ranges(const Rank& input_rank,
     constexpr char ellipsis[] = "...";
     size_t common_rank = common_labels.size();
     if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         common_rank += label_to_dim_map[ellipsis].size() - 1;
     }
     size_t sep_rank = sep_labels.size();
     if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         sep_rank += label_to_dim_map[ellipsis].size() - 1;
     }
     size_t reduced_rank = reduced_labels.size();
     if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) != reduced_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         reduced_rank += label_to_dim_map[ellipsis].size() - 1;
     }
 
@@ -255,15 +253,15 @@ Shape compute_matmul_output_shape(const Shape& common_sub_shape,
 /// inputs with indices input_ind1 and input_ind2 and inserted new input and
 /// the corresponsing subscript in the tail
 ///
-void update_operands(HostTensorVector& inputs,
+void update_operands(ov::TensorVector& inputs,
                      std::vector<std::string>& input_subscripts,
                      size_t input_ind1,
                      size_t input_ind2,
-                     const HostTensorPtr& new_input,
+                     const ov::Tensor& new_input,
                      const std::string& new_subscript) {
-    NGRAPH_CHECK(input_ind1 < input_ind2);
-    NGRAPH_CHECK(input_ind2 < inputs.size());
-    NGRAPH_CHECK(input_ind2 < input_subscripts.size());
+    OPENVINO_ASSERT(input_ind1 < input_ind2);
+    OPENVINO_ASSERT(input_ind2 < inputs.size());
+    OPENVINO_ASSERT(input_ind2 < input_subscripts.size());
     inputs.erase(inputs.begin() + input_ind2);
     inputs.erase(inputs.begin() + input_ind1);
     inputs.push_back(new_input);
@@ -275,30 +273,27 @@ void update_operands(HostTensorVector& inputs,
 /// \brief      Unsqueeze input by given dimensions if a vector of unsqueezing
 /// dimensions is not empty
 template <typename T>
-HostTensorPtr unsqueeze_input(const HostTensorPtr& input, std::vector<int64_t>& unsqueeze_axes) {
+ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsqueeze_axes) {
     if (unsqueeze_axes.empty()) {
         return input;
     }
 
-    Shape input_shape = input->get_shape();
-    Shape output_shape = input_shape;
+    const auto& input_shape = input.get_shape();
+    auto output_shape = input_shape;
     std::sort(unsqueeze_axes.begin(), unsqueeze_axes.end());
     for (auto unsqueeze_axis : unsqueeze_axes) {
-        NGRAPH_CHECK(unsqueeze_axis >= 0);
-        NGRAPH_CHECK(static_cast<size_t>(unsqueeze_axis) <= output_shape.size());
+        OPENVINO_ASSERT(unsqueeze_axis >= 0);
+        OPENVINO_ASSERT(static_cast<size_t>(unsqueeze_axis) <= output_shape.size());
         output_shape.insert(output_shape.begin() + unsqueeze_axis, 1);
     }
 
-    HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(input->get_element_type(), output_shape));
-    const AxisVector order = ngraph::get_default_order(input->get_shape());
-    const auto element_type = input->get_element_type();
+    auto output = ov::Tensor(input.get_element_type(), output_shape);
+    const auto element_type = input.get_element_type();
 
-    reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                       reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                       input_shape,
-                       order,
-                       output_shape,
-                       element_type.size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
 
     return output;
 }
@@ -307,31 +302,31 @@ HostTensorPtr unsqueeze_input(const HostTensorPtr& input, std::vector<int64_t>& 
 /// equation and reduce dimensions corresponding to such labels
 ///
 template <typename T>
-void reduce_input(HostTensorVector& inputs,
+void reduce_input(ov::TensorVector& inputs,
                   std::vector<std::string>& input_subscripts,
                   const std::string& output_subscript,
                   size_t input_ind) {
     // perform sanity check for arguments
     auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     const auto& input_ptr = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
-    const auto input_shape = input_ptr->get_shape();
+    const auto& input_shape = input_ptr.get_shape();
 
     // compute output shape and axes to reduce
-    ngraph::Shape output_shape;
-    ngraph::AxisSet reduced_axes;
-    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
-    auto label_dim_map = compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
+    ov::Shape output_shape;
+    ov::AxisSet reduced_axes;
+    auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
+    auto label_dim_map = compute_label_dim_map(input_ptr.get_shape().size(), input_subscript);
     std::string new_input_subscript = "";
     for (const auto& label : labels) {
         // check if the current label is met in the other input subscripts
         // or the output subscript
         bool is_dim_reduced = is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
 
-        NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
+        OPENVINO_ASSERT(label_dim_map.find(label) != label_dim_map.end());
         auto label_dims = label_dim_map[label];
 
         // if label is not met, dimension corresponding to the label is to reduce
@@ -350,26 +345,26 @@ void reduce_input(HostTensorVector& inputs,
         return;
     }
 
-    HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), output_shape));
+    auto output_ptr = ov::Tensor(input_ptr.get_element_type(), output_shape);
 
-    reference::sum<T>(input_ptr->get_data_ptr<T>(), output_ptr->get_data_ptr<T>(), input_shape, reduced_axes);
+    reference::reduce_sum(input_ptr.data<T>(), output_ptr.data<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
-    inputs[input_ind] = output_ptr;
-    input_subscripts[input_ind] = new_input_subscript;
+    inputs[input_ind] = std::move(output_ptr);
+    input_subscripts[input_ind] = std::move(new_input_subscript);
 }
 
 /// \brief      Transpose input to layout specified through the required subscript
 ///
 template <typename T>
-void transpose_input(HostTensorVector& inputs,
+void transpose_input(ov::TensorVector& inputs,
                      std::vector<std::string>& input_subscripts,
                      const std::string& required_subscript,
                      size_t input_ind) {
     // perform sanity check for arguments
     auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     // generate permutation vector by searching for bijection between
     // input_subscripts and required_subscript
@@ -384,53 +379,53 @@ void transpose_input(HostTensorVector& inputs,
 
     // find permutation that establishes bijection between the input subscript
     // and the required one
-    auto label_dim_map = compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
-    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-    auto required_labels = ngraph::opset7::Einsum::extract_labels(required_subscript);
-    NGRAPH_CHECK(labels.size() == required_labels.size());
+    auto label_dim_map = compute_label_dim_map(input_ptr.get_shape().size(), input_subscript);
+    auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
+    auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
+    OPENVINO_ASSERT(labels.size() == required_labels.size());
     for (const auto& required_label : required_labels) {
-        NGRAPH_CHECK(label_dim_map.find(required_label) != label_dim_map.end());
+        OPENVINO_ASSERT(label_dim_map.find(required_label) != label_dim_map.end());
         auto label_dims = label_dim_map[required_label];
         permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
     }
 
-    const auto input_shape = input_ptr->get_shape();
-    const auto element_type = input_ptr->get_element_type();
+    const auto& input_shape = input_ptr.get_shape();
+    const auto& element_type = input_ptr.get_element_type();
 
     Shape output_shape(input_shape.size());
     std::transform(permutation.begin(), permutation.end(), output_shape.begin(), [&](const int64_t& v) {
-        NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
-        NGRAPH_CHECK(v < int64_t(input_shape.size()), "Transpose axis ", v, " is out of shape range.");
+        OPENVINO_ASSERT(v >= 0, "Negative values for transpose axes order are not supported.");
+        OPENVINO_ASSERT(v < int64_t(input_shape.size()), "Transpose axis ", v, " is out of shape range.");
         return input_shape[v];
     });
-    HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(new HostTensor(element_type, output_shape));
+    auto output_ptr = ov::Tensor(element_type, output_shape);
 
-    reference::transpose(reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
-                         reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
+    reference::transpose(reinterpret_cast<const char*>(input_ptr.data<T>()),
+                         reinterpret_cast<char*>(output_ptr.data<T>()),
                          input_shape,
                          element_type.size(),
-                         permutation.data(),
+                         permutation,
                          output_shape);
 
     // update a vector of inputs and input subscripts
-    inputs[input_ind] = output_ptr;
+    inputs[input_ind] = std::move(output_ptr);
     input_subscripts[input_ind] = required_subscript;
 }
 
 /// \brief      Broadcast input to a new shape. The MatMul operation requires the
-/// same shape of both operands in the common (or batch) dimensionsy.
+/// same shape of both operands in the common (or batch) dimensions.
 ///
 template <typename T>
-void broadcast_input(HostTensorVector& inputs,
+void broadcast_input(ov::TensorVector& inputs,
                      size_t input_ind,
                      const Shape& new_common_shape,
                      const Shape& separate_shape,
                      const Shape& reduced_shape,
                      bool is_separate_first) {
-    NGRAPH_CHECK(input_ind < inputs.size());
-    HostTensorPtr& input = inputs[input_ind];
-    const Shape old_shape = input->get_shape();
-    Shape new_shape;
+    OPENVINO_ASSERT(input_ind < inputs.size());
+    ov::Tensor& input = inputs[input_ind];
+    const Shape old_shape = input.get_shape();
+    PartialShape new_shape;
     new_shape.insert(new_shape.end(), new_common_shape.begin(), new_common_shape.end());
     if (is_separate_first) {
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
@@ -440,24 +435,24 @@ void broadcast_input(HostTensorVector& inputs,
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
     }
 
-    if (input->get_shape() == new_shape) {
+    if (input.get_shape() == new_shape.to_shape()) {
         return;
     }
-    NGRAPH_CHECK(old_shape.size() <= new_shape.size());
-
-    HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(input->get_element_type(), new_shape));
+    OPENVINO_ASSERT(old_shape.size() <= new_shape.size());
 
     std::vector<size_t> broadcast_axes(old_shape.size());
     std::iota(broadcast_axes.begin(), broadcast_axes.end(), new_shape.size() - old_shape.size());
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(new_shape, old_shape, ov::op::AutoBroadcastType::NUMPY));
+    auto output = ov::Tensor(input.get_element_type(), new_shape.to_shape());
 
-    reference::broadcast(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                         reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                         input->get_shape(),
-                         output->get_shape(),
+    reference::broadcast(reinterpret_cast<const char*>(input.data<T>()),
+                         reinterpret_cast<char*>(output.data<T>()),
+                         input.get_shape(),
+                         output.get_shape(),
                          broadcast_axes,
-                         input->get_element_type().size());
+                         input.get_element_type().size());
 
-    input = output;
+    input = std::move(output);
 }
 
 /// \brief      Build identity tensor that will be used to zero non-diagonal tensor
@@ -465,21 +460,21 @@ void broadcast_input(HostTensorVector& inputs,
 /// identity
 ///
 template <typename T>
-HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const ov::TensorLabel& repeated_label_dims) {
-    // allocate HostTensor for building identity tensor
-    NGRAPH_CHECK(repeated_label_dims.size() > 1);
-    Shape input_shape = input_ptr->get_shape();
+ov::Tensor build_identity(const ov::Tensor& input, const std::vector<size_t>& repeated_label_dims) {
+    // allocate Tensor for building identity tensor
+    OPENVINO_ASSERT(repeated_label_dims.size() > 1);
+    Shape input_shape = input.get_shape();
     Shape identity_shape(input_shape.size(), 1);
     size_t repeated_label_dim_size = input_shape[repeated_label_dims[0]];
     for (auto dim : repeated_label_dims) {
-        NGRAPH_CHECK(dim < input_shape.size());
-        NGRAPH_CHECK(repeated_label_dim_size == input_shape[dim]);
+        OPENVINO_ASSERT(dim < input_shape.size());
+        OPENVINO_ASSERT(repeated_label_dim_size == input_shape[dim]);
         identity_shape[dim] = repeated_label_dim_size;
     }
-    HostTensorPtr identity = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), identity_shape));
+    auto identity = ov::Tensor(input.get_element_type(), identity_shape);
 
-    T* identity_data_ptr = identity->get_data_ptr<T>();
-    size_t data_size = shape_size(identity_shape) * identity->get_element_type().size();
+    T* identity_data_ptr = identity.data<T>();
+    size_t data_size = shape_size(identity_shape) * identity.get_element_type().size();
     std::memset(identity_data_ptr, 0, data_size);
 
     // Identity[k,k,...,k] element is placed in k*p^(n-1) + ... + k*p + k position,
@@ -507,36 +502,33 @@ HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const ov::TensorLab
 /// repeated label
 ///
 template <typename T>
-HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
-                                   const std::vector<std::string>& repeated_labels,
-                                   std::unordered_map<std::string, ov::TensorLabel>& label_dim_map) {
-    Shape input_shape = input_ptr->get_shape();
+ov::Tensor build_multi_identity(const ov::Tensor& input,
+                                const std::vector<std::string>& repeated_labels,
+                                std::unordered_map<std::string, std::vector<size_t>>& label_dim_map) {
+    Shape input_shape = input.get_shape();
 
     // initially set multi-identity with identity for the first repeated label
-    NGRAPH_CHECK(repeated_labels.size() > 0);
-    auto first_repeated_label = repeated_labels[0];
-    NGRAPH_CHECK(label_dim_map.find(first_repeated_label) != label_dim_map.end());
+    OPENVINO_ASSERT(repeated_labels.size() > 0);
+    const auto& first_repeated_label = repeated_labels[0];
+    OPENVINO_ASSERT(label_dim_map.find(first_repeated_label) != label_dim_map.end());
     auto repeated_label_dims = label_dim_map[first_repeated_label];
-    HostTensorPtr multi_identity = build_identity<T>(input_ptr, repeated_label_dims);
+    ov::Tensor multi_identity = build_identity<T>(input, repeated_label_dims);
 
     for (size_t label_ind = 1; label_ind < repeated_labels.size(); ++label_ind) {
-        NGRAPH_CHECK(label_dim_map.find(repeated_labels[label_ind]) != label_dim_map.end());
+        OPENVINO_ASSERT(label_dim_map.find(repeated_labels[label_ind]) != label_dim_map.end());
         repeated_label_dims = label_dim_map[repeated_labels[label_ind]];
-        HostTensorPtr identity = build_identity<T>(input_ptr, repeated_label_dims);
+        ov::Tensor identity = build_identity<T>(input, repeated_label_dims);
 
-        PartialShape output_shape = multi_identity->get_partial_shape();
-        PartialShape::broadcast_merge_into(output_shape,
-                                           identity->get_partial_shape(),
-                                           ngraph::op::AutoBroadcastType::NUMPY);
-        HostTensorPtr mul_output =
-            std::shared_ptr<HostTensor>(new HostTensor(identity->get_element_type(), output_shape.get_shape()));
-        reference::multiply<T>(multi_identity->get_data_ptr<T>(),
-                               identity->get_data_ptr<T>(),
-                               mul_output->get_data_ptr<T>(),
-                               multi_identity->get_shape(),
-                               identity->get_shape(),
-                               ngraph::op::AutoBroadcastType::NUMPY);
-        multi_identity = mul_output;
+        PartialShape output_shape = multi_identity.get_shape();
+        PartialShape::broadcast_merge_into(output_shape, identity.get_shape(), ov::op::AutoBroadcastType::NUMPY);
+        auto mul_output = ov::Tensor(identity.get_element_type(), output_shape.get_shape());
+        reference::multiply<T>(multi_identity.data<T>(),
+                               identity.data<T>(),
+                               mul_output.data<T>(),
+                               multi_identity.get_shape(),
+                               identity.get_shape(),
+                               ov::op::AutoBroadcastType::NUMPY);
+        multi_identity = std::move(mul_output);
     }
     return multi_identity;
 }
@@ -545,28 +537,28 @@ HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
 /// labels) is diagonal
 ///
 template <typename T>
-void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_subscripts, size_t input_ind) {
+void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_subscripts, size_t input_ind) {
     // perform sanity check for arguments
     auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     const auto& input_ptr = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
-    const auto input_shape = input_ptr->get_shape();
+    const auto& input_shape = input_ptr.get_shape();
 
     std::string resultant_subscript = "";
     constexpr char ellipsis[] = "...";
-    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-    auto label_dim_map = compute_label_dim_map(input_ptr->get_partial_shape().rank(), input_subscript);
+    auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
+    auto label_dim_map = compute_label_dim_map(input_ptr.get_shape().size(), input_subscript);
     std::vector<std::string> repeated_labels;
     Shape result_shape;
     AxisSet reduced_axes;
     for (const auto& label : labels) {
         if (resultant_subscript.find(label) == std::string::npos) {
-            NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
+            OPENVINO_ASSERT(label_dim_map.find(label) != label_dim_map.end());
             auto dims = label_dim_map[label];
-            NGRAPH_CHECK(dims.size() > 0);
+            OPENVINO_ASSERT(dims.size() > 0);
             if (label != ellipsis && dims.size() > 1) {
                 // repeated label is found
                 for (size_t dim_ind = 1; dim_ind < dims.size(); ++dim_ind) {
@@ -578,7 +570,7 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
             }
             resultant_subscript += label;
             for (auto dim : dims) {
-                NGRAPH_CHECK(dim < input_shape.size());
+                OPENVINO_ASSERT(dim < input_shape.size());
                 result_shape.push_back(input_shape[dim]);
             }
         }
@@ -587,20 +579,20 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
         return;
     }
 
-    HostTensorPtr multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
+    ov::Tensor multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
-    HostTensorPtr mul_output = input_ptr;
-    reference::multiply<T>(input_ptr->get_data_ptr<T>(),
-                           multi_identity->get_data_ptr<T>(),
-                           mul_output->get_data_ptr<T>(),
-                           input_ptr->get_shape(),
-                           multi_identity->get_shape(),
-                           ngraph::op::AutoBroadcastType::NUMPY);
+    ov::Tensor mul_output = input_ptr;
+    reference::multiply<T>(input_ptr.data<T>(),
+                           multi_identity.data<T>(),
+                           mul_output.data<T>(),
+                           input_ptr.get_shape(),
+                           multi_identity.get_shape(),
+                           ov::op::AutoBroadcastType::NUMPY);
 
-    HostTensorPtr result = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), result_shape));
-    reference::sum<T>(mul_output->get_data_ptr<T>(), result->get_data_ptr<T>(), mul_output->get_shape(), reduced_axes);
-    inputs[input_ind] = result;
-    input_subscripts[input_ind] = resultant_subscript;
+    auto result = ov::Tensor(input_ptr.get_element_type(), result_shape);
+    reference::reduce_sum(mul_output.data<T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
+    inputs[input_ind] = std::move(result);
+    input_subscripts[input_ind] = std::move(resultant_subscript);
 }
 
 /// \brief      Reshape input to the new shape specified by sub-shapes of the
@@ -608,11 +600,11 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
 /// acceptable by MatMul
 ///
 template <typename T>
-HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
-                                       const Shape& common_sub_shape,
-                                       const Shape& separate_sub_shape,
-                                       const Shape& reduced_sub_shape_prod,
-                                       bool is_separate_first) {
+ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
+                                    const Shape& common_sub_shape,
+                                    const Shape& separate_sub_shape,
+                                    const Shape& reduced_sub_shape_prod,
+                                    bool is_separate_first) {
     Shape new_shape;
     new_shape.insert(new_shape.end(), common_sub_shape.begin(), common_sub_shape.end());
 
@@ -643,22 +635,61 @@ HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
 
     // when new shape is equal to the current one,
     // there is no need in reshape
-    if (new_shape == input->get_shape()) {
+    if (new_shape == input.get_shape()) {
         return input;
     }
 
-    const auto element_type = input->get_element_type();
-    const auto input_shape = input->get_shape();
-    HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(element_type, new_shape));
-    const AxisVector order = ngraph::get_default_order(input_shape);
+    const auto element_type = input.get_element_type();
+    const auto& input_shape = input.get_shape();
+    auto output = ov::Tensor(element_type, new_shape);
 
-    reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                       reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                       input_shape,
-                       order,
-                       new_shape,
-                       element_type.size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
     return output;
+}
+
+/// \brief Adjusts the rank of two input tensors by unsqueezing ellipses to the same rank.
+///
+/// This function takes two input tensors and their corresponding subscripts, and ensures that
+/// the ellipses ("...") in the subscripts have the same rank by unsqueezing dimensions as needed.
+/// It modifies the input tensors in place.
+///
+/// \param inputs A vector of input tensors.
+/// \param input_subscripts A vector of strings representing the subscripts for each input tensor.
+/// \param input_ind1 The index of the first input tensor in the inputs vector.
+/// \param input_ind2 The index of the second input tensor in the inputs vector.
+template <typename T>
+void unsqueeze_ellipses_to_same_rank(ov::TensorVector& inputs,
+                                     std::vector<std::string>& input_subscripts,
+                                     size_t input_ind1,
+                                     size_t input_ind2) {
+    constexpr char ellipsis[] = "...";
+    const auto& input1 = inputs[input_ind1];
+    const auto& input2 = inputs[input_ind2];
+    auto label_to_dim_map1 = compute_label_dim_map(input1.get_shape().size(), input_subscripts[input_ind1]);
+    auto label_to_dim_map2 = compute_label_dim_map(input2.get_shape().size(), input_subscripts[input_ind2]);
+    if (label_to_dim_map1.find(ellipsis) != label_to_dim_map1.end() &&
+        label_to_dim_map2.find(ellipsis) != label_to_dim_map2.end()) {
+        std::vector<int64_t> unsqueeze_axis1, unsqueeze_axis2;
+        const auto& ellipsis_dims1 = label_to_dim_map1[ellipsis];
+        const auto& ellipsis_dims2 = label_to_dim_map2[ellipsis];
+        if (ellipsis_dims2.size() > ellipsis_dims1.size()) {
+            for (size_t i = 0; i < ellipsis_dims2.size() - ellipsis_dims1.size(); ++i) {
+                unsqueeze_axis1.push_back(ellipsis_dims1[0] + i);
+            }
+        } else if (ellipsis_dims1.size() > ellipsis_dims2.size()) {
+            for (size_t i = 0; i < ellipsis_dims1.size() - ellipsis_dims2.size(); ++i) {
+                unsqueeze_axis2.push_back(ellipsis_dims2[0] + i);
+            }
+        }
+        ov::Tensor unsqueeze_output1 = unsqueeze_input<T>(input1, unsqueeze_axis1);
+        ov::Tensor unsqueeze_output2 = unsqueeze_input<T>(input2, unsqueeze_axis2);
+        inputs[input_ind1] = std::move(unsqueeze_output1);
+        inputs[input_ind2] = std::move(unsqueeze_output2);
+        return;
+    }
 }
 
 /// \brief      Contract two inputs of Einsum operation according to equation.
@@ -667,7 +698,7 @@ HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
 /// inputs along with their input subscripts
 ///
 template <typename T>
-void contract_two_inputs(HostTensorVector& inputs,
+void contract_two_inputs(ov::TensorVector& inputs,
                          std::vector<std::string>& input_subscripts,
                          const std::string& output_subscript,
                          size_t input_ind1,
@@ -680,11 +711,14 @@ void contract_two_inputs(HostTensorVector& inputs,
 
     // perform sanity check for arguments
     auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
 
     const auto& input1 = inputs[input_ind1];
     const auto& input2 = inputs[input_ind2];
+
+    // unsqueeze inputs to have same rank of ellipsis for correct broadcasting
+    unsqueeze_ellipses_to_same_rank<T>(inputs, input_subscripts, input_ind1, input_ind2);
 
     // extract diagonals in case repeated labels in the corresponding input
     // subscripts
@@ -705,9 +739,9 @@ void contract_two_inputs(HostTensorVector& inputs,
     // corresponding label are met in neither the output subscript nor the input
     // subscripts for other Einsum inputs excluding two given inputs
     auto& input_subscript1 = input_subscripts[input_ind1];
-    auto labels1 = ngraph::opset7::Einsum::extract_labels(input_subscript1);
+    auto labels1 = ov::op::v7::Einsum::extract_labels(input_subscript1);
     auto& input_subscript2 = input_subscripts[input_ind2];
-    auto labels2 = ngraph::opset7::Einsum::extract_labels(input_subscript2);
+    auto labels2 = ov::op::v7::Einsum::extract_labels(input_subscript2);
     std::string common_part = "";
     std::string separate_part1 = "";
     std::string separate_part2 = "";
@@ -756,27 +790,27 @@ void contract_two_inputs(HostTensorVector& inputs,
         // for further unsqueezing
         transpose_input<T>(inputs, input_subscripts, convenient_subscript, input_ind2);
 
-        auto separate_labels1 = ngraph::opset7::Einsum::extract_labels(separate_part1);
-        auto separate_labels2 = ngraph::opset7::Einsum::extract_labels(separate_part2);
-        auto label_to_dim_map1 = compute_label_dim_map(input1->get_partial_shape().rank(), input_subscript1);
-        auto label_to_dim_map2 = compute_label_dim_map(input2->get_partial_shape().rank(), input_subscript2);
+        auto separate_labels1 = ov::op::v7::Einsum::extract_labels(separate_part1);
+        auto separate_labels2 = ov::op::v7::Einsum::extract_labels(separate_part2);
+        auto label_to_dim_map1 = compute_label_dim_map(input1.get_shape().size(), input_subscript1);
+        auto label_to_dim_map2 = compute_label_dim_map(input2.get_shape().size(), input_subscript2);
 
         // unsqueeze the first operand with new dimensions in the tail
         // and the number of them is equal to the number of separate labels in the
         // second subscript
-        int64_t input_rank1 = input1->get_shape().size();
+        int64_t input_rank1 = input1.get_shape().size();
         int64_t unsqueeze_dim = input_rank1;
         std::vector<int64_t> unsqueeze_axis1;
         std::vector<int64_t> unsqueeze_axis2;
         for (const auto& sep_label2 : separate_labels2) {
-            NGRAPH_CHECK(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
-            auto label_dims = label_to_dim_map2[sep_label2];
+            OPENVINO_ASSERT(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
+            const auto& label_dims = label_to_dim_map2[sep_label2];
             for (size_t dim_ind = 0; dim_ind < label_dims.size(); ++dim_ind) {
                 unsqueeze_axis1.push_back(unsqueeze_dim + static_cast<int64_t>(dim_ind));
             }
         }
         for (const auto& sep_label1 : separate_labels1) {
-            NGRAPH_CHECK(label_to_dim_map1.find(sep_label1) != label_to_dim_map1.end());
+            OPENVINO_ASSERT(label_to_dim_map1.find(sep_label1) != label_to_dim_map1.end());
             auto label_dims = label_to_dim_map1[sep_label1];
             for (auto label_dim : label_dims) {
                 unsqueeze_axis2.push_back(label_dim);
@@ -784,22 +818,21 @@ void contract_two_inputs(HostTensorVector& inputs,
         }
 
         // unsqueeze input operands for elementwise-multiplication with broadcasting
-        HostTensorPtr unsqueeze_output1 = unsqueeze_input<T>(input1, unsqueeze_axis1);
-        HostTensorPtr unsqueeze_output2 = unsqueeze_input<T>(input2, unsqueeze_axis2);
+        ov::Tensor unsqueeze_output1 = unsqueeze_input<T>(input1, unsqueeze_axis1);
+        ov::Tensor unsqueeze_output2 = unsqueeze_input<T>(input2, unsqueeze_axis2);
 
         // multiply both operands with broadcasting
-        PartialShape output_shape = unsqueeze_output1->get_partial_shape();
+        PartialShape output_shape = unsqueeze_output1.get_shape();
         PartialShape::broadcast_merge_into(output_shape,
-                                           unsqueeze_output2->get_partial_shape(),
-                                           ngraph::op::AutoBroadcastType::NUMPY);
-        HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
-            new HostTensor(unsqueeze_output1->get_element_type(), output_shape.get_shape()));
-        reference::multiply<T>(unsqueeze_output1->get_data_ptr<T>(),
-                               unsqueeze_output2->get_data_ptr<T>(),
-                               mul_output->get_data_ptr<T>(),
-                               unsqueeze_output1->get_shape(),
-                               unsqueeze_output2->get_shape(),
-                               ngraph::op::AutoBroadcastType::NUMPY);
+                                           unsqueeze_output2.get_shape(),
+                                           ov::op::AutoBroadcastType::NUMPY);
+        auto mul_output = ov::Tensor(unsqueeze_output1.get_element_type(), output_shape.get_shape());
+        reference::multiply<T>(unsqueeze_output1.data<T>(),
+                               unsqueeze_output2.data<T>(),
+                               mul_output.data<T>(),
+                               unsqueeze_output1.get_shape(),
+                               unsqueeze_output2.get_shape(),
+                               ov::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(inputs, input_subscripts, input_ind1, input_ind2, mul_output, resultant_subscript);
@@ -830,11 +863,11 @@ void contract_two_inputs(HostTensorVector& inputs,
     // [B1, ..., Bm, X1, Y] or [B1, ..., Bm, Y, X2], where B1, ..., Bm are common
     // dimensions, X1 and X2 are collapsed dimensions for separate labels and Y is
     // collapsed dimension for reduced labels
-    Shape input_shape1 = input1->get_shape();
-    Shape input_shape2 = input2->get_shape();
+    Shape input_shape1 = input1.get_shape();
+    Shape input_shape2 = input2.get_shape();
     size_t common_dims_begin, common_dims_end, reduced_dims_begin, reduced_dims_end, separate1_dims_begin,
         separate1_dims_end;
-    compute_ranges(input1->get_partial_shape().rank(),
+    compute_ranges(input1.get_shape().size(),
                    input_subscript1,
                    common_labels,
                    sep_labels1,
@@ -849,7 +882,7 @@ void contract_two_inputs(HostTensorVector& inputs,
 
     size_t common_dims_begin2, common_dims_end2, reduced_dims_begin2, reduced_dims_end2, separate2_dims_begin,
         separate2_dims_end;
-    compute_ranges(input2->get_partial_shape().rank(),
+    compute_ranges(input2.get_shape().size(),
                    input_subscript2,
                    common_labels,
                    sep_labels2,
@@ -865,52 +898,54 @@ void contract_two_inputs(HostTensorVector& inputs,
     PartialShape common_sub_shape1 = compute_sub_shape(input_shape1, common_dims_begin, common_dims_end);
     PartialShape common_sub_shape2 = compute_sub_shape(input_shape2, common_dims_begin2, common_dims_end2);
 
-    Shape reduced_sub_shape_prod = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end, true);
-    Shape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    PartialShape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    Shape reduced_sub_shape2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2);
     Shape separate1_sub_shape = compute_sub_shape(input_shape1, separate1_dims_begin, separate1_dims_end);
     Shape separate2_sub_shape = compute_sub_shape(input_shape2, separate2_dims_begin, separate2_dims_end);
 
     // broadcast both inputs to have common sub-shape broadcasted that is needed
     // in case of ellipsis among the common labels
     // reference::broadcast()
-    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
+    Shape reduced_sub_shape_prod = {shape_size(reduced_sub_shape.get_shape())};
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
                        common_sub_shape,
                        separate1_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first1);
     broadcast_input<T>(inputs,
                        input_ind2,
                        common_sub_shape,
                        separate2_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first2);
 
-    HostTensorPtr matmul_operand1 = reshape_input_for_matmul<T>(input1,
-                                                                common_sub_shape,
-                                                                separate1_sub_shape,
-                                                                reduced_sub_shape_prod,
-                                                                is_separate_first1);
-    HostTensorPtr matmul_operand2 = reshape_input_for_matmul<T>(input2,
-                                                                common_sub_shape,
-                                                                separate2_sub_shape,
-                                                                reduced_sub_shape_prod,
-                                                                is_separate_first2);
+    ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
+                                                             common_sub_shape,
+                                                             separate1_sub_shape,
+                                                             reduced_sub_shape_prod,
+                                                             is_separate_first1);
+
+    ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
+                                                             common_sub_shape,
+                                                             separate2_sub_shape,
+                                                             reduced_sub_shape_prod,
+                                                             is_separate_first2);
 
     // step 3. apply MatMul operation for formatted inputs
     Shape matmul_output_shape = compute_matmul_output_shape(common_sub_shape, separate1_sub_shape, separate2_sub_shape);
-    HostTensorPtr matmul_output =
-        std::shared_ptr<HostTensor>(new HostTensor(matmul_operand1->get_element_type(), matmul_output_shape));
+    auto matmul_output = ov::Tensor(matmul_operand1.get_element_type(), matmul_output_shape);
 
     bool transpose_a = (is_separate_first1 ? false : true);
     bool transpose_b = (is_separate_first2 ? true : false);
-    reference::matmul(matmul_operand1->get_data_ptr<T>(),
-                      matmul_operand2->get_data_ptr<T>(),
-                      matmul_output->get_data_ptr<T>(),
-                      matmul_operand1->get_shape(),
-                      matmul_operand2->get_shape(),
+    reference::matmul(matmul_operand1.data<T>(),
+                      matmul_operand2.data<T>(),
+                      matmul_output.data<T>(),
+                      matmul_operand1.get_shape(),
+                      matmul_operand2.get_shape(),
                       matmul_output_shape,
                       transpose_a,
                       transpose_b);
@@ -928,38 +963,88 @@ void contract_two_inputs(HostTensorVector& inputs,
     back_shape.insert(back_shape.end(), separate1_sub_shape.begin(), separate1_sub_shape.end());
     back_shape.insert(back_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
 
-    HostTensorPtr contract_output =
-        std::shared_ptr<HostTensor>(new HostTensor(matmul_output->get_element_type(), back_shape));
-    const AxisVector order = ngraph::get_default_order(matmul_output->get_shape());
-    reference::reshape(reinterpret_cast<const char*>(matmul_output->get_data_ptr<T>()),
-                       reinterpret_cast<char*>(contract_output->get_data_ptr<T>()),
-                       matmul_output->get_shape(),
-                       order,
-                       back_shape,
-                       matmul_output->get_element_type().size());
+    auto contract_output = ov::Tensor(matmul_output.get_element_type(), back_shape);
+    reshape(static_cast<const char*>(matmul_output.data()),
+            static_cast<char*>(contract_output.data()),
+            matmul_output.get_shape(),
+            matmul_output.get_element_type().size());
 
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }
 
+/// \brief Adjusts input subscripts and nodes to handle 0-dimensional ellipsis in Einsum operations.
+///
+/// Handle ellipses labels that do not represent any dimensions:
+/// 1. If there is no ellipsis in the input subscripts, remove ellipsis from the output subscript.
+/// 2. If all ellipses in the input subscripts do not represent any dimensions, remove ellipses from all subscripts.
+/// 3. If there is at least one ellipsis that represents dimension, unsqueeze ellipses that do not represent any,
+///
+/// \param input_nodes A vector of input tensors for the Einsum operation.
+/// \param input_subscripts A vector of input subscripts corresponding to the input nodes.
+/// \param output_subscript The output subscript for the Einsum operation.
 template <typename T>
-void einsum_impl(const HostTensorVector& inputs, const HostTensorVector& outputs, const std::string& equation) {
+void fix_inputs_with_0d_ellipsis(ov::TensorVector& input_nodes,
+                                 std::vector<std::string>& input_subscripts,
+                                 std::string& output_subscript) {
+    static const std::string ellipsis = "...";
+    bool has_ellipsis = false;
+    bool all_no_ellipsis_or_empty = true;
+
+    for (size_t i = 0; i < input_nodes.size(); ++i) {
+        const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[i]);
+        bool has_ellipsis_in_input = std::find(labels.begin(), labels.end(), ellipsis) != labels.end();
+        has_ellipsis |= has_ellipsis_in_input;
+        all_no_ellipsis_or_empty &=
+            !has_ellipsis_in_input || (input_nodes[i].get_shape().size() == (labels.size() - 1));
+    }
+
+    if (!has_ellipsis) {
+        if (output_subscript.find(ellipsis) != std::string::npos) {
+            output_subscript.erase(output_subscript.find(ellipsis), ellipsis.size());
+        }
+    } else if (all_no_ellipsis_or_empty) {
+        for (auto& subscript : input_subscripts) {
+            if (subscript.find(ellipsis) != std::string::npos) {
+                subscript.erase(subscript.find(ellipsis), ellipsis.size());
+            }
+        }
+        if (output_subscript.find(ellipsis) != std::string::npos) {
+            output_subscript.erase(output_subscript.find(ellipsis), ellipsis.size());
+        }
+    } else {
+        for (size_t i = 0; i < input_nodes.size(); ++i) {
+            const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[i]);
+            if (std::find(labels.begin(), labels.end(), ellipsis) != labels.end() &&
+                input_nodes[i].get_shape().size() == (labels.size() - 1)) {
+                std::vector<int64_t> ellipsis_idx{
+                    std::distance(labels.begin(), std::find(labels.begin(), labels.end(), ellipsis))};
+                input_nodes[i] = unsqueeze_input<T>(input_nodes[i], ellipsis_idx);
+            }
+        }
+    }
+}
+
+template <typename T>
+void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, const std::string& equation) {
     std::vector<std::string> input_subscripts;
     std::string output_subscript;
-    ngraph::opset7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
+    ov::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
 
     // compute einsum path that is used to contract a pair of operands
     // in more optimal order
     size_t num_inputs = inputs.size();
     auto einsum_path = compute_einsum_path(num_inputs);
+    ov::TensorVector int_inputs = inputs;
 
-    HostTensorVector int_inputs = inputs;
+    // fix inputs where ellipsis does not contain any dimensions
+    fix_inputs_with_0d_ellipsis<T>(int_inputs, input_subscripts, output_subscript);
 
     // contract inputs by Einsum until just one is remained
-    for (auto const& inds_pair : einsum_path) {
+    for (const auto& inds_pair : einsum_path) {
         contract_two_inputs<T>(int_inputs, input_subscripts, output_subscript, inds_pair.first, inds_pair.second);
     }
 
-    NGRAPH_CHECK(int_inputs.size() == 1);
+    OPENVINO_ASSERT(int_inputs.size() == 1);
 
     // extract diagonal for the single operand
     extract_diagonal<T>(int_inputs, input_subscripts, 0);
@@ -970,26 +1055,27 @@ void einsum_impl(const HostTensorVector& inputs, const HostTensorVector& outputs
     // transpose dimensions to layout required by the output subscript
     transpose_input<T>(int_inputs, input_subscripts, output_subscript, 0);
 
-    auto output_shape = int_inputs[0]->get_shape();
-    const auto& element_type = int_inputs[0]->get_element_type();
-    const auto& buf_size = shape_size(output_shape) * element_type.size();
-    outputs[0]->write(int_inputs[0]->get_data_ptr(), buf_size);
+    int_inputs[0].copy_to(outputs[0]);
 }
 
 }  // namespace
 
-void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation) {
-    NGRAPH_CHECK(inputs.size() > 0, "Einsum must accept at least one input.");
-    auto input_type = inputs[0]->get_element_type();
+void einsum(ov::TensorVector& outputs, const ov::TensorVector& inputs, const std::string& equation) {
+    OPENVINO_ASSERT(inputs.size() > 0, "Einsum must accept at least one input.");
+    auto input_type = inputs[0].get_element_type();
     for (size_t input_ind = 1; input_ind < inputs.size(); ++input_ind) {
-        NGRAPH_CHECK(inputs[input_ind]->get_element_type() == input_type, "Input types must be the same.");
+        OPENVINO_ASSERT(inputs[input_ind].get_element_type() == input_type, "Input types must be the same.");
     }
     if (input_type == element::Type_t::f32) {
         einsum_impl<float>(inputs, outputs, equation);
     } else if (input_type == element::Type_t::i32) {
         einsum_impl<int>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f16) {
+        einsum_impl<float16>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f64) {
+        einsum_impl<double>(inputs, outputs, equation);
     } else {
-        NGRAPH_CHECK(false, "Unsupported input type for Einsum operation.");
+        OPENVINO_ASSERT(false, "Unsupported input type for Einsum operation.");
     }
 }
 

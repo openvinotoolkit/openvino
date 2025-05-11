@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/detection_output.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -19,7 +20,7 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
     auto detection_output_v1_pattern = pattern::wrap_type<ov::op::v0::DetectionOutput>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto detection_output_v1_node = std::dynamic_pointer_cast<ov::op::v0::DetectionOutput>(m.get_match_root());
+        auto detection_output_v1_node = ov::as_type_ptr<ov::op::v0::DetectionOutput>(m.get_match_root());
         if (!detection_output_v1_node)
             return false;
 

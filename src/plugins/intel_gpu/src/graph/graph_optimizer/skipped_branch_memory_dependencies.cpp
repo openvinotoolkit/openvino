@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
-#include "program_helpers.h"
 #include "intel_gpu/runtime/itt.hpp"
-#include <vector>
-#include <memory>
 #include <list>
-#include <map>
-#include <set>
 
 using namespace cldnn;
 
@@ -25,7 +19,7 @@ void skipped_branch_memory_dependencies::run(program& p) {
     while (itrB != processing_order.end()) {
         auto& nodeB = *itrB;
         auto itrA = ++itrB;
-        if (nodeB->is_constant())
+        if (!nodeB->may_use_mempool())
             continue;
         if (nodeB->get_users().size() == 0)
             continue;

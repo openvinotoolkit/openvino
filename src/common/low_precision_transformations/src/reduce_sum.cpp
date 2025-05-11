@@ -1,16 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/reduce_sum.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -18,21 +20,21 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
     MATCHER_SCOPE(ReduceSumTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::ReduceSum>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceSumTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
-    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
+    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(reduceSum)) {
         return false;
     }
 
@@ -69,10 +71,21 @@ void ReduceSumTransformation::changeDequantizationValues(
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
         const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<ov::opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
+                        "dequantization precision ", deqPrecision,
+                        " differs from zero point 0 input ", dequantization.subtract->get_input_element_type(0));
+        const auto result = fold<ov::opset1::Multiply>(
+            foldConvert(dequantization.subtractConstant, deqPrecision),
+            reductionSizeConstant);
 
-        replace_node(dequantization.subtractConstant, result);
+        replace_node(
+            dequantization.subtractConvert != nullptr ?
+                std::dynamic_pointer_cast<ov::Node>(dequantization.subtractConvert) :
+                dequantization.subtractConstant,
+            result);
+
         dequantization.subtractConstant = ov::as_type_ptr<ov::opset1::Constant>(result);
+        dequantization.subtractConvert = nullptr;
     }
 }
 
@@ -86,4 +99,4 @@ bool ReduceSumTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

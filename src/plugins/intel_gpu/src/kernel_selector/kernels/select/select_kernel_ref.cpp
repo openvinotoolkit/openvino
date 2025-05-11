@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,12 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::bfzyx);
 
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::bfzyx);
 
     k.EnableBatching();
     k.EnableTensorPitches();
@@ -41,19 +43,19 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool SelectKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!SelectKernelBase::Validate(p, o)) {
+bool SelectKernelRef::Validate(const Params& p) const {
+    if (!SelectKernelBase::Validate(p)) {
         return false;
     }
 
     return true;
 }
 
-KernelsData SelectKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData SelectKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority SelectKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SelectKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

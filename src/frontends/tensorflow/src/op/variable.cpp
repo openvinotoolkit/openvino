@@ -1,19 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/constant.hpp"
 #include "translate_session.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::op;
 using namespace ov::frontend::tensorflow;
-using namespace ov::opset11;
 
 namespace ov {
 namespace frontend {
@@ -45,10 +44,7 @@ OutputVector translate_variable_op(const NodeContext& node) {
     shared_ptr<Node> const_node = nullptr;
     if (variable_data.is<ov::Tensor>()) {
         auto ov_tensor = variable_data.as<ov::Tensor>();
-        const_node = make_shared<Constant>(ov_tensor);
-    } else if (variable_data.is<std::vector<std::string>>()) {
-        // a case of string tensor that should be assigned to the variable
-        const_node = make_shared<StringConstant>(variable_data, node.get_decoder());
+        const_node = make_shared<v0::Constant>(ov_tensor);
     } else {
         // data of unknown type
         auto const_node = make_shared<UnsupportedConstant>("Variable of unsupported type", node.get_decoder());

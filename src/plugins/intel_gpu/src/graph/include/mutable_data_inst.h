@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ struct typed_program_node<mutable_data> : public typed_program_node_base<mutable
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
+    void replace_memory(memory::ptr new_mem, bool invalidate_users_if_changed = false);
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
@@ -35,6 +36,11 @@ class typed_primitive_inst<mutable_data> : public typed_primitive_inst_base<muta
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(mutable_data_node const& node, const kernel_impl_params& impl_param) {
+        return { node.get_attached_memory().get_layout() };
+    }
+
     static layout calc_output_layout(mutable_data_node const& node, kernel_impl_params const& impl_param) {
         return node.get_attached_memory().get_layout();
     }
@@ -44,8 +50,6 @@ public:
     typed_primitive_inst(network& network, mutable_data_node const& node);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
 
 private:
     std::list<primitive_id> _user_ids;

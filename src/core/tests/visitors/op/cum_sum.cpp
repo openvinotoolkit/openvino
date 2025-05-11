@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::CumSum>();
+    NodeBuilder::opset().insert<ov::op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);
@@ -30,7 +30,7 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
 }
 
 TEST(attributes, cum_sum_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
+    NodeBuilder::opset().insert<op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);
@@ -48,7 +48,7 @@ TEST(attributes, cum_sum_op_default_attributes) {
 }
 
 TEST(attributes, cum_sum_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
+    NodeBuilder::opset().insert<op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape);

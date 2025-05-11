@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,20 +15,44 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_rsub(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
-    auto self = context.get_input(0);
-    auto other = context.get_input(1);
-    if (!context.input_is_none(2)) {
-        auto alpha = context.get_input(2);
-        align_eltwise_input_types(context, self, other);
+namespace {
+OutputVector translate_rsub_common(const NodeContext& context,
+                                   Output<Node> self,
+                                   Output<Node> other,
+                                   const Output<Node>& alpha) {
+    if (alpha.get_node()) {
         // reverse aten::sub other - self * alpha
         auto alpha_casted = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, self));
-        auto alpha_mul = context.mark_node(std::make_shared<v1::Multiply>(self, alpha_casted));
-        return {context.mark_node(std::make_shared<v1::Subtract>(other, alpha_mul))};
+        self = context.mark_node(std::make_shared<v1::Multiply>(self, alpha_casted));
     }
-    align_eltwise_input_types(context, self, other);
     return {context.mark_node(std::make_shared<v1::Subtract>(other, self))};
+}
+}  // namespace
+
+OutputVector translate_rsub(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    Output<Node> self;
+    Output<Node> other;
+    std::tie(self, other) = get_inputs_with_promoted_types(context, 0, 1);
+    Output<Node> alpha;
+    if (!context.input_is_none(2)) {
+        alpha = context.get_input(2);
+    }
+    return translate_rsub_common(context, self, other, alpha);
+};
+
+OutputVector translate_rsub_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    Output<Node> self;
+    Output<Node> other;
+    std::tie(self, other) = get_inputs_with_promoted_types(context, 0, 1);
+    Output<Node> alpha;
+    if (context.has_attribute("alpha")) {
+        alpha = context.get_input("alpha");
+    } else if (!context.input_is_none(2)) {
+        alpha = context.get_input(2);
+    }
+    return translate_rsub_common(context, self, other, alpha);
 };
 
 }  // namespace op

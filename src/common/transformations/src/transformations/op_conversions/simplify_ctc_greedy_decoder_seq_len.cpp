@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -29,7 +30,7 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     auto decoder = pattern::wrap_type<ov::op::v6::CTCGreedyDecoderSeqLen>();
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto decoder_seq_len = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(m.get_match_root());
+        auto decoder_seq_len = ov::as_type_ptr<ov::op::v6::CTCGreedyDecoderSeqLen>(m.get_match_root());
         if (!decoder_seq_len) {
             return false;
         }
@@ -37,7 +38,7 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         if (decoder_seq_len->get_input_size() > 2) {
             const auto data_pshape = decoder_seq_len->get_input_partial_shape(0);
             auto blank_index =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
+                ov::as_type_ptr<ov::op::v0::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
             if (!blank_index || data_pshape.rank().is_dynamic() || data_pshape[2].is_dynamic()) {
                 return false;
             }

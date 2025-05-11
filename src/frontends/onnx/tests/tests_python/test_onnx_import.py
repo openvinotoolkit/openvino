@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -42,7 +42,7 @@ def test_simple_graph():
         ],
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, [1])],
     )
-    model = make_model(graph, producer_name="ngraph ONNX Importer")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
     graph_model_function = import_onnx_model(model)
 

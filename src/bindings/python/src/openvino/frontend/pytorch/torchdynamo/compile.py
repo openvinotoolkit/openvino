@@ -1,24 +1,26 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import os
+import logging
+from hashlib import sha256
+
 import torch
 import torch.overrides
-
-from hashlib import sha256
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-from openvino.runtime import Core, Type, PartialShape, serialize
+from openvino import Core, Type, PartialShape, serialize
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
-from typing import Callable, Optional
+logger = logging.getLogger(__name__)
 
-def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
+
+def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):  # noqa: VNE003
     if model_hash_str is None:
         return None
 
@@ -28,37 +30,23 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         os.makedirs(model_cache_dir, exist_ok=True)
         file_name = model_cache_dir + model_hash_str + "_" + device
     except OSError as error:
-        print("Cache directory ", cache_root, " cannot be created. Model caching is disabled. Error: ", error)
+        logger.warning("Cache directory %s cannot be created. Model caching is disabled. Error: %s", cache_root, error)
         return None
 
     inputs_str = ""
-    for idx, input_data in enumerate(args):  
+    for input_data in args:
+        arg_str = str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
         if reversed:
-            inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
+            inputs_str = "_" + arg_str + inputs_str
         else:
-            inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
-    inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
+            inputs_str += "_" + arg_str
+    inputs_str = sha256(inputs_str.encode("utf-8")).hexdigest()
     file_name += inputs_str
-    
+
     return file_name
 
-def cache_root_path():
-    cache_root = "./cache/"
-    if os.getenv("OPENVINO_TORCH_CACHE_DIR") is not None:
-        cache_root = os.getenv("OPENVINO_TORCH_CACHE_DIR")
-    return cache_root
 
-def get_device():
-    core = Core()
-    device = "CPU"
-
-    if os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None:
-        device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
-        assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
-
-    return device
-
-def openvino_compile_cached_model(cached_model_path, *example_inputs):
+def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
@@ -78,17 +66,23 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    core.set_property({'CACHE_DIR': cache_root_path() + '/blob'})
+    config = {}
 
-    compiled_model = core.compile_model(om, get_device())
+    if _is_cache_dir_in_config(options):
+        config = _get_config(options)
+    else:
+        config["CACHE_DIR"] = _get_cache_dir(options)
+
+    compiled_model = core.compile_model(om, _get_device(options), config)
 
     return compiled_model
 
-def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
+
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
     core = Core()
 
-    device = get_device()
-    cache_root = cache_root_path()
+    device = _get_device(options)
+    cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
@@ -99,11 +93,15 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
 
         input_shapes = []
         input_types = []
-        for idx, input_data in enumerate(args):  
-            input_types.append(input_data.type())
-            input_shapes.append(input_data.size())
+        for input_data in args:
+            if isinstance(input_data, int):
+                input_types.append(torch.int64)
+                input_shapes.append(torch.Size([1]))
+            else:
+                input_types.append(input_data.type())
+                input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+        decoder = TorchFXPythonDecoder(gm)
 
         im = fe.load(decoder)
 
@@ -124,12 +122,22 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
     }
 
     for idx, input_data in enumerate(args):
-        om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
+        if isinstance(input_data, int):
+            om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+        else:
+            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+
     om.validate_nodes_and_infer_types()
 
-    if model_hash_str is not None:
-        core.set_property({'CACHE_DIR': cache_root + '/blob'})
+    config = _get_config(options)
 
-    compiled = core.compile_model(om, device)
+    if model_hash_str is not None:
+        if not _is_cache_dir_in_config(options):
+            config["CACHE_DIR"] = cache_root
+
+    compiled = core.compile_model(om, device, config)
+    logger.debug(f"OpenVINO graph compile successful on device {device}")
+
     return compiled

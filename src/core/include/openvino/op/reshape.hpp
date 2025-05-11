@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,18 +46,17 @@ public:
     void set_special_zero(bool special_zero) {
         m_special_zero = special_zero;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
 protected:
     bool m_special_zero;
-    bool evaluate_reshape(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    bool evaluate_reshape(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
 
 private:
     void calculate_output_shape(std::vector<Dimension>& reshape_pattern,

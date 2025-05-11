@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op_extension.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "ie_extension.h"
-#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/op.hpp"
@@ -157,7 +155,7 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_wit
     fe->add_extension(ext);
 
     const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}).string()));
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));
@@ -171,43 +169,8 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
     fe->add_extension(ext);
 
     const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}).string()));
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-// Old API test
-
-namespace {
-class OldApiNode : public InferenceEngine::IExtension {
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
-        static InferenceEngine::Version ext_desc = {{1, 0}, "1.0", "old_api_node"};
-        versionInfo = &ext_desc;
-    }
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        static std::map<std::string, ngraph::OpSet> opsets;
-        if (opsets.empty()) {
-            ngraph::OpSet opset;
-            opset.insert<ov::op::util::FrameworkNode>();
-            opsets["util"] = opset;
-        }
-        return opsets;
-    }
-    void Unload() noexcept override{};
-};
-}  // namespace
-
-TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_mixed_legacy_and_new_api) {
-    const auto input_model_path = ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}));
-    ov::Core core;
-    core.add_extension(std::make_shared<OldApiNode>());
-    const auto new_api_ext =
-        std::make_shared<ov::frontend::onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
-    core.add_extension(new_api_ext);
-    EXPECT_NO_THROW(core.read_model(input_model_path));
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_END

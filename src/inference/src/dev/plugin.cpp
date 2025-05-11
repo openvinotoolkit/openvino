@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,6 @@
 
 #include <memory>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_plugin_config.hpp"
-#include "iplugin_wrapper.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
@@ -17,9 +14,12 @@
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
     try {                                                                              \
         __VA_ARGS__;                                                                   \
+    } catch (const std::exception& ex) {                                               \
+        OPENVINO_THROW(ex.what());                                                     \
     } catch (...) {                                                                    \
-        ::InferenceEngine::details::Rethrow();                                         \
+        OPENVINO_THROW("Unexpected exception");                                        \
     }
+
 ov::Plugin::~Plugin() {
     m_ptr = {};
 }
@@ -29,11 +29,7 @@ ov::Plugin::Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_pt
 }
 
 void ov::Plugin::set_name(const std::string& deviceName) {
-    OV_PLUGIN_CALL_STATEMENT({
-        m_ptr->set_device_name(deviceName);
-        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
-            wrapper->set_device_name(deviceName);
-    });
+    OV_PLUGIN_CALL_STATEMENT({ m_ptr->set_device_name(deviceName); });
 }
 
 const std::string& ov::Plugin::get_name() const {
@@ -41,25 +37,15 @@ const std::string& ov::Plugin::get_name() const {
 }
 
 void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
-    OV_PLUGIN_CALL_STATEMENT({
-        m_ptr->set_core(core);
-        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
-            wrapper->set_core(core);
-    });
+    OV_PLUGIN_CALL_STATEMENT({ m_ptr->set_core(core); });
 }
 
 const ov::Version ov::Plugin::get_version() const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_version());
 }
 
-void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->add_extension(extension));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 void ov::Plugin::set_property(const ov::AnyMap& config) {
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
+    m_ptr->set_property(config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -87,10 +73,10 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, cons
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
@@ -112,87 +98,14 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
-    OV_PLUGIN_CALL_STATEMENT({
-        if (ov::supported_properties == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ie::Exception&) {
-                std::vector<ov::PropertyName> supported_properties;
-                try {
-                    auto ro_properties =
-                        m_ptr->get_property(METRIC_KEY(SUPPORTED_METRICS), arguments).as<std::vector<std::string>>();
-                    for (auto&& ro_property : ro_properties) {
-                        if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                            ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                            supported_properties.emplace_back(ro_property, PropertyMutability::RO);
-                        }
-                    }
-                } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
-                }
-                try {
-                    auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
-                                             .as<std::vector<std::string>>();
-                    for (auto&& rw_property : rw_properties) {
-                        supported_properties.emplace_back(rw_property, PropertyMutability::RW);
-                    }
-                } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        // Add legacy supported properties
-        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ov::Exception&) {
-                auto props =
-                    m_ptr->get_property(ov::supported_properties.name(), arguments).as<std::vector<PropertyName>>();
-                std::vector<std::string> legacy_properties;
-                for (const auto& prop : props) {
-                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
-                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
-                        legacy_properties.emplace_back(prop);
-                }
-                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                }
-                if (METRIC_KEY(SUPPORTED_METRICS) == name && supports_model_caching(false))
-                    legacy_properties.emplace_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-
-                return legacy_properties;
-            }
-        }
-        if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ov::Exception&) {
-                if (!supports_model_caching(false))
-                    throw;
-                // if device has ov::device::capability::EXPORT_IMPORT it means always true
-                return true;
-            }
-        }
-        return {m_ptr->get_property(name, arguments), {m_so}};
-    });
+    return {m_ptr->get_property(name, arguments), {m_so}};
 }
 
-bool ov::Plugin::supports_model_caching(bool check_old_api) const {
+bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {
     bool supported(false);
-    if (check_old_api) {
-        auto supportedMetricKeys = get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-        supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
-                    get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
-    }
-    if (!supported) {
-        supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
-                    util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
-    }
-    if (supported) {
-        supported = util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
-    }
+    supported =
+        util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
+        util::contains(get_property(ov::device::capabilities, arguments), ov::device::capability::EXPORT_IMPORT) &&
+        util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
     return supported;
 }

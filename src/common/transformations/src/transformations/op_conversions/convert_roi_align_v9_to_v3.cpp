@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -15,7 +16,7 @@ ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
     auto roi_align_v9 = pattern::wrap_type<ov::op::v9::ROIAlign>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto roi_align_v9_node = std::dynamic_pointer_cast<ov::op::v9::ROIAlign>(m.get_match_root());
+        auto roi_align_v9_node = ov::as_type_ptr<ov::op::v9::ROIAlign>(m.get_match_root());
         if (!roi_align_v9_node)
             return false;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,11 @@ static size_t GetScatterUpdateChannelIndex(const scatter_update_params& params) 
     const size_t dict_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
         case ScatterUpdateAxis::X:
-            return dict_size - 1;
+            return (size_t)(dict_size - 1);
         case ScatterUpdateAxis::Y:
-            return dict_size - 2;
+            return (size_t)(dict_size - 2);
         case ScatterUpdateAxis::Z:
-            return dict_size - 3;
+            return (size_t)(dict_size - 3);
         case ScatterUpdateAxis::W:
             return 2;
         case ScatterUpdateAxis::FEATURE:
@@ -220,7 +220,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
-    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
+    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER",
+                                    GetSecondIterOutputIndexOrder(params, static_cast<size_t>(GetScatterUpdateChannelIndex(params)))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
 
@@ -245,7 +246,16 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     std::vector<std::string> pitches;
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        pitches = GetDynamicPitches(output.GetDims(), params.inputs.size() + GetFusedPrimitiveInputsCount(params));
+        size_t tensor_idx = params.inputs.size() + GetFusedPrimitiveInputsCount(params);
+        for (auto input : params.inputs) {
+            if (!input.is_dynamic())
+                tensor_idx--;
+        }
+        for (auto fused_op : params.fused_ops) {
+            if (!fused_op.output_tensor.is_dynamic())
+                tensor_idx--;
+        }
+        pitches = GetDynamicPitches(output.GetDims(), tensor_idx);
     } else {
         pitches = GetPlanarPitches(output.GetDims());
     }
@@ -286,8 +296,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     return jit;
 }
 
-bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: SCATTER_UPDATE || o.GetType() != KernelType::SCATTER_UPDATE) {
+bool ScatterUpdateKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: SCATTER_UPDATE) {
         return false;
     }
 
@@ -301,8 +311,22 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+void ScatterUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const scatter_update_params&>(params);
+        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
+
+        for (size_t i = 0; i < 2; ++i) {
+            auto dispatchData = SetDefault(prim_params, i == 1);
+            kd.kernels[i].params.workGroups.global = dispatchData.gws;
+            kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        }
+    };
+}
+
+KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -323,21 +347,11 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const scatter_update_params&>(params);
-        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
-
-        for (size_t i = 0; i < 2; ++i) {
-            auto dispatchData = SetDefault(prim_params, i == 1);
-            kd.kernels[i].params.workGroups.global = dispatchData.gws;
-            kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
-        }
-    };
+    GetUpdateDispatchDataFunc(kd);
 
     for (size_t i = start_with_iteration; i < 2; ++i) {
         auto dispatchData = SetDefault(newParams, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
@@ -347,13 +361,13 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
         clKernelData& kernel = kd.kernels[i - start_with_iteration];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     }
 
     return {kd};
 }
 
-KernelsPriority ScatterUpdateKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ScatterUpdateKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

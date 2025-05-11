@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,11 @@
 #include "checkpoint_utils.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "tensor_bundle.pb.h"
-#include "trackable_object_graph.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
+#include "ov_tensorflow/trackable_object_graph.pb.h"
+#include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
 #    include "snappy.h"
@@ -126,7 +128,7 @@ void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
-    ::tensorflow::BundleHeaderProto bundleHeader;
+    ::tensorflow::BundleHeaderProto bundleHeader{};
     FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
@@ -145,7 +147,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
         return;
     }
 
-    ::tensorflow::BundleEntryProto entry;
+    ::tensorflow::BundleEntryProto entry{};
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "CMO: Cannot parse Bundle Entry");
 
@@ -188,12 +190,12 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
 
-    std::vector<char> suffix(20);
+    std::vector<char> suffix(32);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::string fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()}).string();
         } else {
             fullPath = path + "." + suffix.data();
         }
@@ -228,11 +230,11 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
         }
         if (m_mmap_enabled) {
             m_data_files[shard].mmap = load_mmap_object(fullPath);
-            FRONT_END_GENERAL_CHECK(m_data_files[shard].mmap->data(), L"Variable index data cannot be mapped");
+            FRONT_END_GENERAL_CHECK(m_data_files[shard].mmap->data(), "Variable index data cannot be mapped");
         } else {
             m_data_files[shard].stream = std::shared_ptr<std::ifstream>(
                 new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
-            FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), L"Variable index data file does not exist");
+            FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
         }
     }
 
@@ -366,7 +368,9 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 }
 
 void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                        std::map<std::string, std::string>& variables_map) {
+                                        std::map<std::string, std::string>& variables_map,
+                                        HashTableKeysValuesMap& hash_table_keys_map,
+                                        HashTableKeysValuesMap& hash_table_values_map) {
     std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     for (const auto& node : graph_def->node()) {
@@ -442,6 +446,32 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
 
                 variables_map[variablev2_nodes[0]->node->name()] = variable_name;
             }
+        } else if (node.second->op() == "LookupTableImportV2") {
+            std::vector<PtrNode::SharedPtrNode> hash_tablev2_nodes;
+            node.second->find_parent_by_op("HashTableV2", hash_tablev2_nodes);
+            if (hash_tablev2_nodes.size() == 0 || node.second->node->input_size() < 3) {
+                continue;
+            }
+
+            // extract tensors with keys and values
+            // expect Constant (with keys) -> LookupTableImportV2 and Constant (with values) -> LookupTableImportV2
+            if (node.second->inputs[1]->node->op() != "Const" || node.second->inputs[2]->node->op() != "Const") {
+                continue;
+            }
+
+            auto hash_tablev2_name = hash_tablev2_nodes[0]->node->name();
+            auto ov_tensor_keys =
+                unpack_tensor_proto(node.second->inputs[1]->node->attr().at("value").tensor()).as<ov::Tensor>();
+            auto ov_tensor_values =
+                unpack_tensor_proto(node.second->inputs[2]->node->attr().at("value").tensor()).as<ov::Tensor>();
+
+            // create Constant nodes for keys and values and store them in maps
+            // these Constant nodes can be retrieved during conversion stage for conversion HashTableV2 operation
+            auto keys_const = std::make_shared<ov::op::v0::Constant>(ov_tensor_keys);
+            auto values_const = std::make_shared<ov::op::v0::Constant>(ov_tensor_values);
+
+            hash_table_keys_map[hash_tablev2_name] = keys_const;
+            hash_table_values_map[hash_tablev2_name] = values_const;
         }
     }
 

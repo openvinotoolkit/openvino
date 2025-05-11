@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,11 @@ public:
     static std::string to_string(strided_slice_node const& node);
 
     typed_primitive_inst(network& network, strided_slice_node const& desc);
+
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using strided_slice_inst = typed_primitive_inst<strided_slice>;

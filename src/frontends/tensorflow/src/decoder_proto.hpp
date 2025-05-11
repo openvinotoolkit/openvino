@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace tensorflow {
 class GraphDef;

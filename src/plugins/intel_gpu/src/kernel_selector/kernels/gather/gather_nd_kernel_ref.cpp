@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,8 +130,8 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
     return jit;
 }
 
-bool GatherNDKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: GATHER_ND || o.GetType() != KernelType::GATHER_ND) {
+bool GatherNDKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: GATHER_ND) {
         return false;
     }
 
@@ -172,8 +172,19 @@ bool GatherNDKernelRef::Validate(const Params& p, const optional_params& o) cons
     return true;
 }
 
-KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+void GatherNDKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const gather_nd_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
+KernelsData GatherNDKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -183,18 +194,11 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const gather_nd_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    GetUpdateDispatchDataFunc(kd);
 
     FillCLKernelData(kernel,
                      dispatchData,
@@ -208,7 +212,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.has_dynamic_tensors());
+                     newParams.is_shape_agnostic);
 
     return { kd };
 }

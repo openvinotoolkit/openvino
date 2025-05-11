@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, mvn_v1_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::MVN>();
+    NodeBuilder::opset().insert<ov::op::v0::MVN>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
 
     const auto axes = AxisSet{0, 1};
@@ -33,7 +33,7 @@ TEST(attributes, mvn_v1_op) {
 }
 
 TEST(attributes, mvn_v6_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v6::MVN>();
+    NodeBuilder::opset().insert<ov::op::v6::MVN>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
 

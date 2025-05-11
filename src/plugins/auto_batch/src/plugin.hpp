@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 
 #include <map>
 
-#include "ie/ie_plugin_config.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 

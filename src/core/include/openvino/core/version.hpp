@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -19,7 +19,7 @@
  * @brief Defines OpenVINO patch version
  */
 
-#define OPENVINO_VERSION_MAJOR 2023
+#define OPENVINO_VERSION_MAJOR 2025
 #define OPENVINO_VERSION_MINOR 2
 #define OPENVINO_VERSION_PATCH 0
 

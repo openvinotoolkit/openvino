@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,13 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     const auto rank = shape.rank();
@@ -33,8 +36,8 @@ bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     return true;
 }
 
-bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool EltwiseBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 

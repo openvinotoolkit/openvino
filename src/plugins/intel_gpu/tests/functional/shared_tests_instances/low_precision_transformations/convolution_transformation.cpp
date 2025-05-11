@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,18 +11,18 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
         {},
         false,
@@ -32,40 +32,40 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
     {
         {},
         false,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
         "FP32"
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "U8"
-    },
-    {
-        { 256ul, ngraph::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        false,
-        { 255ul, ngraph::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
         "U8"
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
+        { 256ul, ov::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ov::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "U8"
+    },
+    {
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
         true,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
         "U8"
     },
     {
-        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
+        { 256ul, ov::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
         true,
         {
-            255ul, ngraph::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
+            255ul, ov::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
             { -1.52806e-39f, -0.2, -0.3, -0.3, -0.2, -0.1 }, { 1.52806e-39f, 0.2, 0.3, 0.3, 0.2, 0.1 }
         },
         false,
@@ -73,10 +73,10 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "U8"
     },
     {
-        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
+        { 256ul, ov::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
         true,
         {
-            255ul, ngraph::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
+            255ul, ov::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
             { -1.52806e-39f, -1.52806e-39f, -1.52806e-39f, -1.52806e-39f, -1.52806e-39f, -1.52806e-39f },
             { 1.52806e-39f, 1.52806e-39f, 1.52806e-39f, 1.52806e-39f, 1.52806e-39f, 1.52806e-39f }
         },
@@ -86,37 +86,45 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
     },
     // not supported quantization level on data
     {
-        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 65536ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         false,
-        { 255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        { 255ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
         "FP32"
     },
     // not supported quantization level on data & weights
     {
-        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 65536ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
-        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        { 65536ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
         "FP32"
     },
     // not supported quantization level on weights
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
-        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        { 65536ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
         "FP32"
+    },
+    {
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 0.f }, { 0.f }, { 0.f } },
+        false,
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "u8"
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
@@ -125,14 +133,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
 const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
     // incorrect weights
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         false
     },
     // correct weights
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true
     }
 };
@@ -140,7 +148,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> i
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(incorrectWeightsParams)),

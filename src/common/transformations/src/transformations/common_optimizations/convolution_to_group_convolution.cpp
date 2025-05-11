@@ -5,6 +5,7 @@
 #include "openvino/op/convolution.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -14,6 +15,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+#include "transformations/utils/utils.hpp"
 
 static bool compare_convolutions(const ov::op::v1::Convolution* conv1, ov::Node* node) {
     const auto conv2 = ov::as_type<ov::op::v1::Convolution>(node);
@@ -56,6 +58,7 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
 
     for (size_t i = 0; i < num_inputs; i++) {
         const auto conv = concat->get_input_node_shared_ptr(i);
+        const auto weights_output = conv->input_value(1);
         const auto weights = conv->get_input_node_shared_ptr(1);
         const auto& shape = weights->get_output_partial_shape(0);
         if (shape.is_dynamic() || weights->get_output_shape(0) != weights_shape)
@@ -64,7 +67,7 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
             weights_to_concat.push_back(node_registry.make<ov::op::v0::Constant>(*constant, new_shape));
         } else {
             weights_to_concat.push_back(node_registry.make<ov::op::v0::Unsqueeze>(
-                weights,
+                weights_output,
                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0})));
         }
         weights_to_concat.back().get_node()->set_friendly_name(weights->get_friendly_name());
@@ -104,7 +107,7 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
     };
     auto concat_label = pattern::wrap_type<ov::op::v0::Concat>(has_conv_inputs);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& concat = pattern_value_map.at(concat_label).get_node_shared_ptr();
 
@@ -139,7 +142,7 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         if (!weights)
             return false;
 
-        const auto conv = node_registry.make<ov::op::v1::GroupConvolution>(split->get_input_node_shared_ptr(0),
+        const auto conv = node_registry.make<ov::op::v1::GroupConvolution>(split->input_value(0),
                                                                            weights,
                                                                            first_conv->get_strides(),
                                                                            first_conv->get_pads_begin(),

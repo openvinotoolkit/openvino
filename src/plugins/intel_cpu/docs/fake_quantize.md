@@ -1,5 +1,5 @@
 # FakeQuantize in OpenVINO
-https://docs.openvino.ai/2023.0/openvino_docs_ops_quantization_FakeQuantize_1.html
+https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/quantization/fake-quantize-1.html
 
 definition:
 ```
@@ -153,7 +153,7 @@ $$
 $$
 
 `Quantize-only FQ` post-ops optimization example:
-- `Quantize-only FQ` is the only post-ops of parent node. We optimize FQ by setting the output-scales of parent node. For example, in below pattern, we set 
+- `Quantize-only FQ` is the only post-ops of parent node. We optimize FQ by setting the output-scales of parent node. For example, in below pattern, we set
 $\frac{1}{S_i}$ as the output scale of `conv` or `inner_produce` to optimize the pattern.
 ```
       conv --> FQ
@@ -179,7 +179,7 @@ the original formula of FakeQuantize is changed from:
    x = x*OutputScale + OutputShift
 ```
 
-into 
+into
 
 ```
    x = x*InputScale + InputShift
@@ -222,7 +222,7 @@ The combined shift can also be dropped when it's too small comparing to the clip
 ## optimize Mappings from fused node to oneDNN's output_scale/postOps:
 
 Existing optimizations mixed the simplification of formula with mapping them into oneDNN's output_scale/postOps, I'm trying to separate these two task by introducing a internal helper class `DnnlPostOpsComposer`, the basic idea is optimized formula decomposed FQ into a serials of basic operation like multiply/add/round/clip(per-tensor or per-OC), but there are no fixed 1v1 mapping between these basic operations and oneDNN attr/postOps, for example, multiply can be mapped to:
-  - output_scales for INT8 inference 
+  - output_scales for INT8 inference
   - binary for per-OC case
   - eltwise for per-Tensor case
 
@@ -242,9 +242,9 @@ since there are too many optimizations can be done inside `DnnlPostOpsComposer` 
  - first multiply is mapped to output scales
  - Relu is the only preceding postOps when append multiply, we switch the order and fuse the multiply into output scales `relu(x)*s = relu(x*s)`
  - Sum is the only preceding postOps  when append per-tensor multiply, we fuse it into output scale and sum's scale `(x + dst[:])*s = (x*s + s*dst[:])`
- - per-tensor multiply after another eltwise will be fused into that eltwise's scale `eltwise(x, scale, alpha, beta)*s = eltwise(x, (scale*s), alpha, beta)` 
+ - per-tensor multiply after another eltwise will be fused into that eltwise's scale `eltwise(x, scale, alpha, beta)*s = eltwise(x, (scale*s), alpha, beta)`
 
-## INT8 deconvolution 
+## INT8 deconvolution
 
 INT8 `deconvolution_forward` primitive supports many standard stock oneDNN attr&postOps while `convolution_backward` primitive only supports legacy postOps, but we observed that bias is fused as postOps instead of being the bias input of the deconv node, so we :
 

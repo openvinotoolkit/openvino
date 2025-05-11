@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,8 @@ void loop(const std::shared_ptr<Model>& body,
           const op::util::OutputDescriptionVector& out_descs,
           const op::util::InputDescriptionVector& input_descs,
           const op::v5::Loop::SpecialBodyPorts& special_ports,
-          const HostTensorVector& out,
-          const HostTensorVector& args);
+          ov::TensorVector& out,
+          const ov::TensorVector& args,
+          const EvaluationContext& evaluation_context);
 }
 }  // namespace ov

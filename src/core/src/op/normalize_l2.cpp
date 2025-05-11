@@ -1,36 +1,29 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/normalize_l2.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
-#include <algorithm>
-#include <iterator>
-#include <ngraph/validation_util.hpp>
-
-#include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& axes, float eps, EpsMode eps_mode)
+ov::op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& axes, float eps, EpsMode eps_mode)
     : Op({data, axes}),
       m_eps(eps),
       m_eps_mode(eps_mode) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
 }
 
-void op::v0::NormalizeL2::validate_and_infer_types() {
+void ov::op::v0::NormalizeL2::validate_and_infer_types() {
     OV_OP_SCOPE(v0_NormalizeL2_validate_and_infer_types);
     auto axes_node = input_value(1).get_node_shared_ptr();
     const auto& input_pshape = get_input_partial_shape(0);
@@ -62,22 +55,18 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
-    AxisSet axes;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto const_op = get_constant_from_source(input_value(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        const auto const_data = const_op->cast_vector<int64_t>();
+ov::AxisSet ov::op::v0::NormalizeL2::get_reduction_axes() const {
+    if (auto const_op = ov::util::get_constant_from_source(input_value(1))) {
         const auto input_data_rank = get_input_partial_shape(0).rank();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        axes = AxisSet{normalized_axes};
+        return input_data_rank.is_static()
+                   ? ov::util::try_get_normalized_axis_set(const_op->get_tensor_view(), input_data_rank, *this)
+                   : AxisSet{const_op->cast_vector<size_t>()};
+    } else {
+        return {};
     }
-    return axes;
 }
 
-shared_ptr<Node> op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2) {
         OPENVINO_THROW("Incorrect number of new arguments");

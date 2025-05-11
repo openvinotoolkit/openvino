@@ -1,21 +1,23 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/bitshift.hpp"
-
-#include "default_opset.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector bitshift(const Node& node) {
-    const Output<ngraph::Node> input_x = node.get_ng_inputs().at(0);
-    const Output<ngraph::Node> input_y = node.get_ng_inputs().at(1);
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> input_x = node.get_ov_inputs().at(0);
+    const ov::Output<ov::Node> input_y = node.get_ov_inputs().at(1);
 
     std::string direction = node.get_attribute_value<std::string>("direction", "");
 
@@ -27,22 +29,19 @@ OutputVector bitshift(const Node& node) {
                      "attribute. Given: ",
                      direction);
 
-    auto shift = std::make_shared<default_opset::Power>(
-        default_opset::Constant::create(input_y.get_element_type(), Shape{1}, {2}),
-        input_y);
+    auto shift =
+        std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), ov::Shape{1}, {2}), input_y);
 
     if (direction == "RIGHT") {
-        return {std::make_shared<default_opset::Divide>(input_x, shift)};
+        return {std::make_shared<v1::Divide>(input_x, shift)};
     } else {
-        return {std::make_shared<default_opset::Multiply>(input_x, shift)};
+        return {std::make_shared<v1::Multiply>(input_x, shift)};
     }
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("BitShift", OPSET_SINCE(1), ai_onnx::opset_1::bitshift);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

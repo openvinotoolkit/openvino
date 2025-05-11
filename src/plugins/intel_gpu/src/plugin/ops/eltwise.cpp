@@ -1,37 +1,45 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/greater_eq.hpp"
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/logical_or.hpp"
-#include "openvino/op/xor.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/floor_mod.hpp"
-
-#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/xor.hpp"
+#include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ov::Node>& op,
@@ -157,7 +165,7 @@ static void CreateLogicalXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
 static void CreatePowerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Power>& op) {
     validate_inputs_count(op, {2});
-    auto power_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto power_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
         if (ov::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;
@@ -193,6 +201,26 @@ static void CreateIsNaNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v10::
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::is_nan);
 }
 
+static void CreateBitwiseRightShiftOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::BitwiseRightShift>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::right_shift);
+}
+
+static void CreateBitwiseLeftShiftOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::BitwiseLeftShift>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::left_shift);
+}
+
+static void CreateBitwiseAndOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseAnd>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_and);
+}
+
+static void CreateBitwiseOrOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseOr>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_or);
+}
+
+static void CreateBitwiseXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::BitwiseXor>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::bitwise_xor);
+}
+
 REGISTER_FACTORY_IMPL(v1, Add);
 REGISTER_FACTORY_IMPL(v1, Multiply);
 REGISTER_FACTORY_IMPL(v1, Maximum);
@@ -215,6 +243,10 @@ REGISTER_FACTORY_IMPL(v1, Mod);
 REGISTER_FACTORY_IMPL(v10, IsFinite);
 REGISTER_FACTORY_IMPL(v10, IsInf);
 REGISTER_FACTORY_IMPL(v10, IsNaN);
+REGISTER_FACTORY_IMPL(v13, BitwiseAnd);
+REGISTER_FACTORY_IMPL(v13, BitwiseOr);
+REGISTER_FACTORY_IMPL(v13, BitwiseXor);
+REGISTER_FACTORY_IMPL(v15, BitwiseRightShift);
+REGISTER_FACTORY_IMPL(v15, BitwiseLeftShift);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

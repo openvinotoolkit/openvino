@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,18 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
@@ -26,31 +36,33 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_pooling();
 };
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0", ConvertReduceBase);
     ConvertReduceMeanToPooling();
 };
 
 class ov::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0", ConvertReduceBase);
     ConvertReduceMaxToPooling();
 };
 
 class ov::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0", ConvertReduceBase);
     ConvertReduceSumToPooling();
 };
 
 class ov::pass::ConvertReduceToPooling : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToPooling", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToPooling");
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();
@@ -61,15 +73,15 @@ public:
 template <class T>
 ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
     return [&](ov::pass::pattern::Matcher& m) {
-        auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
+        auto reduce = ov::as_type_ptr<T>(m.get_match_root());
 
-        if (!reduce || transformation_callback(reduce)) {
+        if (!reduce || transformation_callback(reduce) || ov::shape_size(reduce->input_value(0).get_shape()) == 0) {
             return false;
         }
 
         auto input = reduce->input_value(0);
 
-        auto axes_node = std::dynamic_pointer_cast<ov::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(reduce->input_value(1).get_node_shared_ptr());
         if (!axes_node) {
             return false;
         }
@@ -96,9 +108,9 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                 return input_shape[axis] == 1;
             })) {
             const auto reshape_shape = reduce->output(0).get_shape();
-            auto reshape = std::make_shared<ov::opset1::Reshape>(
+            auto reshape = std::make_shared<ov::op::v1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
@@ -190,16 +202,16 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         ov::NodeVector new_ops;
 
         if (!shape_begin.empty() && shape_begin != input.get_shape()) {
-            input = std::make_shared<ov::opset1::Reshape>(
+            input = std::make_shared<ov::op::v1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_begin.size()}, shape_begin),
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape_begin.size()}, shape_begin),
                 true);
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
             new_ops.push_back(input.get_node_shared_ptr());
         }
 
-        if (std::is_same<T, ov::opset1::ReduceMean>()) {
-            input = std::make_shared<ov::opset1::AvgPool>(input,
+        if (std::is_same<T, ov::op::v1::ReduceMean>()) {
+            input = std::make_shared<ov::op::v1::AvgPool>(input,
                                                           strides,
                                                           pads_begin,
                                                           pads_end,
@@ -209,8 +221,8 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
-        } else if (std::is_same<T, ov::opset1::ReduceMax>()) {
-            input = std::make_shared<ov::opset1::MaxPool>(input,
+        } else if (std::is_same<T, ov::op::v1::ReduceMax>()) {
+            input = std::make_shared<ov::op::v1::MaxPool>(input,
                                                           strides,
                                                           pads_begin,
                                                           pads_end,
@@ -219,16 +231,16 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
-        } else if (std::is_same<T, ov::opset1::ReduceSum>()) {
+        } else if (std::is_same<T, ov::op::v1::ReduceSum>()) {
             // Fallback to real type because of potential data loss in case of integer AVG Pool
             bool fallback_to_real = input.get_element_type().is_integral();
 
             if (fallback_to_real) {
-                input = std::make_shared<ov::opset1::Convert>(input, ov::element::f32);
+                input = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
                 new_ops.push_back(input.get_node_shared_ptr());
             }
 
-            input = std::make_shared<ov::opset1::AvgPool>(input,
+            input = std::make_shared<ov::op::v1::AvgPool>(input,
                                                           strides,
                                                           pads_begin,
                                                           pads_end,
@@ -239,14 +251,14 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
 
-            input = std::make_shared<ov::opset1::Multiply>(
+            input = std::make_shared<ov::op::v1::Multiply>(
                 input,
-                ov::opset1::Constant::create(input.get_element_type(), ov::Shape{1}, {reduction_dims_count}));
+                ov::op::v0::Constant::create(input.get_element_type(), ov::Shape{1}, {reduction_dims_count}));
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
             new_ops.push_back(input.get_node_shared_ptr());
 
             if (fallback_to_real) {
-                input = std::make_shared<ov::opset1::Convert>(input, reduce->output(0).get_element_type());
+                input = std::make_shared<ov::op::v0::Convert>(input, reduce->output(0).get_element_type());
                 new_ops.push_back(input.get_node_shared_ptr());
             }
         } else {
@@ -254,9 +266,9 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         }
 
         if (shape_end != input.get_shape()) {
-            input = std::make_shared<ov::opset1::Reshape>(
+            input = std::make_shared<ov::op::v1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),
                 true);
             new_ops.push_back(input.get_node_shared_ptr());
         }

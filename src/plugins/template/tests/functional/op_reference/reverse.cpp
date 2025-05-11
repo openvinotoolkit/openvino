@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-
 
 using namespace reference_tests;
 using namespace ov;
@@ -67,7 +66,7 @@ private:
                                                                  params.constantTensor.shape,
                                                                  params.constantTensor.data.data());
         const auto reverse = std::make_shared<op::v1::Reverse>(data, constant, params.reverseMode);
-        return std::make_shared<ov::Model>(NodeVector{reverse}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{reverse}, ParameterVector{data});
     }
 };
 

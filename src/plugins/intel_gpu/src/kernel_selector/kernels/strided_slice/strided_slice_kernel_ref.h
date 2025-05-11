@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,25 +47,19 @@ struct strided_slice_params : public base_params {
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// strided_slice_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct strided_slice_optional_params : optional_params {
-    strided_slice_optional_params() : optional_params(KernelType::STRIDED_SLICE) {}
-};
-
 class StridedSliceKernelRef : public KernelBaseOpenCL {
 public:
     StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
     virtual ~StridedSliceKernelRef() {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
     virtual CommonDispatchData SetDefault(const strided_slice_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION };

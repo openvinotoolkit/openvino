@@ -45,6 +45,7 @@ onnx_controlflow_loop_power
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d
+onnx_model_deformable_conv_2d_with_mask
 
 # New fails
 onnx_model_quant_conv_linear_3d

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,15 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
@@ -26,32 +24,30 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
-        testValues.fqOnData1 <<
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+           testValues.fqOnData1 <<
         testValues.dequantization1 <<
         testValues.fqOnData2 <<
         testValues.dequantization2;
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type netPrecision;
-    std::string targetDevice;
-    ConcatTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
-
 void ConcatTransformation::SetUp() {
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type precision;
+    ov::PartialShape inputShape;
+    ov::element::Type precision;
     ConcatTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
+    std::vector<ov::PartialShape> inputs;
+    if (testValues.input_constant1 == nullptr) {
+        inputs.push_back(inputShape);
+    }
+    if (testValues.input_constant2 == nullptr) {
+        inputs.push_back(inputShape);
+    }
+    init_input_shapes(inputs);
+
+    function = ov::builder::subgraph::ConcatFunction::getOriginal(
         precision,
         inputShape,
         testValues.input_constant1,
@@ -63,7 +59,7 @@ void ConcatTransformation::SetUp() {
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

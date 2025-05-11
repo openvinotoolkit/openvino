@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: disable-error-code="no-redef"
@@ -10,6 +10,7 @@ import copy
 import numpy as np
 from typing import List, Dict
 from abc import ABCMeta, abstractmethod
+from functools import singledispatch
 from typing import Callable, Any, Union, Tuple
 from typing import Sequence as SequenceType
 from collections.abc import Sequence
@@ -19,10 +20,10 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
-import openvino.runtime as ov
-import openvino.runtime.opset11 as ops
-from openvino.runtime import Layout, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino as ov
+import openvino.opset11 as ops
+from openvino import Layout, Type, Output, Model
+from openvino.utils.decorators import custom_preprocess_function
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
 
 
@@ -46,15 +47,22 @@ TORCHTYPE_TO_OVTYPE = {
 }
 
 
+@singledispatch
 def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
-    # TODO: refactor into @singledispatch once Python 3.7 support is dropped
-    if isinstance(size, numbers.Number):
-        return int(size), int(size)  # type: ignore
-    if isinstance(size, Sequence):
-        if len(size) == 1:
-            return size[0], size[0]
-        elif len(size) == 2:
-            return size
+    raise ValueError(error_msg)
+
+
+@_setup_size.register
+def _setup_size_number(size: numbers.Number, error_msg: str) -> SequenceType[int]:
+    return int(size), int(size)  # type: ignore
+
+
+@_setup_size.register
+def _setup_size_sequence(size: Sequence, error_msg: str) -> SequenceType[int]:
+    if len(size) == 1:
+        return size[0], size[0]
+    elif len(size) == 2:
+        return size[0], size[1]
     raise ValueError(error_msg)
 
 
@@ -66,14 +74,19 @@ def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
     return new_shape
 
 
+@singledispatch
 def _to_list(transform: Callable) -> List:
-    # TODO: refactor into @singledispatch once Python 3.7 support is dropped
-    if isinstance(transform, torch.nn.Sequential):
-        return list(transform)
-    elif isinstance(transform, transforms.Compose):
-        return transform.transforms
-    else:
-        raise TypeError(f"Unsupported transform type: {type(transform)}")
+    raise TypeError(f"Unsupported transform type: {type(transform)}")
+
+
+@_to_list.register
+def _to_list_torch_sequential(transform: torch.nn.Sequential) -> List:
+    return list(transform)
+
+
+@_to_list.register
+def _to_list_transforms_compose(transform: transforms.Compose) -> List:
+    return transform.transforms
 
 
 def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> Tuple[List, Layout]:
@@ -153,8 +166,8 @@ class _(TransformConverterBase):
             input_shape[layout.get_index_by_name("C")] = transform.num_output_channels
 
             @custom_preprocess_function
-            def broadcast_node(output: ov.Output) -> Callable:
-                return ops.broadcast(
+            def broadcast_node(output: Output) -> Callable:  # type: ignore[name-defined]
+                return ops.broadcast(  # type: ignore
                     data=output,
                     target_shape=input_shape,
                 )
@@ -209,8 +222,8 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding[2]
 
         @custom_preprocess_function
-        def pad_node(output: ov.Output) -> Callable:
-            return ops.pad(
+        def pad_node(output: Output) -> Callable:
+            return ops.pad(  # type: ignore
                 output,
                 pad_mode=pad_mode,
                 pads_begin=pads_begin,
@@ -271,13 +284,23 @@ class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         resize_mode_map = {
             InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
+            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
+            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
         }
         if transform.max_size:
             raise ValueError("Resize with max_size if not supported")
-        if transform.interpolation is not InterpolationMode.NEAREST:
-            raise ValueError("Only InterpolationMode.NEAREST is supported.")
+        if transform.interpolation not in resize_mode_map.keys():
+            raise ValueError(f"Interpolation mode {transform.interpolation} is not supported.")
 
-        h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+        target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
+
+        if isinstance(transform.size, int):
+            # rescale the smaller image edge
+            current_h, current_w = meta["image_dimensions"]
+            if current_h > current_w:
+                target_h = int(transform.size * (current_h / current_w))
+            elif current_w > current_h:
+                target_w = int(transform.size * (current_w / current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
@@ -287,12 +310,12 @@ class _(TransformConverterBase):
         input_shape[meta["layout"].get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
         meta["input_shape"] = input_shape
-        meta["image_dimensions"] = (h, w)
+        meta["image_dimensions"] = (target_h, target_w)
 
 
-def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:
+def _from_torchvision(model: Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> Model:
 
     if input_name is not None:
         input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)

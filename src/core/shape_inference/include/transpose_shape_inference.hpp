@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
@@ -26,18 +27,14 @@ TRShape calc_output_shape(const Transpose* const op, const T& input_shape, std::
     const auto output_rank = input_shape.size();
 
     if (axes_order.empty()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        generate_transpose_default_order(axes_order, output_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::generate_transpose_default_order(axes_order, output_rank);
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,
-                              is_valid_axes_order(axes_order, output_rank),
+                              ov::util::is_valid_axes_order(axes_order, output_rank),
                               "Permutation ",
                               AxisVector(axes_order.begin(), axes_order.end()),
                               " is not valid for input shape ",
                               input_shape);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     TRShape output_shape;
@@ -62,12 +59,25 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Transpose* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    const auto& input_shape = input_shapes[Transpose::ARG];
+    OPENVINO_ASSERT(input_shapes.size() == 2);
 
-    const auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
+    const auto& input_shape = input_shapes[Transpose::ARG];
+    const auto& input_order_shape = input_shapes[Transpose::ORDER];
+    const auto input_rank = input_shape.rank();
+
+    if (input_order_shape.rank().is_static()) {
+        NODE_SHAPE_INFER_CHECK(op, input_shapes, input_order_shape.size() == 1, "Input order must be a vector.");
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            input_order_shape[0].compatible(input_rank.get_max_length()) || input_order_shape[0] == 0,
+            "Input order must have shape [n], where n is the rank of arg.");
+    }
+
+    auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
 
     auto output_shapes = std::vector<TRShape>();
-    if (axes && input_shape.rank().is_static()) {
+    if (axes && input_rank.is_static()) {
         output_shapes.push_back(calc_output_shape(op, input_shape, *axes));
     } else if (axes) {
         output_shapes.push_back(ov::PartialShape::dynamic(axes->size()));

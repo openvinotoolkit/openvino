@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <functional_test_utils/summary/op_summary.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include "openvino/core/model.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/opsets/opset.hpp"
 
 namespace ov {
 namespace test {
-namespace subgraph {
+namespace op_conformance {
 
 using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Model>()>>;
 OpGenerator getOpGeneratorMap();
@@ -18,7 +19,7 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
     auto opsets = ov::get_available_opsets();
     auto opGenerator = getOpGeneratorMap();
-    std::set<ngraph::NodeTypeInfo> opsInfo;
+    std::set<ov::NodeTypeInfo> opsInfo;
     for (const auto& opset_pair : opsets) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
@@ -33,6 +34,6 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     return res;
 }
 
-}  // namespace subgraph
+}  // namespace op_conformance
 }  // namespace test
 }  // namespace ov

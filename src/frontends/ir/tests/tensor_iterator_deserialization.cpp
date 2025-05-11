@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 
 class IRFrontendTestsTensorIterator : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
@@ -97,7 +98,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -111,7 +112,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
         internalParameter->set_friendly_name("internalParameter1");
         auto result1 = std::make_shared<ov::opset1::Result>(internalParameter);
         result1->set_friendly_name("internalResult1");
-        body = std::make_shared<ov::Model>(ov::NodeVector{result1}, ov::ParameterVector{internalParameter});
+        body = std::make_shared<ov::Model>(ov::OutputVector{result1}, ov::ParameterVector{internalParameter});
         tensor_iterator->set_body(body);
         tensor_iterator->set_friendly_name("TensorIterator");
         tensor_iterator->set_merged_input(internalParameter, parameter, result1);
@@ -120,7 +121,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
         auto result = std::make_shared<ov::opset1::Result>(tensor_iterator->output(0));
         result->set_friendly_name("Result1");
 
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -215,7 +216,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -229,7 +230,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
         internalParameter->set_friendly_name("internalParameter1");
         auto result1 = std::make_shared<ov::opset1::Result>(internalParameter);
         result1->set_friendly_name("internalResult1");
-        body = std::make_shared<ov::Model>(ov::NodeVector{result1}, ov::ParameterVector{internalParameter});
+        body = std::make_shared<ov::Model>(ov::OutputVector{result1}, ov::ParameterVector{internalParameter});
         tensor_iterator->set_body(body);
         tensor_iterator->set_friendly_name("TensorIterator");
         tensor_iterator->set_sliced_input(internalParameter, parameter, 0, 1, 1, -1, 2);
@@ -238,7 +239,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
         auto result = std::make_shared<ov::opset1::Result>(tensor_iterator->output(0));
         result->set_friendly_name("Result1");
 
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -423,7 +424,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop1) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -627,7 +628,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop2) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -831,7 +832,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop_external_port1_is_not_connected) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1150,7 +1151,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_resnet_opset4) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1441,7 +1442,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_negative_stride_opset4) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1691,6 +1692,6 @@ TEST_F(IRFrontendTestsTensorIterator, test1) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,13 +25,16 @@ public:
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+    Place::Ptr get_place_by_input_index(size_t input_idx) const override;
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
     void set_partial_shape(const Place::Ptr& place, const ov::PartialShape&) override;
     ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
     void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
+    ov::element::Type get_element_type(const Place::Ptr& place) const override;
     void set_tensor_value(const Place::Ptr& place, const void* value) override;
+    int64_t get_version() const;
 
 private:
     friend class ov::frontend::paddle::FrontEnd;

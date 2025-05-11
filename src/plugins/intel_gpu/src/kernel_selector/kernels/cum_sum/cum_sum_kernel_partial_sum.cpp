@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ ParamsKey CumSumKernelPartialSum::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey CumSumKernelPartialSum::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey CumSumKernelPartialSum::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -53,9 +53,8 @@ JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& param
     return jits;
 }
 
-KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& params,
-                                                             const optional_params& options) const {
-    if (!Validate(params, options))
+KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& params) const {
+    if (!Validate(params))
         return {};
 
     constexpr size_t kernels_num = 2;
@@ -67,18 +66,18 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         // partial sum
         auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("CUM_SUM_PARTIAL_SUM", 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
         FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, kernelName, jit, entry_point);
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(newParams.outputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(newParams.outputs[0].PhysicalSizeInBytes());
     }
     {
         // Final
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, 1);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, 1);
         auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_final);
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -136,11 +135,17 @@ CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForM
     return dispatchData;
 }
 
-KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetMultiStageKernelsData(params, options);
+KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params) const {
+    return GetMultiStageKernelsData(params);
 }
 
-KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_7;
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& params) const {
+    const auto& p = static_cast<const cum_sum_params&>(params);
+    const auto& o = p.outputs[0];
+    const std::vector<size_t> dims = {o.Batch().v, o.Feature().v, o.W().v, o.Z().v, o.Y().v, o.X().v};
+
+    // cum_sum_partial works slower than cum_sum_ref on small shapes.
+    // Value "3 * BLOCK_SIZE" determined experimentally - see cum_sum_partial.perf_test in unit tests.
+    return dims[GetRealAxisIndex(p)] >= 3 * BLOCK_SIZE ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

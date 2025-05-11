@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,15 +29,9 @@ add_library(${TARGET_NAME} MODULE
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(TARGET IE::inference_engine_plugin_api)
-    target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
-endif()
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
-
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
 
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

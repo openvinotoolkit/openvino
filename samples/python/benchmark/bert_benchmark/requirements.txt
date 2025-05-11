@@ -1,4 +1,4 @@
-datasets
+datasets>=2.13
 transformers[onnx]; python_version < "3.11"
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch

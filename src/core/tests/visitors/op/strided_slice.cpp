@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, strided_slice_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::StridedSlice>();
+    NodeBuilder::opset().insert<ov::op::v1::StridedSlice>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto begin = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto end = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});

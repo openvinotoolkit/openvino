@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,6 +111,22 @@ inline int parallel_get_env_threads() {
     }
     return env_cores;
 }
+inline int get_max_nested_levels() {
+#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    return omp_get_nested();
+#    else
+    return omp_get_max_active_levels();
+#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+}
+// Controls the number of nested parallel blocks.
+// This flag has higher priority than pragma num_threads.
+inline void set_max_nested_levels(int levels) {
+#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    return omp_set_nested(levels);
+#    else
+    return omp_set_max_active_levels(levels);
+#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+}
 
 #elif OV_THREAD == OV_THREAD_SEQ
 #    include <algorithm>
@@ -151,9 +167,16 @@ void parallel_nt(int nthr, const F& func) {
         func(0, 1);
         return;
     }
-
+    // We expect the number of threads here to be "nthr", so we need to disable dynamic behavior.
+    auto origin_dyn_val = omp_get_dynamic();
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(0);
+    }
 #    pragma omp parallel num_threads(nthr)
-    func(parallel_get_thread_num(), parallel_get_num_threads());
+    { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(origin_dyn_val);
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     func(0, 1);
 #endif
@@ -185,8 +208,16 @@ void parallel_nt_static(int nthr, const F& func) {
 
 #elif OV_THREAD == OV_THREAD_OMP
 
+    // We expect the number of threads here to be "nthr", so we need to disable dynamic behavior.
+    auto origin_dyn_val = omp_get_dynamic();
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(0);
+    }
 #    pragma omp parallel num_threads(nthr)
     { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(origin_dyn_val);
+    }
 #endif
 }
 
@@ -430,8 +461,10 @@ void parallel_for(const T0& D0, const F& func) {
         for_1d(ithr, nthr, D0, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func);
+    { for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_1d(0, 1, D0, func);
 #endif
@@ -478,10 +511,29 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
         for_2d(ithr, nthr, D0, D1, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func);
+    { for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_2d(0, 1, D0, D1, func);
+#endif
+}
+
+template <typename T0, typename T1, typename F>
+void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), [=](const tbb::blocked_range2d<T0, T1>& r) {
+        for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
+            for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
+                func(d0, d1);
+            }
+        }
+    });
+#else
+    parallel_for2d(D0, D1, [&](size_t d0, size_t d1) {
+        func(d0, d1);
+    });
 #endif
 }
 
@@ -527,10 +579,32 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
         for_3d(ithr, nthr, D0, D1, D2, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func);
+    { for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
+#endif
+}
+
+template <typename T0, typename T1, typename T2, typename F>
+void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+                      [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
+                          for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {
+                              for (T1 d1 = r.rows().begin(); d1 < r.rows().end(); d1++) {
+                                  for (T2 d2 = r.cols().begin(); d2 < r.cols().end(); d2++) {
+                                      func(d0, d1, d2);
+                                  }
+                              }
+                          }
+                      });
+#else
+    parallel_for3d(D0, D1, D2, [&](size_t d0, size_t d1, size_t d2) {
+        func(d0, d1, d2);
+    });
 #endif
 }
 
@@ -577,8 +651,10 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_4d(ithr, nthr, D0, D1, D2, D3, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func);
+    { for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_4d(0, 1, D0, D1, D2, D3, func);
 #endif
@@ -635,8 +711,10 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func);
+    { for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);
 #endif
@@ -695,8 +773,10 @@ void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+// Please note that this function does not guarantee execution on the same number of threads from call to call.
+// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
 #    pragma omp parallel
-    for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func);
+    { for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func); }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,10 +131,22 @@ public:
     Ptr get_target_tensor() const override;
     Ptr get_target_tensor(int outputPortIndex) const override;
 
+    // set back edge for OpPlace of NextIteration operation
+    // this is needed since we break a cycle in a graph
+    void set_next_iteration_back_edge(const std::string& next_iteration_producer_name,
+                                      size_t next_iteration_producer_output_port_idx);
+    void get_next_iteration_back_edge(std::string& next_iteration_producer_name,
+                                      size_t& next_iteration_producer_output_port_idx) const;
+
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlace>> m_output_ports;
+
+    // flag if back edge is set
+    bool m_back_edge_set;
+    std::string m_next_iteration_producer_name;
+    size_t m_next_iteration_producer_output_port_idx;
 };
 
 class TensorPlace : public Place {
@@ -143,6 +155,12 @@ public:
                 const ov::PartialShape& pshape,
                 ov::element::Type type,
                 const std::vector<std::string>& names);
+
+    TensorPlace(const ov::frontend::InputModel& input_model,
+                const ov::PartialShape& pshape,
+                ov::element::Type type,
+                const std::vector<std::string>& names,
+                const std::string& operation_name);
 
     void add_producing_port(const std::shared_ptr<OutPortPlace>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlace>& in_port);
@@ -153,6 +171,9 @@ public:
     }
     const element::Type& get_element_type() const {
         return m_type;
+    }
+    const std::string& get_operation_name() const {
+        return m_operation_name;
     }
     void set_partial_shape(const PartialShape& pshape) {
         m_pshape = pshape;
@@ -171,6 +192,8 @@ public:
 private:
     PartialShape m_pshape;
     element::Type m_type;
+    // store original node name from which tensor place is created
+    std::string m_operation_name;
 
     std::vector<std::weak_ptr<OutPortPlace>> m_producing_ports;
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;

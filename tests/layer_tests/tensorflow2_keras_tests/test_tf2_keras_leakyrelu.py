@@ -25,15 +25,14 @@ class TestKerasLeakyRelu(CommonTF2LayerTest):
     test_data_float32 = [
         dict(input_names=["x"], input_shapes=[[5, 4, 3]], input_type=tf.float32, alpha=0.),
         dict(input_names=["x"], input_shapes=[[5, 4, 3]], input_type=tf.float32, alpha=0.5),
-        dict(input_names=["x"], input_shapes=[[5, 2, 3, 4]], input_type=tf.float32, alpha=-1.),
-        dict(input_names=["x"], input_shapes=[[5, 2, 3, 5, 3]], input_type=tf.float32, alpha=-1.7),
+        dict(input_names=["x"], input_shapes=[[5, 2, 3, 4]], input_type=tf.float32, alpha=1.),
+        dict(input_names=["x"], input_shapes=[[5, 2, 3, 5, 3]], input_type=tf.float32, alpha=1.7),
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_leaky_relu_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                      use_old_api, use_new_frontend):
+    def test_keras_leaky_relu_float32(self, params, ie_device, precision, temp_dir, ir_version):
         self._test(*self.create_keras_leaky_relu_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)

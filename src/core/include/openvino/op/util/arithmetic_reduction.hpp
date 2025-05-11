@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ protected:
     ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
 public:
-    OPENVINO_OP("ArithmeticReduction", "util");
+    OPENVINO_OP("ArithmeticReduction", "util", ReductionBase);
     void validate_and_infer_types() override;
 };
 }  // namespace util

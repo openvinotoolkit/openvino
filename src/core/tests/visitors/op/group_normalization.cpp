@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, group_normalization) {
-    NodeBuilder::get_ops().register_factory<ov::op::v10::Unique>();
+    NodeBuilder::opset().insert<ov::op::v12::GroupNormalization>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto scale = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     const auto bias = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,13 +18,14 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
     MATCHER_SCOPE(NormalizeL2Decomposition);
     auto normalize_l2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::NormalizeL2>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto normalize_l2 = std::dynamic_pointer_cast<ov::op::v0::NormalizeL2>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        auto normalize_l2 = ov::as_type_ptr<ov::op::v0::NormalizeL2>(m.get_match_root());
 
         if (!normalize_l2 || transformation_callback(normalize_l2)) {
             return false;

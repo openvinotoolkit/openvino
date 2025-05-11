@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,10 +14,10 @@ ov_add_test_target(
             gtest_main
             openvino::runtime::dev
             common_test_utils
+            frontend_shared_test_classes
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            IR_FE
+            OV UNIT IR_FE
 )

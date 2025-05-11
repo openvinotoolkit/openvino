@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #include "program_wrapper.h"
 
 #include <memory>
+#include <tuple>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -40,6 +41,23 @@ struct usm_test_params{
     allocation_type type;
 };
 
+static void init_device_and_engine(std::shared_ptr<ocl::ocl_device>& device,
+                                   std::shared_ptr<ocl::ocl_engine>& engine,
+                                   bool& supports_usm) {
+    // Find device, which supports USMs.
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    for (const auto& d : devices) {
+        if (d.second->get_mem_caps().supports_usm()) {
+            device = std::dynamic_pointer_cast<ocl::ocl_device>(d.second);
+            supports_usm = true;
+            break;
+        }
+    }
+
+    engine = std::dynamic_pointer_cast<ocl::ocl_engine>(engine::create(engine_types::ocl, runtime_types::ocl, device));
+}
+
 class BaseUSMTest : public ::testing::TestWithParam<usm_test_params> {
 protected:
     std::shared_ptr<ocl::ocl_device> _device = nullptr;
@@ -47,20 +65,11 @@ protected:
     bool _supports_usm = false;
 public:
     void SetUp() override {
-        // Find device, which supports USMs.
-        device_query query(engine_types::ocl, runtime_types::ocl);
-        auto devices = query.get_available_devices();
-        for (const auto& d : devices) {
-            if (d.second->get_mem_caps().supports_usm()) {
-                _device = std::dynamic_pointer_cast<ocl::ocl_device>(d.second);
-                break;
-            }
+        init_device_and_engine(_device, _engine, _supports_usm);
+
+        if (!_device || !_engine || !_supports_usm) {
+            GTEST_SKIP();
         }
-        if (!_device) {
-            GTEST_SUCCEED();
-        }
-        _engine = std::dynamic_pointer_cast<ocl::ocl_engine>(engine::create(engine_types::ocl, runtime_types::ocl, _device));
-        _supports_usm = true;
     }
 
     bool supports_usm() const { return _supports_usm; }
@@ -129,13 +138,12 @@ TEST_P(copy_and_read_buffer, basic) {
             break;
         }
         case allocation_type::usm_device: {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(cldnn_mem_src);
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
             }
-            casted->copy_from(stream, *host_buf, true);
+            cldnn_mem_src->copy_from(stream, *host_buf, true);
             break;
         }
         default:
@@ -288,18 +296,14 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         // Fill dst memory
         switch (p.type) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: 
+        case allocation_type::usm_shared:
         case allocation_type::usm_device:
         {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(mem_dst);
-            auto ev = casted->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         case allocation_type::cl_mem: {
-            auto casted = std::dynamic_pointer_cast<ocl::gpu_buffer>(mem_dst);
-            auto ev = casted->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         default:
@@ -315,7 +319,7 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
             std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
             break;
         }
-        case allocation_type::usm_device: 
+        case allocation_type::usm_device:
         case allocation_type::cl_mem: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             host_buf->copy_from(stream, *mem_dst);
@@ -341,3 +345,158 @@ INSTANTIATE_TEST_SUITE_P(cldnn_usm, copy_between_gpu_buffer_and_gpu_usm, ::testi
     usm_test_params{ allocation_type::usm_host },
     usm_test_params{ allocation_type::usm_device },
 }));
+
+struct mem_test_params {
+    size_t src_offset;
+    size_t dst_offset;
+    size_t size;
+};
+
+class offset_copy_host : public ::testing::TestWithParam<std::tuple<allocation_type, mem_test_params, bool>> {
+protected:
+    std::shared_ptr<ocl::ocl_device> _device = nullptr;
+    std::shared_ptr<ocl::ocl_engine> _engine = nullptr;
+    bool _supports_usm = false;
+public:
+    void SetUp() override {
+        init_device_and_engine(_device, _engine, _supports_usm);
+
+        if (!_device || !_engine || !_supports_usm) {
+            GTEST_SKIP();
+        }
+    }
+
+    bool supports_usm() const { return _supports_usm; }
+};
+
+class offset_copy : public ::testing::TestWithParam<std::tuple<allocation_type, allocation_type, mem_test_params, bool>> {
+protected:
+    std::shared_ptr<ocl::ocl_device> _device = nullptr;
+    std::shared_ptr<ocl::ocl_engine> _engine = nullptr;
+    bool _supports_usm = false;
+public:
+    void SetUp() override {
+        init_device_and_engine(_device, _engine, _supports_usm);
+
+        if (!_device || !_engine || !_supports_usm) {
+            GTEST_SKIP();
+        }
+    }
+
+    bool supports_usm() const { return _supports_usm; }
+};
+
+TEST_P(offset_copy, basic) {
+    allocation_type src_allocation_type;
+    allocation_type dst_allocation_type;
+    mem_test_params params;
+    bool use_copy_to;
+    std::tie(src_allocation_type, dst_allocation_type, params, use_copy_to) = GetParam();
+
+    const auto copy_size = params.size;
+    const auto src_size = params.src_offset + copy_size;
+    const auto dst_size = params.dst_offset + copy_size;
+
+    auto stream = ocl::ocl_stream(*_engine, {});
+    const auto src_layout = cldnn::layout({static_cast<int64_t>(src_size)}, cldnn::data_types::u8, cldnn::format::bfyx);
+    const auto dst_layout = cldnn::layout({static_cast<int64_t>(dst_size)}, cldnn::data_types::u8, cldnn::format::bfyx);
+
+    std::vector<uint8_t> src_buffer(src_size);
+    for (size_t i = 0; i < src_size; i++)
+        src_buffer[i] = i % 64;
+
+    // Allocate and fill src memory
+    auto src_memory = _engine->allocate_memory(src_layout, src_allocation_type);
+
+    {
+        const auto src_offset = 0;
+        const auto dst_offset = 0;
+        src_memory->copy_from(stream, src_buffer.data(), src_offset, dst_offset, src_size, true);
+    }
+
+    // Create dst memory and copy data
+    auto dst_memory = _engine->allocate_memory(dst_layout, dst_allocation_type);
+
+    if (use_copy_to) {
+        src_memory->copy_to(stream, *dst_memory, params.src_offset, params.dst_offset, copy_size, true);
+    } else {
+        dst_memory->copy_from(stream, *src_memory, params.src_offset, params.dst_offset, copy_size, true);
+    }
+
+    // Read from dst mem
+    std::vector<uint8_t> dst_buffer(copy_size);
+
+    {
+        const auto src_offset = params.dst_offset;
+        const auto dst_offset = 0;
+        dst_memory->copy_to(stream, dst_buffer.data(), src_offset, dst_offset, copy_size, true);
+    }
+
+    for (size_t i = 0; i < copy_size; i++) {
+        ASSERT_EQ(src_buffer[i + params.src_offset], dst_buffer[i]) << i << "\n";
+    }
+}
+
+TEST_P(offset_copy_host, basic) {
+    allocation_type allocation_type;
+    mem_test_params params;
+    bool use_copy_to;
+    std::tie(allocation_type, params, use_copy_to) = GetParam();
+
+    const auto copy_size = params.size;
+    const auto src_size = params.src_offset + copy_size;
+    const auto mem_size = params.dst_offset + copy_size;
+
+    auto stream = ocl::ocl_stream(*_engine, {});
+    const auto mem_layout = cldnn::layout({static_cast<int64_t>(mem_size)}, cldnn::data_types::u8, cldnn::format::bfyx);
+
+    std::vector<uint8_t> src_buffer(src_size);
+    std::vector<uint8_t> dst_buffer(src_size);
+    for (size_t i = 0; i < src_size; i++)
+        src_buffer[i] = i % 64;
+
+    auto memory = _engine->allocate_memory(mem_layout, allocation_type);
+    memory->copy_from(stream, src_buffer.data(), params.src_offset, params.dst_offset, copy_size, true);
+    memory->copy_to(stream, dst_buffer.data(), params.dst_offset, params.src_offset, copy_size, true);
+
+    for (size_t i = 0; i < copy_size; i++) {
+        ASSERT_EQ(src_buffer[i + params.src_offset], dst_buffer[i + params.src_offset]) << i << "\n";
+    }
+}
+
+static std::vector<allocation_type> test_memory_types { allocation_type::cl_mem,
+                                                        allocation_type::usm_host,
+                                                        allocation_type::usm_device };
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(mem_test,
+                         offset_copy,
+                         ::testing::Combine(::testing::ValuesIn(test_memory_types),
+                                            ::testing::ValuesIn(test_memory_types),
+                                            ::testing::Values(mem_test_params{0, 0, 381},
+                                                              mem_test_params{100, 0, 381},
+                                                              mem_test_params{0, 79, 381},
+                                                              mem_test_params{100, 79, 381}),
+                                            ::testing::Values(false, true)));
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(mem_test,
+                         offset_copy_host,
+                         ::testing::Combine(::testing::ValuesIn(test_memory_types),
+                                            ::testing::Values(mem_test_params{0, 0, 381},
+                                                              mem_test_params{100, 0, 381},
+                                                              mem_test_params{0, 79, 381},
+                                                              mem_test_params{100, 79, 381}),
+                                            ::testing::Values(false, true)));
+
+TEST(mem_test, copy_small_buf_to_large_with_out_of_bound_access) {
+    auto& ocl_engine = dynamic_cast<ocl::ocl_engine&>(get_test_engine());
+    auto& stream = get_test_stream();
+    auto small_buffer_size = 2048;
+    auto large_buffer_size = 3072;
+
+    auto small_buffer = ocl_engine.allocate_memory({{small_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+    auto large_buffer = ocl_engine.allocate_memory({{large_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+
+    OV_ASSERT_NO_THROW(small_buffer->copy_to(stream, *large_buffer, true));
+}

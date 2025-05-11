@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API UnrollIf;
 
 // clang-format off
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief The transformation replaces 'If' operations with one of the internal functions (bodies) if the provided condition is constant.
  * The condition is true: 'If' op is replaced with then_body
  * The condition is false 'If' op is replaced with else_body
@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API UnrollIf;
 
 class ov::pass::UnrollIf : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UnrollIf", "0");
+    OPENVINO_MODEL_PASS_RTTI("UnrollIf");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

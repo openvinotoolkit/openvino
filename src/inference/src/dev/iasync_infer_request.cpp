@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,12 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const std::shared_ptr<ov::threading::IStreamsExecutor>& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
     void run(ov::threading::Task task) override {
-        _streamsExecutor->execute(std::move(task));
+        if (_streamsExecutor->get_streams_num() > 1) {
+            std::vector<ov::threading::Task> tasks{std::move(task)};
+            _streamsExecutor->run_and_wait(tasks);
+        } else {
+            _streamsExecutor->execute(std::move(task));
+        }
     }
     std::shared_ptr<ov::threading::IStreamsExecutor> _streamsExecutor;
 };
@@ -53,25 +58,20 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
 
 void ov::IAsyncInferRequest::wait() {
     // Just use the last '_futures' member to wait pipeline completion
-    auto future = [&] {
+    auto future = [this] {
         std::lock_guard<std::mutex> lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
-
-    if (!future.valid()) {
-        return;
+    if (future.valid()) {
+        future.get();
     }
-
-    future.wait();
-    future.get();
 }
 
 bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
     OPENVINO_ASSERT(timeout >= std::chrono::milliseconds{0}, "Timeout can't be less than 0 for InferRequest::wait().");
-    auto status = std::future_status::deferred;
 
     // Just use the last '_futures' member to wait pipeline completion
-    auto future = [&] {
+    auto future = [this] {
         std::lock_guard<std::mutex> lock{m_mutex};
         return m_futures.empty() ? std::shared_future<void>{} : m_futures.back();
     }();
@@ -80,7 +80,7 @@ bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) 
         return false;
     }
 
-    status = future.wait_for(std::chrono::milliseconds{timeout});
+    const auto status = future.wait_for(std::chrono::milliseconds{timeout});
 
     if (std::future_status::ready == status) {
         future.get();
@@ -99,6 +99,7 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
+    std::lock_guard<std::mutex> lock{m_mutex};
     m_callback = std::move(callback);
 }
 
@@ -148,11 +149,12 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
 
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
-                    auto promise = std::move(m_promise);
+                    std::promise<void> promise;
                     std::function<void(std::exception_ptr)> callback;
                     {
                         std::lock_guard<std::mutex> lock{m_mutex};
                         m_state = InferState::IDLE;
+                        promise = std::move(m_promise);
                         std::swap(callback, m_callback);
                     }
                     if (callback) {
@@ -184,7 +186,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
 }
 
 void ov::IAsyncInferRequest::start_async() {
-    infer_impl([&] {
+    infer_impl([this] {
         start_async_thread_unsafe();
     });
 }
@@ -256,7 +258,7 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 
 void ov::IAsyncInferRequest::infer() {
     DisableCallbackGuard disableCallbackGuard{this};
-    infer_impl([&] {
+    infer_impl([this] {
         infer_thread_unsafe();
     });
     wait();

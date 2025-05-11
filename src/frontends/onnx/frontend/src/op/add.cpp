@@ -1,43 +1,52 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/add.hpp"
+#include "openvino/op/add.hpp"
 
-#include "default_opset.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
 #include "utils/common.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector add(const Node& node) {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector add(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Add op is not supported");
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+    return common::handle_opset6_binary_op<v1::Add>(node);
 }
-}  // namespace set_1
+ONNX_OP("Add", OPSET_RANGE(1, 5), ai_onnx::opset_1::add);
+}  // namespace opset_1
 
-namespace set_6 {
-OutputVector add(const Node& node) {
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+namespace opset_6 {
+ov::OutputVector add(const ov::frontend::onnx::Node& node) {
+    return common::handle_opset6_binary_op<v1::Add>(node);
 }
-}  // namespace set_6
+ONNX_OP("Add", OPSET_IN(6), ai_onnx::opset_6::add);
+}  // namespace opset_6
 
-namespace set_7 {
-OutputVector add(const Node& node) {
-    return {std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+namespace opset_7 {
+ov::OutputVector add(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<v1::Add>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
-}  // namespace set_7
+ONNX_OP("Add", OPSET_RANGE(7, 12), ai_onnx::opset_7::add);
+}  // namespace opset_7
 
-}  // namespace op
+namespace opset_13 {
+ONNX_OP("Add", OPSET_IN(13), ai_onnx::opset_7::add);
+}  // namespace opset_13
 
-}  // namespace onnx_import
+namespace opset_14 {
+ONNX_OP("Add", OPSET_SINCE(14), ai_onnx::opset_7::add);
+}  // namespace opset_14
 
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

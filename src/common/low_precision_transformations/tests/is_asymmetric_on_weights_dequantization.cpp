@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/weightable_layer_transformation.hpp>
+#include "low_precision/weightable_layer_transformation.hpp"
 #include <memory>
 #include <sstream>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -22,13 +23,13 @@ class IsAsymmetricOnWeightsDequantizationTestValues {
 public:
     TestTransformationParams params;
     ov::element::Type precisionBeforeDequantization;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     bool isAsymmetricOnWeights;
 };
 
-typedef std::tuple<element::Type, ngraph::PartialShape, IsAsymmetricOnWeightsDequantizationTestValues>
+typedef std::tuple<element::Type, ov::PartialShape, IsAsymmetricOnWeightsDequantizationTestValues>
     IsAsymmetricOnWeightsDequantizationParams;
 
 class IsAsymmetricOnWeightsDequantizationTransformation
@@ -41,7 +42,7 @@ public:
         auto testValues = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::ConvolutionFunction::getOriginal(netPrecision,
+            ov::builder::subgraph::ConvolutionFunction::getOriginal(netPrecision,
                                                                         testValues.precisionBeforeDequantization,
                                                                         inputShape,
                                                                         testValues.dequantizationOnActivations,
@@ -73,7 +74,7 @@ TEST_P(IsAsymmetricOnWeightsDequantizationTransformation, CompareFunctions) {
     IsAsymmetricOnWeightsDequantizationTestValues testValues = std::get<2>(GetParam());
 
     const auto isAsymmetricOnWeights =
-        ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(
+        ov::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(
             convolutions[0],
             testValues.params.defaultPrecisions);
     ASSERT_EQ(testValues.isAsymmetricOnWeights, isAsymmetricOnWeights);
@@ -81,11 +82,11 @@ TEST_P(IsAsymmetricOnWeightsDequantizationTransformation, CompareFunctions) {
 
 const std::vector<element::Type> netPrecisions = {element::f32};
 
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({1, 3, 72, 48}),
-    ngraph::PartialShape({4, 3, 72, 48}),
-    ngraph::PartialShape({Dimension::dynamic(), 3, 72, 48}),
-    ngraph::PartialShape({1, 3, Dimension::dynamic(), Dimension::dynamic()}),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({1, 3, 72, 48}),
+    ov::PartialShape({4, 3, 72, 48}),
+    ov::PartialShape({Dimension::dynamic(), 3, 72, 48}),
+    ov::PartialShape({1, 3, Dimension::dynamic(), Dimension::dynamic()}),
 };
 
 const std::vector<IsAsymmetricOnWeightsDequantizationTestValues> testValues = {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,12 @@ namespace cldnn {
 /// filtered out. This filtering happens per class.
 struct non_max_suppression : public primitive_base<non_max_suppression> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression)
+
+    enum Rotation {
+        NONE,
+        CLOCKWISE,
+        COUNTERCLOCKWISE
+    };
 
     non_max_suppression() : primitive_base("", {}),
                             selected_indices_num(0),
@@ -48,7 +54,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                         const primitive_id& second_output = primitive_id(),
                         const primitive_id& third_output = primitive_id(),
                         const size_t num_outputs = 1)
-        : primitive_base(id, {boxes_positions, boxes_score}, {padding()}, {optional_data_type()}, num_outputs)
+        : primitive_base(id, {boxes_positions, boxes_score}, num_outputs, {optional_data_type()})
         , selected_indices_num(selected_indices_num)
         , center_point_box(center_point_box)
         , sort_result_descending(sort_result_descending)
@@ -62,23 +68,25 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     int selected_indices_num;
     bool center_point_box;
     bool sort_result_descending;
-    primitive_id num_select_per_class;
-    primitive_id iou_threshold;
-    primitive_id score_threshold;
-    primitive_id soft_nms_sigma;
-    primitive_id second_output;
-    primitive_id third_output;
+    input_info num_select_per_class;
+    input_info iou_threshold;
+    input_info score_threshold;
+    input_info soft_nms_sigma;
+    input_info second_output;
+    input_info third_output;
+    Rotation rotation{Rotation::NONE};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, center_point_box);
         seed = hash_combine(seed, sort_result_descending);
-        seed = hash_combine(seed, num_select_per_class.empty());
-        seed = hash_combine(seed, iou_threshold.empty());
-        seed = hash_combine(seed, score_threshold.empty());
-        seed = hash_combine(seed, soft_nms_sigma.empty());
-        seed = hash_combine(seed, second_output.empty());
-        seed = hash_combine(seed, third_output.empty());
+        seed = hash_combine(seed, num_select_per_class.is_valid());
+        seed = hash_combine(seed, iou_threshold.is_valid());
+        seed = hash_combine(seed, score_threshold.is_valid());
+        seed = hash_combine(seed, soft_nms_sigma.is_valid());
+        seed = hash_combine(seed, second_output.is_valid());
+        seed = hash_combine(seed, third_output.is_valid());
+        seed = hash_combine(seed, rotation);
         return seed;
     }
 
@@ -92,31 +100,14 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return cmp_fields(selected_indices_num) &&
                cmp_fields(center_point_box) &&
                cmp_fields(sort_result_descending) &&
-               cmp_fields(num_select_per_class.empty()) &&
-               cmp_fields(iou_threshold.empty()) &&
-               cmp_fields(score_threshold.empty()) &&
-               cmp_fields(soft_nms_sigma.empty()) &&
-               cmp_fields(second_output.empty()) &&
-               cmp_fields(third_output.empty());
+               cmp_fields(num_select_per_class.is_valid()) &&
+               cmp_fields(iou_threshold.is_valid()) &&
+               cmp_fields(score_threshold.is_valid()) &&
+               cmp_fields(soft_nms_sigma.is_valid()) &&
+               cmp_fields(second_output.is_valid()) &&
+               cmp_fields(third_output.is_valid()) &&
+               cmp_fields(rotation);
         #undef cmp_fields
-    }
-
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!num_select_per_class.empty())
-            ret.push_back(num_select_per_class);
-        if (!iou_threshold.empty())
-            ret.push_back(iou_threshold);
-        if (!score_threshold.empty())
-            ret.push_back(score_threshold);
-        if (!soft_nms_sigma.empty())
-            ret.push_back(soft_nms_sigma);
-        if (!second_output.empty())
-            ret.push_back(second_output);
-        if (!third_output.empty())
-            ret.push_back(third_output);
-
-        return ret;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -130,6 +121,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ob << soft_nms_sigma;
         ob << second_output;
         ob << third_output;
+        ob << make_data(&rotation, sizeof(rotation));
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -143,6 +135,60 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ib >> soft_nms_sigma;
         ib >> second_output;
         ib >> third_output;
+        ib >> make_data(&rotation, sizeof(rotation));
+    }
+
+protected:
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (num_select_per_class.is_valid())
+            ret[idx++] = &num_select_per_class;
+
+        if (iou_threshold.is_valid())
+            ret[idx++] = &iou_threshold;
+
+        if (score_threshold.is_valid())
+            ret[idx++] = &score_threshold;
+
+        if (soft_nms_sigma.is_valid())
+            ret[idx++] = &soft_nms_sigma;
+
+        if (second_output.is_valid())
+            ret[idx++] = &second_output;
+
+        if (third_output.is_valid())
+            ret[idx++] = &third_output;
+
+        return ret;
+    }
+};
+
+struct non_max_suppression_gather : primitive_base<non_max_suppression_gather> {
+    CLDNN_DECLARE_PRIMITIVE(non_max_suppression_gather)
+
+    non_max_suppression_gather() : primitive_base("", {}) {}
+
+    /// @brief Constructs non_max_suppression_gather primitive.
+    /// @param id This primitive id.
+    /// @param inputs Input primitives ids.
+    non_max_suppression_gather(const primitive_id& id,
+                  const std::vector<input_info>& inputs,
+                  const size_t num_outputs = 1)
+        : primitive_base(id, inputs, num_outputs, {optional_data_type()}) {}
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs)) {
+            return false;
+        }
+
+        return true;
     }
 };
 }  // namespace cldnn

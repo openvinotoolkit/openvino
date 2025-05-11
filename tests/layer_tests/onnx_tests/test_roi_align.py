@@ -1,10 +1,14 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 from unit_tests.utils.graph import build_graph
 
 
@@ -66,7 +70,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
         operatorsetid.domain = ""
         operatorsetid.version = onnx_version
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[operatorsetid])
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model', opset_imports=[operatorsetid])
 
         #
         #   Create reference IR net
@@ -133,10 +137,14 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    @pytest.mark.xfail(condition=platform.system() == 'Windows', reason="Ticket - 122731")
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122846, 122783, 126312')
+    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir):
         # TODO: ticket for investigating GPU failures: CVS-86300
         if ie_device != "GPU":
             self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
                        ir_version,
-                       temp_dir=temp_dir, use_old_api=use_old_api,
-                       use_legacy_frontend=True)
+                       temp_dir=temp_dir)

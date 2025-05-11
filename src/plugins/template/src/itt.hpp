@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <openvino/itt.hpp>
+#include "openvino/itt.hpp"
 
 namespace ov {
 namespace template_plugin {

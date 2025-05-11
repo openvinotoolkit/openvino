@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/split.hpp>
+#include "low_precision/split.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <transformations/init_node_info.hpp>
+
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/split_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/split.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -25,18 +25,18 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
+        std::vector<ov::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
     TestTransformationParams params;
@@ -53,7 +53,7 @@ public:
         SplitTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::SplitFunction::getOriginal(precision,
+            ov::builder::subgraph::SplitFunction::getOriginal(precision,
                                                                   testValues.inputShape,
                                                                   testValues.actual.precisionBeforeDequantization,
                                                                   testValues.actual.dequantization,
@@ -61,11 +61,11 @@ public:
                                                                   testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
+        transformer.add<ov::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::SplitFunction::getReference(precision,
+            ov::builder::subgraph::SplitFunction::getReference(precision,
                                                                    testValues.inputShape,
                                                                    testValues.expected.inputPrecision,
                                                                    testValues.expected.dequantizationBefore,
@@ -99,7 +99,6 @@ TEST_P(SplitTransformation, CompareFunctions) {
 }
 
 const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
-
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {{1, 3, 16, 16},
@@ -122,15 +121,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
       ov::element::u8,
       {
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}},
       }}},
     // U8 per tensor quantization / int8 subtraction with Convert from fp16 -> fp32
     {{1, 3, 16, 16},
@@ -139,14 +137,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
      LayerTransformation::createParamsU8I8(),
      // ActualValues
      {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
       ov::element::u8,
       {
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}},
       }}},
     {{-1, -1, -1, -1},
      std::int64_t{2},

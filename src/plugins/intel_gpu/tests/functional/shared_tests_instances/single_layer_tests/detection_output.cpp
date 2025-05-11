@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/detection_output.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/detection_output.hpp"
 
 namespace {
+using ov::test::DetectionOutputLayerTest;
+using ov::test::ParamsWhichSizeDepends;
 
 const int numClasses = 11;
 const int backgroundLabelId = 0;

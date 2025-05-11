@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,12 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
-    const std::vector<ngraph::element::Type> netPrecisions = {
-        ngraph::element::f32,
-        ngraph::element::f16
+    const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16
     };
 
 
@@ -25,27 +25,27 @@ namespace {
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
         {
-            { 256ul, ngraph::Shape { 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
+            { 256ul, ov::Shape { 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
             { 3.0 },
             { 3, 3, 5}
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.8f }, { 12.7f } },
+            { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.8f }, { 12.7f } },
             { 3.0 },
             { 3, 3, 3, 5 }
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
+            { 256ul, ov::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
             { 3.0 },
             { 3, 4, 5, 6 }
         },
         {
-            { 256ul, ngraph::Shape { 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
+            { 256ul, ov::Shape { 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
             { 2.0, 3.0 },
             { 3, 4 }
         },
         {
-            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
+            { 256ul, ov::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
             { 4.0 },
             { 46, 128, 2, 3 }
         }

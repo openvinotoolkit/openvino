@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Utility functions for work with json test configuration file.
@@ -83,7 +83,7 @@ def make_build(openvino_root_dir, build_dir, install_dir, build_target: dict = N
     nproc = multiprocessing.cpu_count()
     cmd = (
         f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "
-        f"-DPYTHON_EXECUTABLE={sys.executable} {additional_args_line}"
+        f"-DPython3_EXECUTABLE={sys.executable} {additional_args_line}"
         f"-S {openvino_root_dir} -B {build_dir} && "
         f"cmake --build {build_dir} -j{nproc} && "
         f"{' '.join(build_target_arg_line)}"

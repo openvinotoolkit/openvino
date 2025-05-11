@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, interpolate_op1) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Interpolate>();
+    NodeBuilder::opset().insert<ov::op::v0::Interpolate>();
     auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
@@ -43,7 +43,7 @@ TEST(attributes, interpolate_op1) {
 }
 
 TEST(attributes, interpolate_op4) {
-    NodeBuilder::get_ops().register_factory<ov::op::v4::Interpolate>();
+    NodeBuilder::opset().insert<ov::op::v4::Interpolate>();
     auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto scales = op::v0::Constant::create(element::f32, {1}, {1.0});
@@ -76,7 +76,7 @@ TEST(attributes, interpolate_op4) {
 }
 
 TEST(attributes, interpolate_op11) {
-    NodeBuilder::get_ops().register_factory<ov::op::v11::Interpolate>();
+    NodeBuilder::opset().insert<ov::op::v11::Interpolate>();
     const auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
     const auto scales = op::v0::Constant::create(element::f32, {4}, {1.0, 1.0, 2.0, 2.0});
 

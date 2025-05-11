@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME ov_auto_batch_func_tests)
 
 set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/shared/include")
-addIeTargetTest(
+ov_add_test_target(
         NAME
             ${TARGET_NAME}
         ROOT
@@ -19,7 +19,7 @@ addIeTargetTest(
             openvino_auto_batch_plugin
         ADD_CPPLINT
         LABELS
-            Auto_Batch
+            OV AUTO_BATCH
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

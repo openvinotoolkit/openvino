@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ public:
      * @brief Returns the value of the variable state.
      * @return The value of the variable state
      */
-    virtual const ov::SoPtr<ov::ITensor>& get_state() const;
+    virtual ov::SoPtr<ov::ITensor> get_state() const;
 
 protected:
     /**

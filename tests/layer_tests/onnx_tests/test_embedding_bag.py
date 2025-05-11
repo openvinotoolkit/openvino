@@ -1,10 +1,12 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 import torch
 import torch.nn as nn
 from common.layer_test_class import CommonLayerTest, check_ir_version
@@ -132,6 +134,5 @@ class TestPytorchEmbeddingBag(PytorchLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
-        self._test(*self.create_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_old_api=use_old_api)
+    def test_pytorch_embedding_bag(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir)

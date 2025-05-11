@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <gmock/gmock.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -68,15 +68,10 @@ TEST(type_prop, concat_deduce_axis_oob) {
     auto param0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
     auto param1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 7, 4});
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 5});
-    try {
-        auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 3);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Deduced type should disagree with specified type";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (3) is out of bounds"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 3),
+                    ov::AssertFailure,
+                    HasSubstr("Axis 3 out of the tensor rank range"));
 }
 
 TEST(type_prop, concat_deduce_axis_barely_in_bounds) {
@@ -259,25 +254,20 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
     auto param1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 7, 4});
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 4});
 
-    try {
-        auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -4);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect negative axis value not detected (out of bounds)";
-    } catch (const ov::NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (-1) is out of bounds"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -4),
+                    ov::AssertFailure,
+                    HasSubstr("Axis -4 out of the tensor rank range"));
 }
 
-/** \brief Test uses evaluate lower/upper and label of concat op. */
-TEST(type_prop, concat_dynamic_value_and_label_propagation) {
+/** \brief Test uses evaluate lower/upper and symbol of concat op. */
+TEST(type_prop, concat_dynamic_value_and_symbol_propagation) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(A);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 15);
+    marked_1.set_symbol(B);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -294,18 +284,19 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
-    ASSERT_THAT(labels, ElementsAre(10, 0, 0, 0, 15, 0));
+    const auto symbols = get_shape_symbols(output_shape);
+    ASSERT_THAT(symbols, ElementsAre(A, nullptr, nullptr, nullptr, B, nullptr));
 }
 
-/** \brief Test uses evaluate lower/upper and label of concat op. */
-TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
+/** \brief Test uses evaluate lower/upper and symbol of concat op. */
+TEST(type_prop, concat_dynamic_value_and_symbol_propagation_1) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 1000);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(A);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 1500);
+    marked_1.set_symbol(B);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -326,8 +317,8 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
-    ASSERT_THAT(labels, ElementsAre(1000, 0, 0, 0, 1500, 0));
+    const auto symbols = get_shape_symbols(output_shape);
+    ASSERT_THAT(symbols, ElementsAre(A, nullptr, nullptr, nullptr, B, nullptr));
 }
 
 TEST(type_prop, concat_interval_dimensions) {

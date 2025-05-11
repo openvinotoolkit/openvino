@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,13 +75,13 @@ private:
 
 class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
-    OPENVINO_OP("FrameworkNode", "util");
+    OPENVINO_OP("FrameworkNode", "util", MultiSubGraphOp);
 
     FrameworkNode() = default;
 
     explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1, size_t num_subgraphs = 0);
 
-    void validate_and_infer_types() override;
+    virtual void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -120,6 +120,7 @@ class OPENVINO_API AttributeAdapter<ov::op::util::FrameworkNodeAttrs>
     : public DirectValueAccessor<ov::op::util::FrameworkNodeAttrs> {
 public:
     AttributeAdapter(ov::op::util::FrameworkNodeAttrs& value);
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<FrameworkNodeAttr>");
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief DepthToSpaceFusion transformation detects Reshape-Transpose-Reshape pattern
  * and tries to fuse it into a single DepthToSpace layer.
  *
@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
  *
  *     // This callback enables DepthToSpaceFusion transformation
  *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
- *         return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) != nullptr;
+ *         return ov::as_type_ptr<const ov::opset3::DepthToSpace>(node) != nullptr;
  *     };
  *
  *     auto p = ov::pass::DepthToSpaceFusion();
@@ -42,6 +42,6 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
 
 class ov::pass::DepthToSpaceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DepthToSpaceFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DepthToSpaceFusion");
     DepthToSpaceFusion();
 };

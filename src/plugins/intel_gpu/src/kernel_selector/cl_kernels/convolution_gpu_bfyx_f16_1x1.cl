@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
 KERNEL(convolution_b_fs_yx_fsv16_1x1)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights
@@ -121,8 +122,8 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     {
 #endif // SLM_DIV_FACTOR > 1
         vec_t src = 0;
-#if INPUT_LEFTOVERS
-        if ((k + 1) * FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM)
+
+        if (INPUT_LEFTOVERS && ((k + 1) * FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM))
         {
             if (k * FEATURE_SLICE_SIZE + sglid < INPUT0_FEATURE_NUM)
             {
@@ -142,7 +143,6 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
             }
         }
         else
-#endif // INPUT_LEFTOVERS
         {
 #if PADDED_INPUT
 #if X_BLOCK_SIZE > 1

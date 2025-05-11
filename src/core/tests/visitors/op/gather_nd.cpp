@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gather_nd_v5_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v5::GatherND>();
+    NodeBuilder::opset().insert<ov::op::v5::GatherND>();
     int batch_dims = 1;
     auto P = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     auto I = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 1});
@@ -26,7 +26,7 @@ TEST(attributes, gather_nd_v5_op) {
 }
 
 TEST(attributes, gather_nd_v8_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::GatherND>();
+    NodeBuilder::opset().insert<ov::op::v8::GatherND>();
     int batch_dims = 1;
     auto P = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     auto I = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 1});

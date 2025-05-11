@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,9 +47,7 @@ std::vector<TRShape> shape_infer(const Split* op,
                               axes_values->size(),
                               " axes");
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto axis = ov::normalize_axis(op, (*axes_values)[0], data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis = ov::util::try_normalize_axis((*axes_values)[0], data_rank, *op);
 
         if (data_ps[axis].is_static()) {
             const auto dimension_at_axis = data_ps[axis].get_length();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,16 +10,22 @@
 #include <string>
 #include <unordered_map>
 
-#include "onnx_import/core/operator_set.hpp"
+#include "core/operator_set.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
+using ::ONNX_NAMESPACE::GraphProto;
+using ::ONNX_NAMESPACE::ModelProto;
+using ::ONNX_NAMESPACE::NodeProto;
+using ::ONNX_NAMESPACE::OperatorSetIdProto;
+
 /// \brief      Type of container which stores opset version and domain in ONNX format
-using OpsetImports = ::google::protobuf::RepeatedPtrField<ONNX_NAMESPACE::OperatorSetIdProto>;
+using OpsetImports = ::google::protobuf::RepeatedPtrField<OperatorSetIdProto>;
 
-std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
+std::string get_node_domain(const NodeProto& node_proto);
 
-std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain);
+std::int64_t get_opset_version(const ModelProto& model_proto, const std::string& domain);
 
 class OperatorsBridge;
 
@@ -29,7 +35,7 @@ public:
     // built based on the opset imports in the ModelProto object
     using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
 
-    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset);
+    explicit Model(std::shared_ptr<ModelProto> model_proto, ModelOpSet&& model_opset);
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -40,7 +46,7 @@ public:
     const std::string& get_producer_name() const {
         return m_model_proto->producer_name();
     }
-    const ONNX_NAMESPACE::GraphProto& get_graph() const {
+    const GraphProto& get_graph() const {
         return m_model_proto->graph();
     }
     std::int64_t get_model_version() const {
@@ -91,8 +97,19 @@ public:
     ///
     void enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge);
 
+    /// \brief Returns opset version for requested domain. If opset version isn't found
+    ///        method returns -1
+    /// \param[in]  domain  The domain name.
+    std::int64_t get_opset_version(const std::string& domain) {
+        try {
+            return ov::frontend::onnx::get_opset_version(*this->m_model_proto, domain);
+        } catch (const ov::Exception&) {
+            return -1;
+        }
+    }
+
 private:
-    const std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
+    const std::shared_ptr<ModelProto> m_model_proto;
     ModelOpSet m_opset;
 };
 
@@ -100,6 +117,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Model& model) {
     return (outs << "<Model: " << model.get_producer_name() << ">");
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

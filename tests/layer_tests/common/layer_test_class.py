@@ -1,17 +1,16 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import defusedxml.ElementTree as ET
 import itertools
+import numpy as np
 import os
 import re
 import warnings
-import defusedxml.ElementTree as ET
-from pathlib import Path
-
-import numpy as np
 from common.constants import test_device, test_precision
-from common.layer_utils import IEInfer, InferAPI20
+from common.layer_utils import InferAPI
 from common.utils.common_utils import generate_ir_python_api
+from pathlib import Path
 
 
 class CommonLayerTest:
@@ -25,39 +24,39 @@ class CommonLayerTest:
         raise RuntimeError("This is base class, please implement get_framework_results function for"
                            " the specific framework")
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_old_api,
-              use_new_frontend=True, infer_timeout=60, enabled_transforms='',
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir,
+              infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
-        self.use_new_frontend = use_new_frontend
-        self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
         compress_to_fp16 = False if precision == 'FP32' else True
-        mo_params = {self.input_model_key: model_path,
+
+        # pack input parameters for convert_model of OVC
+        # that are different from MO
+        mo_params = {"input_model": model_path,
                      "output_dir": temp_dir,
-                     "compress_to_fp16": compress_to_fp16,
-                     "model_name": 'model'}
+                     "compress_to_fp16": compress_to_fp16
+                     }
 
-        if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
-            input_shapes_str = []
-            for ishape in kwargs['input_shapes']:
-                input_shapes_str.append('[' + ','.join([str(i) for i in ishape]) + ']')
-            mo_params.update(dict(input_shape=','.join(input_shapes_str)))
-
-        if 'input_names' in kwargs and len(kwargs['input_names']):
-            mo_params.update(dict(input=','.join(kwargs['input_names'])))
-
-        if use_new_frontend:
-            mo_params["use_new_frontend"] = True
-        else:
-            mo_params["use_legacy_frontend"] = True
+        if 'input_shapes' in kwargs and 'input_names' in kwargs:
+            input_shapes = kwargs['input_shapes']
+            input_names = kwargs['input_names']
+            assert len(input_shapes) == len(input_names)
+            input_dict = {}
+            for input_name, input_shape in zip(input_names, input_shapes):
+                input_dict[input_name] = input_shape
+            mo_params.update(dict(input=input_dict))
+        elif 'input_names' in kwargs:
+            mo_params.update(dict(input=kwargs['input_names']))
+        elif 'input_shapes' in kwargs:
+            mo_params.update(dict(input=kwargs['input_shapes']))
 
         exit_code, stderr = generate_ir_python_api(**mo_params)
 
@@ -81,15 +80,9 @@ class CommonLayerTest:
         if ie_device == 'GPU' and precision == 'FP32':
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
-        if self.use_old_api:
-            ie_engine = IEInfer(model=path_to_xml,
-                                weights=path_to_bin,
-                                device=ie_device)
-        else:
-            ie_engine = InferAPI20(model=path_to_xml,
-                                   weights=path_to_bin,
-                                   device=ie_device,
-                                   use_new_frontend=use_new_frontend)
+        ie_engine = InferAPI(model=path_to_xml,
+                             weights=path_to_bin,
+                             device=ie_device)
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
@@ -97,7 +90,7 @@ class CommonLayerTest:
         else:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
-        # IE infer:
+        # OV infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
@@ -155,15 +148,21 @@ class CommonLayerTest:
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-            ie_out_name = framework_out_name
+            if framework_out_name not in infer_res and len(infer_res) == 1:
+                ie_res = list(infer_res.values())[0]
+            else:
+                ie_res = infer_res[framework_out_name]
 
-            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
+            if not allclose(ie_res, framework_res[framework_out_name],
                             atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
-                print("Max diff is {}".format(
-                    np.array(
-                        abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                if ie_res.dtype != bool:
+                    fw_res = np.array(framework_res[framework_out_name])
+                    diff = np.array(abs(ie_res - fw_res)).max()
+                    print("Max diff is {}".format(diff))
+                else:
+                    print("Boolean results are not equal")
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(framework_eps, framework_eps))

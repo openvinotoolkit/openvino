@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,8 +262,8 @@ public:
 
     tensor(format fmt, const std::vector<value_type>& sizes, value_type default_size = 1)
         : tensor(default_size) {
-        auto in_order = fmt.order();
-        auto out_order = fmt.internal_order();
+        const auto& in_order = fmt.order();
+        const auto& out_order = fmt.internal_order();
         if (in_order.size() != sizes.size())
             throw std::invalid_argument("The count of values passed to initialize tensor does not match passed format.");
 
@@ -417,8 +417,8 @@ public:
 
     /// @brief Returns a vector of tensors values, ordered regarding to @p format.
     std::vector<value_type> sizes(cldnn::format fmt) const {
-        auto output_order = fmt.order();
-        auto internal_order = fmt.internal_order();
+        const auto& output_order = fmt.order();
+        const auto& internal_order = fmt.internal_order();
         std::vector<value_type> sizes(output_order.size(), 0);
 
         for (size_t i = 0; i < sizes.size(); ++i) {
@@ -472,11 +472,11 @@ public:
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
         cldnn::format default_fmt = cldnn::format::bfvuwzyx;
-        auto val_order = default_fmt.internal_order();
-        auto new_order = new_fmt.internal_order();
-        std::vector<value_type> old_sizes = sizes();
+        const auto& val_order = default_fmt.internal_order();
+        const auto& new_order = new_fmt.internal_order();
+        const std::vector<value_type>& old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
-        const auto& new_traits = format::traits(new_fmt);
+        const auto& new_traits = new_fmt.traits();
         static const std::map<char, char> flatten_mapping = {
             { 'v', 'u'},
             { 'u', 'w'},
@@ -519,7 +519,7 @@ public:
 
     /// @brief Calculates linear offset for given @p coord within current tensor.
     /// @param coord The coordinate within current tensor.
-    size_t get_linear_offset(const tensor& coord, cldnn::format fmt) const {
+    size_t get_linear_offset(const tensor& coord, const cldnn::format& fmt) const {
         auto my_sizes = this->sizes(fmt);
         auto adjusted_coords = coord.sizes(fmt);
 
@@ -550,20 +550,6 @@ public:
             my_sizes[1] = align_to(my_sizes[1], 32);
             adjusted_coords[0] = align_to(adjusted_coords[0], 16);
             adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-        } else if (fmt == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(my_sizes[0], 32)) && !(is_aligned_to(my_sizes[1], 32))) {
-            my_sizes[0] = align_to(my_sizes[0], 32);
-            my_sizes[1] = align_to(my_sizes[1], 32);
-            adjusted_coords[0] = align_to(adjusted_coords[0], 32);
-            adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-        } else if (fmt == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(my_sizes[1], 32) || !is_aligned_to(my_sizes[0], 32))) {
-            my_sizes[0] = align_to(my_sizes[0], 32);
-            my_sizes[3] = align_to(my_sizes[3], 32);
-            adjusted_coords[0] = align_to(adjusted_coords[0], 32);
-            adjusted_coords[3] = align_to(adjusted_coords[3], 32);
-        } else if (fmt == cldnn::format::os_is_y_x8_osv8_isv4 || fmt == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4) {
-            my_sizes[1] = align_to(my_sizes[1], 4);
-            my_sizes[0] = align_to(my_sizes[0], 8);
-            my_sizes[2] = align_to(my_sizes[2], 8);
         } else if (fmt == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv16_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
             const auto yxsv = 4;
             const auto flat_xy = adjusted_coords[4] + adjusted_coords[3] * my_sizes[4];
@@ -590,17 +576,6 @@ public:
             adjusted_coords.insert(std::prev(adjusted_coords.end()), flat_xy % yxsv);
             adjusted_coords[2] = flat_xy / yxsv;
             adjusted_coords[1] = 0;
-        } else if (fmt == cldnn::format::os_i_yxs_osv4_yxsv4) {
-            const auto yxsv = 4;
-            const auto flat_xy = adjusted_coords[3] + adjusted_coords[2] * my_sizes[3];
-
-            my_sizes.push_back(yxsv);
-            my_sizes[3] = ceil_div(my_sizes[2] * my_sizes[3], yxsv);
-            my_sizes[2] = 1;
-
-            adjusted_coords.push_back(flat_xy % yxsv);
-            adjusted_coords[3] = flat_xy / yxsv;
-            adjusted_coords[2] = 0;
         } else if ((fmt == cldnn::format::giy_xs_os_xsv2_osv8__ao32 || fmt == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
             my_sizes[4] = align_to(my_sizes[4], 32);
         }

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "utils.hpp"
@@ -57,19 +56,22 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
                           "Axes input must be a scalar or 1D input. Got: ",
                           axes_shape);
 
-    const auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
+    auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
     if (data_rank.is_static() && axes_val) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::normalize_axes(op, data_rank.get_length(), *axes_val);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::try_normalize_axes(*axes_val, data_rank, *op);
 
         output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
     } else {
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
         } else {
-            output_shapes.push_back(ov::PartialShape::dynamic());
+            if (axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
+                // since there is the only axis, it is unique/not duplicated by definition. we can safely propagate rank
+                output_shapes.push_back(ov::PartialShape::dynamic(data_rank - 1));
+            } else {
+                output_shapes.push_back(ov::PartialShape::dynamic());
+            }
         }
     }
     return output_shapes;

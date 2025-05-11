@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/strided_slice_function.hpp"
+#include "ov_lpt_models/strided_slice.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,29 +24,31 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
 }
 
 std::string StridedSliceTransformation::getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << "_" << param.begin << "_" << param.beginMask << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << "_" << param.begin << "_" << param.beginMask << "_" <<
         param.end << "_" << param.endMask << "_" << param.strides << "_" << param.newAxisMask <<
         param.shrinkAxisMask << "_" << param.elipsisMask;
     return result.str();
 }
 
 void StridedSliceTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,
@@ -62,7 +63,7 @@ void StridedSliceTransformation::SetUp() {
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -30,6 +31,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -52,11 +54,11 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     return k;
 }
 
-KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
@@ -82,8 +84,8 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
     return jit;
 }
 
-bool PoolingKernelGPUInt8Ref::Validate(const Params& params, const optional_params& options) const {
-    if (!PoolingKernelBase::Validate(params, options)) {
+bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
+    if (!PoolingKernelBase::Validate(params)) {
         return false;
     }
     auto p = dynamic_cast<const pooling_params&>(params);

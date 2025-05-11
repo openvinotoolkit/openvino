@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,9 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -29,7 +32,7 @@ TEST(TransformationTests, ResetNoSinkingAttribute) {
 
     auto add = std::make_shared<Add>(transpose_a, transpose_b);
     auto trans_after = make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-    auto model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{a, b});
+    auto model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{a, b});
 
     mark_as_no_sinking_node(transpose_a);
     mark_as_no_sinking_node(transpose_b);

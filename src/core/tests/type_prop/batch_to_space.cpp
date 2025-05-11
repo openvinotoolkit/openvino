@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 #include <array>
 
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/space_to_batch.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace std;
 using namespace testing;
@@ -363,11 +363,10 @@ TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_static) {
                                 {100, 150},
                                 {10 * 16, 20 * 16}}));
 }
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
     auto data_shape = ov::PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
     auto block_shape =
         make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
@@ -377,18 +376,18 @@ TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
     auto batch_to_space = make_shared<ov::op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     EXPECT_EQ(batch_to_space->get_output_partial_shape(0),
-              (ov::PartialShape{{ngraph::ceil_div(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
+              (ov::PartialShape{{ov::util::ceil_div(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
                                 {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
                                 {9 * 5 - 1, 21 * 5 - 1},
                                 {100, 162},
                                 {1 * 16, 1999 * 16}}));
-    EXPECT_THAT(get_shape_labels(batch_to_space->get_output_partial_shape(0)),
-                ElementsAre(ov::no_label, ov::no_label, ov::no_label, 13, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(batch_to_space->get_output_partial_shape(0)),
+                ElementsAre(nullptr, nullptr, nullptr, symbols[3], nullptr));
 }
 
 TEST(type_prop, batch_to_space_input_interval_shape_block_one) {
     auto data_shape = ov::PartialShape{{959, 962}, {2, 34}, {9, 21}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
     auto block_shape = make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, vector<int64_t>{1, 1, 1});
     auto crops_begin = make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, vector<int64_t>{0, 0, 0});
@@ -397,7 +396,8 @@ TEST(type_prop, batch_to_space_input_interval_shape_block_one) {
 
     EXPECT_EQ(batch_to_space->get_output_partial_shape(0),
               ov::PartialShape({{959, 962}, {2, 34}, {9 * 1 - 1, 21 * 1 - 1}}));
-    EXPECT_THAT(get_shape_labels(batch_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(batch_to_space->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr));
 }
 
 TEST(type_prop, batch_to_space_and_space_to_batch) {

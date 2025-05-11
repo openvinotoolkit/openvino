@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API Proposal4Scales;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ProposalScales transformation helps to silently avoid reshape issues on the scale-input of Proposal layer.
  *
  * Expected sub-graph looks like:
@@ -36,12 +36,12 @@ class TRANSFORMATIONS_API Proposal4Scales;
 
 class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("Proposal1Scales", "0");
+    OPENVINO_MATCHER_PASS_RTTI("Proposal1Scales");
     Proposal1Scales();
 };
 
 class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("Proposal4Scales", "0");
+    OPENVINO_MATCHER_PASS_RTTI("Proposal4Scales");
     Proposal4Scales();
 };

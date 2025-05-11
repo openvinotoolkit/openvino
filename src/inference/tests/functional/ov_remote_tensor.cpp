@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <cpp/ie_infer_request.hpp>
 #include <openvino/runtime/remote_tensor.hpp>
 
 using namespace ::testing;

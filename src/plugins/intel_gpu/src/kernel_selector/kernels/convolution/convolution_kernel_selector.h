@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,36 +18,7 @@ public:
 
     virtual ~convolution_kernel_selector() {}
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-};
-
-class deformable_conv_kernel_selector : public kernel_selector_base {
-public:
-    static deformable_conv_kernel_selector& Instance() {
-        static deformable_conv_kernel_selector instance_;
-        return instance_;
-    }
-
-    deformable_conv_kernel_selector();
-
-    virtual ~deformable_conv_kernel_selector() {}
-
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-};
-
-
-class deformable_interp_kernel_selector : public kernel_selector_base {
-public:
-    static deformable_interp_kernel_selector& Instance() {
-        static deformable_interp_kernel_selector instance_;
-        return instance_;
-    }
-
-    deformable_interp_kernel_selector();
-
-    virtual ~deformable_interp_kernel_selector() {}
-
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 
 }  // namespace kernel_selector

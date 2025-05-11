@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using ov::test::NodeBuilder;
 TEST(attributes, convert_op_v0) {
     using Convert = op::v0::Convert;
 
-    NodeBuilder::get_ops().register_factory<Convert>();
+    NodeBuilder::opset().insert<Convert>();
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
     const element::Type destination_type = element::Type_t::i32;
 

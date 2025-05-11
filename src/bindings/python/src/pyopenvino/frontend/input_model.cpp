@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,18 @@ void regclass_frontend_InputModel(py::module m) {
                 :param tensor_name: Name of tensor.
                 :type tensor_name: str
                 :return: Tensor place corresponding to specified tensor name.
+                :rtype: openvino.frontend.Place
+             )");
+
+    im.def("get_place_by_input_index",
+           &ov::frontend::InputModel::get_place_by_input_index,
+           py::arg("input_idx"),
+           R"(
+                Returns a tensor place by an input index.
+
+                :param input_idx: Index of model input.
+                :type input_idx: int
+                :return: Tensor place corresponding to specified input index or nullptr.
                 :rtype: openvino.frontend.Place
              )");
 
@@ -213,7 +225,7 @@ void regclass_frontend_InputModel(py::module m) {
                 :param place: Model place.
                 :type place: openvino.frontend.Place
                 :param shape: Partial shape for this place.
-                :type shape: openvino.runtime.PartialShape
+                :type shape: openvino.PartialShape
             )");
 
     im.def("get_partial_shape",
@@ -225,7 +237,7 @@ void regclass_frontend_InputModel(py::module m) {
                 :param place: Model place.
                 :type place: openvino.frontend.Place
                 :return: Partial shape for this place.
-                :rtype: openvino.runtime.PartialShape
+                :rtype: openvino.PartialShape
             )");
 
     im.def("get_inputs",
@@ -291,7 +303,7 @@ void regclass_frontend_InputModel(py::module m) {
                 :param place: Model place.
                 :type place: openvino.frontend.Place
                 :param type: New element type.
-                :type type: openvino.runtime.Type
+                :type type: openvino.Type
             )");
 
     im.def("get_element_type",
@@ -303,7 +315,7 @@ void regclass_frontend_InputModel(py::module m) {
                 :param place: Model place.
                 :type place: openvino.frontend.Place
                 :return: Element type for this place.
-                :rtype: openvino.runtime.Type
+                :rtype: openvino.Type
             )");
 
     im.def(

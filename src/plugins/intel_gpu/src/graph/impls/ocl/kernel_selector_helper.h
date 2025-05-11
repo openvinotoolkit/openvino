@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,22 +82,28 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 
 }  // namespace kernel_selector
-
+namespace ov {
+namespace element {
+enum class Type_t;
+}  // namespaec element
+}  // namespaec ov
 namespace cldnn {
-enum class data_types : size_t;
 struct format;
 struct layout;
 struct program;
 struct fused_primitive_desc;
 
-kernel_selector::data_type to_data_type(data_types dt);
-data_types from_data_type(kernel_selector::data_type dt);
-kernel_selector::weights_type to_weights_type(data_types dt);
-data_types from_weights_type(kernel_selector::weights_type dt);
+kernel_selector::data_type to_data_type(ov::element::Type_t dt);
+ov::element::Type_t from_data_type(kernel_selector::data_type dt);
+kernel_selector::weights_type to_weights_type(ov::element::Type_t dt);
+ov::element::Type_t from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
+kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
+                                                    const size_t num_channels,
+                                                    const tensor view_offset = tensor {});
 kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
@@ -151,20 +157,6 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
     return params;
 }
 
-void set_optional_params(const program& program, kernel_selector::optional_params& params);
-
-template <typename optional_params_t>
-inline optional_params_t get_default_optional_params(const program& program) {
-    optional_params_t params;
-    set_optional_params(program, params);
-    return params;
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
-    return get_default_optional_params<optional_params_t>(program);
-}
-
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
     switch (mode) {
         case eltwise_mode::sum:
@@ -211,7 +203,18 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::IS_INF;
         case eltwise_mode::is_nan:
             return kernel_selector::eltwise_mode::IS_NAN;
+        case eltwise_mode::right_shift:
+            return kernel_selector::eltwise_mode::RIGHT_SHIFT;
+        case eltwise_mode::left_shift:
+            return kernel_selector::eltwise_mode::LEFT_SHIFT;
+        case eltwise_mode::bitwise_and:
+            return kernel_selector::eltwise_mode::BITWISE_AND;
+        case eltwise_mode::bitwise_or:
+            return kernel_selector::eltwise_mode::BITWISE_OR;
+        case eltwise_mode::bitwise_xor:
+            return kernel_selector::eltwise_mode::BITWISE_XOR;
         default:
+            OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;
     }
 }
@@ -224,7 +227,7 @@ inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, s
     return pshape;
 }
 
-inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape, size_t rank = 4) {
+inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& pshape, size_t rank = 4) {
     if (pshape.size() >= rank) {
         return pshape;
     }
@@ -233,17 +236,24 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape,
     return extended_pshape;
 }
 
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer) {
+inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
+                          bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
         return false;
     }
-    if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-        return false;
+    if (first_to_second_only) {
+        if (first_pshape.size() > second_pshape.size()) {
+            return false;
+        }
+    } else {
+        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+            return false;
+        }
     }
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
             return false;
         }
     }
@@ -252,15 +262,15 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
 
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+                const auto& out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
                 auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-                auto dep_shape = dep_layout.get_partial_shape();
+                const auto& dep_shape = dep_layout.get_partial_shape();
 
                 if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
@@ -278,5 +288,28 @@ inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const
 
     return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
 }
+
+inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& impl_param) {
+    auto& bp = static_cast<kernel_selector::base_params&>(p);
+    for (size_t i = 0; i < bp.inputs.size(); i++) {
+        bp.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+    }
+    for (size_t i = 0; i < bp.outputs.size(); i++) {
+        bp.outputs[i] = convert_data_tensor(impl_param.output_layouts[i]);
+    }
+
+    for (size_t i = 0; i < bp.fused_ops.size(); i++) {
+        const auto& fused_prim = impl_param.fused_desc[i];
+        auto& fd = bp.fused_ops[i];
+        fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        fd.tensors.clear();
+        for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
+            fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+    }
+}
+
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

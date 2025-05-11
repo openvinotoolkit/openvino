@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,14 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/node.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -23,22 +23,23 @@ class PropagateToInput;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateToInput transformation propagates AttributeType shared value attribute instances
  * from parent output ports to consumers input ports.
  *
  * For more details about the transformation, refer to
  * [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
+class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
-    PropagateToInput(const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 }) {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::PropagateToInput");
+    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = {ov::element::u8, ov::element::i8}) {
+        ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;
@@ -117,13 +118,13 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
 private:
     // TODO: possible duplicate: PropagateThroughPrecisionPreserved::getParentInputRestrictions
-    ov::Any getSourceOutputAttribute(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    ov::Any getSourceOutputAttribute(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
         auto getInput = [&defaultPrecisions](const Input<Node>& input) {
             const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
             if (!dequantization.empty() &&
@@ -146,7 +147,7 @@ private:
     }
 
     std::vector<ov::Any> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
+        const std::shared_ptr<ov::Node> node) {
         std::vector<ov::Any> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);

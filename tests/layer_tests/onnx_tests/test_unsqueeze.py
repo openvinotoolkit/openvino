@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestUnsqueeze(OnnxRuntimeLayerTest):
@@ -42,7 +42,7 @@ class TestUnsqueeze(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_squeeze_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_squeeze_model')
 
         #
         #   Create reference IR net
@@ -117,7 +117,7 @@ class TestUnsqueeze(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_unsqueeze_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_unsqueeze_model')
 
         #
         #   Create reference IR net
@@ -176,47 +176,47 @@ class TestUnsqueeze(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_unsqueeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_unsqueeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_unsqueeze_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, grid_sample_defaults) {
-    NodeBuilder::get_ops().register_factory<ov::op::v9::GridSample>();
+    NodeBuilder::opset().insert<ov::op::v9::GridSample>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 5, 5, 2});
 

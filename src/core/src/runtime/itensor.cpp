@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,31 @@
 
 #include <memory>
 
+#include "compare.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
+
+namespace {
+Strides default_byte_strides(const Shape& shape, const element::Type& et) {
+    auto strides = Strides(shape.size());
+    if (!strides.empty()) {
+        strides.back() = et.size();
+        std::transform(shape.crbegin(),
+                       shape.crend() - 1,
+                       strides.rbegin(),
+                       strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+    }
+    return strides;
+}
+}  // namespace
 
 ITensor::~ITensor() = default;
 
@@ -20,58 +39,55 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return (get_size() * get_element_type().bitwidth() + 8 - 1) / 8;
+    return element::get_memory_size(get_element_type(), get_size());
 }
 
 bool ITensor::is_continuous() const {
-    if (get_element_type().bitwidth() < 8)
+    if ((get_element_type().bitwidth() < 8) || get_size() == 0) {
         // OpenVINO doesn't support strides for lp types
         return true;
-    const auto& shape = get_shape();
-    const auto& type = get_element_type();
-    std::vector<size_t> strides(shape.size());
-    if (!shape.empty()) {
-        strides[shape.size() - 1] = 1;
-    }
-    auto size = shape.size();
-    for (size_t i = 1; i < size; i++) {
-        strides[size - i - 1] = strides[size - i] * shape[size - i];
     }
 
-    ov::Strides byte_strides(strides.size());
-    for (size_t i = 0; i < strides.size(); ++i)
-        byte_strides[i] = strides[i] * type.size();
-    return byte_strides == get_strides();
+    const auto& strides = get_strides();
+    auto stride = strides.rbegin();
+    const auto default_strides = default_byte_strides(get_shape(), get_element_type());
+    auto default_stride = default_strides.rbegin();
+
+    for (; stride != strides.rend(); ++stride, ++default_stride) {
+        if (*stride != *default_stride) {
+            break;
+        }
+    }
+
+    const auto default_last = default_strides.rend();
+    return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
+                                                std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }
 
 void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     const auto& is_scalar = [](const ov::Shape& shape) {
         return shape.empty() || (shape.size() == 1 && shape[0] == 1);
     };
-    const auto shapes_equal = [is_scalar](const ov::Shape& src, const ov::Shape& dst) {
-        // WA for scalar tensors to copy {1} to {} or otherwise
-        return src == dst || (is_scalar(src) && is_scalar(dst));
-    };
     OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
     OPENVINO_ASSERT(!dynamic_cast<const ov::IRemoteTensor*>(this),
                     "Default copy to doesn't support copy from remote tensor.");
-    OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst),
-                    "Default copy to doesn't support copy to remote tensor.");
     OPENVINO_ASSERT(dst->get_element_type() == get_element_type(),
                     "Tensor element types are not equal. (src: ",
                     get_element_type(),
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    if (dst->get_shape() == ov::Shape{0})
-        dst->set_shape(get_shape());
-    OPENVINO_ASSERT(shapes_equal(get_shape(), dst->get_shape()),
-                    "Tensor shapes are not equal. (src: ",
-                    get_shape(),
-                    " != dst: ",
-                    dst->get_shape(),
-                    ")");
+
     const auto& shape = get_shape();
+    if (shape != dst->get_shape()) {
+        dst->set_shape(shape);
+    }
+
+    if (auto remote_tensor_dst = std::dynamic_pointer_cast<ov::IRemoteTensor>(dst)) {
+        remote_tensor_dst->copy_from(shared_from_this());
+        return;
+    }
+
     auto* src_data = static_cast<const uint8_t*>(data());
     auto* dst_data = static_cast<uint8_t*>(dst->data());
     ov::Strides src_strides{get_byte_size()};
@@ -80,25 +96,15 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     ov::Shape max_pos{1};
 
     if (get_element_type().bitwidth() < 8 || (get_strides() == dst->get_strides() && is_continuous()) ||
-        (is_scalar(get_shape()) && is_scalar(dst->get_shape()))) {
+        (is_scalar(shape) && is_scalar(dst->get_shape()))) {
         // OpenVINO doesn't support strides for LP types
         // or both tensors have default strides
         // Strides and positions already initialized
     } else {
         // Tensors have default strides
         const auto& type = get_element_type();
-        std::vector<size_t> strides(shape.size());
-        if (!shape.empty()) {
-            strides[shape.size() - 1] = 1;
-        }
-        auto size = shape.size();
-        for (size_t i = 1; i < size; i++) {
-            strides[size - i - 1] = strides[size - i] * shape[size - i];
-        }
-
-        ov::Strides default_strides(strides.size());
-        for (size_t i = 0; i < strides.size(); ++i)
-            default_strides[i] = strides[i] * type.size();
+        const auto shape_rank = shape.size();
+        const auto default_strides = default_byte_strides(shape, type);
 
         src_strides = get_strides();
         dst_strides = dst->get_strides();
@@ -107,8 +113,7 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
 
         // Calculate src and dst shapes
         bool found_step = false;
-        for (size_t i = 0; i < shape.size(); i++) {
-            size_t inverted_idx = shape.size() - i - 1;
+        for (size_t inverted_idx = shape_rank - 1; inverted_idx < shape_rank; --inverted_idx) {
             if (!found_step) {
                 if (default_strides[inverted_idx] == src_strides[inverted_idx] &&
                     src_strides[inverted_idx] == dst_strides[inverted_idx]) {
@@ -128,7 +133,7 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
 
                     if (strides_size < default_strides.size()) {
                         strides = default_strides[strides_size];
-                        dim = get_shape()[strides_size];
+                        dim = shape[strides_size];
                     }
                     src_str[strides_size] = strides;
                     dst_str[strides_size] = strides;
@@ -141,22 +146,32 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
             max_pos[inverted_idx] = shape[inverted_idx];
             cur_pos[inverted_idx] = 0;
         }
-        src_strides = src_str;
-        dst_strides = dst_str;
+        src_strides = std::move(src_str);
+        dst_strides = std::move(dst_str);
     }
 
-    const auto update_index = [](const ov::Shape& pos, const ov::Shape& shape, const ov::Strides& strides) {
-        size_t offset = 0;
-
-        for (size_t i = 0; i < pos.size(); i++) {
-            offset += pos[i] * strides[i];
-        }
-        return offset;
+    const auto update_index = [](const ov::Shape& pos, const ov::Strides& strides) {
+        return std::inner_product(pos.begin(), pos.end(), strides.begin(), static_cast<size_t>(0));
     };
+
+    using copy_function_def = std::function<void(const uint8_t*, uint8_t*, size_t)>;
+    copy_function_def memcpy_based_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        memcpy(dst_data, src_data, bytes_size);
+    };
+    copy_function_def strings_copy = [](const uint8_t* src_data, uint8_t* dst_data, size_t bytes_size) {
+        // in case string tensors, it needs to copy of new values for std::string objects
+        // memcpy is not suitable
+        auto dst_string = reinterpret_cast<std::string*>(dst_data);
+        auto src_string = reinterpret_cast<const std::string*>(src_data);
+        size_t num_elements_stride = bytes_size / element::string.size();
+        std::copy_n(src_string, num_elements_stride, dst_string);
+    };
+    copy_function_def copy_function = (get_element_type() == element::string) ? strings_copy : memcpy_based_copy;
 
     bool finish = false;
     for (size_t dst_idx = 0, src_idx = 0; !finish;) {
-        memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
+        copy_function(src_data + src_idx, dst_data + dst_idx, src_strides[src_strides.size() - 1]);
+
         // update indexes
         for (size_t i = 0; i < cur_pos.size(); i++) {
             size_t inverted_idx = cur_pos.size() - i - 1;
@@ -169,9 +184,13 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
             else
                 finish = true;
         }
-        src_idx = update_index(cur_pos, max_pos, src_strides);
-        dst_idx = update_index(cur_pos, max_pos, dst_strides);
+        src_idx = update_index(cur_pos, src_strides);
+        dst_idx = update_index(cur_pos, dst_strides);
     }
+}
+
+void* ITensor::data(const element::Type& type) {
+    return const_cast<void*>(static_cast<const ITensor*>(this)->data(type));
 }
 
 }  // namespace ov

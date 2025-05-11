@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -22,8 +23,9 @@
 // Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
 // the full pattern to match is presented on the left hand side of the graph below.
 // On the right hand side is the graph after transformation.
-// Currently transformation supports only i8 and u8 quantized data type.
-// That implies 'levels' attribute to be 256, as well as (output_low, output_high) be (-128, 127) or (0, 255) (depends
+// Currently transformation supports only i8, u8, i16, u16 quantized data type.
+// That implies 'levels' attribute to be 256 or 65536, as well as (output_low, output_high)
+// be (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535) (depends on type and depends
 // on sign of the quantized data type). Another limitation is that 'zero_point' and 'scale' have to be broadcastable to
 // the output of FakeQuantize.
 //
@@ -69,9 +71,9 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
-                                                          pattern::type_matches_any({element::i8, element::u8}));
+    auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
+        {fq_pattern},
+        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16}));
     auto convert2_pattern =
         ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
@@ -80,7 +82,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto scale_pattern = pass::pattern::any_input();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -90,15 +92,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];
-        auto output_low =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
+        auto output_low = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
         if (!output_low)
             return false;
         auto output_high =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
         if (!output_high)
             return false;
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
         auto zero_point = pattern_map[zero_point_pattern];
@@ -113,12 +114,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (convert2.get_target_inputs().size() != 1)
             return false;
 
-        // we support only i8 or u8 so 'levels' attribute must be 256
+        // we support:
+        // i8 or u8: 'levels' attribute must be 256
+        // i16 or u16: 'levels' attribute must be 65536
         size_t levels = fq->get_levels();
-        if (levels != 256)
+        if (levels != 256 && levels != 65536)
             return false;
 
-        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255)
+        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
         if (!op::util::get_single_value(output_low, out_low_val))
             return false;
@@ -133,6 +136,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             break;
         case element::Type_t::u8:
             if (out_low_val != 0 || out_high_val != 255)
+                return false;
+            break;
+        case element::Type_t::i16:
+            if (out_low_val != -32768 || out_high_val != 32767)
+                return false;
+            break;
+        case element::Type_t::u16:
+            if (out_low_val != 0 || out_high_val != 65535)
                 return false;
             break;
         default:
@@ -157,14 +168,10 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> const_out_low = get_constant_from_source(new_out_low);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        std::shared_ptr<Node> const_out_low = ov::util::get_constant_from_source(new_out_low);
         if (const_out_low)
             new_out_low = const_out_low;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> const_out_high = get_constant_from_source(new_out_high);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        std::shared_ptr<Node> const_out_high = ov::util::get_constant_from_source(new_out_high);
         if (const_out_high)
             new_out_high = const_out_high;
 

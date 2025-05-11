@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
+#include "non_max_suppression.hpp"
 #include "non_max_suppression_inst.h"
 #include "data_inst.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
@@ -15,12 +16,12 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     using parent = typed_primitive_impl_ocl<non_max_suppression>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::non_max_suppression_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::non_max_suppression_params, kernel_selector::non_max_suppression_optional_params>;
+    using kernel_params_t = kernel_selector::non_max_suppression_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::non_max_suppression_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<non_max_suppression_impl>(*this);
+        return make_deep_copy<non_max_suppression_impl, kernel_params_t>(*this);
     }
 
 protected:
@@ -50,21 +51,20 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        // Legacy APIs using mutable inputs for multiple outputs
+        // // Legacy multi-output
         if (instance.has_second_output())
-            args.inputs.push_back(instance.second_output_mem());
+            args.outputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
-            args.inputs.push_back(instance.third_output_mem());
+            args.outputs.push_back(instance.third_output_mem());
 
         return args;
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<non_max_suppression>();
+        const auto& arg = impl_param.prog->get_node(impl_param.desc->id).as<non_max_suppression>();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(impl_param.get_program());
 
         const auto input_scores_idx = 1;
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[input_scores_idx]));
@@ -124,34 +124,39 @@ public:
             return offset;
         };
 
+        // Legacy multi-output
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
-            params.has_second_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
-            params.has_third_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
         }
 
         if (arg.use_multiple_outputs()) {
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-            params.use_multiple_outputs = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
+        switch (primitive->rotation) {
+            case non_max_suppression::Rotation::CLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::CLOCKWISE;
+                break;
+            case non_max_suppression::Rotation::COUNTERCLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::COUNTERCLOCKWISE;
+                break;
+            default:
+                params.rotation = kernel_selector::NMSRotationType::NONE;
+        }
+
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
             params.reuse_internal_buffer = true;
         }
 
-        params.set_dynamic_shape_offsets();
-        auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
-
-        return make_unique<non_max_suppression_impl>(best_kernel);
+        return params;
     }
 
 private:
@@ -162,8 +167,8 @@ private:
         auto& stream = node.get_program().get_stream();
         switch (mem->get_layout().data_type) {
         case data_types::f16: {
-            mem_lock<half_t, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<half_t*>(lock.data());
+            mem_lock<ov::float16, mem_lock_type::read> lock(mem, stream);
+            auto mem_value = static_cast<ov::float16*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::f32: {
@@ -189,31 +194,11 @@ private:
     }
 };
 
-namespace detail {
-
-attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
-    implementation_map<non_max_suppression>::add(impl_types::ocl,
-                                                 non_max_suppression_impl::create,
-                                                 {
-                                                     std::make_tuple(data_types::i32, format::bfyx),
-
-                                                     std::make_tuple(data_types::f16, format::bfyx),
-                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-
-                                                     std::make_tuple(data_types::f32, format::bfyx),
-                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-                                                 });
+std::unique_ptr<primitive_impl> NMSImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<non_max_suppression>());
+    return typed_primitive_impl_ocl<non_max_suppression>::create<non_max_suppression_impl>(static_cast<const non_max_suppression_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

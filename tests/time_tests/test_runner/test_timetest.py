@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run timetests tests.
@@ -45,7 +45,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
     :param cpu_cache: flag to enable model CPU cache
     :param npu_compiler: flag to change NPU compiler type
     :param perf_hint: performance hint (optimize device for latency or throughput settings)
-    :param model_cache_dir: directory to store IE model cache
+    :param model_cache_dir: directory to store OV model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled

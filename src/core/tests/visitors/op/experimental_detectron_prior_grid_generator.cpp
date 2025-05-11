@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ using ExperimentalGenerator = ov::op::v6::ExperimentalDetectronPriorGridGenerato
 using Attrs = ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 TEST(attributes, detectron_prior_grid_generator) {
-    NodeBuilder::get_ops().register_factory<ExperimentalGenerator>();
+    NodeBuilder::opset().insert<ExperimentalGenerator>();
 
     Attrs attrs;
     attrs.flatten = true;

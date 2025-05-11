@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,36 +8,37 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/subtract_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/subtract.hpp"
 
 
 
 namespace LayerTestsDefinitions {
 
 std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params);
 }
 
 void SubtractTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
-    function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

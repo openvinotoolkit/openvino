@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "dimension_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "utils.hpp"

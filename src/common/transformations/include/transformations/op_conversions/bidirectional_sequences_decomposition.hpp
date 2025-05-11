@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,50 +24,50 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose LSTMSequence to forward and reverse LSTMSequence.
  *
  */
 
 class ov::pass::BidirectionalLSTMSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BidirectionalLSTMSequenceDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BidirectionalLSTMSequenceDecomposition");
     BidirectionalLSTMSequenceDecomposition();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose GRUSequence to forward and reverse GRUSequence.
  *
  */
 
 class ov::pass::BidirectionalGRUSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BidirectionalGRUSequenceDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BidirectionalGRUSequenceDecomposition");
     BidirectionalGRUSequenceDecomposition();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose RNNSequence to forward and reverse RNNSequence.
  *
  */
 
 class ov::pass::BidirectionalRNNSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BidirectionalRNNSequenceDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BidirectionalRNNSequenceDecomposition");
     BidirectionalRNNSequenceDecomposition();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Container for all types of sequences decomposition.
  *
  */
 
 class ov::pass::BidirectionalSequenceDecomposition : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("BidirectionalSequenceDecomposition", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("BidirectionalSequenceDecomposition");
     BidirectionalSequenceDecomposition() {
         add_matcher<ov::pass::BidirectionalLSTMSequenceDecomposition>();
         add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();

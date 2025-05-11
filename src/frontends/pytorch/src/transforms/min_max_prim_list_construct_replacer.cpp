@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "min_max_prim_list_construct_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -26,12 +27,12 @@ namespace pass {
 using namespace ov::op;
 
 MinMaxPrimListConstructReplacer::MinMaxPrimListConstructReplacer() {
-    auto op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    const auto& op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         bool is_min = false;
-        auto max_op = cast_fw_node(m.get_match_root(), "prim::max");
-        auto min_op = cast_fw_node(m.get_match_root(), "prim::min");
+        const auto& max_op = cast_fw_node(m.get_match_root(), "prim::max");
+        const auto& min_op = cast_fw_node(m.get_match_root(), "prim::min");
         std::shared_ptr<ov::op::util::FrameworkNode> op;
         if (!max_op && !min_op) {
             return false;

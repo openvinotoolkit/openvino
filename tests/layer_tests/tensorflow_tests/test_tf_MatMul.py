@@ -8,7 +8,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestMatMul(CommonTFLayerTest):
 
-    def create_net_with_matmul_op(self, x_shape, y_shape, x_bool, y_bool, op_type, ir_version, use_new_frontend):
+    def create_net_with_matmul_op(self, x_shape, y_shape, x_bool, y_bool, op_type, ir_version):
         import tensorflow as tf
         op_type_to_tf = {
             'BatchMatMul': tf.raw_ops.BatchMatMul,
@@ -36,7 +36,7 @@ class TestMatMul(CommonTFLayerTest):
             elif op_type == 'BatchMatMulV3':
                 op_type_to_tf[op_type](x=tf_x, y=tf_y, Tout=tf.float32, adj_x=x_bool, adj_y=y_bool, name='Operation')
             else:
-                raise RuntimeError("Undknown operation")
+                raise RuntimeError("Unknown operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -53,17 +53,15 @@ class TestMatMul(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("op_type", ['BatchMatMul',
                                          'BatchMatMulV2',
-                                         #'BatchMatMulV3',      #Isn't supported
+                                         'BatchMatMulV3',
                                          'MatMul',
                                          ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                 use_new_frontend, use_old_api):
+    def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type):
         self._test(*self.create_net_with_matmul_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_new_frontend=use_new_frontend, x_bool=False, y_bool=False),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                                                  x_bool=False, y_bool=False),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = test_data_precommit + [
         dict(x_shape=[2, 3, 4, 4], y_shape=[2, 3, 4, 4]),   #Tests 4D shapes
@@ -72,7 +70,7 @@ class TestMatMul(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("op_type", ['BatchMatMul',
                                          'BatchMatMulV2',
-                                         #'BatchMatMulV3',      #Isn't supported
+                                         'BatchMatMulV3',
                                          'MatMul',
                                          ])
     @pytest.mark.parametrize("x_bool", [
@@ -85,8 +83,7 @@ class TestMatMul(CommonTFLayerTest):
         ])
     @pytest.mark.nightly
     def test_matmul_op_nightly(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                x_bool, y_bool, use_new_frontend, use_old_api):
+                                x_bool, y_bool):
         self._test(*self.create_net_with_matmul_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_new_frontend=use_new_frontend, x_bool=x_bool, y_bool=y_bool),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                                                  x_bool=x_bool, y_bool=y_bool),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

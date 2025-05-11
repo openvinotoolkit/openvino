@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/ops.hpp>
-
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 
 namespace ov {
 namespace reference {

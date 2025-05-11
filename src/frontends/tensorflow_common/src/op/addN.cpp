@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <numeric>
-
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/add.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -16,18 +16,30 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_add_n_op(const NodeContext& node) {
-    OutputVector ng_arg_vec;
-    for (size_t i = 0; i < node.get_input_size(); i++) {
-        ng_arg_vec.push_back(node.get_input(static_cast<int>(i)));
+    default_op_checks(node, 1, {"AddN", "ADD_N"}, true);
+    int num_size = static_cast<int>(node.get_input_size());
+    auto result = node.get_input(0);
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(result.get_node_shared_ptr());
+    if (complex_type_mark) {
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+        result = complex_type_mark->get_data();
+
+        // converting all the inputs to complex type (simulating complex type) and adding them
+        for (int ind = 1; ind < num_size; ++ind) {
+            auto complex_type_mark_ind = as_type_ptr<ComplexTypeMark>(node.get_input(ind).get_node_shared_ptr());
+            result = make_shared<v1::Add>(result, complex_type_mark_ind->get_data());
+        }
+        auto complex_add_n = make_shared<ComplexTypeMark>(result, complex_part_type);
+        set_node_name(node.get_name(), result.get_node_shared_ptr());
+        return {complex_add_n->output(0)};
     }
-    auto res = std::accumulate(std::next(ng_arg_vec.begin()),
-                               ng_arg_vec.end(),
-                               ng_arg_vec.at(0),
-                               [](const Output<Node>& a, const Output<Node>& b) -> shared_ptr<Node> {
-                                   return make_shared<Add>(a, b);
-                               });
-    set_node_name(node.get_name(), res.get_node_shared_ptr());
-    return {res};
+
+    for (int ind = 1; ind < num_size; ++ind) {
+        result = make_shared<v1::Add>(result, node.get_input(ind));
+    }
+
+    set_node_name(node.get_name(), result.get_node_shared_ptr());
+    return {result};
 }
 }  // namespace op
 }  // namespace tensorflow

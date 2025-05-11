@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,9 +48,3 @@
     catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
-
-namespace ov {
-namespace frontend {
-std::string get_frontend_library_path();
-}  // namespace frontend
-}  // namespace ov

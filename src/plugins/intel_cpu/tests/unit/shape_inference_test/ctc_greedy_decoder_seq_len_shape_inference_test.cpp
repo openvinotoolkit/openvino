@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/op/ops.hpp"
 #include "utils.hpp"
 
 using namespace ov;

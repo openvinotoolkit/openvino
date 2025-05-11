@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,11 @@ namespace threading {
 class OPENVINO_RUNTIME_API CPUStreamsExecutor : public IStreamsExecutor {
 public:
     /**
+     * @brief A shared pointer to a CPUStreamsExecutor object
+     */
+    using Ptr = std::shared_ptr<CPUStreamsExecutor>;
+
+    /**
      * @brief Constructor
      * @param config Stream executor parameters
      */
@@ -44,9 +49,15 @@ public:
 
     int get_stream_id() override;
 
+    int get_streams_num() override;
+
     int get_numa_node_id() override;
 
     int get_socket_id() override;
+
+    std::vector<int> get_rank() override;
+
+    void cpu_reset() override;
 
 private:
     struct Impl;

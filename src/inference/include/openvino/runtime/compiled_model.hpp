@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,6 +199,15 @@ public:
     T get_property(const ov::Property<T, mutability>& property) const {
         return get_property(property.name()).template as<T>();
     }
+
+    /**
+     * @brief Release intermediate memory.
+     *
+     * This method forces the Compiled model to release memory allocated for intermediate structures, e.g. caches,
+     * tensors, temporal buffers etc., when possible
+     *
+     */
+    void release_memory();
 
     /**
      * @brief Returns pointer to device-specific shared context

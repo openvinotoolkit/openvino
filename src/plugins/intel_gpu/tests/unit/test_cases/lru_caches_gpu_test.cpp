@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,13 +133,13 @@ struct ImplHasher {
 }  // namespace
 
 TEST(lru_cache, collisions) {
-    auto l1 = layout{{1, 3, 80, 80}, data_types::f32, format::bfyx};
-    auto l2 = layout{{1, 3, 81, 141}, data_types::f32, format::bfyx};
+    auto l1 = layout{{1, 3, 27, 92}, data_types::f32, format::bfyx};
+    auto l2 = layout{{1, 3, 28, 29}, data_types::f32, format::bfyx};
 
     auto input1_prim = std::make_shared<input_layout>("input1", l1);
     auto input2_prim = std::make_shared<input_layout>("input2", l2);
-    auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), 4, data_types::i64);
-    auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), 4, data_types::i64);
+    auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), data_types::i64);
+    auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), data_types::i64);
 
     using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
     ImplementationsCache cache(0);
@@ -164,8 +164,8 @@ TEST(lru_cache, collisions) {
     shape_of1_node.set_preferred_impl_type(impl_types::ocl);
     shape_of2_node.set_preferred_impl_type(impl_types::ocl);
 
-    auto impl1 = shape_of1_node.type()->choose_impl(shape_of1_node);
-    auto impl2 = shape_of2_node.type()->choose_impl(shape_of2_node);
+    auto impl1 = shape_of1_node.type()->create_impl(shape_of1_node);
+    auto impl2 = shape_of2_node.type()->create_impl(shape_of2_node);
 
     // Ensure that hashes for primitive, input layouts and full impl params are same due to collision
     ASSERT_EQ(shape_of1_prim->hash(), shape_of2_prim->hash());

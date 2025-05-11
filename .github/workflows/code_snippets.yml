@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Build:
     strategy:
@@ -23,26 +25,34 @@ jobs:
       matrix:
         os: ['ubuntu-22.04', 'macos-latest', 'windows-latest']
     runs-on: ${{ matrix.os }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
-          submodules: recursive
-          lfs: true
+          submodules: 'true'
 
       - name: Install OpenCL
-        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40 # v1.4.3
         if: runner.os == 'Linux'
         with:
           packages: ocl-icd-opencl-dev opencl-headers
           version: 3.0
 
-      - name: CMake configure
-        run: cmake -DCMAKE_BUILD_TYPE=Release -B build
+      - name: Install scons
+        if: runner.os == 'macOS'
+        run: brew install scons
 
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
+      - name: CMake configure
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
 
       - name: Build snippets
-        run:  cmake --build build --target ie_docs_snippets --parallel ${{ steps.cpu-cores.outputs.count }}
+        if: ${{ runner.os == 'Linux' || runner.os == 'macOS'}}
+        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc)
+
+      - name: Build snippets Windows
+        if: ${{ runner.os == 'Windows'}}
+        shell: pwsh
+        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
+

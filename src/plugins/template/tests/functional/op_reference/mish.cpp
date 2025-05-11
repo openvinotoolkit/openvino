@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/mish.hpp"
+
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <random>
-#include "openvino/op/mish.hpp"
+
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -14,21 +17,22 @@ using namespace ov;
 namespace {
 struct MishParams {
     template <class IT>
-    MishParams(const ov::PartialShape& dynamicShape, const ov::Shape& inputShape,
-               const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+    MishParams(const ov::PartialShape& parameterShape,
+               const ov::Shape& tensorShape,
+               const ov::element::Type& iType,
+               const std::vector<IT>& iValues,
+               const std::vector<IT>& oValues,
                const std::string& test_name = "")
-        : dynamicShape(dynamicShape),
-          inputShape(inputShape),
+        : parameterShape(parameterShape),
+          tensorShape(tensorShape),
           inType(iType),
-          outType(iType),
-          inputData(CreateTensor(inputShape, iType, iValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(tensorShape, iType, iValues)),
+          refData(CreateTensor(tensorShape, iType, oValues)),
           testcaseName(test_name) {}
 
-    ov::PartialShape dynamicShape;
-    ov::PartialShape inputShape;
+    ov::PartialShape parameterShape;
+    ov::Shape tensorShape;
     ov::element::Type inType;
-    ov::element::Type outType;
     ov::Tensor inputData;
     ov::Tensor refData;
     std::string testcaseName;
@@ -37,23 +41,19 @@ struct MishParams {
 class ReferenceMishLayerTest : public testing::TestWithParam<MishParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params.dynamicShape, params.inType);
+        const auto& params = GetParam();
+        function = CreateFunction(params.parameterShape, params.inType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<MishParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
-        result << "dShape=" << param.dynamicShape << "_";
-        result << "iShape=" << param.inputShape << "_";
-        result << "iType=" << param.inType << "_";
-        if (param.testcaseName != "") {
-            result << "oType=" << param.outType << "_";
-            result << param.testcaseName;
-        } else {
-            result << "oType=" << param.outType;
-        }
+        result << "dShape=" << param.parameterShape << "_";
+        result << "iShape=" << param.tensorShape << "_";
+        result << "iType=" << param.inType;
+        if (!param.testcaseName.empty())
+            result << "_" << param.testcaseName;
         return result.str();
     }
 
@@ -61,7 +61,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Mish = std::make_shared<op::v4::Mish>(in);
-        return std::make_shared<ov::Model>(NodeVector {Mish}, ParameterVector {in});
+        return std::make_shared<Model>(OutputVector{Mish}, ParameterVector{in});
     }
 };
 
@@ -70,11 +70,13 @@ TEST_P(ReferenceMishLayerTest, CompareWithRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape, const Shape& staticShape, const std::string& test_name = "") {
+MishParams generateMishFloatParams(const PartialShape& parameterShape,
+                                   const Shape& tensorShape,
+                                   const std::string& test_name = "") {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     // generate input tensor (with possible type conversion)
-    auto staticSize = shape_size(staticShape);
+    const auto staticSize = shape_size(tensorShape);
     std::vector<T> expected;
     std::vector<T> input;
     {
@@ -82,47 +84,34 @@ std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape
         std::normal_distribution<> d{0.0, 20.0};
 
         for (auto i = staticSize; i > 0; i--) {
-            auto x = static_cast<T>(d(gen));
-            auto y = static_cast<T>(static_cast<double>(x) * std::tanh(std::log(1.0 + std::exp(x))));
+            const auto x = static_cast<T>(d(gen));
+            const auto y = static_cast<T>(x * std::tanh(std::log(std::exp(x) + T{1})));
             input.push_back(x);
             expected.push_back(y);
         }
     }
 
-    std::vector<MishParams> mishParams;
-
-    if (test_name != "") {
-        mishParams = {
-            MishParams(dynamicShape, staticShape, IN_ET, input, expected, test_name)
-        };
-    } else {
-        mishParams = {
-            MishParams(dynamicShape, staticShape, IN_ET, input, expected)
-        };
-    }
-    return mishParams;
+    return MishParams{parameterShape, tensorShape, IN_ET, input, expected, test_name};
 }
 
 std::vector<MishParams> generateMishCombinedParams() {
-    const std::vector<std::vector<MishParams>> mishTypeParams {
-        generateMishFloatParams<element::Type_t::f32>({2, 5}, {2, 5}),
-        generateMishFloatParams<element::Type_t::f32>({2, 3, 4, 5}, {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f32>(PartialShape::dynamic(), {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f32>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5}, "dimensionDynamic"),
-        generateMishFloatParams<element::Type_t::f16>({2, 5}, {2, 5}),
-        generateMishFloatParams<element::Type_t::f16>({2, 3, 4, 5}, {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f16>(PartialShape::dynamic(), {2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f16>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5}, "dimensionDynamic")
-        };
-    std::vector<MishParams> combinedParams;
-
-    for (const auto& params : mishTypeParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
-    return combinedParams;
+    return std::vector<MishParams>{generateMishFloatParams<element::Type_t::f32>({2, 5}, {2, 5}),
+                                   generateMishFloatParams<element::Type_t::f32>({2, 3, 4, 5}, {2, 3, 4, 5}),
+                                   generateMishFloatParams<element::Type_t::f32>(PartialShape::dynamic(), {2, 3, 4, 5}),
+                                   generateMishFloatParams<element::Type_t::f32>({2, Dimension::dynamic(), 4, 5},
+                                                                                 {2, 3, 4, 5},
+                                                                                 "dimensionDynamic"),
+                                   generateMishFloatParams<element::Type_t::f16>({2, 5}, {2, 5}),
+                                   generateMishFloatParams<element::Type_t::f16>({2, 3, 4, 5}, {2, 3, 4, 5}),
+                                   generateMishFloatParams<element::Type_t::f16>(PartialShape::dynamic(), {2, 3, 4, 5}),
+                                   generateMishFloatParams<element::Type_t::f16>({2, Dimension::dynamic(), 4, 5},
+                                                                                 {2, 3, 4, 5},
+                                                                                 "dimensionDynamic")};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Mish_With_Hardcoded_Refs, ReferenceMishLayerTest,
-    testing::ValuesIn(generateMishCombinedParams()), ReferenceMishLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Mish_With_Hardcoded_Refs,
+                         ReferenceMishLayerTest,
+                         testing::ValuesIn(generateMishCombinedParams()),
+                         ReferenceMishLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

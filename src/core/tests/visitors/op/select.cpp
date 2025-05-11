@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, select_fp32) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Select>();
+    NodeBuilder::opset().insert<ov::op::v1::Select>();
     auto in_cond = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{3, 2});
     auto in_then = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
     auto in_else = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
@@ -30,7 +30,7 @@ TEST(attributes, select_fp32) {
 }
 
 TEST(attributes, select_i32) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Select>();
+    NodeBuilder::opset().insert<ov::op::v1::Select>();
     auto in_cond = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{3, 2});
     auto in_then = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{3, 2});
     auto in_else = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{3, 2});

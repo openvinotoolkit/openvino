@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,12 @@ TEST(check, check_with_explanation) {
 }
 
 TEST(check, ov_throw_exception_check_relative_path_to_source) {
+    // github actions use sccache which doesn't support /d1trimfile compile option
+    if (std::getenv("GITHUB_ACTIONS")) {
+        GTEST_SKIP();
+    }
     using namespace testing;
-    const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"});
+    const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"}).string();
     const auto exp_native_slash = "Exception from " + path + ":";
     const auto exp_fwd_slash = "Exception from src/core/tests/check.cpp:";
     OV_EXPECT_THROW(OPENVINO_THROW("Test message"),

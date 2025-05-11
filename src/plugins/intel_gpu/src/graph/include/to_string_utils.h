@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 
@@ -24,7 +22,7 @@ namespace cldnn {
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
 
 inline std::string dt_to_str(data_types dt) {
-    return data_type_traits::name(dt);
+    return ov::element::Type(dt).to_string();
 }
 
 inline std::string fmt_to_str(format fmt) {

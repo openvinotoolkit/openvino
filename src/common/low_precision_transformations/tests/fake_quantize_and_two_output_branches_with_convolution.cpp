@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_two_output_branches_with_convolution_function.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
@@ -31,21 +31,21 @@ class FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues {
 public:
     class ActualValues {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
+        ov::builder::subgraph::FakeQuantizeOnData fqOnData;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
     };
 
     class ExpectedValues {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+        ov::builder::subgraph::FakeQuantizeOnData fqOnData;
         ov::element::Type precisionBeforeOp;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOp;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
     };
 
     TestTransformationParams params;
@@ -67,7 +67,7 @@ public:
         const ov::Shape shape = std::get<1>(GetParam());
         const FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
             precision,
             shape,
             testValues.actual.fqOnData,
@@ -75,11 +75,11 @@ public:
             testValues.actual.fqOnWeights2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
             precision,
             shape,
             TestTransformationParams::toParams(testValues.params),

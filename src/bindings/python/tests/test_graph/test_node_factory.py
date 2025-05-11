@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 from sys import platform
-from openvino.runtime import compile_model, Model
-import openvino.runtime.opset8 as ov
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.node_factory import NodeFactory
+from openvino import compile_model, Model
+from openvino import Extension
+import openvino.opset8 as ov
+from openvino.exceptions import UserInputError
+from openvino.utils.node_factory import NodeFactory
 
 
 def test_node_factory_add():
@@ -77,7 +78,8 @@ def test_node_factory_empty_topk_with_args_and_attrs():
     node.set_attribute("axis", 1)
     node.set_attribute("mode", "max")
     node.set_attribute("sort", "value")
-    node.validate()
+
+    node.constructor_validate_and_infer_types()
 
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
@@ -97,7 +99,9 @@ def test_node_factory_validate_missing_arguments():
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
 
 
-@pytest.mark.template_extension()
+@pytest.mark.template_extension
+@pytest.mark.dynamic_library
+@pytest.mark.xfail(condition=platform == "darwin", reason="Ticket - 132696")
 def test_extension_added_from_library():
     if platform == "win32":
         library_path = "openvino_template_extension.dll"
@@ -121,3 +125,17 @@ def test_extension_added_from_library():
     del identity
 
     assert np.array_equal(tensor, result[0])
+
+
+def test_add_extension():
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+
+    factory = NodeFactory()
+    factory.add_extension(EmptyExtension())
+    factory.add_extension([EmptyExtension(), EmptyExtension()])
+
+    data = ov.parameter([1, 2], dtype=np.float32)
+    param = factory.create("Parameter", data.outputs())
+    assert param is not None

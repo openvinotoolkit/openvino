@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,26 +8,41 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-strict-aliasing)
+if(OV_COMPILER_IS_INTEL_LLVM)
+    # For windows we need to disable warning as error option to make FindSYCL.cmake work
+    if (WIN32)
+        ov_add_compiler_flags(/WX-)
+    endif()
+
+    find_package(IntelSYCL REQUIRED)
+
+    if (WIN32)
+        ov_add_compiler_flags(/WX)
+        ov_add_compiler_flags(/Wno-ignored-attributes)
+    endif()
 endif()
 
-if(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4244)
     # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
+    ov_add_compiler_flags(/wd4018)
+
+    # see https://github.com/oneapi-src/oneDNN/issues/2028
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)
-  add_definitions(-DGPU_DEBUG_CONFIG=1)
+    add_definitions(-DGPU_DEBUG_CONFIG=1)
+    add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+set(INTEL_GPU_TARGET_OCL_VERSION "300"
+  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
@@ -38,7 +53,7 @@ add_subdirectory(thirdparty)
 include(thirdparty/cmake/rapidjson.cmake)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Werror)
+    ov_add_compiler_flags(-Werror)
 endif()
 
 add_subdirectory(src/runtime)
@@ -46,10 +61,6 @@ add_subdirectory(src/kernel_selector)
 add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
-
-if(ENABLE_PROXY)
-    set(PLUGIN_DEFAULT_CONFIG "PROXY_CONFIGURATION_ALIAS:GPU;PROXY_CONFIGURATION_PRIORITY:0;PROXY_CONFIGURATION_INTERNAL_NAME:OCL_GPU")
-endif()
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
@@ -65,12 +76,14 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
+ov_set_threading_interface_for(${TARGET_NAME})
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_COMPILER_IS_GNUCXX)
-  set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized"
-                                                  LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+  set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
+                                                  LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
 
 if(ENABLE_TESTS)
@@ -79,4 +92,4 @@ endif()
 
 # Failed because of OpenCL
 # must be called after all target_link_libraries
-# ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+# ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, scatter_elements_update) {
-    NodeBuilder::get_ops().register_factory<op::v3::ScatterElementsUpdate>();
+    NodeBuilder::opset().insert<op::v3::ScatterElementsUpdate>();
 
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 5, 7});
     auto indices = std::make_shared<op::v0::Parameter>(element::i16, Shape{2, 2, 2, 2});
@@ -27,7 +27,7 @@ TEST(attributes, scatter_elements_update) {
 }
 
 TEST(attributes, scatter_elements_update_v12) {
-    NodeBuilder::get_ops().register_factory<op::v12::ScatterElementsUpdate>();
+    NodeBuilder::opset().insert<op::v12::ScatterElementsUpdate>();
 
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 5, 7});
     auto indices = std::make_shared<op::v0::Parameter>(element::i16, Shape{2, 2, 2, 2});

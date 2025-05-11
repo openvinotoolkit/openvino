@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,8 +6,6 @@ import paddle
 from paddle.nn.functional import interpolate
 from save_model import saveModel
 import sys
-paddle.enable_static()
-
 
 def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
     cpu = paddle.static.cpu_places(1)
@@ -19,8 +17,8 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with paddle.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=[feed], fetchlist=fetch_list, inputs=[input_x],
-                  outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+        saveModel(name, exe, feed_vars=[feed], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs
 
@@ -103,6 +101,25 @@ def resize_downsample_nearest():
         paddle_result = paddle_interpolate(data_64, test['size'], None, mode='nearest', align_corners=test['align_corners'],
                                        align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
 
+def paddle_interpolate_tensor_size(data, sizes, mode='nearest', align_corners=True, align_mode=0, data_format='NCHW', name=None):
+    paddle.enable_static()
+    main_program = paddle.static.Program()
+    startup_program = paddle.static.Program()
+    with paddle.static.program_guard(main_program, startup_program):
+        node_x = paddle.static.data(name='x', shape=data.shape, dtype='float32')
+        node_sizes = paddle.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+        interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                             mode=mode, align_corners=align_corners, align_mode=align_mode,
+                             data_format=data_format, name=name)
+        out = paddle.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+        exe.run(startup_program)
+        outs = exe.run(
+            feed={'x': data, 'sizes': sizes},
+            fetch_list=out,
+            program=main_program)
+        saveModel(name, exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 def nearest_upsample_tensor_size():
     data = np.array([[[
@@ -112,27 +129,9 @@ def nearest_upsample_tensor_size():
         [13, 14, 15, 16]
     ]]], dtype=np.float32)
     sizes = np.array([8, 8], dtype=np.int32)
-    paddle.enable_static()
     test_case = [{'name': 'nearest_upsample_tensor_size', 'align_corners': False, 'align_mode': 0}]
     for test in test_case:
-        main_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
-        with paddle.static.program_guard(main_program, startup_program):
-            node_x = paddle.static.data(name='x', shape=data.shape, dtype='float32')
-            node_sizes = paddle.static.data(name='sizes', shape=sizes.shape, dtype='int32')
-            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
-                                 mode='nearest', align_corners=test['align_corners'], align_mode=test['align_mode'],
-                                 data_format='NCHW', name=test['name'])
-            out = paddle.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
-            cpu = paddle.static.cpu_places(1)
-            exe = paddle.static.Executor(cpu[0])
-            exe.run(startup_program)
-            outs = exe.run(
-                feed={'x': data, 'sizes': sizes},
-                fetch_list=out,
-                program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
-
+        paddle_interpolate_tensor_size(data, sizes, 'nearest', test['align_corners'], test['align_mode'], 'NCHW', test['name'])
 
 def bilinear_upsample_tensor_size():
     data = np.array([[[
@@ -146,24 +145,7 @@ def bilinear_upsample_tensor_size():
     test_case = [{'name': 'bilinear_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
 
     for test in test_case:
-        main_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
-        with paddle.static.program_guard(main_program, startup_program):
-            node_x = paddle.static.data(name='x', shape=data.shape, dtype='float32')
-            node_sizes = paddle.static.data(name='sizes', shape=sizes.shape, dtype='int32')
-            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
-                                 mode='bilinear', align_corners=test['align_corners'], align_mode=test['align_mode'],
-                                 data_format='NCHW', name=test['name'])
-            out = paddle.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
-            cpu = paddle.static.cpu_places(1)
-            exe = paddle.static.Executor(cpu[0])
-            exe.run(startup_program)
-            outs = exe.run(
-                feed={'x': data, 'sizes': sizes},
-                fetch_list=out,
-                program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
-
+        paddle_interpolate_tensor_size(data, sizes, 'bilinear', test['align_corners'], test['align_mode'], 'NCHW', test['name'])
 
 def bilinear_upsample_scales():
     data = np.array([[[
@@ -236,23 +218,7 @@ def trilinear_upsample_tensor_size():
     test_case = [{'name': 'trilinear_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
 
     for test in test_case:
-        main_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
-        with paddle.static.program_guard(main_program, startup_program):
-            node_x = paddle.static.data(name='x', shape=data.shape, dtype='float32')
-            node_sizes = paddle.static.data(name='sizes', shape=sizes.shape, dtype='int32')
-            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
-                                 mode='TRILINEAR', align_corners=test['align_corners'], align_mode=test['align_mode'],
-                                 data_format='NCDHW', name=test['name'])
-            out = paddle.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
-            cpu = paddle.static.cpu_places(1)
-            exe = paddle.static.Executor(cpu[0])
-            exe.run(startup_program)
-            outs = exe.run(
-                feed={'x': data, 'sizes': sizes},
-                fetch_list=out,
-                program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+        paddle_interpolate_tensor_size(data, sizes, 'TRILINEAR', test['align_corners'], test['align_mode'], 'NCDHW', test['name'])
 
 def trilinear_upsample_scales():
     data = np.array([[[[
@@ -315,23 +281,7 @@ def bicubic_upsample_tensor_size():
     test_case = [{'name': 'bicubic_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
 
     for test in test_case:
-        main_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
-        with paddle.static.program_guard(main_program, startup_program):
-            node_x = paddle.static.data(name='x', shape=data.shape, dtype='float32')
-            node_sizes = paddle.static.data(name='sizes', shape=sizes.shape, dtype='int32')
-            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
-                                 mode='bicubic', align_corners=test['align_corners'], align_mode=test['align_mode'],
-                                 data_format='NCHW', name=test['name'])
-            out = paddle.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
-            cpu = paddle.static.cpu_places(1)
-            exe = paddle.static.Executor(cpu[0])
-            exe.run(startup_program)
-            outs = exe.run(
-                feed={'x': data, 'sizes': sizes},
-                fetch_list=out,
-                program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+        paddle_interpolate_tensor_size(data, sizes, 'bicubic', test['align_corners'], test['align_mode'], 'NCHW', test['name'])
 
 def bicubic_upsample_scales():
     data = np.array([[[
@@ -402,7 +352,7 @@ def linear_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 def linear_upsample_scales():
     data = np.array([[

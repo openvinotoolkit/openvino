@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -44,6 +44,7 @@ class TestAddMM(PytorchLayerTest):
                               (1, 1)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_addmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, beta), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
@@ -93,6 +94,7 @@ class TestBAddBMM(PytorchLayerTest):
                              ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_baddbmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, beta), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)

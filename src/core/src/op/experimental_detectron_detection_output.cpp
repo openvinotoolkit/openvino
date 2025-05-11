@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-
-using namespace std;
 
 namespace ov {
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
@@ -48,15 +46,15 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types() {
     set_output_type(2, shapes_and_type.second, output_shapes[2]);
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
+std::shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
     const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronDetectionOutput>(new_args.at(0),
-                                                                     new_args.at(1),
-                                                                     new_args.at(2),
-                                                                     new_args.at(3),
-                                                                     m_attrs);
+    return std::make_shared<op::v6::ExperimentalDetectronDetectionOutput>(new_args.at(0),
+                                                                          new_args.at(1),
+                                                                          new_args.at(2),
+                                                                          new_args.at(3),
+                                                                          m_attrs);
 }
 
 void op::v6::ExperimentalDetectronDetectionOutput::set_attrs(Attributes attrs) {

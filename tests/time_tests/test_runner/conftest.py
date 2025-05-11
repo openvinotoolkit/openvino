@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -169,7 +169,7 @@ def cl_cache_dir(pytestconfig, instance):
 @pytest.fixture(scope="function")
 def model_cache_dir(pytestconfig, instance):
     """
-    Generate directory to IE model cache before test run and clean up after run.
+    Generate directory to OV model cache before test run and clean up after run.
     """
     if instance.get("use_model_cache"):
         model_cache_dir = pytestconfig.invocation_dir / "models_cache"

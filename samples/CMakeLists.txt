@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 add_subdirectory(cpp)
 add_subdirectory(c)
 
-openvino_developer_export_targets(COMPONENT samples TARGETS format_reader ie_samples_utils)
+ov_developer_package_export_targets(TARGET format_reader)
+ov_developer_package_export_targets(TARGET ie_samples_utils)
 
 #
 # Install
@@ -23,6 +24,7 @@ if(UNIX)
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
             PATTERN *.bat EXCLUDE
+            PATTERN *.ps1 EXCLUDE
             PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
 
@@ -51,7 +53,7 @@ if(UNIX)
             COMPONENT ${OV_CPACK_COMP_C_SAMPLES}
             ${OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL})
 elseif(WIN32)
-    install(PROGRAMS cpp/build_samples_msvc.bat
+    install(PROGRAMS cpp/build_samples_msvc.bat cpp/build_samples.ps1
             DESTINATION ${OV_CPACK_SAMPLESDIR}/c
             COMPONENT ${OV_CPACK_COMP_C_SAMPLES}
             ${OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void TopKImpl(ProgramBuilder& p,
                      const std::shared_ptr<ov::Node>& op,
@@ -27,22 +26,8 @@ static void TopKImpl(ProgramBuilder& p,
 
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
-        auto get_output_paddings = [&]() {
-            std::vector<cldnn::padding> output_paddings;
-            for (size_t i = 0; i < num_outputs; i++)
-                output_paddings.push_back(cldnn::padding());
-            return output_paddings;
-        };
-        auto get_output_data_types = [&]() {
-            std::vector<cldnn::optional_data_type> output_data_types;
-            for (size_t i = 0; i < num_outputs; i++) {
-                auto type = op->get_output_element_type(i);
-                output_data_types.push_back(cldnn::element_type_to_data_type(type));
-            }
-            return output_data_types;
-        };
 
-        auto topk_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+        auto topk_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                             inputs[0],
                                             inputs[1],
@@ -52,11 +37,9 @@ static void TopKImpl(ProgramBuilder& p,
                                             stype,
                                             true,
                                             stable,
-                                            cldnn::padding({0, 0, 0, 0}, 0),
                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                             num_outputs);
-        argmaxPrim.output_paddings = get_output_paddings();
-        argmaxPrim.output_data_types = get_output_data_types();
+        argmaxPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, argmaxPrim);
     } else {
         if (op->get_output_size() == 2) {
@@ -87,7 +70,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);
@@ -106,7 +88,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);
@@ -127,5 +108,4 @@ static void CreateTopKOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v11::T
 REGISTER_FACTORY_IMPL(v1, TopK);
 REGISTER_FACTORY_IMPL(v11, TopK);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

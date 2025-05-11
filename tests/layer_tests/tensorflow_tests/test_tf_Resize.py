@@ -1,18 +1,25 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+OPS = {
+    'tf.raw_ops.ResizeBilinear': tf.raw_ops.ResizeBilinear,
+    'tf.raw_ops.ResizeNearestNeighbor': tf.raw_ops.ResizeNearestNeighbor,
+}
+
 
 class TestResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'images' in inputs_info, "Test error: inputs_info must contain `x`"
-        images_shape = inputs_info['images']
+        assert 'images:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        images_shape = inputs_info['images:0']
         inputs_data = {}
-        inputs_data['images'] = np.random.randint(0, 10, images_shape)
+        inputs_data['images:0'] = np.random.randint(0, 10, images_shape)
         return inputs_data
 
     def create_resize_net(self, images_shape, images_type, size_value, align_corners, half_pixel_centers,
@@ -32,36 +39,31 @@ class TestResize(CommonTFLayerTest):
 
     test_data_basic = [
         # ResizeBilinear testing
-        dict(images_shape=[1, 30, 30, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
-        dict(images_shape=[1, 30, 30, 3], images_type=tf.float64, size_value=[40, 40], align_corners=False,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
-        dict(images_shape=[2, 100, 100, 3], images_type=tf.float32, size_value=[40, 40], align_corners=True,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
-        dict(images_shape=[2, 10, 10, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
-             half_pixel_centers=True, resize_op=tf.raw_ops.ResizeBilinear),
-        dict(images_shape=[2, 40, 40, 3], images_type=tf.uint8, size_value=[10, 10], align_corners=False,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
-        dict(images_shape=[1, 40, 40, 3], images_type=tf.int32, size_value=[10, 10], align_corners=False,
-             half_pixel_centers=True, resize_op=tf.raw_ops.ResizeBilinear),
+        [[1, 30, 30, 3], tf.float32, [40, 40], False, False, 'tf.raw_ops.ResizeBilinear'],
+        [[1, 30, 30, 3], tf.float64, [40, 40], False, False, 'tf.raw_ops.ResizeBilinear'],
+        [[2, 100, 100, 3], tf.float32, [40, 40], True, False, 'tf.raw_ops.ResizeBilinear'],
+        [[2, 10, 10, 3], tf.float32, [40, 40], False, True, 'tf.raw_ops.ResizeBilinear'],
+        [[2, 40, 40, 3], tf.uint8, [10, 10], False, False, 'tf.raw_ops.ResizeBilinear'],
+        [[1, 40, 40, 3], tf.int32, [10, 10], False, True, 'tf.raw_ops.ResizeBilinear'],
         # ResizeNearestNeighbor testing
-        dict(images_shape=[1, 30, 30, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeNearestNeighbor),
-        dict(images_shape=[2, 100, 100, 3], images_type=tf.float32, size_value=[40, 40], align_corners=True,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeNearestNeighbor),
-        dict(images_shape=[2, 10, 10, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
-             half_pixel_centers=True, resize_op=tf.raw_ops.ResizeNearestNeighbor),
-        dict(images_shape=[2, 40, 40, 3], images_type=tf.uint8, size_value=[10, 10], align_corners=False,
-             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeNearestNeighbor),
-        dict(images_shape=[1, 40, 40, 3], images_type=tf.int32, size_value=[10, 10], align_corners=False,
-             half_pixel_centers=True, resize_op=tf.raw_ops.ResizeNearestNeighbor),
+        [[1, 30, 30, 3], tf.float32, [40, 40], False, False, 'tf.raw_ops.ResizeNearestNeighbor'],
+        [[2, 100, 100, 3], tf.float32, [40, 40], True, False, 'tf.raw_ops.ResizeNearestNeighbor'],
+        [[2, 10, 10, 3], tf.float32, [40, 40], False, True, 'tf.raw_ops.ResizeNearestNeighbor'],
+        [[2, 40, 40, 3], tf.uint8, [10, 10], False, False, 'tf.raw_ops.ResizeNearestNeighbor'],
+        [[1, 40, 40, 3], tf.int32, [10, 10], False, True, 'tf.raw_ops.ResizeNearestNeighbor'],
     ]
 
-    @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.parametrize("images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op",
+                             test_data_basic)
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_new_frontend, use_old_api):
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
+    def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op,
+                          ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU' and images_type == tf.int32 and resize_op == 'tf.raw_ops.ResizeNearestNeighbor':
+            pytest.skip("Couldn't find a suitable kernel for interpolate:Interpolate_8438725 issue on GPU")
+        params = dict(images_shape=images_shape, images_type=images_type, size_value=size_value,
+                      align_corners=align_corners, half_pixel_centers=half_pixel_centers, resize_op=OPS[resize_op])
         self._test(*self.create_resize_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

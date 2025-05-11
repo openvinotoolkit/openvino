@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_tensor.h"
@@ -6,7 +6,7 @@
 #include "common.h"
 
 const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
-    {ov_element_type_e::UNDEFINED, ov::element::undefined},
+    {ov_element_type_e::UNDEFINED, ov::element::dynamic},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
     {ov_element_type_e::BOOLEAN, ov::element::boolean},
     {ov_element_type_e::BF16, ov::element::bf16},
@@ -19,13 +19,23 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::I32, ov::element::i32},
     {ov_element_type_e::I64, ov::element::i64},
     {ov_element_type_e::U1, ov::element::u1},
+    {ov_element_type_e::U2, ov::element::u2},
+    {ov_element_type_e::U3, ov::element::u3},
     {ov_element_type_e::U4, ov::element::u4},
+    {ov_element_type_e::U6, ov::element::u6},
     {ov_element_type_e::U8, ov::element::u8},
     {ov_element_type_e::U16, ov::element::u16},
     {ov_element_type_e::U32, ov::element::u32},
-    {ov_element_type_e::U64, ov::element::u64}};
+    {ov_element_type_e::U64, ov::element::u64},
+    {ov_element_type_e::NF4, ov::element::nf4},
+    {ov_element_type_e::F8E4M3, ov::element::f8e4m3},
+    {ov_element_type_e::F8E5M3, ov::element::f8e5m2},
+    {ov_element_type_e::STRING, ov::element::string},
+    {ov_element_type_e::F4E2M1, ov::element::f4e2m1},
+    {ov_element_type_e::F8E8M0, ov::element::f8e8m0},
+};
 
-inline ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
+ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
         if (iter->second == type) {
             return iter->first;
@@ -73,6 +83,28 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
     return ov_status_e::OK;
 }
 
+ov_status_e ov_tensor_create_from_string_array(const char** string_array,
+                                               const size_t array_size,
+                                               const ov_shape_t shape,
+                                               ov_tensor_t** tensor) {
+    if (!tensor || !string_array) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto _tensor = std::make_unique<ov_tensor_t>();
+        ov::Shape tmp_shape;
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
+        if (shape_size(tmp_shape) < array_size) {
+            return ov_status_e::INVALID_C_PARAM;
+        }
+        _tensor->object = std::make_shared<ov::Tensor>(ov::element::string, tmp_shape);
+        std::copy_n(string_array, array_size, _tensor->object->data<std::string>());
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     if (!tensor) {
         return ov_status_e::INVALID_C_PARAM;
@@ -90,10 +122,30 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     if (!tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
+    ov_status_e status = ov_status_e::OK;
     try {
         auto tmp_shape = tensor->object->get_shape();
-        ov_shape_create(tmp_shape.size(), nullptr, shape);
-        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        status = ov_shape_create(tmp_shape.size(), nullptr, shape);
+        if (status == ov_status_e::OK) {
+            std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        }
+    }
+    CATCH_OV_EXCEPTIONS
+    return status;
+}
+
+ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, const size_t array_size) {
+    if (!tensor || !string_array || tensor->object->get_element_type() != ov::element::string ||
+        tensor->object->get_size() != array_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        for (size_t i = 0; i < array_size; ++i) {
+            if (!string_array[i]) {
+                return ov_status_e::INVALID_C_PARAM;
+            }
+        }
+        std::copy_n(string_array, array_size, tensor->object->data<std::string>());
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

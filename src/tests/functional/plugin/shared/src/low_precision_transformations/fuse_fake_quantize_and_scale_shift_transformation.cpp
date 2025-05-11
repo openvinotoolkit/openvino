@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,18 +8,17 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = obj.param;
 
     std::ostringstream result;
@@ -28,13 +27,15 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const t
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
         netPrecision,
         inputShape,
         fakeQuantizeOnData);
@@ -43,7 +44,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

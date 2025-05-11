@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,9 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    // ov::element::f16
 };
 
 const std::vector<size_t> opsetVersions = {
@@ -22,7 +22,7 @@ const std::vector<size_t> opsetVersions = {
     // 6  // not supported on GPU
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
@@ -30,22 +30,22 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<LayerTestsDefinitions::AssignAndReadValueTransformationParam> params{
     // u8
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
     },
     // u16
     {
-        { 65536ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 65536ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
     },
     // u32
     {
-        { 4294967296ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
+        { 4294967296ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
     },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, AssignAndReadValueTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::ValuesIn(opsetVersions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),

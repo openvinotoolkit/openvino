@@ -9,8 +9,8 @@ import sys
 import tempfile
 from time import perf_counter
 
+import openvino as ov
 import datasets
-from openvino.runtime import Core, get_version, AsyncInferQueue, PartialShape
 from transformers import AutoTokenizer
 from transformers.onnx import export
 from transformers.onnx.features import FeaturesManager
@@ -19,7 +19,7 @@ from transformers.onnx.features import FeaturesManager
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info('OpenVINO:')
-    log.info(f"{'Build ':.<39} {get_version()}")
+    log.info(f"{'Build ':.<39} {ov.__version__}")
     model_name = 'bert-base-uncased'
     # Download the model
     transformers_model = FeaturesManager.get_model_from_feature('default', model_name)
@@ -28,7 +28,7 @@ def main():
     # Download the tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    core = Core()
+    core = ov.Core()
 
     with tempfile.TemporaryDirectory() as tmp:
         onnx_path = Path(tmp) / f'{model_name}.onnx'
@@ -39,7 +39,7 @@ def main():
 
     # Enforce dynamic input shape
     try:
-        model.reshape({model_input.any_name: PartialShape([1, '?']) for model_input in model.inputs})
+        model.reshape({model_input.any_name: ov.PartialShape([1, '?']) for model_input in model.inputs})
     except RuntimeError:
         log.error("Can't set dynamic shape")
         raise
@@ -50,13 +50,13 @@ def main():
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
     compiled_model = core.compile_model(model, 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
+    ireqs = ov.AsyncInferQueue(compiled_model)
 
     sst2 = datasets.load_dataset('glue', 'sst2')
     sst2_sentences = sst2['validation']['sentence']
     # Warm up
     encoded_warm_up = dict(tokenizer('Warm up sentence is here.', return_tensors='np'))
-    for _ in ireqs:
+    for _ in range(len(ireqs)):
         ireqs.start_async(encoded_warm_up)
     ireqs.wait_all()
     # Benchmark

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,8 @@
 #include <cstring>
 #include <iterator>
 
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_range.hpp"
-
-using namespace ngraph;
 
 namespace ov {
 namespace reference {
@@ -21,7 +19,7 @@ void reverse(const char* arg,
              const Shape& out_shape,
              const AxisSet& reversed_axes,
              size_t elem_size) {
-    NGRAPH_CHECK(shape_size(arg_shape) == shape_size(out_shape));
+    OPENVINO_ASSERT(shape_size(arg_shape) == shape_size(out_shape));
 
     const bool nothing_to_revers = reversed_axes.empty();
     if (nothing_to_revers) {

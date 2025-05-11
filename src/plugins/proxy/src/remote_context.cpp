@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,34 +11,27 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "remote_tensor.hpp"
 
-void ov::proxy::RemoteContext::init_context(const std::string& dev_name,
-                                            size_t dev_index,
-                                            bool has_index,
-                                            bool is_new_api) {
+void ov::proxy::RemoteContext::init_context(const std::string& dev_name, size_t dev_index, bool has_index) {
     OPENVINO_ASSERT(m_context);
-    m_tensor_name = dev_name + "." + std::to_string(dev_index);
     // New API always has full name, in legacy API we can have device name without index
-    if (is_new_api || has_index)
-        m_name = m_tensor_name;
-    else
-        m_name = dev_name;
+    // TODO: can we remove `has_index` then? We are currently in new API only
+    m_name = dev_name + "." + std::to_string(dev_index);
 }
+
 ov::proxy::RemoteContext::RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
                                         const std::string& dev_name,
                                         size_t dev_index,
-                                        bool has_index,
-                                        bool is_new_api)
+                                        bool has_index)
     : m_context(std::move(ctx)) {
-    init_context(dev_name, dev_index, has_index, is_new_api);
+    init_context(dev_name, dev_index, has_index);
 }
 
 ov::proxy::RemoteContext::RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
                                         const std::string& dev_name,
                                         size_t dev_index,
-                                        bool has_index,
-                                        bool is_new_api)
+                                        bool has_index)
     : m_context(ctx) {
-    init_context(dev_name, dev_index, has_index, is_new_api);
+    init_context(dev_name, dev_index, has_index);
 }
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
@@ -50,7 +43,7 @@ const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
 }
 
 ov::SoPtr<ov::ITensor> ov::proxy::RemoteContext::wrap_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
-    auto proxy_tensor = std::make_shared<ov::proxy::RemoteTensor>(tensor, m_tensor_name);
+    auto proxy_tensor = std::make_shared<ov::proxy::RemoteTensor>(tensor, m_name);
     return ov::SoPtr<ov::ITensor>(std::dynamic_pointer_cast<ov::ITensor>(proxy_tensor), nullptr);
 }
 
@@ -58,7 +51,7 @@ ov::SoPtr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::e
                                                                      const ov::Shape& shape,
                                                                      const ov::AnyMap& params) {
     auto proxy_tensor =
-        std::make_shared<ov::proxy::RemoteTensor>(m_context->create_tensor(type, shape, params), m_tensor_name);
+        std::make_shared<ov::proxy::RemoteTensor>(m_context->create_tensor(type, shape, params), m_name);
     return ov::SoPtr<ov::IRemoteTensor>(std::dynamic_pointer_cast<ov::IRemoteTensor>(proxy_tensor), nullptr);
 }
 

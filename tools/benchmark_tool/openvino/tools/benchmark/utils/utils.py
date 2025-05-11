@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
 from datetime import timedelta
 import enum
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
+from openvino import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
@@ -468,6 +468,8 @@ def get_command_line_arguments(argv):
     arg_value = ''
     for arg in argv[1:]:
         if '=' in arg:
+            if arg_name != '':
+                parameters.append((arg_name, arg_value))
             arg_name, arg_value = arg.split('=')
             parameters.append((arg_name, arg_value))
             arg_name = ''
@@ -486,7 +488,7 @@ def get_command_line_arguments(argv):
 
 
 def get_input_output_names(ports):
-    return [port.any_name for port in ports]
+    return [port.any_name if port.get_names() else port.node.get_friendly_name() for port in ports]
 
 def get_node_names(ports):
     return [port.node.friendly_name for port in ports]
@@ -764,8 +766,6 @@ def device_properties_to_string(config):
             for sk, sv in v.items():
                 if isinstance(sv, bool):
                     sv = "YES" if sv else "NO"
-                if isinstance(sv, properties.Affinity):
-                    sv = sv.name
                 sub_str += "{0}:{1},".format(sk, sv)
             sub_str = sub_str[:-1]
             sub_str += "}"
@@ -806,7 +806,7 @@ def dump_config(filename, config):
         for key, value in device_config.items():
             if isinstance(value, OVAny) and (isinstance(value.value, dict)):
                 value_string = device_properties_to_string(value.get())
-            elif isinstance(value, (properties.hint.PerformanceMode, properties.Affinity)):
+            elif isinstance(value, properties.hint.PerformanceMode):
                 value_string = value.name
             elif isinstance(value, OVAny):
                 value_string = str(value.value)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,13 @@
 
 namespace ov {
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief OldApiMapElementType class represents runtime info attribute that stores legacy type
  * that is required for obtaining IR in old API.
  */
 class TRANSFORMATIONS_API OldApiMapElementType : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("old_api_map_element_type", "0");
+    OPENVINO_RTTI("old_api_map_element_type", "0", RuntimeAttribute);
 
     /**
      * A default constructor

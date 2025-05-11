@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/convolution.hpp"
 
 namespace ov {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,26 +10,26 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
+#include "ov_lpt_models/multiply_to_group_convolution.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MultiplyToGroupConvolutionTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
@@ -37,10 +37,10 @@ public:
         ov::element::Type inputPrecision;
         std::shared_ptr<ov::op::v0::Constant> weights;
         std::shared_ptr<ov::op::v0::Constant> biases;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     bool transformed;
     bool haveMultiplyWithNoConstBeforeDequantization;
@@ -55,32 +55,32 @@ public:
     void SetUp() override {
         const MultiplyToGroupConvolutionTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
 
-        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
+        auto precisionRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
                 {{0}, {ov::element::u8}},
                 {{1}, {ov::element::i8}}
             })
         });
 
         SimpleLowPrecisionTransformer transformer(precisionRestrictions);
-        transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
+        transformer.add<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
         if (testValues.transformed) {
-            referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
+            referenceFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
                 testValues.inputShape,
                 testValues.expected.inputPrecision,
                 testValues.expected.weights,
                 testValues.expected.biases,
                 testValues.expected.dequantization);
         } else {
-            referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+            referenceFunction = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
                 testValues.inputShape,
                 testValues.actual.precisionBeforeDequantization,
                 testValues.actual.dequantization,

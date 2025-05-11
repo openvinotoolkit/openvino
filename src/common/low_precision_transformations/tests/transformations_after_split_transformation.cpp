@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 // general transformations
 #include "low_precision/add.hpp"
@@ -39,7 +39,7 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-#include "lpt_ngraph_functions/transformations_after_split_function.hpp"
+#include "ov_lpt_models/transformations_after_split.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
@@ -53,7 +53,7 @@ void getTransformerWithTransformationByName(
     SimpleLowPrecisionTransformer& transformer,
     const TestTransformationParams& params,
     const std::string name) {
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
 
     if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
         transformer.add<AddTransformation, ov::op::v1::Add>(params);
@@ -96,7 +96,7 @@ void getTransformerWithTransformationByName(
         return;
     }
     if (name == "MVNTransformation") {
-        transformer.add<MVNTransformation, ngraph::op::MVN>(params);
+        transformer.add<MVNTransformation, ov::op::v0::MVN>(params);
         return;
     }
     if (name == "NormalizeL2Transformation") {
@@ -154,7 +154,7 @@ class TransformationsAfterSplitTransformation : public LayerTransformation, publ
 public:
     void SetUp() override {
         const auto layerName = GetParam();
-        model = ngraph::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
+        model = ov::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
         model->validate_nodes_and_infer_types();
     }
 
@@ -176,7 +176,7 @@ TEST_P(TransformationsAfterSplitTransformation, Run) {
     SimpleLowPrecisionTransformer transformer;
     getTransformerWithTransformationByName(transformer, params, layerName);
 
-    ASSERT_NO_THROW(transformer.transform(model));
+    OV_ASSERT_NO_THROW(transformer.transform(model));
 }
 
 const std::vector<std::string> transformationNames = {

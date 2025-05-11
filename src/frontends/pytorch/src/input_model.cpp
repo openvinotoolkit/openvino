@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_model_decoder(model_decoder) {
+InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder)
+    : m_model_decoder(model_decoder),
+      m_decoder_type_name(model_decoder->decoder_type_name()) {
     const auto& inputs = m_model_decoder->inputs();
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto in_place = std::make_shared<pytorch::Place>(*this, inputs[i]);
@@ -24,7 +26,7 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
     const auto& outputs = m_model_decoder->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto out_place = std::make_shared<pytorch::Place>(*this, outputs[i]);
-        m_name_to_place.emplace(std::to_string(inputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
+        m_name_to_place.emplace(std::to_string(outputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }
@@ -49,11 +51,22 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
+    if (tensor_name.empty())
+        return {};
     auto place_it = m_name_to_place.find(tensor_name);
     if (place_it != m_name_to_place.end()) {
         return place_it->second;
+    } else {
+        // Return fake place that can be used to change shape or type of inputs that will exist after conversion
+        auto place = std::make_shared<pytorch::Place>(*this, tensor_name, 0);
+        return place;
     }
-    return nullptr;
+}
+
+Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    // Return place that can be used to change shape or type of inputs that will exist after conversion
+    auto place = std::make_shared<pytorch::Place>(*this, "", input_idx);
+    return place;
 }
 
 void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) {
@@ -61,6 +74,18 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
                             "Provided place is invalid, only inputs are supported for setting shape.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    if (pytorch_place->m_is_fake) {
+        bool is_new = true;
+        for (auto& p : m_requested_places) {
+            if (p->is_equal(pytorch_place)) {
+                is_new = false;
+                pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+            }
+        }
+        if (is_new)
+            m_requested_places.push_back(place);
+    }
     pytorch_place->m_pshape = shape;
 }
 
@@ -77,6 +102,18 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
                             "Provided place is invalid, only inputs are supported for setting element type.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    if (pytorch_place->m_is_fake) {
+        bool is_new = true;
+        for (auto& p : m_requested_places) {
+            if (p->is_equal(pytorch_place)) {
+                is_new = false;
+                pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+            }
+        }
+        if (is_new)
+            m_requested_places.push_back(place);
+    }
     pytorch_place->m_type = type;
 }
 
@@ -93,8 +130,8 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
                             "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
-    const auto el_type = pytorch_place->m_type;
-    const auto p_shape = pytorch_place->m_pshape;
+    const auto& el_type = pytorch_place->m_type;
+    const auto& p_shape = pytorch_place->m_pshape;
     FRONT_END_GENERAL_CHECK(el_type.is_static() && p_shape.is_static(),
                             "Shape and type must be statically defined before calling set_tensor_value");
     auto const_node = ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
@@ -131,7 +168,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
     });
     FRONT_END_GENERAL_CHECK(all_inputs, "Only initial inputs are supported by override_all_inputs.");
     // We need to add back "self" input if it was in initial inputs
-    if (m_inputs.size() > 0 && m_inputs[0]) {
+    if (!m_inputs.empty() && m_inputs[0]) {
         // We need to remove "self" input to not confuse external users
         const auto& names = m_inputs[0]->get_names();
         if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
@@ -141,16 +178,18 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                                     "Number of inputs provided is incorrect. Graph modification is not supported for "
                                     "this model. Expected number of inputs: ",
                                     m_inputs.size() - 1,
-                                    " recieved ",
+                                    " received ",
                                     inputs.size());
             auto self_place = m_inputs[0];
             // Verify that no same place already in vector
-            auto no_self = std::all_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
-                return !p->is_equal(self_place);
+            auto no_self = std::none_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
+                return p->is_equal(self_place);
             });
             FRONT_END_GENERAL_CHECK(no_self, "Unexpected input of 'self' was provided to override_all_inputs.");
-            m_inputs = std::vector<ov::frontend::Place::Ptr>{self_place};
-            m_inputs.insert(m_inputs.cend(), inputs.cbegin(), inputs.cend());
+            m_inputs.clear();
+            m_inputs.reserve(inputs.size() + 1);
+            m_inputs.push_back(std::move(self_place));
+            m_inputs.insert(m_inputs.end(), inputs.cbegin(), inputs.cend());
             return;
         }
     }
@@ -158,17 +197,36 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                             "Number of inputs provided is incorrect. Graph modification is not supported for "
                             "this model. Expected number of inputs: ",
                             m_inputs.size(),
-                            " recieved ",
+                            " received ",
                             inputs.size());
     m_inputs = inputs;
 }
 
 const std::string& InputModel::decoder_type_name() const {
-    return m_model_decoder->decoder_type_name();
+    return m_decoder_type_name;
 }
 
 std::shared_ptr<TorchDecoder> InputModel::get_decoder() const {
     return m_model_decoder;
+}
+
+void InputModel::flush_places() {
+    auto input_places = get_inputs();
+    if (m_requested_places.size() > input_places.size())
+        return;
+    for (auto place : m_requested_places) {
+        auto pt_place = std::dynamic_pointer_cast<pytorch::Place>(place);
+        if (!pt_place || pt_place->get_input_index() >= input_places.size() || pt_place->m_names.size() != 0)
+            return;
+        auto to_update_place = std::dynamic_pointer_cast<pytorch::Place>(input_places[pt_place->get_input_index()]);
+        if (!to_update_place || !to_update_place->m_type.is_dynamic() || !to_update_place->m_pshape.rank().is_dynamic())
+            return;
+        if (pt_place->m_type.is_static())
+            to_update_place->m_type = pt_place->m_type;
+        if (pt_place->m_pshape.rank().is_static())
+            to_update_place->m_pshape = pt_place->m_pshape;
+    }
+    m_requested_places = {};
 }
 
 }  // namespace pytorch

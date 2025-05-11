@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,14 +7,14 @@
 #include <memory>
 #include <tuple>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ElementwiseBranchSelectionTestValues param;
@@ -22,10 +22,10 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     std::tie(netPrecision, inputShapes, targetDevice, param, elementwiseType) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        "_elementwiseType_" << elementwiseType;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           "_elementwiseType_" << elementwiseType;
 
-    auto toString = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
+    auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
             return "";
         }
@@ -48,13 +48,15 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
 }
 
 void ElementwiseBranchSelectionTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ElementwiseBranchSelectionTestValues param;
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
+    init_input_shapes({ inputShape, inputShape });
+
+    function = ov::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
         false,
@@ -70,15 +72,15 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void ElementwiseBranchSelectionTransformation::Run() {
-    LayerTestsCommon::Run();
+void ElementwiseBranchSelectionTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
     const auto elementwiseType = std::get<4>(GetParam());
 
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
     if (!expectedReorders.empty()) {
-        auto rtInfo = LayerTestsCommon::getRuntimeInfo();
+        auto rtInfo = LayerTransformation::get_runtime_info();
         for (auto it : rtInfo) {
             const auto& typeIt = it.second.find("layerType");
             const auto type = typeIt->second.as<std::string>();
@@ -100,7 +102,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
             } else if (type == "Convolution") {
                 const auto& precisionIt = it.second.find("runtimePrecision");
                 const auto precision = precisionIt->second.as<std::string>();
-                ASSERT_EQ("U8", precision);
+                ASSERT_EQ("u8", precision);
             }
         }
 
@@ -108,14 +110,15 @@ void ElementwiseBranchSelectionTransformation::Run() {
     }
 
     for (auto it : params.expectedPrecisions) {
-        const auto actualPrecision = getRuntimePrecisionByFusedName(it.first == "eltwise" ? elementwiseType : it.first);
+        const auto actualPrecision = get_runtime_precision_by_fused_name(
+                it.first == "eltwise" ? elementwiseType : it.first);
         ASSERT_EQ(it.second, actualPrecision) << "actual precision for operation '" << it.first << "' is not correct";
     }
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -41,8 +41,8 @@ template <class InputType, class OutputType>
 class PriorBoxGPUTest : public ::testing::TestWithParam<prior_box_param<InputType, OutputType>> {
 public:
     void execute(bool is_caching_test) {
-        const auto input_data_type = type_to_data_type<InputType>::value;
-        const auto output_data_type = type_to_data_type<OutputType>::value;
+        const auto input_data_type = ov::element::from<InputType>();
+        const auto output_data_type = ov::element::from<OutputType>();
         const auto plain_format = format::bfyx;
 
         format::type target_format;

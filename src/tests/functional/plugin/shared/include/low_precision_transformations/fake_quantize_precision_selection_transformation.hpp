@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,18 +6,18 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
 class FakeQuantizePrecisionSelectionTransformationActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationActualValues& values) {
@@ -26,9 +26,9 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 
 class FakeQuantizePrecisionSelectionTransformationExpectedValues {
 public:
-    ngraph::element::Type fakeQuantizeOnDataOutPrecision;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::element::Type fakeQuantizeOnDataOutPrecision;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationExpectedValues& values) {
@@ -37,8 +37,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {
 public:
-    std::vector<ngraph::element::Type> precisionsOnActivations;
-    std::vector<ngraph::element::Type> precisionsOnActivationForLimitedOperation;
+    std::vector<ov::element::Type> precisionsOnActivations;
+    std::vector<ov::element::Type> precisionsOnActivationForLimitedOperation;
     bool operationBeforeLimitedOperationIsPrecisionTransparent;
     FakeQuantizePrecisionSelectionTransformationActualValues actual;
     FakeQuantizePrecisionSelectionTransformationExpectedValues expected;
@@ -49,10 +49,10 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizePrecisionSelectionTransformation :

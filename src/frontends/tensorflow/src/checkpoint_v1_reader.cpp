@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "checkpoint_utils.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
-#include "saved_tensor_slice.pb.h"
+#include "ov_tensorflow/saved_tensor_slice.pb.h"
 #include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
@@ -168,7 +168,7 @@ void CheckpointV1Reader::init_block(const std::shared_ptr<std::ifstream>& shard,
                             "[TensorFlow Frontend] internal error: compression method for given block is not supported "
                             "for checkpoint file " +
                                 shard_name);
-    result_data = std::string(buf.get(), size);
+    block = std::string(buf.data(), size);
 #else
     FRONT_END_GENERAL_CHECK(buf[size] == 0 || buf[size] == 1,
                             "[TensorFlow Frontend] internal error: compression method for given block is not supported "
@@ -254,7 +254,7 @@ void CheckpointV1Reader::read_variable(const std::string& variable_name, ov::Any
 
     // This is only present at the first item of each checkpoint file and serves
     // as a table of contents, listing all the tensor slices saved in this file.
-    ::tensorflow::SavedTensorSlices sts;
+    ::tensorflow::SavedTensorSlices sts{};
     FRONT_END_GENERAL_CHECK(sts.ParseFromArray(raw_data.data(), static_cast<int>(raw_data.size())),
                             "[TensorFlow Frontend] incorrect input checkpoint file or internal error: cannot parse "
                             "SavedTensorSlices entry");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,12 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     using parent = typed_primitive_impl_ocl<random_uniform>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::random_uniform_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::random_uniform_params, kernel_selector::random_uniform_optional_params>;
+    using kernel_params_t = kernel_selector::random_uniform_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::random_uniform_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<random_uniform_impl>(*this);
+        return make_deep_copy<random_uniform_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -31,7 +31,7 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
 
-        return {params, {}};
+        return params;
     }
 };
 

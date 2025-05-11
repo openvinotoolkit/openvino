@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -15,6 +15,6 @@ public:
 
     roi_align_kernel_selector();
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 }  // namespace kernel_selector

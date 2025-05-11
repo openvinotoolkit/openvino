@@ -24,25 +24,24 @@ ParamsKey AdaptivePoolingRef::GetSupportedKey() const {
     k.EnableAllOutputLayout();
     k.EnableBatching();
     k.EnableTensorPitches();
+    k.EnableTensorOffset();
 
     return k;
 }
 
-KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool AdaptivePoolingRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ADAPTIVE_POOLING
-        || o.GetType() != KernelType::ADAPTIVE_POOLING) {
+bool AdaptivePoolingRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ADAPTIVE_POOLING) {
         return false;
     }
 
     const auto& params = dynamic_cast<const adaptive_pooling_params&>(p);
     const auto& inputs = params.inputs;
 
-    if (!((params.mode == PoolType::MAX && inputs.size() == 2) ||
-          (params.mode == PoolType::AVG && inputs.size() == 1))) {
+    if (params.mode == PoolType::MAX && params.outputs_num != 2) {
         return false;
     }
 
@@ -71,8 +70,8 @@ AdaptivePoolingRef::DispatchData SetDefault(const adaptive_pooling_params& param
 }
 }  // namespace
 
-KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -80,15 +79,11 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
     const adaptive_pooling_params& new_params = static_cast<const adaptive_pooling_params&>(params);
 
     const auto dispatchData = SetDefault(new_params);
-    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
 
     auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
     cldnn_jit.AddConstant(MakeJitConstant(toString(new_params.mode) + "_POOLING", 1));
-
-    if (new_params.mode == PoolType::MAX) {
-        cldnn_jit.Merge(MakeTypeJitConstants(new_params.poolIndexElementType, "INDICES"));
-    }
 
     const auto accumulator_type = new_params.inputs[0].GetDType();
     cldnn_jit.Merge(MakeTypeJitConstants(accumulator_type, "ACCUMULATOR"));
@@ -105,7 +100,7 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
     arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});     // input data
     arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});    // output
     if (new_params.mode == PoolType::MAX) {
-        arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});     // indices
+        arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});     // second output
     }
 
     KernelsData kernelsData;

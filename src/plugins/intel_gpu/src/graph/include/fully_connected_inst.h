@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
     program_node& input() const { return get_dependency(0); }
     program_node& weights() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }
-    bool bias_term() const { return !get_primitive()->bias.empty(); }
+    bool bias_term() const { return get_primitive()->bias.is_valid(); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
@@ -49,6 +49,7 @@ public:
     static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
     static std::string to_string(fully_connected_node const& node);
+    static bool can_apply_single_batch_optimization(const kernel_impl_params& impl_param);
 
     typed_primitive_inst(network& network, fully_connected_node const& node);
 

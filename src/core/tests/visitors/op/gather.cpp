@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gather_v1_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Gather>();
+    NodeBuilder::opset().insert<ov::op::v1::Gather>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto indices = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto axis = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 2);
@@ -27,7 +27,7 @@ TEST(attributes, gather_v1_op) {
 }
 
 TEST(attributes, gather_v7_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v7::Gather>();
+    NodeBuilder::opset().insert<ov::op::v7::Gather>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto indices = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto axis = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 2);
@@ -41,7 +41,7 @@ TEST(attributes, gather_v7_op) {
 }
 
 TEST(attributes, gather_v8_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::Gather>();
+    NodeBuilder::opset().insert<ov::op::v8::Gather>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto indices = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto axis = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 2);

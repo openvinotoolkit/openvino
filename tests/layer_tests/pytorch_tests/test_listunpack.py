@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List
@@ -123,7 +123,9 @@ class TestListUnpack(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
+            use_convert_model=True,
         )
+
 
 class TestMeshgridListUnpack(PytorchLayerTest):
     def _prepare_input(self):
@@ -188,7 +190,8 @@ class TestMeshgridListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                a, b, c, d = torch.meshgrid(in1, in2, in3, in4, indexing=self.idx)
+                a, b, c, d = torch.meshgrid(
+                    in1, in2, in3, in4, indexing=self.idx)
                 return a, b, c, d
 
         ref_net = None
@@ -214,7 +217,8 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
         class meshgrid_model(torch.nn.Module):
             def forward(self, x):
                 h, w = x.shape
-                coords1, coords2 = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+                coords1, coords2 = torch.meshgrid(
+                    torch.arange(h), torch.arange(w), indexing="ij")
                 coords = torch.stack([coords2, coords1], dim=0)
                 return coords.float()
 
@@ -223,4 +227,103 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_meshgrid_subgraph(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestListUnpackParameterSingle(PytorchLayerTest):
+    def _prepare_input(self):
+        def tensor_gen():
+            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+        return ((tensor_gen(), tensor_gen()), )
+
+    def create_model(self):
+        import torch
+        from typing import List
+
+        class model(torch.nn.Module):
+
+            def forward(self, x: List[torch.Tensor]):
+                x1, x2 = x
+                return x1, x2
+
+        return model(), None, ["prim::ListUnpack"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestListUnpackParameterSingleMixed(PytorchLayerTest):
+    def _prepare_input(self):
+        def tensor_gen():
+            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+        # generate tensor with a different shape for easier mismatch detection in case of mixed input order
+
+        def tensor_gen_2():
+            return np.random.uniform(0, 50, (2, 3)).astype(np.float32)
+        return (tensor_gen_2(), (tensor_gen(), tensor_gen()), tensor_gen_2())
+
+    def create_model(self):
+        import torch
+        from typing import List
+
+        class model(torch.nn.Module):
+
+            def forward(self, y1, x: List[torch.Tensor], y2):
+                x1, x2 = x
+                return x1, x2, y1, y2
+
+        return model(), None, ["prim::ListUnpack"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestListUnpackParameterNested(PytorchLayerTest):
+    def _prepare_input(self):
+        def tensor_gen():
+            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+        return (((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())), )
+
+    def create_model(self):
+        import torch
+        from typing import List
+
+        class model(torch.nn.Module):
+
+            def forward(self, x: List[List[torch.Tensor]]):
+                x1, x2 = x
+                y1, y2 = x1
+                y3, y4 = x2
+                return y1, y2, y3, y4
+
+        return model(), None, ["prim::ListUnpack"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestListUnpackParameterMultiple(PytorchLayerTest):
+    def _prepare_input(self):
+        def tensor_gen():
+            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+        return ((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen()))
+
+    def create_model(self):
+        import torch
+        from typing import List
+
+        class model(torch.nn.Module):
+
+            def forward(self, x: List[torch.Tensor], y: List[torch.Tensor]):
+                z1, z2 = x
+                z3, z4 = y
+                return z1, z2, z3, z4
+
+        return model(), None, ["prim::ListUnpack"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)

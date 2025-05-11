@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Proposal>& op) {
     validate_inputs_count(op, {3});
@@ -56,20 +55,6 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
-        auto get_output_paddings = [&]() {
-            std::vector<cldnn::padding> output_paddings;
-            for (size_t i = 0; i < num_outputs; i++)
-                output_paddings.push_back(cldnn::padding());
-            return output_paddings;
-        };
-        auto get_output_data_types = [&]() {
-            std::vector<cldnn::optional_data_type> output_data_types;
-            for (size_t i = 0; i < num_outputs; i++) {
-                auto type = op->get_output_element_type(i);
-                output_data_types.push_back(cldnn::element_type_to_data_type(type));
-            }
-            return output_data_types;
-        };
 
         auto proposalPrim = cldnn::proposal(layerName,
                                             inputs[0],  // cls_score
@@ -95,11 +80,9 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                                             round_ratios,
                                             shift_anchors,
                                             normalize,
-                                            cldnn::padding({0, 0, 0, 0}, 0),
                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                             num_outputs);
-        proposalPrim.output_paddings = get_output_paddings();
-        proposalPrim.output_data_types = get_output_data_types();
+        proposalPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, proposalPrim);
     } else {
         if (op->get_output_size() == 2) {
@@ -192,5 +175,4 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 REGISTER_FACTORY_IMPL(v0, Proposal);
 REGISTER_FACTORY_IMPL(v4, Proposal);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

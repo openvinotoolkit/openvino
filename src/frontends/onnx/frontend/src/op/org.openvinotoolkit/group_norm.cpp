@@ -1,26 +1,23 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/group_norm.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/squeeze.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
-#include "ngraph/builder/split.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "onnx_import/core/node.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "utils/common.hpp"
-#include "utils/reshape.hpp"
+using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector group_norm(const Node& node) {
-    auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 3, "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
+ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
+    FRONT_END_GENERAL_CHECK(inputs.size() == 3,
+                            "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
 
     auto data = inputs[0];
     auto scale = inputs[1];
@@ -30,19 +27,27 @@ OutputVector group_norm(const Node& node) {
     float eps = node.get_attribute_value<float>("eps", 1e-6f);
 
     if (!scale.get_partial_shape().rank().compatible(1)) {
-        scale = std::make_shared<default_opset::Squeeze>(scale);
+        scale = std::make_shared<v0::Squeeze>(scale);
     }
     if (!bias.get_partial_shape().rank().compatible(1)) {
-        bias = std::make_shared<default_opset::Squeeze>(bias);
+        bias = std::make_shared<v0::Squeeze>(bias);
     }
 
-    return {std::make_shared<ov::opset12::GroupNormalization>(data, scale, bias, num_groups, eps)};
+    return {std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps)};
 }
 
-}  // namespace set_1
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ExperimentalDetectronGroupNorm",
+              OPSET_SINCE(1),
+              org_openvinotoolkit::opset_1::group_norm,
+              OPENVINO_ONNX_DOMAIN);
+    ONNX_OP_M("GroupNorm", OPSET_SINCE(1), org_openvinotoolkit::opset_1::group_norm, OPENVINO_ONNX_DOMAIN);
+    return true;
+}
 
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+static bool registered = register_multiple_translators();
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ ctc_greedy_decoder_kernel_selector::ctc_greedy_decoder_kernel_selector() {
     Attach<CTCGreedyDecoderKernelRef>();
 }
 
-KernelsData ctc_greedy_decoder_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::CTC_GREEDY_DECODER);
+KernelsData ctc_greedy_decoder_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::CTC_GREEDY_DECODER);
 }
 }  // namespace kernel_selector

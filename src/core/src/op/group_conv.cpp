@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,8 @@
 #include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-
-using namespace std;
 
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
@@ -56,9 +55,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -70,16 +67,16 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
     set_num_spatial(num_spatial, input_shapes);
 }
 
-shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_GroupConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::GroupConvolution>(new_args.at(0),
-                                             new_args.at(1),
-                                             m_strides,
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             m_dilations,
-                                             m_auto_pad);
+    return std::make_shared<v1::GroupConvolution>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  m_strides,
+                                                  m_pads_begin,
+                                                  m_pads_end,
+                                                  m_dilations,
+                                                  m_auto_pad);
 }
 
 //------------------------------------------------------------------------------
@@ -155,9 +152,7 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
     auto shape = PartialShape::dynamic();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (get_input_size() < 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (get_input_size() < 3 || !ov::util::evaluate_as_partial_shape(input_value(2), shape)) {
         const auto& data_rank = get_input_partial_shape(0).rank();
         const auto& filter_rank = get_input_partial_shape(1).rank();
 
@@ -188,14 +183,14 @@ void op::v1::GroupConvolutionBackpropData::set_output_shape(const ov::Shape& sha
 }
 
 void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
-    const vector<Dimension>& input_data_shape,
-    const vector<Dimension>& filters_shape,
+    const std::vector<Dimension>& input_data_shape,
+    const std::vector<Dimension>& filters_shape,
     const Strides& strides,
     const Strides& dilations,
     const CoordinateDiff& pads_begin,
     const CoordinateDiff& pads_end,
     const CoordinateDiff& output_padding,
-    vector<Dimension>& output_spatial_shape) {
+    std::vector<Dimension>& output_spatial_shape) {
     size_t num_spatial_dims = input_data_shape.size();
     OPENVINO_ASSERT(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
                     dilations.size() == num_spatial_dims && pads_begin.size() == num_spatial_dims &&
@@ -243,9 +238,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto out_spatial_shape = get_convolution_output_shape();
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes, out_spatial_shape);
 
@@ -261,28 +254,28 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
 }
 
-shared_ptr<Node> op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_GroupConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
-        return make_shared<v1::GroupConvolutionBackpropData>(new_args.at(0),
-                                                             new_args.at(1),
-                                                             new_args.at(2),
-                                                             m_strides,
-                                                             m_pads_begin,
-                                                             m_pads_end,
-                                                             m_dilations,
-                                                             m_auto_pad,
-                                                             m_output_padding);
+        return std::make_shared<v1::GroupConvolutionBackpropData>(new_args.at(0),
+                                                                  new_args.at(1),
+                                                                  new_args.at(2),
+                                                                  m_strides,
+                                                                  m_pads_begin,
+                                                                  m_pads_end,
+                                                                  m_dilations,
+                                                                  m_auto_pad,
+                                                                  m_output_padding);
     } else {
-        return make_shared<v1::GroupConvolutionBackpropData>(new_args.at(0),
-                                                             new_args.at(1),
-                                                             m_strides,
-                                                             m_pads_begin,
-                                                             m_pads_end,
-                                                             m_dilations,
-                                                             m_auto_pad,
-                                                             m_output_padding);
+        return std::make_shared<v1::GroupConvolutionBackpropData>(new_args.at(0),
+                                                                  new_args.at(1),
+                                                                  m_strides,
+                                                                  m_pads_begin,
+                                                                  m_pads_end,
+                                                                  m_dilations,
+                                                                  m_auto_pad,
+                                                                  m_output_padding);
     }
 }
 }  // namespace ov

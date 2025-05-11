@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/ctc_greedy_decoder.hpp"
 
 #include <string>
 #include <vector>
 
-#include <ngraph/op/ctc_greedy_decoder.hpp>
-#include "ie_parallel.hpp"
 #include "ctc_greedy_decoder.h"
+#include "openvino/core/parallel.hpp"
 
-using namespace InferenceEngine;
+namespace ov::intel_cpu::node {
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-
-bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
-        const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+        const auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
         if (!greedyDecOp) {
             errorMessage = "Node is not an instance of the CTCGreedyDecoder operation from operation set v0.";
             return false;
@@ -28,51 +26,55 @@ bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "CTCGreedyDecoder layer with name '" + op->get_friendly_name() + "' ";
-    if (getOriginalInputsNumber() != 2)
-        IE_THROW() << errorPrefix << "has invalid number of input edges: " << getOriginalInputsNumber();
-    if (getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
+    if (getOriginalInputsNumber() != 2) {
+        THROW_CPU_NODE_ERR("has invalid number of input edges: ", getOriginalInputsNumber());
+    }
+    if (getOriginalOutputsNumber() != 1) {
+        THROW_CPU_NODE_ERR("has invalid number of outputs edges: ", getOriginalOutputsNumber());
+    }
 
     const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
     const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
 
-    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1]))
-        IE_THROW() << errorPrefix << "has invalid input shapes.";
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1])) {
+        THROW_CPU_NODE_ERR("has invalid input shapes.");
+    }
 
-    auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+    auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
     mergeRepeated = greedyDecOp->get_ctc_merge_repeated();
 }
 
 void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
-        IE_THROW() << errorPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+    }
 
-    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
-        IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
+    ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
+    }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoder::execute(dnnl::stream strm) {
-    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->getData());
-    const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->getData());
-    float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
+    const auto* sequenceMask = getSrcDataAtPortAs<const float>(SEQUENCE_LENGTH_INDEX);
+    auto* outputSequences = getDstDataAtPortAs<float>(0);
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
@@ -86,8 +88,9 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
     parallel_for(B, [&](size_t b) {
         size_t t = 0;
         for (; t < T; t++) {
-            if (sequenceMask[B * t + b] == 0.f)
+            if (sequenceMask[B * t + b] == 0.f) {
                 break;
+            }
         }
         sequenceLengths[b] = t;
     });
@@ -104,8 +107,9 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
         size_t tStart = 0lu, bStart = 0lu;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];
@@ -143,7 +147,7 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
             }
             tStart = 0lu;
         }
-    }; // thread body
+    };  // thread body
 
     parallel_nt(0, threadBody);
 
@@ -153,8 +157,7 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex &&
-                !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut < blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;
@@ -168,7 +171,7 @@ bool CTCGreedyDecoder::created() const {
     return getType() == Type::CTCGreedyDecoder;
 }
 
-void CTCGreedyDecoder::executeDynamicImpl(dnnl::stream strm) {
+void CTCGreedyDecoder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -176,6 +179,4 @@ bool CTCGreedyDecoder::needPrepareParams() const {
     return false;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::node

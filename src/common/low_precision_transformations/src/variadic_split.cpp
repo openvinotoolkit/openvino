@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/variadic_split.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/variadic_split.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -26,13 +27,13 @@ VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) :
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

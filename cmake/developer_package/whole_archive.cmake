@@ -1,19 +1,18 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 #[[
 function links static library without removing any symbol from it.
 
-ieTargetLinkWholeArchive(<target name> <lib1> [<lib2> ...])
+ov_target_link_whole_archive(<target name> <lib1> [<lib2> ...])
 Example:
-ieTargetLinkWholeArchive("FunctionalTests" "CommonLib" "AnotherLib")
+ov_target_link_whole_archive("FunctionalTests" "CommonLib" "AnotherLib")
 
 #]]
 
-function(ieTargetLinkWholeArchive targetName)
-    set(libs)
-    foreach(staticLib ${ARGN})
+function(ov_target_link_whole_archive targetName)
+    foreach(staticLib IN LISTS ARGN)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # CMake does not support generator expression in LINK_FLAGS, so we workaround it a little bit:
             # passing same static library as normal link (to get build deps working, and includes too), than using WHOLEARCHIVE option

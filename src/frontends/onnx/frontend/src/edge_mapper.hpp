@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,10 @@ class GraphProto;
 }  // namespace ONNX_NAMESPACE
 
 namespace ov {
-namespace onnx_editor {
+namespace frontend {
+namespace onnx {
+using ::ONNX_NAMESPACE::GraphProto;
+
 /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX
 /// names.
 class EdgeMapper {
@@ -30,7 +33,7 @@ public:
     ///       is outdated. In such a case the update method should be called.
     ///
     /// \param graph_proto Reference to a GraphProto object.
-    EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
+    EdgeMapper(const GraphProto& graph_proto);
 
     /// \brief Returns the InputEdge based on a node (node name or output name)
     ///        and an input (input name or input index).
@@ -39,8 +42,8 @@ public:
     ///        In such a case the algorthim tries to match the given node name
     ///        with the input name (providing an input index is not enough).
     ///        If a unique edge is found, it will be returned.
-    ///        If InputEdge cannot be determined based on parameter values an ngraph_error
-    ///        exception will be thrown.
+    ///        If InputEdge cannot be determined based on parameter values an
+    ///        ov:Exception will be thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name
     ///             or a node output name.
@@ -56,8 +59,8 @@ public:
     ///        In such a case the algorthim will try to match the given node name
     ///        with the output name (providing an output index is not enough).
     ///        If after such operation a found edge is unique, it is returned.
-    ///        If OutputEdge cannot be determined based on given params the ngraph_error
-    ///        exception is thrown.
+    ///        If OutputEdge cannot be determined based on given params an
+    ///        ov::Exception is thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name
     ///             or a node output name.
@@ -148,5 +151,6 @@ private:
     std::map<std::string, int> m_node_output_name_to_index;
     std::multimap<std::string, int> m_output_consumers_index;
 };
-}  // namespace onnx_editor
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ov

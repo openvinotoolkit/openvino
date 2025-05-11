@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,21 +11,22 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <low_precision/reduce_mean.hpp>
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "low_precision/reduce_mean.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ReduceMeanTransformation : public ReduceTransformation<ov::op::v1::ReduceMean> {
     void SetUp() override {
@@ -33,7 +34,7 @@ class ReduceMeanTransformation : public ReduceTransformation<ov::op::v1::ReduceM
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMeanTransformation, ov::op::v1::ReduceMean>(transformationParams);
+        transform.add<ov::pass::low_precision::ReduceMeanTransformation, ov::op::v1::ReduceMean>(transformationParams);
         transform.transform(actualFunction);
     }
 };
@@ -47,7 +48,7 @@ TEST_P(ReduceMeanTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 16, 16},
     {4, 3, 16, 16},
     {-1, -1, -1, -1}
@@ -282,7 +283,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 

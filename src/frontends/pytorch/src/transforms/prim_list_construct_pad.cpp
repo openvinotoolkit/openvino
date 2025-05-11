@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "prim_list_construct_pad.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -59,7 +60,7 @@ const std::unordered_map<std::string, PadMode> PAD_MODES = {{"constant", PadMode
 
 PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     // transformation for case aten::pad + prim::ListConstruct as paddings
-    auto pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    const auto& pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         Output<Node> input_node;
         Output<Node> padding;
@@ -70,12 +71,18 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             mode = "constant";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
-            auto mode_node = pad_op->input_value(2).get_node_shared_ptr();
-            pad_value = pad_op->input_value(3);
+            const auto& mode_node = pad_op->input_value(2).get_node_shared_ptr();
             if (const auto& fw_node_mode = cast_fw_node(mode_node, "prim::Constant")) {
                 const auto& attrs = fw_node_mode->get_attrs();
                 if (attrs.find("string_value") != attrs.end()) {
                     mode = attrs.at("string_value");
+                }
+            }
+            pad_value = pad_op->input_value(3);
+            if (const auto& fw_node_mode = cast_fw_node(pad_value.get_node_shared_ptr(), "prim::Constant")) {
+                const auto& attrs = fw_node_mode->get_attrs();
+                if (attrs.find("none_value") != attrs.end()) {
+                    pad_value = v0::Constant::create(element::f32, Shape{}, {0});
                 }
             }
         } else if ((pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d"))) {

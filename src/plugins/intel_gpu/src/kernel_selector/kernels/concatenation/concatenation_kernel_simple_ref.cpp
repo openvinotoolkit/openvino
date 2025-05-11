@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,8 +57,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     return k;
 }
 
-bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_params& o) const {
-    if (!ConcatenationKernelBase::Validate(p, o)) {
+bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
+    if (!ConcatenationKernelBase::Validate(p)) {
         return false;
     }
 
@@ -99,12 +99,32 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
     return dispatchData;
 }
 
-KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    KernelsData kd = GetCommonKernelsData(params, optParams);
+JitConstants ConcatenationKernel_simple_Ref::GetJitConstants(const concatenation_params& params) const {
+    auto jit = ConcatenationKernelBase::GetJitConstants(params);
+
+    if (!params.fused_ops.empty()) {
+        const auto& output = params.outputs[0];
+        std::vector<std::string> idx_order;
+
+        if (output.Dimentions() == 6) {
+            idx_order = { "out_b", "out_f", "out_w", "out_z", "out_y", "out_x" };
+        } else if (output.Dimentions() == 5) {
+            idx_order = { "out_b", "out_f", "out_z", "out_y", "out_x" };
+        } else {
+            idx_order = { "out_b", "out_f", "out_y", "out_x" };
+        }
+        auto conf = FusedOpsConfiguration("", idx_order, "result", params.inputs[0].GetDType());
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
+KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params) const {
+    KernelsData kd = GetCommonKernelsData(params);
     return kd;
 }
 
-KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

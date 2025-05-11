@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/op/grid_sample.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
+
+using namespace ov::op;
+
 NamedOutputs grid_sampler(const NodeContext& node) {
     auto data = node.get_input("X");
     auto grid = node.get_input("Grid");

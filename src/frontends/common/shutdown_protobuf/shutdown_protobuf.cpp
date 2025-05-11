@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <google/protobuf/stubs/common.h>
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
 #    include <windows.h>
 BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
                     DWORD fdwReason,     // reason for calling function

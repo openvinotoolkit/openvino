@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,9 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/subtract_multiply_to_multiply_add_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/subtract_multiply_to_multiply_add.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -33,14 +32,16 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
+    init_input_shapes(testValues.inputShape);
+
+    function = ov::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);
 }
 
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

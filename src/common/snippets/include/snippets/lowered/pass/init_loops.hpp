@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,24 +15,17 @@ namespace pass {
 
 /**
  * @interface InitLoops
- * @brief The pass initialize scheduling information in LoopInfo
+ * @brief The pass initializes scheduling information in UnifiedLoopInfo
  * @ingroup snippets
  */
 class InitLoops : public Pass {
 public:
-    OPENVINO_RTTI("InitLoops", "Pass")
-    InitLoops();
+    OPENVINO_RTTI("InitLoops", "", Pass);
+    InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
 private:
-    static void init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                    std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
-                                    size_t work_amount, size_t dim_idx);
-    static void init_finalization_offsets(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                          std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
-                                          size_t work_amount);
-    static void init_element_type_sizes(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
-                                        std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs);
+    static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info);
 };
 
 } // namespace pass

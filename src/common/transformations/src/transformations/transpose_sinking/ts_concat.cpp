@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/transpose_sinking/ts_concat.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
@@ -21,10 +22,10 @@ using namespace ov::pass::transpose_sinking::utils;
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    create_pattern<ov::op::v0::Concat>(true);
+    create_pattern<ov::op::v0::Concat>();
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         // todo: support dynamic rank case
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
         if (!concat_node) {
@@ -35,10 +36,15 @@ TSConcatForward::TSConcatForward() {
             return false;
         }
 
-        auto concat_axis = concat_node->get_concatenation_axis();
+        auto concat_axis = concat_node->get_axis();
         if (concat_axis < 0) {
-            return false;
+            if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
+                return false;
+            }
+            const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
+            concat_axis = ov::util::normalize(concat_axis, rank);
         }
+
         // todo: support dyn rank case
         bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_info);
         if (!updated) {
@@ -48,7 +54,6 @@ TSConcatForward::TSConcatForward() {
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
-        concat_node->set_concatenation_axis(-1);
 
         default_outputs_update(main_node, transpose_info);
         return true;
@@ -70,7 +75,7 @@ TSConcatBackward::TSConcatBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -81,9 +86,18 @@ TSConcatBackward::TSConcatBackward() {
         }
 
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
-        auto concat_axis = concat_node->get_concatenation_axis();
-        if (concat_axis < 0) {
+        if (!concat_node) {
             return false;
+        }
+
+        auto concat_axis = concat_node->get_axis();
+        if (concat_axis < 0) {
+            if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
+                return false;
+            }
+
+            const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
+            concat_axis = ov::util::normalize(concat_axis, rank);
         }
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
@@ -94,7 +108,6 @@ TSConcatBackward::TSConcatBackward() {
 
         const auto transposed_concat_axis = reversed_transpose_axis_order[concat_axis];
         concat_node->set_axis(static_cast<int64_t>(transposed_concat_axis));
-        concat_node->set_concatenation_axis(-1);
 
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);

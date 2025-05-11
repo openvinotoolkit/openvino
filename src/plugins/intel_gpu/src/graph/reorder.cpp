@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "reorder_inst.h"
@@ -7,7 +7,9 @@
 #include "json_object.h"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 #include <algorithm>
 #include <string>
 
@@ -180,6 +182,12 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
 
     if (desc->weights_reorder_params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
+        if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
+        }
+#endif // ENABLE_ONEDNN_FOR_GPU
         return { desc->weights_reorder_params->get_output_layout() };
     } else {
         return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
@@ -219,13 +227,12 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
         parent(network, node, !node.can_be_optimized()
                               && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound()))
         , _req_reinterpr(node.requires_reinterpret()) {
-    if (node.can_be_optimized())
-        reuse_input();
+    update_output_memory();
 
     if (is_dynamic())
         return;
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {
         CLDNN_ERROR_LESS_THAN(node.id(),
@@ -256,11 +263,6 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
 }
 
 void reorder_inst::on_execute() {
-    if (can_be_optimized())
-        reuse_input();
-}
-
-void reorder_inst::reuse_input() {
     update_output_memory();
 }
 
@@ -268,11 +270,26 @@ void reorder_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
+        && output_memory().get_layout().identical(get_output_layout()))
         return;
 
     if (_node != nullptr)
         build_deps();
+
+    // Do not update output memory when reorder is optimized out
+    // but input memory is not allocated yet because input is dynamic.
+    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
+    if (!dependencies().front().first->outputs_allocated())
+        return;
+
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+    }
 
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());
@@ -280,15 +297,5 @@ void reorder_inst::update_output_memory() {
         _outputs[0] = input_memory_ptr();
     }
     _mem_allocated = false;
-}
-
-void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _req_reinterpr;
-}
-
-void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> _req_reinterpr;
 }
 }  // namespace cldnn

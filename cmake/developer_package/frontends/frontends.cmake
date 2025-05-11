@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,7 +38,7 @@ function(ov_generate_frontends_hpp)
     ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
-    set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
+    set(frontends_hpp_in "${OpenVINODeveloperScripts_DIR}/frontends/ov_frontends.hpp.in")
 
     add_custom_command(OUTPUT "${ov_frontends_hpp}"
                        COMMAND
@@ -46,10 +46,10 @@ function(ov_generate_frontends_hpp)
                         -D "OV_FRONTENDS_HPP_HEADER_IN=${frontends_hpp_in}"
                         -D "OV_FRONTENDS_HPP_HEADER=${ov_frontends_hpp}"
                         -D "FRONTEND_NAMES=${FRONTEND_NAMES}"
-                        -P "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                        -P "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        DEPENDS
                          "${frontends_hpp_in}"
-                         "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                         "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        COMMENT
                          "Generate ov_frontends.hpp for static build"
                        VERBATIM)
@@ -57,10 +57,10 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common_obj _ov_frontends_hpp)
+    add_dependencies(openvino_frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
-    get_target_property(sources frontend_common_obj SOURCES)
+    get_target_property(sources openvino_frontend_common_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
@@ -73,7 +73,7 @@ function(ov_generate_frontends_hpp)
         endif()
     endforeach()
 
-    # add dependency on header file generation for all inference_engine source files
+    # add dependency on header file generation for all openvino_frontend_common_obj source files
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_frontends_hpp})
 endfunction()
 
@@ -81,16 +81,37 @@ unset(protobuf_lite_installed CACHE)
 unset(protobuf_installed CACHE)
 
 #
+# ov_frontend_group_files(<ROOT_DIR>  # Root path for scanning
+#                         <REL_PATH>  # Relative path (in ROOT_DIR) is used for scanning
+#                         <FILE_EXT>) # File extension for grouping
+#
+macro(ov_frontend_group_files root_dir rel_path file_mask)
+   file(GLOB items RELATIVE ${root_dir}/${rel_path} ${root_dir}/${rel_path}/*)
+   foreach(item ${items})
+        if(IS_DIRECTORY ${root_dir}/${rel_path}/${item})
+            ov_frontend_group_files(${root_dir} ${rel_path}/${item} ${file_mask})
+        else()
+            if(${item} MATCHES ".*\.${file_mask}$")
+                string(REPLACE "/" "\\" groupname ${rel_path})
+                source_group(${groupname} FILES ${root_dir}/${rel_path}/${item})
+            endif()
+        endif()
+   endforeach()
+endmacro()
+
+#
 # ov_add_frontend(NAME <IR|ONNX|...>
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
 #                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [DISABLE_CPP_INSTALL] # excludes frontend from all cmake rules
+#                 [PROTOBUF_REQUIRED] # options to denote that protobuf is used
 #                 [PROTOBUF_LITE] # requires only libprotobuf-lite
 #                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL DISABLE_CPP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -120,24 +141,32 @@ macro(ov_add_frontend)
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
 
-    source_group("src" FILES ${LIBRARY_SRC})
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "cpp")
+    ov_frontend_group_files(${frontend_root_dir}/ "src" "proto")
     source_group("include" FILES ${LIBRARY_HEADERS})
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
+    set(protofiles_root_dir "${frontend_root_dir}/src/proto")
+    file(GLOB_RECURSE proto_files ${protofiles_root_dir}/*.proto)
 
-    foreach(INFILE IN LISTS proto_files)
-        get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
-        get_filename_component(FILE_WE ${INFILE} NAME_WE)
-        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
-        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
-        set(GENERATED_PROTO ${INFILE})
+    foreach(proto_file IN LISTS proto_files)
+        # filter out standaard google proto files
+        if(proto_file MATCHES ".*google.*")
+            continue()
+        endif()
+
+        file(RELATIVE_PATH proto_file_relative "${CMAKE_SOURCE_DIR}" "${proto_file}")
+        get_filename_component(FILE_WE ${proto_file} NAME_WE)
+        file(RELATIVE_PATH relative_path ${protofiles_root_dir} ${proto_file})
+        get_filename_component(relative_path ${relative_path} DIRECTORY)
+        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.cc)
+        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.h)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-                DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
-                COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${protofiles_root_dir} ${proto_file}
+                DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
+                COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
@@ -145,15 +174,15 @@ macro(ov_add_frontend)
     endforeach()
 
     file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
-    foreach(INFILE IN LISTS flatbuffers_schema_files)
-        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+    foreach(flatbuffers_schema_file IN LISTS flatbuffers_schema_files)
+        file(RELATIVE_PATH flatbuffers_schema_file_relative "${CMAKE_SOURCE_DIR}" "${flatbuffers_schema_file}")
+        get_filename_component(FILE_WE "${flatbuffers_schema_file}" NAME_WE)
         set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
-        set(GENERATED_PROTO ${INFILE})
         add_custom_command(
                 OUTPUT "${OUTPUT_FC_HEADER}"
-                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
-                DEPENDS ${flatbuffers_DEPENDENCY} ${GENERATED_PROTO}
-                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${GENERATED_PROTO}"
+                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${flatbuffers_schema_file}
+                DEPENDS ${flatbuffers_DEPENDENCY} ${flatbuffers_schema_file}
+                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${flatbuffers_schema_file_relative}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")
@@ -164,7 +193,7 @@ macro(ov_add_frontend)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
-        ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
+                               ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
@@ -172,7 +201,7 @@ macro(ov_add_frontend)
     endif()
 
     # Shutdown protobuf when unloading the frontend dynamic library
-    if(proto_files AND BUILD_SHARED_LIBS)
+    if(OV_FRONTEND_PROTOBUF_REQUIRED AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
     endif()
 
@@ -183,30 +212,37 @@ macro(ov_add_frontend)
             "-Dget_api_version=get_api_version_${OV_FRONTEND_NAME}")
     endif()
 
+    # remove -Wmissing-declarations warning, because of frontends implementation specific
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-missing-declarations)
+    endif()
+
     target_include_directories(${TARGET_NAME}
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
+                $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
                 ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common_translators
+                          PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
-    # WA for TF frontends which always require protobuf (not protobuf-lite)
-    # if TF FE is built in static mode, use protobuf for all other FEs
-    if(FORCE_FRONTENDS_USE_PROTOBUF)
-        set(OV_FRONTEND_PROTOBUF_LITE OFF)
-    endif()
-    # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
-    if(NOT TARGET protobuf::libprotobuf-lite)
-        set(OV_FRONTEND_PROTOBUF_LITE OFF)
-    endif()
+    if(OV_FRONTEND_PROTOBUF_REQUIRED)
+        # WA for TF frontends which always require protobuf (not protobuf-lite)
+        # if TF FE is built in static mode, use protobuf for all other FEs
+        if(FORCE_FRONTENDS_USE_PROTOBUF)
+            set(OV_FRONTEND_PROTOBUF_LITE OFF)
+        endif()
+        # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
+        if(NOT TARGET protobuf::libprotobuf-lite)
+            set(OV_FRONTEND_PROTOBUF_LITE OFF)
+        endif()
 
-    if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
             set(protobuf_target_name libprotobuf-lite)
             set(protobuf_install_name "protobuf_lite_installed")
@@ -219,11 +255,11 @@ macro(ov_add_frontend)
             set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
-        link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+        ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+            target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
         endif()
 
         # install protobuf if it is not installed yet
@@ -242,8 +278,8 @@ macro(ov_add_frontend)
         target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${flatbuffers_INCLUDE_DIRECTORIES})
     endif()
 
-    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
+    ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                               EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
 
     # enable LTO
     set_target_properties(${TARGET_NAME} PROPERTIES
@@ -263,15 +299,23 @@ macro(ov_add_frontend)
     add_dependencies(ov_frontends ${TARGET_NAME})
 
     # must be called after all target_link_libraries
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     # since frontends are user-facing component which can be linked against,
     # then we need to mark it to be CXX ABI free
     ov_abi_free_target(${TARGET_NAME})
 
+    # public target name
+    set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
+
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
+        # convert option (OFF / ON) to actual value
+        if(OV_FRONTEND_DISABLE_CPP_INSTALL)
+            set(frontend_exclude_from_all EXCLUDE_FROM_ALL)
+        endif()
+
         if(BUILD_SHARED_LIBS)
             # Note:
             # we use 'framework' as component for deployment scenario, i.e. for libraries itself
@@ -279,23 +323,25 @@ macro(ov_add_frontend)
             set(lib_component "${OV_FRONTEND_NAME}")
             set(dev_component "${OV_CPACK_COMP_CORE_DEV}")
 
-            # TODO: whether we need to do it configuralbe on Windows installer?
             ov_cpack_add_component(${lib_component} HIDDEN)
 
-            if(OV_FRONTEND_LINKABLE_FRONTEND)
+            if(OV_FRONTEND_LINKABLE_FRONTEND AND NOT OV_FRONTEND_DISABLE_CPP_INSTALL)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${lib_component})
-                set(namelink NAMELINK_COMPONENT ${dev_component})
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${dev_component} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+                set(namelink NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL})
             else()
                 set(namelink NAMELINK_SKIP)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${lib_component}
+                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${archive_dest}
-                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component}
+                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${namelink})
 
+            ov_install_pdb(${TARGET_NAME})
+
             # export to build tree
+            # Note: we keep this even with passed DISABLE_CPP_INSTALL to ensure that Python API can be built
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
                        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
@@ -304,15 +350,13 @@ macro(ov_add_frontend)
             ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
         endif()
 
-        if(OV_FRONTEND_LINKABLE_FRONTEND)
+        if(OV_FRONTEND_LINKABLE_FRONTEND AND NOT OV_FRONTEND_DISABLE_CPP_INSTALL)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
+                    ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
-
-            # public target name
-            set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
         endif()
     else()
         # skipped frontend has to be installed in static libraries case

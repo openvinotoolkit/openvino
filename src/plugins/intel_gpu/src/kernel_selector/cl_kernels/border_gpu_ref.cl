@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,9 @@ KERNEL(border_gpu_ref)(
 #endif
     __global OUTPUT_TYPE* output)
 {
+#if defined(BEGIN_TYPE) || defined(END_TYPE)
+    uint pad_info_length = INPUT1_LENGTH;
+#endif
 #ifdef BEGIN_TYPE
     const int begin_b = begin[0];
     const int begin_f = begin[1];
@@ -30,8 +33,8 @@ KERNEL(border_gpu_ref)(
     const int begin_z = begin[begin_offset];
     begin_offset += 1;
     #endif
-    const int begin_y = begin[begin_offset];
-    const int begin_x = begin[begin_offset + 1];
+    const int begin_y = (pad_info_length > begin_offset) ? begin[begin_offset] : 0;
+    const int begin_x = (pad_info_length > (begin_offset + 1)) ? begin[begin_offset + 1] : 0;
 #else
     const uint begin_b = LT_SIZES_BATCH_NUM;
     const uint begin_f = LT_SIZES_FEATURE_NUM;
@@ -57,8 +60,8 @@ KERNEL(border_gpu_ref)(
     const int end_z = end[end_offset];
     end_offset += 1;
     #endif
-    const int end_y = end[end_offset];
-    const int end_x = end[end_offset + 1];
+    const int end_y = (pad_info_length > end_offset) ? end[end_offset] : 0;
+    const int end_x = (pad_info_length > (end_offset + 1)) ? end[end_offset + 1] : 0;
 #else
     const uint end_b = RB_SIZES_BATCH_NUM;
     const uint end_f = RB_SIZES_FEATURE_NUM;

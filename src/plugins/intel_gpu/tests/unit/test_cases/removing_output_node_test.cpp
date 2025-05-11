@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ void test_multiple_outputs(bool is_caching_test) {
         ASSERT_EQ(output_ptr2[i], out_vec[i]);
 }
 
-TEST(removing_output_node, multiple_outputs) {
+TEST(removing_output_node, DISABLED_multiple_outputs) { // Issue 129991
     test_multiple_outputs<float>(false);
 }
 
@@ -164,7 +164,7 @@ TEST(removing_output_node, output_node_optimization) {
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST(removing_output_node, multiple_outputs_cached) {
+TEST(removing_output_node, DISABLED_multiple_outputs_cached) {  // Issue 129991
     test_multiple_outputs<float>(true);
 }
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,25 +9,28 @@
 #include <string>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/parameter.hpp"
 #include "template/properties.hpp"
 
 TEST(DisableTransformationsTests, TestTemplatePluginProperty) {
     std::shared_ptr<ov::Model> m(nullptr), m_ref(nullptr);
     {
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
-        auto like = ov::opset11::Constant::create(ov::element::i32, ov::Shape{1}, {1});
-        auto cvtlike = std::make_shared<ov::opset11::ConvertLike>(data, like);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+        auto like = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto cvtlike = std::make_shared<ov::op::v1::ConvertLike>(data, like);
 
-        m = std::make_shared<ov::Model>(ov::NodeVector{cvtlike}, ov::ParameterVector{data});
+        m = std::make_shared<ov::Model>(ov::OutputVector{cvtlike}, ov::ParameterVector{data});
     }
     {
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
-        auto cvt = std::make_shared<ov::opset11::Convert>(data, ov::element::i32);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+        auto cvt = std::make_shared<ov::op::v0::Convert>(data, ov::element::i32);
 
-        m_ref = std::make_shared<ov::Model>(ov::NodeVector{cvt}, ov::ParameterVector{data});
+        m_ref = std::make_shared<ov::Model>(ov::OutputVector{cvt}, ov::ParameterVector{data});
     }
 
     auto core = ov::test::utils::PluginCache::get().core("TEMPLATE");

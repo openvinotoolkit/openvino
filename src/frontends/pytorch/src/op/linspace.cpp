@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,14 +37,14 @@ OutputVector translate_linspace(const NodeContext& context) {
     auto dtype = element::f32;
     if (!context.input_is_none(3) && context.get_input_size() == 7) {
         // Case where dtype is provided directly in dtype input.
-        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(3));
             apply_dtype = true;
         } else if (const auto& fw_node = cast_fw_node(context.get_input(3).get_node_shared_ptr(), "prim::dtype")) {
             out_tensor = fw_node->input_value(0);
             apply_dtype = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     } else if (!context.input_is_none(3) && context.get_input_size() == 4) {
         // Case where dtype is inherited from out tensor.

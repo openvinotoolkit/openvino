@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,12 +59,17 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& out = outputs.front();
 
     using namespace ov::element;
-    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32>::apply<round::Evaluate>(
-        arg0.get_element_type(),
-        arg0,
-        out,
-        shape_size(arg0.get_shape()),
-        get_mode());
+    return IF_TYPE_OF_CONVERT_TENSORS(v5_Round_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, i8, i16, i32, i64, u8, u16, u32, u64, f32),
+                                      round::Evaluate,
+                                      arg0.get_element_type(),
+                                      arg0,
+                                      out,
+                                      shape_size(arg0.get_shape()),
+                                      get_mode());
 }
 
 bool Round::has_evaluate() const {
@@ -88,4 +93,6 @@ OPENVINO_API EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::Round
                                              {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
     return enum_names;
 }
+
+AttributeAdapter<op::v5::Round::RoundMode>::~AttributeAdapter() = default;
 }  // namespace ov

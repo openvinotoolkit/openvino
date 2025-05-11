@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,47 +9,45 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
-#include "lpt_ngraph_functions/transpose_after_mat_mul_function.hpp"
+#include "ov_lpt_models/transpose_after_mat_mul.hpp"
 
 
 namespace LayerTestsDefinitions {
 
 std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << toString(params) <<
-        (perTensor ? "_perTensor" : "_perChannel") <<
+    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+           (perTensor ? "_perTensor" : "_perChannel") <<
         (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
     return result.str();
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
+    init_input_shapes({ inputShape, inputShape });
+
+    function = ov::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

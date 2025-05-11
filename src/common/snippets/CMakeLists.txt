@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,7 +16,6 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
-
 add_library(${TARGET_NAME} STATIC
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
@@ -24,7 +23,7 @@ add_library(${TARGET_NAME} STATIC
 add_library(openvino::snippets ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 
@@ -46,8 +45,9 @@ endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# install
+# install & export
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")

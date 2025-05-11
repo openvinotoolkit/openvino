@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/util/common_util.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 using namespace ::testing;
 
@@ -31,7 +31,7 @@ class MultiDevice_Test : public ov::test::TestsCommon, public testing::WithParam
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, _properties) = this->GetParam();
         device_names = getDeviceStringWithMulti(deviceNameList);
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
     }
 
 public:
@@ -53,7 +53,7 @@ public:
 protected:
     std::string device_names;
     ov::AnyMap _properties;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 
 class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
@@ -61,7 +61,7 @@ class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::Wi
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, expected_status, _properties) = this->GetParam();
         device_names = getDeviceStringWithMulti(deviceNameList);
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        fn_ptr = ov::test::utils::make_split_multi_conv_concat();
     }
 
 public:
@@ -85,7 +85,7 @@ protected:
     std::string device_names;
     bool expected_status;
     ov::AnyMap _properties;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 
 class MultiDeviceMultipleGPU_Test : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNames> {
@@ -104,7 +104,7 @@ public:
 protected:
     std::string device_names;
     std::vector<std::string> device_lists;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 #define MULTI  ov::test::utils::DEVICE_MULTI
 #define CPU    ov::test::utils::DEVICE_CPU

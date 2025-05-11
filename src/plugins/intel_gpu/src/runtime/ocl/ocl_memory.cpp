@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
@@ -16,8 +17,48 @@
 #include <oneapi/dnnl/dnnl_ocl.hpp>
 #endif
 
+#define TRY_CATCH_CL_ERROR(...)               \
+    try {                                     \
+        __VA_ARGS__;                          \
+    } catch (cl::Error const& err) {          \
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err)); \
+    }
+
 namespace cldnn {
 namespace ocl {
+
+static inline void check_boundaries(size_t src_size,
+                                    size_t src_offset,
+                                    size_t dst_size,
+                                    size_t dst_offset,
+                                    size_t copy_size,
+                                    const std::string& func_str = "") {
+    OPENVINO_ASSERT(src_offset + copy_size <= src_size && dst_offset + copy_size <= dst_size,
+                    "[GPU] Incorrect buffer sizes for ",
+                    func_str,
+                    " call. ",
+                    "Parameters provided are",
+                    ": src_size=",
+                    src_size,
+                    ", src_offset=",
+                    src_offset,
+                    ", dst_size=",
+                    dst_size,
+                    ", dst_offset=",
+                    dst_offset,
+                    ", copy_size=",
+                    copy_size,
+                    ".");
+}
+
+static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count, bool need_user_event) {
+    if (bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip memory operation for 0 size tensor" << std::endl;
+        return nullptr;
+    }
+
+    return need_user_event ? nullptr : stream.create_base_event();
+}
 
 static int get_cl_map_type(mem_lock_type type) {
     switch (type) {
@@ -34,20 +75,27 @@ static int get_cl_map_type(mem_lock_type type) {
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false)
-    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) { }
+    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, nullptr)
+    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) {
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
+}
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& new_layout,
-                       const cl::Buffer& buffer)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, true)
+                       const cl::Buffer& buffer,
+                       std::shared_ptr<MemoryTracker> mem_tracker)
+    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
     , _buffer(buffer) {}
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, get_cl_map_type(type), 0, size());
+        try {
+             _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, get_cl_map_type(type), 0, size());
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
     _lock_count++;
     return _mapped_ptr;
@@ -58,20 +106,35 @@ void gpu_buffer::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
-        cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        try {
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
         _mapped_ptr = nullptr;
     }
 }
 
-event::ptr gpu_buffer::fill(stream& stream) {
-    return fill(stream, 0);
+event::ptr gpu_buffer::fill(stream& stream, bool blocking) {
+    return fill(stream, 0, blocking);
 }
 
-event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
+    try {
+        cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
 
     return ev;
 }
@@ -88,51 +151,72 @@ shared_mem_params gpu_buffer::get_internal_params() const {
         0};
 }
 
-event::ptr gpu_buffer::copy_from(stream& stream, const memory& other, bool blocking) {
-    switch (other.get_allocation_type()) {
-    case allocation_type::usm_host:
-    case allocation_type::usm_shared:
-        {
+event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
+
+    check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+
+    TRY_CATCH_CL_ERROR(cl_stream->get_cl_queue().enqueueWriteBuffer(_buffer, blocking, dst_offset, size, src_ptr, nullptr, cl_event))
+
+    return result_event;
+}
+
+event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, false);
+    if (size == 0)
+        return result_event;
+
+    check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(memory&)");
+
+    switch (src_mem.get_allocation_type()) {
+        case allocation_type::usm_host:
+        case allocation_type::usm_shared:
+        case allocation_type::usm_device: {
             // If other is gpu_usm, down cast to gpu_buffer is not possible.
             // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
-            auto& mem_inst = downcast<const gpu_usm>(other);
-            return copy_from(stream, mem_inst.buffer_ptr(), blocking);
+            auto usm_mem = downcast<const gpu_usm>(&src_mem);
+            return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
         }
-    case allocation_type::cl_mem:
-        {
-            auto& cl_stream = downcast<ocl_stream>(stream);
-            auto& mem_inst = downcast<const gpu_buffer>(other);
-            auto ev = stream.create_base_event();
-            cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-            cl_stream.get_cl_queue().enqueueCopyBuffer(mem_inst.get_buffer(), get_buffer(), 0, 0, other.size(), nullptr, &ev_ocl);
+        case allocation_type::cl_mem: {
+            OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
+
+            auto cl_stream = downcast<ocl_stream>(&stream);
+            auto cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
+            auto ev_ocl = &downcast<ocl_event>(result_event.get())->get();
+
+            TRY_CATCH_CL_ERROR(
+                cl_stream->get_cl_queue().enqueueCopyBuffer(cl_mem_buffer->get_buffer(), get_buffer(), src_offset, dst_offset, size, nullptr, ev_ocl));
 
             if (blocking)
-                ev->wait();
+                result_event->wait();
 
-            return ev;
+            return result_event;
         }
-    case allocation_type::usm_device:
-    default:
-        throw std::runtime_error("Unsupported allocation_type.");
+        default:
+            OPENVINO_THROW("[GPU] Unsupported buffer type for gpu_buffer::copy_from() function");
     }
 }
 
-event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, blocking, 0, size(), host_ptr, nullptr, ev_ocl);
+event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
 
-    return ev;
-}
+    check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_buffer::copy_to(void*)");
 
-event::ptr gpu_buffer::copy_to(stream& stream, void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueReadBuffer(_buffer, blocking, 0, size(), host_ptr, nullptr, ev_ocl);
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
-    return ev;
+    TRY_CATCH_CL_ERROR(cl_stream->get_cl_queue().enqueueReadBuffer(_buffer, blocking, src_offset, size, dst_ptr, nullptr, cl_event));
+
+    return result_event;
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -145,7 +229,12 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 #endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _width(0), _height(0), _row_pitch(0), _slice_pitch(0) {
+    : lockable_gpu_mem()
+    , memory(engine, layout, allocation_type::cl_mem, nullptr)
+    , _width(0)
+    , _height(0)
+    , _row_pitch(0)
+    , _slice_pitch(0) {
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
     cl_channel_order order = CL_R;
     switch (layout.format) {
@@ -197,12 +286,14 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     _buffer = cl::Image2D(engine->get_cl_context(), CL_MEM_READ_WRITE, imageFormat, _width, _height, 0);
     size_t elem_size = _buffer.getImageInfo<CL_IMAGE_ELEMENT_SIZE>();
     _bytes_count = elem_size * _width * _height;
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
 }
 
 gpu_image2d::gpu_image2d(ocl_engine* engine,
                          const layout& new_layout,
-                         const cl::Image2D& buffer)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, true),
+                         const cl::Image2D& buffer,
+                         std::shared_ptr<MemoryTracker> mem_tracker)
+    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker),
       _buffer(buffer) {
     _width = _buffer.getImageInfo<CL_IMAGE_WIDTH>();
     _height = _buffer.getImageInfo<CL_IMAGE_HEIGHT>();
@@ -210,17 +301,27 @@ gpu_image2d::gpu_image2d(ocl_engine* engine,
     _slice_pitch = _buffer.getImageInfo<CL_IMAGE_SLICE_PITCH>();
 }
 
-event::ptr gpu_image2d::fill(stream& stream) {
-    return fill(stream, 0);
+event::ptr gpu_image2d::fill(stream& stream, bool blocking) {
+    return fill(stream, 0, blocking);
 }
 
-event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
     cl_uint4 pattern_uint4 = {{pattern, pattern, pattern, pattern}};
-    cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
-
+    try {
+        cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
     // TODO: do we need sync here?
     cl_stream.finish();
 
@@ -231,14 +332,18 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        _mapped_ptr = cl_stream.get_cl_queue()
-                          .enqueueMapImage(_buffer,
-                                           CL_TRUE,
-                                           get_cl_map_type(type),
-                                           {0, 0, 0},
-                                           {_width, _height, 1},
-                                           &_row_pitch,
-                                           &_slice_pitch);
+        try {
+            _mapped_ptr = cl_stream.get_cl_queue()
+                    .enqueueMapImage(_buffer,
+                                    CL_TRUE,
+                                    get_cl_map_type(type),
+                                    {0, 0, 0},
+                                    {_width, _height, 1},
+                                    &_row_pitch,
+                                    &_slice_pitch);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
     _lock_count++;
     return _mapped_ptr;
@@ -249,7 +354,11 @@ void gpu_image2d::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
-        cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        try {
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
         _mapped_ptr = nullptr;
     }
 }
@@ -267,60 +376,69 @@ shared_mem_params gpu_image2d::get_internal_params() const {
         0};
 }
 
-event::ptr gpu_image2d::copy_from(stream& stream, const memory& other, bool blocking) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
-    auto& casted = downcast<const gpu_image2d>(other);
-    auto ev = stream.create_base_event();
-    cl::Event* ev_ocl = &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueCopyImage(casted.get_buffer(), get_buffer(),
-                                              {0, 0, 0}, {0, 0, 0}, {_width, _height, 1},
-                                              nullptr, ev_ocl);
+event::ptr gpu_image2d::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
+
+    OPENVINO_ASSERT(dst_offset == 0, "[GPU] Unsupported dst_offset value for gpu_image2d::copy_from() function");
+    OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+
+    TRY_CATCH_CL_ERROR(
+        cl_stream->get_cl_queue().enqueueWriteImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1}, _row_pitch, _slice_pitch, src_ptr, nullptr, cl_event));
+
+    return result_event;
+}
+
+event::ptr gpu_image2d::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, false);
+    if (size == 0)
+        return result_event;
+
+    OPENVINO_ASSERT(src_mem.get_layout().format.is_image_2d(), "Unsupported buffer type for gpu_image2d::copy_from() function");
+    OPENVINO_ASSERT(src_offset == 0, "[GPU] Unsupported dst_offset value for gpu_image2d::copy_from() function");
+    OPENVINO_ASSERT(dst_offset == 0, "[GPU] Unsupported dst_offset value for gpu_image2d::copy_from() function");
+    OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = &downcast<ocl_event>(result_event.get())->get();
+    auto cl_image_mem = downcast<const gpu_image2d>(&src_mem);
+
+    TRY_CATCH_CL_ERROR(
+        cl_stream->get_cl_queue().enqueueCopyImage(cl_image_mem->get_buffer(), get_buffer(), {0, 0, 0}, {0, 0, 0}, {_width, _height, 1}, nullptr, cl_event));
 
     if (blocking)
-        ev->wait();
+        cl_event->wait();
 
-    return ev;
+    return result_event;
 }
 
-event::ptr gpu_image2d::copy_from(stream& stream, const void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueWriteImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1},
-                                               _row_pitch, _slice_pitch, host_ptr, nullptr, ev_ocl);
+event::ptr gpu_image2d::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
 
-    return ev;
-}
+    OPENVINO_ASSERT(src_offset == 0, "[GPU] Unsupported src_offset value for gpu_image2d::copy_from() function");
+    OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
 
-event::ptr gpu_image2d::copy_to(stream& stream, memory& other, bool blocking) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
-    auto& casted = downcast<const gpu_image2d>(other);
-    auto ev = stream.create_base_event();
-    cl::Event* ev_ocl = &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueCopyImage(get_buffer(), casted.get_buffer(),
-                                              {0, 0, 0}, {0, 0, 0}, {_width, _height, 1},
-                                              nullptr, ev_ocl);
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
-    if (blocking)
-        ev->wait();
+    TRY_CATCH_CL_ERROR(
+        cl_stream->get_cl_queue().enqueueReadImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1}, _row_pitch, _slice_pitch, dst_ptr, nullptr, cl_event));
 
-    return ev;
-}
-
-event::ptr gpu_image2d::copy_to(stream& stream, void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_cl_queue().enqueueReadImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1},
-                                              _row_pitch, _slice_pitch, host_ptr, nullptr, ev_ocl);
-
-    return ev;
+    return result_event;
 }
 
 gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
                                    const layout& new_layout,
                                    shared_mem_params params)
-    : gpu_image2d(engine, new_layout, cl::ImageVA(engine->get_cl_context(), CL_MEM_READ_WRITE, params.surface, params.plane)),
+    : gpu_image2d(engine, new_layout, cl::ImageVA(engine->get_cl_context(), CL_MEM_READ_WRITE, params.surface, params.plane), nullptr),
     device(params.user_device),
     surface(params.surface),
     plane(params.plane) { }
@@ -336,7 +454,7 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
                              const layout& new_layout,
                              shared_mem_params params)
     : gpu_buffer(engine, new_layout,
-                cl::BufferDX(engine->get_cl_context(), CL_MEM_READ_WRITE, params.mem)),
+                cl::BufferDX(engine->get_cl_context(), CL_MEM_READ_WRITE, params.mem), nullptr),
     device(params.user_device),
     resource(params.mem) { }
 
@@ -347,39 +465,44 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 }
 #endif
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, type, true)
+    , memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), true)
+    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
-    , memory(engine, layout, type, false)
+    , memory(engine, layout, type, nullptr)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
+    auto actual_bytes_count = _bytes_count;
+    if (actual_bytes_count == 0)
+        actual_bytes_count = 1;
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer.allocateHost(_bytes_count);
+        _buffer.allocateHost(actual_bytes_count);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(_bytes_count);
+        _buffer.allocateShared(actual_bytes_count);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(_bytes_count);
+        _buffer.allocateDevice(actual_bytes_count);
         break;
     default:
         CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
             "Unknown unified shared memory type!");
     }
+
+    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
 }
 
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
@@ -392,7 +515,11 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
+            try {
+                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
+            } catch (cl::Error const& err) {
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+            }
             _mapped_ptr = _host_buffer.get();
         } else {
             _mapped_ptr = _buffer.get();
@@ -413,82 +540,96 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
+    if (_bytes_count == 0) {
+        GPU_DEBUG_TRACE_DETAIL << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
+        return nullptr;
+    }
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-    // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
-    // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ocl)
-    // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
-    std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
-    // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
-    const bool blocking = true;
-    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
-
-    return ev;
-}
-
-event::ptr gpu_usm::fill(stream& stream) {
-    // event::ptr ev{ new base_event(_context), false };
-    // cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
-    // cl::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
-    // ev->wait();
-
-    // [WA]
-    return fill(stream, 0);
-}
-
-event::ptr gpu_usm::copy_from(stream& stream, const memory& other, bool blocking) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    if (other.get_allocation_type() == allocation_type::cl_mem) {
-        // Copy cl_mem to usm_memory by cl::CommandQueue::enqueueReadBuffer()
-        auto& mem_inst = downcast<const gpu_buffer>(other);
-        cl_stream.get_cl_queue().enqueueReadBuffer(mem_inst.get_buffer(), blocking, 0, size(), this->buffer_ptr(), nullptr, ev_ocl);
-    } else {
-        auto& casted = downcast<const gpu_usm>(other);
-        auto dst_ptr = get_buffer().get();
-        auto src_ptr = casted.get_buffer().get();
-        cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
-                                                dst_ptr,
-                                                src_ptr,
-                                                _bytes_count,
-                                                blocking,
-                                                nullptr,
-                                                ev_ocl);
+    try {
+        cl_stream.get_usm_helper().enqueue_fill_mem(
+                cl_stream.get_cl_queue(), _buffer.get(), static_cast<const void*>(&pattern), sizeof(unsigned char), _bytes_count, nullptr, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
+
     return ev;
 }
 
-event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto dst_ptr = get_buffer().get();
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
-                                              dst_ptr,
-                                              host_ptr,
-                                              _bytes_count,
-                                              blocking,
-                                              nullptr,
-                                              ev_ocl);
-    return ev;
+event::ptr gpu_usm::fill(stream& stream, bool blocking) {
+    return fill(stream, 0, blocking);
 }
 
-event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr, bool blocking) {
-    auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
-    cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    auto src_ptr = get_buffer().get();
-    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
-                                              host_ptr,
-                                              src_ptr,
-                                              _bytes_count,
-                                              blocking,
-                                              nullptr,
-                                              ev_ocl);
-    return ev;
+event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
+
+    check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+    auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+
+    TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
+
+    return result_event;
+}
+
+event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
+
+    check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(memory&)");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+
+    if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
+        auto cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
+        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
+
+        return cl_mem_buffer->copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
+    } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
+        auto usm_mem = downcast<const gpu_usm>(&src_mem);
+        auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
+        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+
+        TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
+    } else {
+        std::vector<char> tmp_buf;
+        tmp_buf.resize(size);
+        src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
+
+        GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+        return copy_from(stream, tmp_buf.data(), 0, 0, size, blocking);
+    }
+
+    return result_event;
+}
+
+event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
+    auto result_event = create_event(stream, size, blocking);
+    if (size == 0)
+        return result_event;
+
+    check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
+
+    auto cl_stream = downcast<ocl_stream>(&stream);
+    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
+    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+
+    TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
+
+    return result_event;
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

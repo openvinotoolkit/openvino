@@ -1,16 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
-#include "openvino/pass/manager.hpp"
 #include "snippets/pass/tokenization.hpp"
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
+#include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
-
 
 namespace ov {
 namespace snippets {
@@ -75,13 +77,21 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
 
 bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SnippetsTokenization);
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "Snippets:Tokenization");
     manager.set_per_pass_validation(false);
 
     manager.register_pass<EnumerateNodes>();
     manager.register_pass<ExtractReshapesFromMHA>();
+    // This pass mustn't be registered in GraphRewrite with other tokenization passes because of 2 reasons:
+    // 1. It has higher priority than other tokenization passes
+    // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
-    manager.register_pass<TokenizeSnippets>();
+
+    auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
+    tokenization_passes->add_matcher<TokenizeGNSnippets>();
+    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
+    tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
+
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 

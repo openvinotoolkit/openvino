@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,7 +143,7 @@ static std::vector<size_t> GetBestLwsFromGws(const reorder_params& params, const
     std::vector<size_t> dims{ 0, 1, 2 };
 
     // SLM size: elemsize * tile_width * tile_width * work_items <= 64K
-    const size_t elem_size = params.inputs[0].ElementSize();
+    const size_t elem_size = params.outputs[0].ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
     size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
@@ -230,16 +230,16 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
     return jit;
 }
 
-KernelsData ReorderKernel_bfyx_to_blocked_format::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernel_bfyx_to_blocked_format::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::REORDER);
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optional_params& o) const {
-    if (!ReorderKernelBase::Validate(p, o)) {
+bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
+    if (!ReorderKernelBase::Validate(p)) {
         return false;
     }
 
@@ -273,7 +273,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
     return true;
 }
 
-KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& p, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& p) const {
     const reorder_params& params = static_cast<const reorder_params&>(p);
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];

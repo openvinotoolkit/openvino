@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,14 +11,11 @@ include(GNUInstallDirs)
 #
 macro(ov_rpm_cpack_set_dirs)
     # override default locations for RPM
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
-    set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
-    set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
@@ -35,12 +32,7 @@ macro(ov_rpm_cpack_set_dirs)
     unset(OV_CPACK_SHAREDIR)
 
     # skipped during rpm packaging
-    set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
+    set(OV_CPACK_WHEELSDIR "wheels")
 endmacro()
 
 ov_rpm_cpack_set_dirs()
@@ -58,6 +50,9 @@ macro(ov_override_component_names)
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
+    # merge links and pkgconfig with dev component
+    set(OV_CPACK_COMP_LINKS "${OV_CPACK_COMP_CORE_DEV}")
+    set(OV_CPACK_COMP_PKG_CONFIG "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()
@@ -65,7 +60,7 @@ ov_override_component_names()
 #
 # Override include / exclude rules for components
 # This is required to exclude some files from installation
-# (e.g. rpm packages don't require setupvars scripts or deployment_manager)
+# (e.g. rpm packages don't require setupvars scripts or others)
 #
 
 macro(ov_define_component_include_rules)
@@ -74,6 +69,11 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
     unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
     set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    # tbb
+    set(OV_CPACK_COMP_TBB_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # openmp
+    set(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # licensing
     set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # samples
@@ -86,12 +86,12 @@ macro(ov_define_component_include_rules)
     endif()
     # python
     if(ENABLE_PYTHON_PACKAGING)
-        # pack artifacts of setup.py install
+        # pack artifacts of pip install
         unset(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL)
     else()
         set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     endif()
-    # we don't pack python components itself, we pack artifacts of setup.py install
+    # we don't pack python components itself, we pack artifacts of pip install
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
@@ -99,12 +99,17 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # because numpy is installed by rpm
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # nodejs
+    set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # pkgconfig
+    set(OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    # symbolic links
+    set(OV_CPACK_COMP_LINKS_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    # npu internal tools
+    set(OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL EXCLUDE_FROM_ALL)
 endmacro()
 
 ov_define_component_include_rules()
@@ -125,10 +130,9 @@ macro(ov_rpm_specific_settings)
     # group
     set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
     # changelog file
-    # TODO: fix "error: bad date in %changelog"
-    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
+    set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
     # use rpmlint to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm/post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run
     ov_set_if_not_defined(CPACK_RPM_PACKAGE_DEBUG OFF)
 

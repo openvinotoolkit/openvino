@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                       const ov::AnyMap& properties) const override;
 
+    MOCKTESTMACRO bool is_meta_device(const std::string& priorities) const;
     MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
                                                                                  const ov::AnyMap& properties) const;
 
@@ -67,9 +68,6 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
-protected:
-    ov::AnyMap pre_process_config(const ov::AnyMap& orig_config) const;
-
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,
@@ -78,10 +76,11 @@ private:
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
-                                                            const std::shared_ptr<const ov::Model>& model) const;
+                                                          const std::shared_ptr<const ov::Model>& model,
+                                                          PluginConfig& load_config) const;
     std::string get_log_tag() const noexcept;
-    static std::mutex m_mtx;
-    static std::map<unsigned int, std::list<std::string>> m_priority_map;
+    static std::shared_ptr<std::mutex> m_mtx;
+    static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
 };
 

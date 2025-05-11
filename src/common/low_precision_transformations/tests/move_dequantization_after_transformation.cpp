@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,38 +11,53 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/move_dequantization_after.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class MoveDequantizationAfterTransformationParams {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
+    MoveDequantizationAfterTransformationParams(ov::element::Type originalPrecision,
+                                                TestTransformationParams params,
+                                                bool updateOutputPrecision,
+                                                bool moveSubtract,
+                                                Actual actual,
+                                                Expected expected,
+                                                bool typeRelaxed = true)
+        : originalPrecision(originalPrecision),
+          params(params),
+          updateOutputPrecision(updateOutputPrecision),
+          moveSubtract(moveSubtract),
+          actual(std::move(actual)),
+          expected(std::move(expected)),
+          typeRelaxed(typeRelaxed) {}
 
     ov::element::Type originalPrecision;
     TestTransformationParams params;
-    bool updatePrecision;
+    bool updateOutputPrecision;
     bool moveSubtract;
     Actual actual;
     Expected expected;
+    bool typeRelaxed;
 };
 
 typedef std::tuple<
@@ -56,25 +71,27 @@ public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
-        actualFunction = ngraph::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
             testValues.originalPrecision,
             inputShape,
-            testValues.actual.dequantization);
+            testValues.actual.dequantization,
+            testValues.typeRelaxed);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(targetNode);
-        ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+        ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(
             targetNode,
             dequantization,
-            testValues.updatePrecision,
+            testValues.updateOutputPrecision,
             testValues.moveSubtract);
 
-        referenceFunction = ngraph::builder::subgraph::MoveDequantizationAfterFunction::getReference(
+        referenceFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getReference(
             testValues.originalPrecision,
             inputShape,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            testValues.typeRelaxed);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MoveDequantizationAfterTransformationTestValues> obj) {
@@ -87,7 +104,8 @@ public:
             inputShape << "_" <<
             testValues.actual.dequantization << "_" <<
             (testValues.moveSubtract ? "move_subtract_" : "don't_move_subtract_") <<
-            (testValues.updatePrecision ? "updatePrecision" : "don't_update_precision");
+            (testValues.updateOutputPrecision ? "updateOutputPrecision_" : "don't_update_precision_") <<
+            (testValues.typeRelaxed ? "typeRelaxed" : "not_typeRelaxed");
         return result.str();
     }
 };
@@ -100,6 +118,7 @@ TEST_P(MoveDequantizationAfterTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
+namespace {
 const std::vector<ov::Shape> inputShapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
@@ -136,7 +155,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {},  {}, { 10.f } },
         },
     },
-    // updatePrecision = false
+    // updateOutputPrecision = false
     {
         ov::element::u8,
         LayerTransformation::createParamsU8I8(),
@@ -151,7 +170,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {},  { 7.f }, { 10.f } },
         },
     },
-    // moveSubtract = false & updatePrecision = false
+    // moveSubtract = false & updateOutputPrecision = false
     {
         ov::element::u8,
         LayerTransformation::createParamsU8I8(),
@@ -196,7 +215,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {},  {}, { 10.f } },
         },
     },
-    // updatePrecision = false
+    // updateOutputPrecision = false
     {
         ov::element::i8,
         LayerTransformation::createParamsI8I8(),
@@ -211,7 +230,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {},  { 7.f }, { 10.f } },
         },
     },
-    // moveSubtract = false & updatePrecision = false
+    // moveSubtract = false & updateOutputPrecision = false
     {
         ov::element::i8,
         LayerTransformation::createParamsI8I8(),
@@ -256,6 +275,22 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {},  {}, { { 10.f, 12.f, 16.f } } },
         },
     },
+    // updateOutputPrecision = true & typeRelaxed = false
+    {
+        ov::element::u8,
+        LayerTransformation::createParamsU8I8(),
+        true,
+        true,
+        {
+            { {ov::element::f32},  { 7.f }, { 10.f } },
+        },
+        {
+            { {}, {}, {} },
+            ov::element::u8,
+            { {ov::element::f32}, { 7.f }, { 10.f } },
+        },
+        false
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -265,3 +300,24 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(testValues)),
     MoveDequantizationAfterTransformation::getTestCaseName);
+}  // namespace
+
+TEST(LPT, MoveDequantizationAfterTransformationNegative) {
+    const bool typeRelaxed = false;
+    const bool updateOutputPrecision = false;
+
+    auto model = ov::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
+        ov::element::u8,
+        ov::Shape{1, 3, 16, 16},
+        ov::builder::subgraph::DequantizationOperations{{ov::element::f32}, {7.f}, {10.f}},
+        typeRelaxed);
+
+    const auto targetNode = model->get_output_op(0)->get_input_node_shared_ptr(0);
+    const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+
+    // updateOutputPrecision is supported only for type relaxed nodes
+    EXPECT_ANY_THROW(ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(targetNode,
+                                                                                     dequantization,
+                                                                                     updateOutputPrecision,
+                                                                                     true));
+}

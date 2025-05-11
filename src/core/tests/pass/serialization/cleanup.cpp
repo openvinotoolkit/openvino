@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/serialize.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {
@@ -30,9 +30,9 @@ protected:
 
 namespace {
 std::shared_ptr<ov::Model> create_test_model(const std::string& name, const ov::PartialShape& ps) {
-    const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
-    const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
-    const auto result = std::make_shared<ov::opset8::Result>(convert);
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ps);
+    const auto convert = std::make_shared<ov::op::v0::Convert>(param, ov::element::f32);
+    const auto result = std::make_shared<ov::op::v0::Result>(convert);
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace
@@ -55,4 +55,13 @@ TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
     // .xml & .bin files should be present
     ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
     ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
+}
+
+TEST_F(SerializationCleanupTest, SerializationShouldNotWorkWithMissingParameter) {
+    const auto model = create_test_model("RemovedParameter", ov::PartialShape{2});
+    model->remove_parameter(model->get_parameters()[0]);
+
+    ASSERT_ANY_THROW(ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model));
+    EXPECT_FALSE(std::ifstream(m_out_xml_path, std::ios::in).good());
+    EXPECT_FALSE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }

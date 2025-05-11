@@ -3,11 +3,13 @@
 //
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
+
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "exec_graph_info.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 namespace ov {
 namespace test {
+namespace snippets {
 void SnippetsTestsCommon::validateNumSubgraphs() {
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
     if (isCurrentTestDisabled)
@@ -17,7 +19,7 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
     size_t num_subgraphs = 0;
     size_t num_nodes = 0;
     for (const auto &op : compiled_model->get_ops()) {
-        auto layer_type = op->get_rt_info().at(ExecGraphInfoSerialization::LAYER_TYPE).as<std::string>();
+        auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
         // todo: Ignore reorders only after (Const or Inputs) or before outputs.
         //  Alternatively, force plain layouts for convolutions, matmuls, FCs, etc., so reorders won't be inserted.
         if (layer_type == "Const" ||
@@ -58,5 +60,6 @@ void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
     configuration.emplace(ov::hint::inference_precision(type));
 }
 
+}  // namespace snippets
 }  // namespace test
 }  // namespace ov

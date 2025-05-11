@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,13 @@
 #include <openvino/cc/pass/itt.hpp>
 
 #include "atomic_guard.hpp"
-#include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace std;
 
-ov::pass::PassBase::PassBase() : m_property(), m_pass_config(std::make_shared<PassConfig>()) {}
+ov::pass::PassBase::PassBase() : m_property(), m_name(), m_pass_config(std::make_shared<PassConfig>()) {}
+
+ov::pass::PassBase::~PassBase() = default;
 
 bool ov::pass::PassBase::get_property(const PassPropertyMask& prop) const {
     return m_property.is_set(prop);
@@ -53,9 +54,3 @@ void ov::pass::PassBase::set_callback(const param_callback& callback) {
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
 ov::pass::ModelPass::~ModelPass() = default;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
-
-ngraph::pass::NodePass::~NodePass() = default;

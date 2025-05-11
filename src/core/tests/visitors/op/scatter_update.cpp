@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, scatter_update_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::ScatterUpdate>();
+    NodeBuilder::opset().insert<ov::op::v3::ScatterUpdate>();
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};
     Shape updates_shape{2, 2, 1, 4};

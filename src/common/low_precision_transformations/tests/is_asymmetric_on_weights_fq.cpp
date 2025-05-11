@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,11 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/weightable_layer_transformation.hpp>
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/weightable_layer_transformation.hpp"
+#include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -23,14 +24,14 @@ class IsAsymmetricOnWeightsFakeQuantizeTestValues {
 public:
     TestTransformationParams params;
     ov::element::Type precisionBeforeDequantization;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+    ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ov::op::v0::Constant> weights;
-    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 typedef std::tuple<
     element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     IsAsymmetricOnWeightsFakeQuantizeTestValues,
     std::pair<std::vector<bool>, bool> > IsAsymmetricOnWeightsFakeQuantizeParams;
 
@@ -44,7 +45,7 @@ public:
         auto testValues = std::get<2>(GetParam());
         std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::getOriginal(
             netPrecision,
             testValues.precisionBeforeDequantization,
             inputShape,
@@ -90,7 +91,7 @@ TEST_P(IsAsymmetricOnWeightsFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
     auto defaultPrecisions = std::get<2>(GetParam()).params.defaultPrecisions;
-    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
+    const auto isAsymmetricOnWeights = ov::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
         defaultPrecisions);
     std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
     ASSERT_EQ(transposeAndIsAsymmetricOnWeights.second, isAsymmetricOnWeights);
@@ -100,11 +101,11 @@ const std::vector<element::Type> netPrecisions = {
     element::f32
 };
 
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
-    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
+    ov::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
 };
 
 const std::vector<IsAsymmetricOnWeightsFakeQuantizeTestValues> testValues = {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,16 @@ _OPENVINO_OP_REG(Asinh, ov::op::v3)
 _OPENVINO_OP_REG(Atan, ov::op::v0)
 _OPENVINO_OP_REG(Atanh, ov::op::v3)
 _OPENVINO_OP_REG(AvgPool, ov::op::v1)
+_OPENVINO_OP_REG(AvgPool, ov::op::v14)
 _OPENVINO_OP_REG(BatchNormInference, ov::op::v0)
 _OPENVINO_OP_REG(BatchToSpace, ov::op::v1)
 _OPENVINO_OP_REG(BinaryConvolution, ov::op::v1)
+_OPENVINO_OP_REG(BitwiseAnd, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseLeftShift, ov::op::v15)
+_OPENVINO_OP_REG(BitwiseNot, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseOr, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseRightShift, ov::op::v15)
+_OPENVINO_OP_REG(BitwiseXor, ov::op::v13)
 _OPENVINO_OP_REG(Broadcast, ov::op::v1)
 _OPENVINO_OP_REG(Broadcast, ov::op::v3)
 _OPENVINO_OP_REG(Bucketize, ov::op::v3)
@@ -84,6 +91,7 @@ _OPENVINO_OP_REG(LogicalXor, ov::op::v1)
 _OPENVINO_OP_REG(MVN, ov::op::v0)
 _OPENVINO_OP_REG(MatMul, ov::op::v0)
 _OPENVINO_OP_REG(MaxPool, ov::op::v1)
+_OPENVINO_OP_REG(MaxPool, ov::op::v14)
 _OPENVINO_OP_REG(Maximum, ov::op::v1)
 _OPENVINO_OP_REG(Minimum, ov::op::v1)
 _OPENVINO_OP_REG(Mod, ov::op::v1)

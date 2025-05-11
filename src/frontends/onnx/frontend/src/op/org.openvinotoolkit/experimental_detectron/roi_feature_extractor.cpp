@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
+using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector experimental_detectron_roi_feature_extractor(const Node& node) {
-    using ROIFeatureExtractor = ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor;
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
+ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend::onnx::Node& node) {
+    using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
 
     ROIFeatureExtractor::Attributes attrs{};
     attrs.output_size = node.get_attribute_value<std::int64_t>("output_size", 7);
@@ -26,10 +26,12 @@ OutputVector experimental_detectron_roi_feature_extractor(const Node& node) {
     return {roi_feature_extractor->output(0), roi_feature_extractor->output(1)};
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+ONNX_OP("ExperimentalDetectronROIFeatureExtractor",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
+        OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

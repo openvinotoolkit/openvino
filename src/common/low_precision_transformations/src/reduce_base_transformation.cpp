@@ -1,36 +1,42 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/reduce_base_transformation.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+#include "openvino/core/validation_util.hpp"
+#include "openvino/util/log.hpp"
+
+#include "low_precision/network_helper.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
+#include "openvino/core/graph_util.hpp"
+
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ReduceBaseTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
     const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
-    moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+    const auto newOperation = moveDequantizationAfter(reduce, dequantization, updatePrecision);
+
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
@@ -42,15 +48,11 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     }
 
     // get reduced axes in normal form (without negative values)
-    const auto constData = axesConstant->cast_vector<int64_t>();
     const auto inputRank = reduce->get_input_partial_shape(0).rank();
     if (inputRank.is_dynamic()) {
         return false;
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto axes = util::try_get_normalized_axis_vector(axesConstant->get_tensor_view(), inputRank, *reduce);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();
@@ -107,4 +109,4 @@ bool ReduceBaseTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

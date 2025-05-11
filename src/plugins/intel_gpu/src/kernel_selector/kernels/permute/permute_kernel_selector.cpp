@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,10 @@ permute_kernel_selector::permute_kernel_selector() {
     Attach<PermuteKernel_tile_8x8_4x4>();
     Attach<PermuteKernel_tile_8x8_4x4_fsv>();
     Attach<PermuteKernel_bfzyx_to_bfyxz>();
-    // Attach<PermuteKernel_f_y_axes>();
+    Attach<PermuteKernel_f_y_axes>();
 }
 
-KernelsData permute_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::PERMUTE);
+KernelsData permute_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PERMUTE);
 }
 }  // namespace kernel_selector

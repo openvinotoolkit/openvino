@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,6 @@ public:
     ///
     /// \param data Input tensor
     Gelu(const Output<Node>& data);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
@@ -56,9 +54,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -79,6 +75,8 @@ class OPENVINO_API AttributeAdapter<op::GeluApproximationMode>
     : public EnumAttributeAdapterBase<op::GeluApproximationMode> {
 public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
+
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
 };

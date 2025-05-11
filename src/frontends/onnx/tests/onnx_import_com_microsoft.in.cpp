@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,26 +14,20 @@
 // clang-format on
 
 #include "common_test_utils/file_utils.hpp"
-#include "default_opset.hpp"
 #include "common_test_utils/test_case.hpp"
-#include "onnx_import/onnx.hpp"
-#include "onnx_utils.hpp"
-#include "ngraph/file_util.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "onnx_utils.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
+using namespace ov;
+using namespace ov::frontend::onnx::tests;
 
-using namespace ngraph;
-
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/bias_gelu.onnx"));
+    const auto model = convert_model("com.microsoft/bias_gelu.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({0.5488135f,
                                 0.71518934f,
                                 0.60276335f,
@@ -59,10 +53,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx"));
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx");
 
     std::vector<float> input = {
         0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
@@ -79,7 +70,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
         0.04256713f,  -0.71902490f, 0.23107991f, 0.17300847f,  -0.04390603f, -0.31109563f, 0.51021838f,  -0.66914201f,
         -0.20009395f, -0.43313017f, 0.67281967f, -0.01712347f, 0.09767530f,  -0.43024653f, -0.01836969f, -0.29238200f,
     };
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(input);
     test_case.add_input<float>(skip);
     test_case.add_expected_output<float>(expected);
@@ -87,10 +78,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta.onnx"));
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_with_gamma_beta.onnx");
 
     std::vector<float> input = {
         0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
@@ -107,7 +95,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
         0.07773457f,  -0.51403606f, -0.13661698f, 0.11262375f,  -0.05096011f, -0.10416907f, 0.10070466f,  -0.50876135f,
         -0.22290939f, -0.27663514f, 0.55416691f,  -0.08064821f, 0.04857478f,  -0.25121087f, -0.15912610f, -0.26637587f,
     };
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(input);
     test_case.add_input<float>(skip);
     test_case.add_expected_output<float>(expected);
@@ -115,10 +103,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/skip_layer_normalization_with_gamma.onnx"));
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_with_gamma.onnx");
 
     std::vector<float> input = {
         0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
@@ -135,7 +120,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
         0.14773457f,  -0.11403608f, -0.35661697f, 0.11262375f,  0.01903989f,  0.29583094f,  -0.11929534f, -0.50876135f,
         -0.15290938f, 0.12336487f,  0.33416691f,  -0.08064821f, 0.11857478f,  0.14878914f,  -0.37912610f, -0.26637587f,
     };
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(input);
     test_case.add_input<float>(skip);
     test_case.add_expected_output<float>(expected);
@@ -143,10 +128,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/skip_layer_normalization_dynamic_shapes.onnx"));
+    const auto model = convert_model("com.microsoft/skip_layer_normalization_dynamic_shapes.onnx");
 
     std::vector<float> input = {
         0.54881352f, 0.71518934f, 0.60276335f, 0.54488319f, 0.42365479f, 0.64589411f, 0.43758720f, 0.89177299f,
@@ -182,7 +164,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shape
         0.64228040f, 0.21059875f,  1.05966032f,  -0.14278713f, 1.46366918f, 0.21215858f,  -0.31640187f, -0.22832340f,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{3, 2, 4}, input);
     test_case.add_input<float>(Shape{3, 2, 4}, skip);
     test_case.add_input<float>(Shape{4}, gamma);
@@ -193,10 +175,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shape
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/embed_layer_normalization.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -219,17 +198,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
         -0.03054028f, -0.03603891f, -0.08479506f, -0.00034568f, 0.03713699f,  0.00163411f,  -0.01738501f, -0.18267182f,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(input_ids);
     test_case.add_expected_output<float>(expected_output);
     test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization_with_segment_embedding.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -261,7 +237,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
         0,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(input_ids);
     test_case.add_input<int>(segment_ids);
     test_case.add_expected_output<float>(expected_output);
@@ -270,10 +246,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding_and_mask) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding_and_mask.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization_with_segment_embedding_and_mask.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -307,7 +280,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
         4,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(input_ids);
     test_case.add_input<int>(segment_ids);
     test_case.add_input<int>(mask);
@@ -317,10 +290,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization_dynamic_shapes.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -401,7 +371,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shap
         5,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(Shape{3, 8}, input_ids);
     test_case.add_input<int>(Shape{3, 8}, segment_ids);
     test_case.add_input<float>(Shape{10, 5}, word_embeddings);
@@ -416,10 +386,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shap
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization_dynamic_shapes.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -501,7 +468,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len
         5,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(Shape{3, 8}, input_ids);
     test_case.add_input<int>(Shape{3, 8}, segment_ids);
     test_case.add_input<float>(Shape{10, 5}, word_embeddings);
@@ -516,10 +483,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_position_ids) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                             SERIALIZED_ZOO,
-                             "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes_with_position_ids.onnx"));
+    const auto model = convert_model("com.microsoft/embed_layer_normalization_dynamic_shapes_with_position_ids.onnx");
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -604,7 +568,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_positio
         5,
     };
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<int>(Shape{3, 8}, input_ids);
     test_case.add_input<int>(Shape{3, 8}, segment_ids);
     test_case.add_input<float>(Shape{10, 5}, word_embeddings);
@@ -620,10 +584,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_positio
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/attention.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.91475844f, 0.91523546f, 0.82536930f, 0.37491974f, 0.22384071f, 0.05941105f, 0.01902100f, 0.70131350f,
@@ -643,11 +605,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_qkv_hidden_sizes.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_qkv_hidden_sizes.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.56477863f, 0.60309958f, 0.35158035f, 0.03123519f, 0.81918180f, 0.76905495f, 0.47219241f, 0.72016627f,
@@ -671,11 +630,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_unidirectional.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_unidirectional.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.89578921f, 0.42421508f, 0.35630688f, 0.77461642f, 0.65753633f, 0.09723099f, 0.62597734f, 0.72117692f,
@@ -706,11 +662,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1f) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_mask_index_1.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_mask_index_1.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.02841483f, 0.47845092f, 0.14633700f, 0.54597300f, 0.40160629f, 0.55281311f, 0.14931096f, 0.64483738f,
@@ -746,11 +699,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1f) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_mask_index_2.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_mask_index_2.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.75259578f, 0.81492645f, 0.46713001f, 0.29483622f, 0.06768602f, 0.95105755f, 0.32065326f, 0.52417183f,
@@ -788,11 +738,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_mask_index_3.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_mask_index_3.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.33093750f, 0.39181390f, 0.14586255f, 0.39709702f, 0.98086524f, 0.03891133f, 0.72234219f, 0.21966648f,
@@ -834,11 +781,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_mask_index_4.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_mask_index_4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.23565151f, 0.58627969f, 0.75137484f, 0.68586946f, 0.62750375f, 0.13284931f, 0.13347220f, 0.36357051f,
@@ -873,11 +817,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_past.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_past.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.82966000f, 0.77751911f, 0.08977074f, 0.06076468f, 0.40659550f, 0.19995944f, 0.55544919f, 0.83971608f,
@@ -952,11 +893,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_extra_add.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_extra_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.14930259f, 0.11199699f, 0.81292826f, 0.08368169f, 0.05704883f, 0.41276145f, 0.38760167f, 0.00146112f,
@@ -1009,11 +947,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/attention_dynamic_shapes.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/attention_dynamic_shapes.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> input = {
         0.42226878f, 0.50984067f, 0.80440795f, 0.68040705f, 0.93614250f, 0.45104721f, 0.71767306f, 0.48596525f,
@@ -1111,10 +1046,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fusedgemm.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fusedgemm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     std::vector<float> inputA = {
         0.760289272f,
@@ -1182,11 +1115,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_hard_sigmoid.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_hard_sigmoid.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{0.125f, 0.125f, 0.125f, 0.125f, -0.125f, -0.125f, -0.125f, -0.125f};
@@ -1199,11 +1129,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_relu.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_relu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
@@ -1216,11 +1143,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_tanh.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_tanh.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -2.0f, -1.0f, -2.0f};
@@ -1233,11 +1157,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_sigmoid.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_sigmoid.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, 1.0f, 5.0f, 1.0f, -1.0f, -2.0f, -5.0f, -2.0f};
@@ -1250,11 +1171,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_clip.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_clip.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, 1.0f, 5.0f, 1.0f, -1.0f, -2.0f, -5.0f, -2.0f};
@@ -1267,11 +1185,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_leaky_relu.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_leaky_relu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
@@ -1284,11 +1199,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu_z_input) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/com.microsoft/fused_conv_relu_z_input.onnx"));
-    auto test_case = ov::test::TestCase(function, s_device);
+    const auto model = convert_model("com.microsoft/fused_conv_relu_z_input.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     const std::vector<float> W{1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f};
@@ -1305,11 +1217,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu_z_input) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/trilu_lower.onnx"));
+    const auto model = convert_model("com.microsoft/trilu_lower.onnx");
 
-    auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(model, s_device);
     // clang-format off
     test_case.add_input<float>(Shape{4, 5},
         std::vector<float>{ 1,  2,  3,  4,  5,
@@ -1351,4 +1261,931 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
     test_case.run();
 
     // clang-format on
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
+    const auto model = convert_model("com.microsoft/gather_nd.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int> data{0, 1, 2, 3};
+    const std::vector<int> indices{0, 0, 1, 1};
+    const std::vector<int> output{0, 3};
+
+    test_case.add_input<int>(Shape{2, 2}, data);
+    test_case.add_input<int>(Shape{2, 2}, indices);
+    test_case.add_expected_output<int>(Shape{2}, output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_2d) {
+    const auto model = convert_model("com.microsoft/pad_2d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_input<int64_t>({0, 2, 0, 0});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_1d) {
+    const auto model = convert_model("com.microsoft/pad_1d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_input<int64_t>({0, 2, 0, 0});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x4) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {31.25f, 28.125f, 24.f, 78.75f, 75.625f, 72.f, 126.25f, 123.125f, 120.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x17.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6,
+                                7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(
+            Shape{3, 3},
+            {425.25f, 372.5f, 352.25f, 446.5f, 448.75f, 476.5f, 400.25f, 480.5f, 533.f});
+    } else {
+        test_case.add_expected_output<float>(
+            Shape{3, 3},
+            {425.25f, 372.375f, 352.375f, 446.625f, 448.875f, 476.5f, 400.5f, 480.375f, 533.125f});
+    }
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
+    const auto model = convert_model("com.microsoft/quick_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input_X{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    const std::vector<float> output{0.7305524f,
+                                    1.7605114f,
+                                    2.8566725f,
+                                    3.9273243f,
+                                    4.9661055f,
+                                    5.984934f,
+                                    6.9935064f,
+                                    7.997261f,
+                                    8.998864f,
+                                    9.999535f};
+
+    test_case.add_input<float>(Shape{2, 5}, input_X);
+    test_case.add_expected_output<float>(Shape{2, 5}, output);
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp(0.0001f);
+    } else {
+        test_case.run();
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_matmul.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Fill test case here
+    const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728944f, 5.213912031f, 6.12931230f};
+    const std::vector<int8_t> input_B{-2, 29, 61, 61, 29, 125};
+    const std::vector<float> b_scale{0.0031372549019608f};
+    const std::vector<int8_t> b_zero_point{-34};
+
+    const std::vector<float> expected{0.8681802f,
+                                      0.7458673f,
+                                      1.6218146f,
+                                      1.5770973f,
+                                      1.4774824f,
+                                      3.0677009f,
+                                      2.3504133f,
+                                      2.2423527f,
+                                      4.611995f};
+
+    // add_input needs to be called in order of model inputs (order matters)
+    test_case.add_input<float>(Shape{3, 2}, input_A);
+    test_case.add_input<int8_t>(Shape{2, 3}, input_B);
+    test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
+
+    test_case.add_expected_output<float>(Shape{3, 3}, expected);
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp(0.0055f);
+    } else {
+        test_case.run_with_tolerance_as_fp(0.0055f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_bias) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_matmul_bias.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Fill test case here
+    const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728944f, 5.213912031f, 6.12931230f};
+    const std::vector<int8_t> input_B{-2, -78, -5, 61, -78, -7};
+    const std::vector<float> b_scale{0.0031372549019608f, 0.0015686274509804f, 3.92156862745098e-4f};
+    const std::vector<int8_t> b_zero_point{-34, 51, -2};
+    const std::vector<float> bias{3.231f, 7.545f, 6.969f};
+
+    const std::vector<float>
+        expected{4.09918f, 6.781374f, 6.9626184f, 4.8080974f, 6.0323396f, 6.956925f, 5.5814133f, 5.249258f, 6.9508452f};
+
+    // add_input needs to be called in order of model inputs (order matters)
+    test_case.add_input<float>(Shape{3, 2}, input_A);
+    test_case.add_input<int8_t>(Shape{2, 3}, input_B);
+    test_case.add_input<float>(Shape{3}, b_scale);
+    test_case.add_input<int8_t>(Shape{3}, b_zero_point);
+    test_case.add_input<float>(Shape{3}, bias);
+
+    test_case.add_expected_output<float>(Shape{3, 3}, expected);
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp(0.0055f);
+    } else {
+        test_case.run_with_tolerance_as_fp(0.0055f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
+    const auto model = convert_model("com.microsoft/skip_simplified_layer_normalization.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    std::vector<float> input = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                                13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> skip = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                               13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> expected_output = {
+        0.0353291891515255f,  0.1317980140447617f,  0.3415765166282654f,  0.5857689380645752f,  0.07553060352802277f,
+        0.1764662563800812f,  0.3244849443435669f,  0.4868034422397614f,  0.08510704338550568f, 0.1860678195953369f,
+        0.3164101839065552f,  0.4556762874126434f,  0.08931596577167511f, 0.1901365667581558f,  0.3122786283493042f,
+        0.4408963620662689f,  0.09167447686195374f, 0.19237320125103f,    0.3097965121269226f,  0.4322993457317352f,
+        0.09318139404058456f, 0.1937852799892426f,  0.3081453144550323f,  0.4266831874847412f};
+
+    test_case.add_input<float>(Shape{3, 2, 4}, input);
+    test_case.add_input<float>(Shape{3, 2, 4}, skip);
+    test_case.add_expected_output<float>({3, 2, 4}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_2x2x8) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization_2x2x8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X{1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f,
+                               12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f,
+                               23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f, 32.f};
+
+    test_case.add_input<float>(Shape{2, 2, 8}, X);
+
+    test_case.add_expected_output<float>(
+        Shape{2, 2, 8},
+        {0.19802947f, 0.39605895f, 0.59408844f, 0.7921179f,  0.9901474f, 1.1881769f, 1.3862064f, 1.5842358f,
+         0.7082005f,  0.78688943f, 0.8655784f,  0.94426733f, 1.0229563f, 1.1016452f, 1.1803342f, 1.2590232f,
+         0.8241365f,  0.8726151f,  0.9210937f,  0.96957237f, 1.0180509f, 1.0665295f, 1.1150082f, 1.1634868f,
+         0.87437177f, 0.90934664f, 0.9443215f,  0.9792964f,  1.0142713f, 1.0492461f, 1.084221f,  1.1191958f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_3x8) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization_3x8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X{0.198f, 0.396f, 0.594f, 0.792f, 0.990f, 1.188f, 1.386f, 1.584f,
+                               0.708f, 0.786f, 0.865f, 0.944f, 1.023f, 1.102f, 1.180f, 1.259f,
+                               0.824f, 0.873f, 0.921f, 0.970f, 1.018f, 1.067f, 1.115f, 1.163f};
+
+    test_case.add_input<float>(Shape{3, 8}, X);
+
+    test_case.add_expected_output<float>(
+        Shape{3, 8},
+        {0.19802852f, 0.39605704f, 0.5940855f,  0.7921141f,  0.9901426f, 1.188171f,  1.3861997f, 1.5842282f,
+         0.70813656f, 0.7861516f,  0.86516684f, 0.94418204f, 1.0231973f, 1.1022125f, 1.1802275f, 1.2592428f,
+         0.82395196f, 0.8729491f,  0.9209463f,  0.96994346f, 1.0179406f, 1.0669378f, 1.114935f,  1.1629322f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_with_delta) {
+    const auto model = convert_model("com.microsoft/range_with_delta.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({0.f});
+    test_case.add_input<float>({10.f});
+    test_case.add_input<float>({1.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_without_delta) {
+    const auto model = convert_model("com.microsoft/range_without_delta.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({0.f});
+    test_case.add_input<float>({10.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x3) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_2D.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+    const std::vector<float> data_B{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+    const std::vector<float> expected_output{66.75f, 73.5f, 87.f, 96.f};
+
+    test_case.add_input<float>(Shape{3, 2}, data_A);
+    test_case.add_input<float>(Shape{3, 2}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x5x3x6x4_2x6x3x4x7) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_trans_and_transbatch_enabled.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                                       31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f};
+
+    const std::vector<float> data_B = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f};
+
+    const std::vector<float> expected_output = {87.5f,   200.0f,  312.5f,  95.0f,   220.0f,  345.0f,  102.5f,  240.0f,
+                                                377.5f,  110.0f,  260.0f,  410.0f,  1325.0f, 1687.5f, 2050.0f, 1370.0f,
+                                                1745.0f, 2120.0f, 1415.0f, 1802.5f, 2190.0f, 1460.0f, 1860.0f, 2260.0f};
+
+    test_case.add_input<float>(Shape{2, 5, 4}, data_A);
+    test_case.add_input<float>(Shape{2, 3, 5}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
+    const auto model = convert_model("com.microsoft/matmul_integer_to_float.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40, 50, 60};
+    const std::vector<int8_t> data_B{70, 80, 90, 100, 110, 120};
+
+    const std::vector<float> a_scale{0.1f, 0.1f, 0.1f};
+    const std::vector<float> b_scale{0.1f, 0.1f};
+
+    const std::vector<int8_t> a_zero_point{1, 0, 2};
+    const std::vector<int8_t> b_zero_point{0, 1};
+
+    const std::vector<float> bias{0.5f, 0.25f};
+
+    const std::vector<float> expected_output{55.59999847412109f,
+                                             60.48000335693359f,
+                                             136.6000061035156f,
+                                             149.5800170898438f};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_A);
+    test_case.add_input<int8_t>(Shape{3, 2}, data_B);
+    test_case.add_input<float>(Shape{3}, a_scale);
+    test_case.add_input<float>(Shape{2}, b_scale);
+    test_case.add_input<int8_t>(Shape{3}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2}, b_zero_point);
+    test_case.add_input<float>(Shape{2}, bias);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_avg_pool.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_A = {140, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127,
+                                         126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116, 115, 114,
+                                         113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+                                         100, 99,  98,  97,  96,  95,  94,  93,  92,  91};
+
+    const std::vector<uint8_t> expected_output = {149};
+
+    test_case.add_input<uint8_t>(Shape{1, 1, 7, 7}, data_A);
+
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 1}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
+    const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{0, 0, 2, 4, 4, 4};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
+    const auto model = convert_model("com.microsoft/q_linear_leaky_relu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{-2, -1, 0, 12, 25, 37};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_add) {
+    const auto model = convert_model("com.microsoft/q_linear_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40};
+    const std::vector<int8_t> data_B{1, 2, 3, 4};
+
+    const std::vector<float> a_scale{0.1f};
+    const std::vector<float> b_scale{0.2f};
+    const std::vector<float> c_scale{0.3f};
+
+    const std::vector<int8_t> a_zero_point{5};
+    const std::vector<int8_t> b_zero_point{3};
+    const std::vector<int8_t> c_zero_point{2};
+
+    const std::vector<int8_t> expected_output{2, 6, 10, 14};
+
+    test_case.add_input<int8_t>(Shape{2, 2}, data_A);
+    test_case.add_input<float>(Shape{1}, a_scale);
+    test_case.add_input<int8_t>(Shape{1}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2, 2}, data_B);
+    test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
+    test_case.add_input<float>(Shape{1}, c_scale);
+    test_case.add_input<int8_t>(Shape{1}, c_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
+    const auto model = convert_model("com.microsoft/q_linear_mul.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40};
+    const std::vector<int8_t> data_B{2, 3, 4, 5};
+
+    const std::vector<float> a_scale{0.1f};
+    const std::vector<float> b_scale{0.2f};
+    const std::vector<float> c_scale{0.3f};
+
+    const std::vector<int8_t> a_zero_point{5};
+    const std::vector<int8_t> b_zero_point{3};
+    const std::vector<int8_t> c_zero_point{2};
+
+    const std::vector<int8_t> expected_output{1, 2, 3, 6};
+
+    test_case.add_input<int8_t>(Shape{2, 2}, data_A);
+    test_case.add_input<float>(Shape{1}, a_scale);
+    test_case.add_input<int8_t>(Shape{1}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2, 2}, data_B);
+    test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
+    test_case.add_input<float>(Shape{1}, c_scale);
+    test_case.add_input<int8_t>(Shape{1}, c_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fast_gelu) {
+    const auto model = convert_model("com.microsoft/fast_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {0.0f,  0.5f, 1.0f,  -0.5f, -1.0f, 2.0f, 1.5f,  -2.0f, 0.3f,  0.7f, -0.7f, 1.2f,
+                                  -0.3f, 0.8f, -1.5f, 1.1f,  -0.9f, 0.4f, -1.2f, 2.1f,  -0.4f, 0.6f, -1.1f, 1.3f};
+    const std::vector<float> bias = {0.1f, -0.1f, 0.2f};
+
+    const std::vector<float> expected_output = {
+        0.05398275f, 0.2621714f, 1.0615974f,  -0.1378286f, -0.1492447f, 2.1699832f, 1.51072f,     -0.0378f,
+        0.34569725f, 0.6304f,    -0.1696f,    1.2874f,     -0.0841f,    0.53025f,   -0.12675f,    1.0614f,
+        -0.159f,     0.4353f,    -0.1492447f, 1.954764f,   -0.0841f,    0.53025f,   -0.13829723f, 1.39957158f};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
+    const auto model = convert_model("com.microsoft/bias_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    const std::vector<float> bias = {2, 0, -1};
+    const std::vector<float> skip = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+
+    const std::vector<float> expected_output = {3,  2,  2,  7,  6,  6,  11, 10, 10, 15, 14, 14,
+                                                19, 18, 18, 23, 22, 22, 27, 26, 26, 31, 30, 30};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+    test_case.add_input<float>(Shape{2, 4, 3}, skip);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+    };
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {1.2561098f,
+                                               1.0199738f,
+                                               -0.05948371f,
+                                               -0.16574995f,
+                                               2.5059946f,
+                                               -1.738188f,
+                                               -0.03158256f,
+                                               -0.35975295f,
+                                               1.0918287f,
+                                               -0.90313876f,
+                                               -0.4790303f,
+                                               0.67029977f,
+                                               -0.87039495f,
+                                               0.7783688f,
+                                               -0.81333745f,
+                                               0.89886224f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved) {
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+    };
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {2.118801f,
+                                               -0.2640816f,
+                                               -0.5926066f,
+                                               -0.19455537f,
+                                               0.9903903f,
+                                               2.954185f,
+                                               -0.35343042f,
+                                               -0.07457897f,
+                                               -0.25603274f,
+                                               -0.03627284f,
+                                               0.56591415f,
+                                               0.02181074f,
+                                               -0.1586003f,
+                                               0.96567893f,
+                                               -0.8591481f,
+                                               0.85514885f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {
+        -0.6136f,
+        0.0316f,
+        -0.4927f,
+        0.2484f,
+        0.4397f,
+        0.1124f,
+        0.6408f,
+        0.4412f,
+        -0.1023f,
+        0.7924f,
+        -0.2897f,
+        0.0525f,
+        0.5229f,
+        2.3022f,
+        -1.4689f,
+        -1.5867f,
+    };
+    std::vector<float> past_value = {
+        -0.5692f,
+        0.9200f,
+        1.1108f,
+        1.2899f,
+        -1.4782f,
+        2.5672f,
+        -0.4731f,
+        0.3356f,
+        -1.6293f,
+        -0.5497f,
+        -0.4798f,
+        -0.4997f,
+        -1.0670f,
+        1.1149f,
+        -0.1407f,
+        0.8058f,
+    };
+    std::vector<int> seqlens_k = {1};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+        -0.9635f,
+        -0.8046f,
+        0.4139f,
+        0.9863f,
+        0.4117f,
+        0.9874f,
+        -0.9743f,
+        0.9494f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+        0.2677f,
+        -0.5938f,
+        -0.9103f,
+        -0.1650f,
+        -0.9113f,
+        -0.1583f,
+        0.2253f,
+        0.3140f,
+    };
+
+    std::vector<float> expected_output = {
+        -0.53934956f, 0.6341806f,  1.0099611f,   1.1771176f,   -1.270278f,   2.3782496f, -0.511299f,   0.30222273f,
+        -1.5435482f,  -0.5423737f, -0.27520883f, -0.4914196f,  -0.96554786f, 1.1191509f, -0.05004983f, 0.85533774f,
+        -0.49356747f, 0.19581467f, 0.8553029f,   1.0041412f,   -0.9513843f,  2.088453f,  -0.5698854f,  0.25103146f,
+        -1.4120293f,  -0.5311372f, 0.03857604f,  -0.47871974f, -0.8099488f,  1.1256707f, 0.08898184f,  0.93131447f};
+
+    std::vector<float> expected_present_key = {
+        -0.6136f,    0.0316f,    -0.4927f,     0.2484f,    0.4397f,      0.1124f,     0.6408f,     0.4412f,
+        -0.1023f,    0.7924f,    -0.2897f,     0.0525f,    0.5229f,      2.3022f,     -1.4689f,    -1.5867f,
+        -1.6519198f, 1.1400802f, 0.45031136f,  0.5877534f, -0.65952265f, -1.8121169f, 0.04630837f, 0.5568472f,
+        0.20271924f, 0.7458131f, -0.17379119f, 0.3623912f, 2.5696063f,   -0.58594f,   -0.8126341f, -0.7919839f};
+
+    std::vector<float> expected_present_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f,  0.3492f,
+        -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved) {
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {
+        -0.6136f,
+        0.0316f,
+        -0.4927f,
+        0.2484f,
+        0.4397f,
+        0.1124f,
+        0.6408f,
+        0.4412f,
+        -0.1023f,
+        0.7924f,
+        -0.2897f,
+        0.0525f,
+        0.5229f,
+        2.3022f,
+        -1.4689f,
+        -1.5867f,
+    };
+    std::vector<float> past_value = {
+        -0.5692f,
+        0.9200f,
+        1.1108f,
+        1.2899f,
+        -1.4782f,
+        2.5672f,
+        -0.4731f,
+        0.3356f,
+        -1.6293f,
+        -0.5497f,
+        -0.4798f,
+        -0.4997f,
+        -1.0670f,
+        1.1149f,
+        -0.1407f,
+        0.8058f,
+    };
+    std::vector<int> seqlens_k = {1};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+        -0.9635f,
+        -0.8046f,
+        0.4139f,
+        0.9863f,
+        0.4117f,
+        0.9874f,
+        -0.9743f,
+        0.9494f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+        0.2677f,
+        -0.5938f,
+        -0.9103f,
+        -0.1650f,
+        -0.9113f,
+        -0.1583f,
+        0.2253f,
+        0.3140f,
+    };
+
+    std::vector<float> expected_output = {
+        -0.33396345f, -1.332403f,   0.31613833f, 0.40111685f,  0.16033238f, 1.0781744f, -0.7741276f, 0.07257013f,
+        -0.9535321f,  -0.491965f,   1.1324831f,  -0.43444604f, -0.2675047f, 1.1483997f, 0.57366973f, 1.1961825f,
+        -0.24709277f, -2.164195f,   0.02267693f, 0.07289726f,  0.7654276f,  0.5282906f, -0.8852943f, -0.02456442f,
+        -0.7039771f,  -0.47064403f, 1.7278847f,  -0.41034833f, 0.02774171f, 1.1607709f, 0.83748007f, 1.3403473f};
+
+    std::vector<float> expected_present_key = {
+        -0.6136f,    0.0316f,      -0.4927f,    0.2484f,      0.4397f,      0.1124f,    0.6408f,      0.4412f,
+        -0.1023f,    0.7924f,      -0.2897f,    0.0525f,      0.5229f,      2.3022f,    -1.4689f,     -1.5867f,
+        -1.2216992f, 1.7511603f,   0.03145146f, -0.62293506f, -2.625969f,   1.6767058f, -0.17887366f, 0.313817f,
+        0.1717277f,  -0.19334024f, 0.4056727f,  0.39516917f,  -0.25018305f, 0.9460988f, 1.0327814f,   -0.6345757f};
+
+    std::vector<float> expected_present_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f,  0.3492f,
+        -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax) {
+    const auto model = convert_model("com.microsoft/qlinear_softmax_opset13.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.03f};
+    const std::vector<int8_t> y_zero_point{5};
+
+    const std::vector<int8_t> expected_output{5, 7, 35, 5, 7, 35};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax_opset12) {
+    const auto model = convert_model("com.microsoft/qlinear_softmax_opset12.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-60, -40, -20, 0, 20, 40,  60,  80,  100, 120,
+                                     -10, -5,  0,   5, 10, -80, -60, -40, -20, 0};
+    const std::vector<float> x_scale{0.15f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.05f};
+    const std::vector<int8_t> y_zero_point{3};
+
+    const std::vector<int8_t> expected_output{3, 3, 3, 3, 22, 3, 3, 3, 3, 22, 3, 4, 5, 8, 13, 3, 3, 3, 3, 22};
+
+    test_case.add_input<int8_t>(Shape{4, 5}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{4, 5}, expected_output);
+    test_case.run();
 }

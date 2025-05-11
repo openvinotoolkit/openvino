@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,27 +37,17 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The concatenation axis.
-    int64_t get_concatenation_axis() const {
-        return m_concat_axis;
-    }
-    void set_concatenation_axis(int64_t concatenation_axis) {
-        m_concat_axis = concatenation_axis;
-    }
-    /// \return The concatenation axis.
     int64_t get_axis() const {
         return m_axis;
     }
     void set_axis(int64_t axis) {
         m_axis = axis;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& output_values) const override;
     bool evaluate_upper(TensorVector& output_values) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbol) const override;
 
 protected:
     /// \ brief m_axis stores default value for all iterations

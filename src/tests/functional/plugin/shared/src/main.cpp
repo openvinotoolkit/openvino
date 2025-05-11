@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 
 int main(int argc, char *argv[]) {
     ov::test::utils::disable_tests_skipping = false;
+    ov::test::utils::is_print_rel_influence_coef = false;
     bool print_custom_help = false;
     std::string outputFolderPath(".");
     for (int i = 0; i < argc; ++i) {

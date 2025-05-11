@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sgemm.hpp"
@@ -11,8 +11,7 @@
 #include "openvino/core/parallel.hpp"
 #include "thread_pool.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 size_t mlas_sgemm_pack_get_size(const int64_t N, const int64_t K) {
     return MlasGemmPackBSize(N, K);
@@ -54,7 +53,7 @@ void mlas_sgemm(const char* transa,
     sgemmParam.beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    ov::cpu::OVMlasThreadPool threadPool(0 == thread_num ? parallel_get_num_threads() : thread_num);
+    ov::cpu::OVMlasThreadPool threadPool(0 == thread_num ? parallel_get_max_threads() : thread_num);
     MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }
 
@@ -74,7 +73,7 @@ void mlas_sgemm_compute(const char* transa,
                         const float* bias,
                         size_t thread_num) {
     // C = alpha*op( A )op( B ) + beta * C
-    ov::cpu::OVMlasThreadPool threadPool(0 == thread_num ? parallel_get_num_threads() : thread_num);
+    ov::cpu::OVMlasThreadPool threadPool(0 == thread_num ? parallel_get_max_threads() : thread_num);
     MLAS_SGEMM_DATA_PARAMS sgemmParam;
     sgemmParam.BIsPacked = true;
     sgemmParam.A = A;
@@ -90,5 +89,4 @@ void mlas_sgemm_compute(const char* transa,
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
     MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

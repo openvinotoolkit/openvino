@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API AUGRUCellFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AUGRUCellFusion transformation replaces a sequence of
  * operations with AUGRUCell op.
  *
@@ -32,6 +32,6 @@ class TRANSFORMATIONS_API AUGRUCellFusion;
 
 class ov::pass::AUGRUCellFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AUGRUCellFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("AUGRUCellFusion");
     AUGRUCellFusion();
 };

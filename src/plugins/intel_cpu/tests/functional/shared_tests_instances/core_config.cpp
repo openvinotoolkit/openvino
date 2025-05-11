@@ -1,39 +1,34 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/core_config.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-
-void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
-    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    auto& configuration = test->GetConfiguration();
-    if (!configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
-    #if defined(OV_CPU_ARM_ENABLE_FP16)
-        //force fp32 inference precision if it is not configured specially
-        if (!configuration.count(ov::hint::inference_precision.name())) {
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::f32.to_string()});
-        }
-    #endif
-}
 
 namespace ov {
 namespace test {
 
 void core_configuration(ov::test::SubgraphBaseTest* test) {
-    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        if (!test->configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-            test->configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        }
-    #endif
-    #if defined(OV_CPU_ARM_ENABLE_FP16)
-        //force fp32 inference precision if it is not configured specially
-        if (!test->configuration.count(ov::hint::inference_precision.name())) {
-            test->configuration.insert({ov::hint::inference_precision.name(), ov::element::f32.to_string()});
-        }
-    #endif
+    auto& config = test->configuration;
+    auto exec_mode = config.find(hint::execution_mode.name());
+    auto inf_prc = config.find(hint::inference_precision.name());
+
+    // Force fp32 inference precision if it is not configured specially
+    if (inf_prc == config.end() &&
+        (exec_mode == config.end() || exec_mode->second != hint::ExecutionMode::ACCURACY)) {
+        config.insert({hint::inference_precision.name(), element::f32.to_string()});
+    }
+
+    // todo: issue: 123320
+    if (!((inf_prc != config.end() && (inf_prc->second == element::dynamic)) ||
+          (inf_prc == config.end() && exec_mode != config.end() &&
+           exec_mode->second == hint::ExecutionMode::ACCURACY))) {
+        test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
+        test->convert_precisions.insert({ov::element::f16, ov::element::f32});
+    }
+
+    // Enable CPU pinning in CPU funtional tests to save validation time of Intel CPU plugin func tests (parallel)
+    // on Windows
+    config.insert({ov::hint::enable_cpu_pinning.name(), true});
 }
 
 } // namespace test

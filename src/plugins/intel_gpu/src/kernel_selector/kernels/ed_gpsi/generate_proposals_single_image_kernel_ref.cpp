@@ -23,13 +23,12 @@ ParamsKey ExperimentalDetectronGenerateProposalsSingleImageRef::GetSupportedKey(
     return k;
 }
 
-KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE ||
-        o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
+bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
         return false;
     }
     return true;
@@ -40,7 +39,6 @@ constexpr size_t kImInfoInputIdx = 0;
 constexpr size_t kAnchorsInputIdx = 1;
 constexpr size_t kDeltasInputIdx = 2;
 constexpr size_t kScoresInputIdx = 3;
-constexpr size_t kRoiScoresOutputIdx = 4;
 
 ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData SetDefault(
         const experimental_detectron_generate_proposals_single_image_params& params, size_t idx) {
@@ -89,7 +87,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2}); // nms_num_outputs
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // rois
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoiScoresOutputIdx}); // roi scores
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1}); // roi scores
             break;
         }
         default:
@@ -97,8 +95,8 @@ void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
     }
 }
 
-KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -117,16 +115,16 @@ KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData
 
     constexpr size_t kProposalBoxSize = 5; // 5 values: {x0, y0, x1, y1, score}
     const auto proposals_buffer_size = num_proposals * sizeof(float) * kProposalBoxSize;
-    kd.internalBufferSizes.push_back(proposals_buffer_size);
+    kd.internalBuffers.push_back(proposals_buffer_size);
 
     const auto out_indices_size = new_params.post_nms_count * sizeof(float);
-    kd.internalBufferSizes.push_back(out_indices_size);
+    kd.internalBuffers.push_back(out_indices_size);
 
-    kd.internalBufferSizes.push_back(sizeof(size_t));
+    kd.internalBuffers.push_back(sizeof(size_t));
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatchData = SetDefault(new_params, i);
-        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
 

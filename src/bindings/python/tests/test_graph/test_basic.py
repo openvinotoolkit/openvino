@@ -1,32 +1,35 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ops
-import openvino.runtime as ov
+import openvino.opset8 as ops
+import openvino as ov
 
 from openvino import (
     Model,
+    Layout,
     PartialShape,
     Shape,
+    Strides,
     Tensor,
     Type,
-    OVAny,
     layout_helpers,
 )
 
-from openvino.runtime.op import Parameter
-from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
+from openvino.op import Parameter, Constant
+from openvino.op.util import VariableInfo, Variable
+from openvino import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
+from tests.utils.helpers import generate_model_with_memory
 
 
-def test_graph_function_api():
+def test_graph_api():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=Type.f32, name="B")
@@ -36,35 +39,35 @@ def test_graph_function_api():
     assert parameter_a.element_type == Type.f32
     assert parameter_b.element_type == Type.f32
     assert parameter_a.partial_shape == PartialShape([2, 2])
-    parameter_a.layout = ov.Layout("NC")
-    assert parameter_a.layout == ov.Layout("NC")
-    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
+    parameter_a.layout = Layout("NC")
+    assert parameter_a.layout == Layout("NC")
+    model = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
-    function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
+    model.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
-    ordered_ops = function.get_ordered_ops()
+    ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
-    assert len(function.get_ops()) == 6
-    assert function.get_output_size() == 1
-    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in function.inputs]
-    assert ["Result"] == [output.get_node().get_type_name() for output in function.outputs]
-    assert function.input(0).get_node().friendly_name == "A"
-    assert function.output(0).get_node().get_type_name() == "Result"
-    assert function.input(tensor_name="A").get_node().friendly_name == "A"
-    assert function.output().get_node().get_type_name() == "Result"
-    assert function.get_output_op(0).get_type_name() == "Result"
-    assert function.get_output_element_type(0) == parameter_a.get_element_type()
-    assert list(function.get_output_shape(0)) == [2, 2]
-    assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
-    assert len(function.get_parameters()) == 3
-    results = function.get_results()
+    assert len(model.get_ops()) == 6
+    assert model.get_output_size() == 1
+    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in model.inputs]
+    assert ["Result"] == [output.get_node().get_type_name() for output in model.outputs]
+    assert model.input(0).get_node().friendly_name == "A"
+    assert model.output(0).get_node().get_type_name() == "Result"
+    assert model.input(tensor_name="A").get_node().friendly_name == "A"
+    assert model.output().get_node().get_type_name() == "Result"
+    assert model.get_output_op(0).get_type_name() == "Result"
+    assert model.get_output_element_type(0) == parameter_a.get_element_type()
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert (model.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
+    assert len(model.get_parameters()) == 3
+    results = model.get_results()
     assert len(results) == 1
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
-    results[0].layout = ov.Layout("NC")
-    assert results[0].layout.to_string() == ov.Layout("NC")
-    assert function.get_friendly_name() == "TestModel"
+    results[0].layout = Layout("NC")
+    assert results[0].layout.to_string() == Layout("NC")
+    assert model.get_friendly_name() == "TestModel"
 
 
 @pytest.mark.parametrize(
@@ -142,6 +145,8 @@ def test_convert_to_bool(destination_type, input_data):
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64),
+        pytest.param(Type.f32, (-8, 8), np.int32, np.float32),
+        pytest.param(Type.f64, (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -243,6 +248,29 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
+@pytest.mark.parametrize(
+    "shared_flag",
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    "init_value",
+    [
+        (np.array([])),
+        (np.array([], dtype=np.int32)),
+        (np.empty(shape=(0))),
+    ],
+)
+def test_constant_from_empty_array(shared_flag, init_value):
+    const = Constant(init_value, shared_memory=shared_flag)
+    assert tuple(const.shape) == init_value.shape
+    assert const.get_element_type().to_dtype() == init_value.dtype
+    assert const.get_byte_size() == init_value.nbytes
+    assert np.allclose(const.data, init_value)
+
+
 def test_set_argument():
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])
@@ -287,34 +315,26 @@ def test_clone_model():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
-    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
-    assert isinstance(model_original, ov.Model)
+    model_original = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+    assert isinstance(model_original, Model)
 
     # Make copies of it
-    with pytest.deprecated_call():
-        model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone()
     model_copy3 = deepcopy(model_original)
 
-    assert isinstance(model_copy1, ov.Model)
-    assert isinstance(model_copy2, ov.Model)
-    assert isinstance(model_copy3, ov.Model)
+    assert isinstance(model_copy2, Model)
+    assert isinstance(model_copy3, Model)
 
     # Make changes to the copied models' inputs
-    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy3.reshape({"A": [3, 3], "B": [3, 3]})
 
     original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
-    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
     model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
     model_copy3_shapes = [single_input.get_shape() for single_input in model_copy3.inputs]
 
-    assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
     assert original_model_shapes != model_copy3_shapes
-    assert model_copy1_shapes == model_copy2_shapes
-    assert model_copy1_shapes == model_copy3_shapes
     assert model_copy2_shapes == model_copy3_shapes
 
 
@@ -329,15 +349,12 @@ def test_result():
 
 def test_node_friendly_name():
     dummy_node = ops.parameter(shape=[1], name="dummy_name")
-
     assert (dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")
-
     assert (dummy_node.get_friendly_name() == "changed_name")
 
     dummy_node.friendly_name = "new_name"
-
     assert (dummy_node.get_friendly_name() == "new_name")
 
 
@@ -374,30 +391,20 @@ def test_node_output():
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
 
-def test_node_input_size():
-    node = ops.add([1], [2])
-    assert node.get_input_size() == 2
-
-
 def test_node_input_values():
     shapes = [Shape([3]), Shape([3])]
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([3, 2, 1])
+    data1 = np.array([1, 2, 3], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
 
     node = ops.add(data1, data2)
 
     assert node.get_input_size() == 2
+    assert node.get_input_element_type(0) == Type.i64
+    assert node.get_input_partial_shape(0) == PartialShape([3])
+    assert node.get_input_shape(1) == Shape([3])
 
-    assert np.equal(
-        [input_node.get_shape() for input_node in node.input_values()],
-        shapes,
-    ).all()
-
-    assert np.equal(
-        [node.input_value(i).get_shape() for i in range(node.get_input_size())],
-        shapes,
-    ).all()
-
+    assert np.equal([input_node.get_shape() for input_node in node.input_values()], shapes,).all()
+    assert np.equal([node.input_value(i).get_shape() for i in range(node.get_input_size())], shapes,).all()
     assert np.allclose(
         [input_node.get_node().get_vector() for input_node in node.input_values()],
         [data1, data2],
@@ -529,21 +536,68 @@ def test_multiple_outputs():
     assert list(relu.get_output_shape(0)) == [4, 2]
 
 
-def test_sink_model_ctor():
+def test_sink_model_ctors():
+    model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
+
+    rv = ops.read_value(init_val, variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
+    model.validate_nodes_and_infer_types()
+
+    ordered_ops = model.get_ordered_ops()
+    op_types = [op.get_type_name() for op in ordered_ops]
+    sinks = model.get_sinks()
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Assign", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 9
+    assert model.get_output_size() == 1
+    assert model.get_output_op(0).get_type_name() == "Result"
+    assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
+    assert len(model.get_parameters()) == 1
+    assert len(model.get_results()) == 1
+    assert model.get_friendly_name() == "TestModel"
+
+
+def test_sink_model_ctor_without_init_subgraph():
     input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ops.read_value(input_data, "var_id_667")
+    rv = ops.read_value("var_id_667", np.float32, [2, 2])
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+    rv = ops.read_value(variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
-    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "ReadValue", "Assign", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 7
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == input_data.get_element_type()
@@ -621,21 +675,21 @@ def test_get_and_set_layout():
 
     model = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
 
-    assert layout_helpers.get_layout(model.input(0)) == ov.Layout()
-    assert layout_helpers.get_layout(model.input(1)) == ov.Layout()
+    assert layout_helpers.get_layout(model.input(0)) == Layout()
+    assert layout_helpers.get_layout(model.input(1)) == Layout()
 
-    layout_helpers.set_layout(model.input(0), ov.Layout("CH"))
-    layout_helpers.set_layout(model.input(1), ov.Layout("HW"))
+    layout_helpers.set_layout(model.input(0), Layout("CH"))
+    layout_helpers.set_layout(model.input(1), Layout("HW"))
 
-    assert layout_helpers.get_layout(model.input(0)) == ov.Layout("CH")
-    assert layout_helpers.get_layout(model.input(1)) == ov.Layout("HW")
+    assert layout_helpers.get_layout(model.input(0)) == Layout("CH")
+    assert layout_helpers.get_layout(model.input(1)) == Layout("HW")
 
 
 def test_layout():
-    layout = ov.Layout("NCWH")
-    layout2 = ov.Layout("NCWH")
-    scalar = ov.Layout.scalar()
-    scalar2 = ov.Layout.scalar()
+    layout = Layout("NCWH")
+    layout2 = Layout("NCWH")
+    scalar = Layout.scalar()
+    scalar2 = Layout.scalar()
 
     assert layout == layout2
     assert layout != scalar
@@ -660,8 +714,8 @@ def test_layout():
     assert layout.get_index_by_name("W") == 2
     assert layout.get_index_by_name("H") == 3
 
-    layout = ov.Layout("NC?")
-    layout2 = ov.Layout("N")
+    layout = Layout("NC?")
+    layout2 = Layout("N")
     assert layout != layout2
     assert str(layout) != str(layout2)
     assert layout.has_name("N")
@@ -672,7 +726,7 @@ def test_layout():
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert layout.has_name("N")
     assert not (layout.has_name("W"))
     assert not (layout.has_name("H"))
@@ -680,19 +734,19 @@ def test_layout():
     assert layout.has_name("C")
     assert layout.get_index_by_name("C") == -1
 
-    layout = ov.Layout()
+    layout = Layout()
     assert not (layout.has_name("W"))
     assert not (layout.has_name("H"))
     assert not (layout.has_name("D"))
     assert not (layout.has_name("C"))
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert layout == "N...C"
     assert layout != "NC?"
 
 
 def test_layout_helpers():
-    layout = ov.Layout("NCHWD")
+    layout = Layout("NCHWD")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert (layout_helpers.has_depth(layout))
@@ -705,7 +759,7 @@ def test_layout_helpers():
     assert layout_helpers.width_idx(layout) == 3
     assert layout_helpers.depth_idx(layout) == 4
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert not (layout_helpers.has_depth(layout))
@@ -724,7 +778,7 @@ def test_layout_helpers():
     with pytest.raises(RuntimeError):
         layout_helpers.depth_idx(layout)
 
-    layout = ov.Layout("NC?")
+    layout = Layout("NC?")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert not (layout_helpers.has_depth(layout))

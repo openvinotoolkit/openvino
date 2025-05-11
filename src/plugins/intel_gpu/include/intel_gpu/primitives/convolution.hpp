@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +49,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 data_types output_data_type,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                const padding& output_padding = padding())
-            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+            : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
               groups(groups),
               stride(stride),
               dilation(dilation),
@@ -92,9 +91,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+        : primitive_base(id, {input}),
           groups(groups),
           stride(stride),
           dilation(dilation),
@@ -139,9 +137,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
-                bool bilinear_interpolation_pad = false,
-                const padding& output_padding = padding())
-    : primitive_base(id, inputs, {output_padding}),
+                bool bilinear_interpolation_pad = false)
+    : primitive_base(id, inputs),
       groups(groups),
       stride(stride),
       dilation(dilation),
@@ -190,15 +187,15 @@ struct convolution : public primitive_base<convolution> {
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape {false};
     /// @brief Primitive id containing weights data.
-    const primitive_id weights;
+    input_info weights;
     /// @brief Primitive id containing bias data.
-    const primitive_id bias;
+    input_info bias;
     /// @brief Primitive id containing weights zero points.
-    const primitive_id weights_zero_points;
+    input_info weights_zero_points;
     /// @brief Primitive id containing activations zero points.
-    const primitive_id activations_zero_points;
+    input_info activations_zero_points;
     /// @brief Primitive id containing compensation.
-    const primitive_id compensation;
+    input_info compensation;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -213,11 +210,11 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, bilinear_interpolation_pad);
         seed = hash_combine(seed, transposed);
         seed = hash_combine(seed, grouped_weights_shape);
-        seed = hash_combine(seed, !weights.empty());
-        seed = hash_combine(seed, !bias.empty());
-        seed = hash_combine(seed, !weights_zero_points.empty());
-        seed = hash_combine(seed, !activations_zero_points.empty());
-        seed = hash_combine(seed, !compensation.empty());
+        seed = hash_combine(seed, !weights.is_valid());
+        seed = hash_combine(seed, !bias.is_valid());
+        seed = hash_combine(seed, !weights_zero_points.is_valid());
+        seed = hash_combine(seed, !activations_zero_points.is_valid());
+        seed = hash_combine(seed, !compensation.is_valid());
         return seed;
     }
 
@@ -239,11 +236,11 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(bilinear_interpolation_pad) &&
                cmp_fields(transposed) &&
                cmp_fields(grouped_weights_shape) &&
-               cmp_fields(weights.empty()) &&
-               cmp_fields(bias.empty()) &&
-               cmp_fields(weights_zero_points.empty()) &&
-               cmp_fields(activations_zero_points.empty()) &&
-               cmp_fields(compensation.empty());
+               cmp_fields(weights.is_valid()) &&
+               cmp_fields(bias.is_valid()) &&
+               cmp_fields(weights_zero_points.is_valid()) &&
+               cmp_fields(activations_zero_points.is_valid()) &&
+               cmp_fields(compensation.is_valid());
         #undef cmp_fields
     }
 
@@ -280,214 +277,33 @@ struct convolution : public primitive_base<convolution> {
         ib >> bilinear_interpolation_pad;
         ib >> transposed;
         ib >> grouped_weights_shape;
-        ib >> *const_cast<primitive_id*>(&weights);
-        ib >> *const_cast<primitive_id*>(&bias);
-        ib >> *const_cast<primitive_id*>(&weights_zero_points);
-        ib >> *const_cast<primitive_id*>(&activations_zero_points);
-        ib >> *const_cast<primitive_id*>(&compensation);
+        ib >> weights;
+        ib >> bias;
+        ib >> weights_zero_points;
+        ib >> activations_zero_points;
+        ib >> compensation;
     }
 
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret = {std::ref(weights)};
-        if (!bias.empty()) {
-            ret.push_back(std::ref(bias));
-        }
-        if (!weights_zero_points.empty()) {
-            ret.push_back(std::ref(weights_zero_points));
-        }
-        if (!activations_zero_points.empty()) {
-            ret.push_back(std::ref(activations_zero_points));
-        }
-        if (!compensation.empty()) {
-            ret.push_back(std::ref(compensation));
-        }
+protected:
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
 
-        return ret;
-    }
-};
+        OPENVINO_ASSERT(weights.is_valid());
+        ret[idx++] = &weights;
 
-struct deformable_interp : public primitive_base<deformable_interp> {
-    CLDNN_DECLARE_PRIMITIVE(deformable_interp)
+        if (bias.is_valid())
+            ret[idx++] = &bias;
 
-    deformable_interp() : primitive_base("", {}) {}
+        if (weights_zero_points.is_valid())
+            ret[idx++] = &weights_zero_points;
 
-    deformable_interp(const primitive_id& id,
-                      const std::vector<input_info>& inputs,
-                      uint32_t groups,
-                      uint32_t deformable_groups,
-                      ov::Strides stride,
-                      ov::CoordinateDiff pad,
-                      ov::Strides dilation,
-                      tensor output_size,
-                      tensor kernel_size,
-                      bool bilinear_interpolation_pad,
-                      const padding& output_padding = padding())
-    : primitive_base(id, inputs, {output_padding}),
-      pad(pad),
-      stride(stride),
-      dilation(dilation),
-      output_size(output_size),
-      kernel_size(kernel_size),
-      groups(groups),
-      deformable_groups(deformable_groups),
-      padding_begin(stride.size(), 0),
-      padding_end(stride.size(), 0),
-      bilinear_interpolation_pad {bilinear_interpolation_pad} {}
+        if (activations_zero_points.is_valid())
+            ret[idx++] = &activations_zero_points;
 
-    /// @brief Defines logical pad value added to input tensor.
-    ov::CoordinateDiff pad;
-    /// @brief Defines shift in input buffer between adjacent calculations of output values.
-    ov::Strides stride;
-    /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
-    /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
-    ov::Strides dilation;
-    /// @brief Size of output tensor.
-    tensor output_size;
-    /// @brief Size of weights tensor.
-    tensor kernel_size;
-    /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups = 0;
-    /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
-    /// by channel dimension.
-    uint32_t deformable_groups = 0;
-    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
-    ov::CoordinateDiff padding_begin;
-    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
-    ov::CoordinateDiff padding_end;
-    /// @brief if bilinear_interpolation_pad is true and the sampling location is within one pixel outside
-    /// of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
-    bool bilinear_interpolation_pad {false};
+        if (compensation.is_valid())
+            ret[idx++] = &compensation;
 
-    size_t hash() const override {
-        size_t seed = primitive::hash();
-        seed = cldnn::hash_range(seed, pad.begin(), pad.end());
-        seed = cldnn::hash_range(seed, stride.begin(), stride.end());
-        seed = cldnn::hash_range(seed, dilation.begin(), dilation.end());
-        seed = cldnn::hash_combine(seed, kernel_size.hash());
-        seed = cldnn::hash_combine(seed, groups);
-        seed = cldnn::hash_combine(seed, deformable_groups);
-        seed = cldnn::hash_range(seed, padding_begin.begin(), padding_begin.end());
-        seed = cldnn::hash_range(seed, padding_end.begin(), padding_end.end());
-        seed = cldnn::hash_combine(seed, bilinear_interpolation_pad);
-        return seed;
-    }
-
-    bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
-            return false;
-
-        auto rhs_casted = downcast<const deformable_interp>(rhs);
-
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(pad) &&
-               cmp_fields(stride) &&
-               cmp_fields(dilation) &&
-               cmp_fields(kernel_size) &&
-               cmp_fields(groups) &&
-               cmp_fields(deformable_groups) &&
-               cmp_fields(padding_begin) &&
-               cmp_fields(padding_end) &&
-               cmp_fields(bilinear_interpolation_pad);
-        #undef cmp_fields
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<deformable_interp>::save(ob);
-        ob << pad;
-        ob << stride;
-        ob << dilation;
-        ob << output_size;
-        ob << kernel_size;
-        ob << groups;
-        ob << deformable_groups;
-        ob << padding_begin;
-        ob << padding_end;
-        ob << bilinear_interpolation_pad;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        primitive_base<deformable_interp>::load(ib);
-        ib >> pad;
-        ib >> stride;
-        ib >> dilation;
-        ib >> output_size;
-        ib >> kernel_size;
-        ib >> groups;
-        ib >> deformable_groups;
-        ib >> padding_begin;
-        ib >> padding_end;
-        ib >> bilinear_interpolation_pad;
-    }
-};
-
-struct deformable_conv : public primitive_base<deformable_conv> {
-    CLDNN_DECLARE_PRIMITIVE(deformable_conv)
-
-    deformable_conv() : primitive_base("", {}) {}
-
-    deformable_conv(const primitive_id& id,
-                    const input_info& input,
-                    const std::vector<primitive_id>& weights,
-                    const std::vector<primitive_id>& biases,
-                    uint32_t groups,
-                    tensor output_size,
-                    const padding& output_padding = padding())
-    : primitive_base(id, {input}, {output_padding}),
-      output_size(output_size),
-      groups(groups),
-      weights(weights),
-      bias(biases) {}
-
-    /// @brief User-defined output data size of the primitive (w/o padding).
-    tensor output_size;
-    /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups = 0;
-    /// @brief List of primitive ids containing weights data.
-    const primitive_id_arr weights;
-    /// @brief List of primitive ids containing bias data.
-    const primitive_id_arr bias;
-
-    size_t hash() const override {
-        size_t seed = primitive::hash();
-        seed = hash_combine(seed, groups);
-        seed = hash_combine(seed, weights.size());
-        seed = hash_combine(seed, bias.size());
-        return seed;
-    }
-
-    bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
-            return false;
-
-        auto rhs_casted = downcast<const deformable_conv>(rhs);
-
-        return groups == rhs_casted.groups &&
-               weights.size() == rhs_casted.weights.size() &&
-               bias.size() == rhs_casted.bias.size();
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<deformable_conv>::save(ob);
-        ob << output_size;
-        ob << groups;
-        ob << weights;
-        ob << bias;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        primitive_base<deformable_conv>::load(ib);
-        ib >> output_size;
-        ib >> groups;
-        ib >> *const_cast<primitive_id_arr*>(&weights);
-        ib >> *const_cast<primitive_id_arr*>(&bias);
-    }
-
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.reserve(weights.size() + bias.size());
-        for (auto& w : weights) ret.push_back(std::ref(w));
-        for (auto& b : bias) ret.push_back(std::ref(b));
         return ret;
     }
 };

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -10,6 +13,7 @@
 #include <intel_gpu/primitives/read_value.hpp>
 
 using namespace cldnn;
+using namespace ov::intel_gpu;
 using namespace ::tests;
 
 template<typename T>
@@ -31,25 +35,31 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         topology topology;
         topology.add(input_layout("input", input_data->get_layout()));
-        topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
+        topology.add(read_value{"read_value", { input_info("input") }, "v0", { variable_layout }});
         topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+        auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+        auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
+        network->set_variable("v0", variable);
         network->set_input_data("input", input_data);
 
         constexpr size_t number_of_inferences = 5;
         for (size_t inference = 1; inference <= number_of_inferences; ++inference) {
             const auto outputs = network->execute();
             const auto output = outputs.at("assign").get_memory();
-            const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+            const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
             const auto output_count = output_ptr.size();
             ASSERT_EQ(output_count, param.values.size()) << "inference " << inference;
 
             for (size_t i = 0; i < output_count; ++i) {
-                ASSERT_EQ(output_ptr[i], inference * param.values[i]) << "inference " << inference;
+                if (ov::element::Type(output->get_layout().data_type).is_real()) {
+                    ASSERT_FLOAT_EQ(output_ptr[i], (inference + 1) * param.values[i]) << "inference " << inference;
+                } else {
+                    ASSERT_EQ(output_ptr[i], (inference + 1) * param.values[i]) << "inference " << inference;
+                }
             }
         }
     }
@@ -119,13 +129,15 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
-    topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
+    topology.add(read_value{"read_value", { input_info("input") }, "v0", { variable_layout }});
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
+    network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
     network->set_input_data("wrong_input", wrong_input_data);
 
@@ -147,12 +159,12 @@ template <typename T>
 void test_different_output_data_type(bool is_caching_test) {
     auto& engine = get_test_engine();
 
-    const layout in_layout{data_types::f32, format::bfyx, tensor{1}};
+    const layout in_layout{{ 1 }, data_types::f32, format::bfyx};
     const auto input_data = engine.allocate_memory(in_layout);
     std::vector<float> inputs = { 70.0f };
     set_values(input_data, inputs);
 
-    const layout variable_layout{data_types::f16, format::bfyx, tensor{1}};
+    const layout variable_layout{{ 1 }, data_types::f16, format::bfyx};
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
@@ -161,13 +173,14 @@ void test_different_output_data_type(bool is_caching_test) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-
-    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, context, network->get_shape_predictor());
+    network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
 
     const auto outputs = network->execute();
     const auto output = outputs.at("assign").get_memory();
-    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
          ASSERT_EQ(half_to_float(output_ptr[i]), inputs[i]);
@@ -205,30 +218,32 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     topology.add(assign{"assign_2", { input_info("input_2") }, "v2", variable_layout});
 
     topology.add(data("dummy1", dummy1));
-    topology.add(read_value{"read_value_1", { input_info("dummy1") }, "v1", variable_layout});
-    topology.add(read_value{"read_value_2", { input_info("dummy1") }, "v2", variable_layout});
+    topology.add(read_value{"read_value_1", { input_info("dummy1") }, "v1", { variable_layout }});
+    topology.add(read_value{"read_value_2", { input_info("dummy1") }, "v2", { variable_layout }});
 
     topology.add(eltwise{"sum", { input_info("read_value_1"), input_info("read_value_2") }, eltwise_mode::sum, {}, variable_layout.data_type});
     topology.add(assign{"assign_result", { input_info("sum") }, "v_result", variable_layout});
 
     topology.add(data("dummy2", dummy2));
-    topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
+    topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", { variable_layout }});
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network->assign_variables_memories({
-        { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
-        { "v2", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
-        { "v_result", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) }
-    });
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable1 = std::make_shared<VariableState>(VariableStateInfo{"v1", variable_layout}, context, network->get_shape_predictor());
+    auto variable2 = std::make_shared<VariableState>(VariableStateInfo{"v2", variable_layout}, context, network->get_shape_predictor());
+    auto variable3 = std::make_shared<VariableState>(VariableStateInfo{"v_result", variable_layout}, context, network->get_shape_predictor());
+    network->set_variable("v1", variable1);
+    network->set_variable("v2", variable2);
+    network->set_variable("v_result", variable3);
     network->set_input_data("input_1", input_1);
     network->set_input_data("input_2", input_2);
 
     // set variables with assign on 1st inference, read with read_values on 2nd one
-    // network->execute();
+    network->execute();
     const auto outputs = network->execute();
     const auto output = outputs.at("read_result").get_memory();
-    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr[0], value_1 + value_2);
 }
 

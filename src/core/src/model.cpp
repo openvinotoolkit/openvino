@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "evaluator.hpp"
 #include "itt.hpp"
 #include "layout_utils.hpp"
-#include "ngraph/evaluator.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
-#include "tensor_conversion_util.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -75,7 +75,7 @@ ov::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<ov:
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
     ov::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
-        if (const auto& param = dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             parameter_vector.push_back(param);
         }
     }
@@ -88,34 +88,53 @@ const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& no
     return node;
 }
 
+std::map<ov::Output<ov::Node>, ov::PartialShape> port_shapes_to_node_shapes(
+    ov::Model* model,
+    const std::map<size_t, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> node_shapes;
+    for (const auto& it : partial_shapes) {
+        const auto port = model->input(it.first);
+        node_shapes[port] = it.second;
+    }
+    return node_shapes;
+}
+
+std::map<ov::Output<ov::Node>, ov::PartialShape> tensor_names_shapes_to_node_shapes(
+    ov::Model* model,
+    const std::map<std::string, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<ov::Node*, std::string> port_tensor_map;
+    for (const auto& [name, shape] : partial_shapes) {
+        const auto port = model->input(name);
+        if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
+            OPENVINO_ASSERT(shape == const_pshape.at(port),
+                            "Tensor with names {'",
+                            name,
+                            "', '",
+                            port_tensor_map[port.get_node()],
+                            "'} has "
+                            "conflicting shapes ",
+                            shape,
+                            " and ",
+                            const_pshape.at(port),
+                            ", but they define the same tensor");
+        }
+        port_tensor_map[port.get_node()] = name;
+        const_pshape[port] = shape;
+    }
+    return const_pshape;
+}
+
 }  // namespace
 
 ov::Model::Model(const ResultVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(results),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(results, {}, parameters, name) {}
 
 ov::Model::Model(const OutputVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(results)),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_result_vector(results), parameters, name) {}
 
 ov::Model::Model(const NodeVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(as_output_vector(results))),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_output_vector(results), parameters, name) {}
 
 ov::Model::Model(const std::shared_ptr<Node>& result, const ov::ParameterVector& parameters, const std::string& name)
     : Model(verify_node(result)->outputs(), parameters, name) {}
@@ -184,6 +203,8 @@ ov::Model::Model(const ov::OutputVector& results, const ov::SinkVector& sinks, c
 
 ov::Model::Model(const OutputVector& results, const string& name) : Model(results, ov::SinkVector{}, name) {}
 
+ov::Model::~Model() = default;
+
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
 
@@ -220,11 +241,6 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 void ov::Model::validate_nodes_and_infer_types() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::validate_nodes_and_infer_types");
 
-    struct Counter {
-        int cnt_assign = 0;
-        int cnt_read_val = 0;
-    };
-    std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
@@ -246,12 +262,6 @@ void ov::Model::validate_nodes_and_infer_types() const {
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) == m_variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
-
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
-            pair_checker[assign->get_variable().get()].cnt_assign++;
-        } else if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
-            pair_checker[read_value->get_variable().get()].cnt_read_val++;
-        }
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
@@ -261,13 +271,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
     OPENVINO_ASSERT(unregistered_variables.str().empty(),
                     "Model references undeclared Variables: ",
                     unregistered_variables.str());
-    bool only_pairs =
-        std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<op::util::Variable*, Counter>& val) {
-            return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
-        });
-    OPENVINO_ASSERT(only_pairs,
-                    "Model is incorrect. Assign and ReadValue operations must be in pairs on the "
-                    "network.");
+
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",
@@ -284,23 +288,24 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;
+    auto node_inserter = std::back_inserter(nodes);
     if (m_shared_rt_info->get_use_topological_cache()) {
         for (const auto& node : m_cached_ordered_ops) {
             if (auto locked_node = node.lock()) {
-                nodes.emplace_back(locked_node);
+                *node_inserter = locked_node;
             }
         }
         return nodes;
     }
 
     for (const auto& r : get_results()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& r : get_sinks()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& param : get_parameters()) {
-        nodes.push_back(param);
+        *node_inserter = param;
     }
 
     auto order = m_topological_sorter(nodes);
@@ -444,7 +449,7 @@ void ov::Model::replace_parameter(size_t parameter_index, const shared_ptr<ov::o
 }
 
 void ov::Model::set_topological_sort(topological_sort_t sorter) {
-    m_topological_sorter = sorter;
+    m_topological_sorter = std::move(sorter);
     // reset topological nodes order cache as new sorter can have different behaviour
     m_shared_rt_info->set_use_topological_cache(false);
 }
@@ -487,25 +492,6 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
-    ov::EvaluationContext evaluation_context;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return evaluate(output_tensors, input_tensors, evaluation_context);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-bool ov::Model::evaluate(const HostTensorVector& output_tensors,
-                         const HostTensorVector& input_tensors,
-                         EvaluationContext& evaluation_context) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto outputs = ov::util::wrap_tensors(output_tensors);
-    auto inputs = ov::util::wrap_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, evaluation_context);
-    ov::util::update_output_host_tensors(output_tensors, outputs);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return sts;
-}
-
 bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
     return evaluate(output_tensors, input_tensors, evaluation_context);
@@ -516,22 +502,31 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          ov::EvaluationContext& evaluation_context) const {
     evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::Tensor> value_map;
+    OPENVINO_ASSERT(input_tensors.size() == m_parameters.size(),
+                    "Cannot evaluate model! Number of tensors (",
+                    input_tensors.size(),
+                    ") is not equal to number of parameters (",
+                    m_parameters.size(),
+                    ").");
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
+        OPENVINO_ASSERT(m_parameters.at(i)->get_partial_shape().is_dynamic() ||
+                            m_parameters.at(i)->get_partial_shape().to_shape() == input_tensors[i].get_shape(),
+                        "Cannot evaluate model! Tensor input shape and Parameter op with index ",
+                        i,
+                        " are mismatches.");
     }
     OutputVector outputs;
     std::map<RawNodeOutput, ov::Tensor> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
-        auto result = m_results.at(i)->output(0);
-        output_tensor_map[result] = output_tensors.at(i);
-        outputs.push_back(result);
+        outputs.push_back(m_results.at(i)->output(0));
+        output_tensor_map[outputs.back()] = output_tensors.at(i);
     }
     for (const auto& m_sink : m_sinks) {
         outputs.push_back(m_sink);
     }
     // evaluate nodes
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::Evaluator<ov::Tensor> evaluator({}, value_map);
+    Evaluator<Tensor> evaluator({}, value_map);
     evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const ov::TensorVector& input_tensors) -> ov::TensorVector {
@@ -539,7 +534,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    output_tensors.push_back(util::wrap_tensor(v));
+                    output_tensors.emplace_back(v);
                 } else {
                     output_tensors.push_back(it->second);
                 }
@@ -554,13 +549,12 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                 }
                 return output_tensors;
             } else {
-                OPENVINO_ASSERT(false, "Evaluation failed on ", node);
+                OPENVINO_THROW("Evaluation failed on ", node);
             }
         });
     for (const auto& value : outputs) {
         evaluator.evaluate(value);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensors.at(i) = output_tensor_map[result];
@@ -767,50 +761,25 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
     OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
-void ov::Model::reshape(const ov::PartialShape& partial_shape) {
-    OPENVINO_ASSERT(m_parameters.size() == 1,
-                    "reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
-    std::map<size_t, ov::PartialShape> shapes;
-    shapes[0] = partial_shape;
-    reshape(shapes);
+void ov::Model::reshape(const ov::PartialShape& partial_shape,
+                        const std::unordered_map<std::string, ov::PartialShape>& variable_shapes) {
+    OPENVINO_ASSERT(m_parameters.size() == 1, "must be called on a Model with exactly one parameter.");
+    std::map<size_t, ov::PartialShape> shapes{{0, partial_shape}};
+    reshape(shapes, variable_shapes);
 }
 
-void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes) {
-    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
-    std::unordered_map<ov::Node*, std::string> port_tensor_map;
-    for (const auto& it : partial_shapes) {
-        const auto port = input(it.first);
-        port_tensor_map[port.get_node()] = std::to_string(it.first);
-        const_pshape[port] = it.second;
-    }
-    reshape(const_pshape);
+void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes,
+                        const std::unordered_map<std::string, ov::PartialShape>& variable_shapes) {
+    reshape(port_shapes_to_node_shapes(this, partial_shapes), variable_shapes);
 }
 
-void ov::Model::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
-    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
-    std::unordered_map<ov::Node*, std::string> port_tensor_map;
-    for (const auto& it : partial_shapes) {
-        const auto port = input(it.first);
-        if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
-            OPENVINO_ASSERT(it.second == const_pshape.at(port),
-                            "Tensor with names {'",
-                            it.first,
-                            "', '",
-                            port_tensor_map[port.get_node()],
-                            "'} has "
-                            "conflicting shapes ",
-                            it.second,
-                            " and ",
-                            const_pshape.at(port),
-                            ", but they define the same tensor");
-        }
-        port_tensor_map[port.get_node()] = it.first;
-        const_pshape[port] = it.second;
-    }
-    reshape(const_pshape);
+void ov::Model::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes,
+                        const std::unordered_map<std::string, ov::PartialShape>& variable_shapes) {
+    reshape(tensor_names_shapes_to_node_shapes(this, partial_shapes), variable_shapes);
 }
 
-void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
+void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes,
+                        const std::unordered_map<std::string, ov::PartialShape>& variables_shapes) {
     if (partial_shapes.empty())
         return;
 
@@ -845,29 +814,54 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
     if (!need_reshape)
         return;
 
+    std::unordered_map<op::util::Variable*, PartialShape> new_vars_shapes;
+    std::unordered_map<op::util::Variable*, PartialShape> original_vars_shapes;
+    for (const auto& variable : get_variables()) {
+        const auto& var_info = variable->get_info();
+
+        for (const auto& var_id_new_shape : variables_shapes) {
+            const auto& variable_id = var_id_new_shape.first;
+            const auto& new_shape = var_id_new_shape.second;
+            if (variable_id == var_info.variable_id && new_shape != var_info.data_shape) {
+                original_vars_shapes[variable.get()] = var_info.data_shape;
+                new_vars_shapes[variable.get()] = new_shape;
+            }
+        }
+    }
+
     // save original parameters shape
     std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
         original_input_shapes[param.get()] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&](const std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape>& pshapes) {
+    std::unordered_map<op::util::Variable*, PartialShape> original_var_shapes;
+    for (const auto& v : get_variables()) {
+        original_var_shapes[v.get()] = v->get_info().data_shape;
+    }
+
+    auto reshape_only = [this](const std::unordered_map<op::v0::Parameter*, PartialShape>& pshapes,
+                               const std::unordered_map<op::util::Variable*, PartialShape>& vars_shapes) {
         for (const auto& pshape : pshapes) {
             pshape.first->set_partial_shape(pshape.second);
+        }
+
+        for (const auto& shape : vars_shapes) {
+            shape.first->update_data_shape(shape.second);
         }
 
         validate_nodes_and_infer_types();
     };
 
     try {
-        ov::pass::Manager ssr_manager;
+        ov::pass::Manager ssr_manager("SmartReshape");
         ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
-        reshape_only(new_param_shapes);
+        reshape_only(new_param_shapes, new_vars_shapes);
     } catch (...) {
         // restore shapes to original ones
-        reshape_only(original_input_shapes);
+        reshape_only(original_input_shapes, original_vars_shapes);
         throw;
     }
 }
@@ -939,8 +933,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
             return input.get_node()->output(0);
         }
     }
-    auto result = std::make_shared<ov::op::v0::Result>(port);
-    m_results.push_back(result);
+    m_results.emplace_back(std::make_shared<ov::op::v0::Result>(port, true));
+    auto& result = m_results.back();
     if (m_shared_rt_info->get_use_topological_cache()) {
         if (cache_valid()) {
             // Full update of topological cache is not needed, 'result' can be just inserted to the end
@@ -955,9 +949,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
 }
 
 std::shared_ptr<ov::Model> ov::Model::clone() const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::clone_model(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
+    return ov::clone_ov_model(*this, node_map);
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
@@ -1149,7 +1142,7 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         auto batch_idx = bs_util::get_batch(layout, pshape);
         auto new_shape = param->get_partial_shape();
         new_shape[batch_idx] = batch_size;
-        new_shapes_map[f->input(i)] = new_shape;
+        new_shapes_map[f->input(i)] = std::move(new_shape);
     }
     try {
         f->reshape(new_shapes_map);
@@ -1173,3 +1166,5 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+
+ov::AttributeAdapter<std::shared_ptr<ov::Model>>::~AttributeAdapter() = default;

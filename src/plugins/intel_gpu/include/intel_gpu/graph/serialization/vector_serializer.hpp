@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,32 @@ public:
         buffer >> vector_size;
         vector.resize(vector_size);
         buffer >> make_data(vector.data(), static_cast<uint64_t>(vector_size * sizeof(T)));
+    }
+};
+
+template <typename BufferType>
+class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void save(BufferType& buffer, const std::vector<bool>& vector) {
+        buffer << vector.size();
+        for (const bool el : vector) {
+            buffer << el;
+        }
+    }
+};
+
+template <typename BufferType>
+class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void load(BufferType& buffer, std::vector<bool>& vector) {
+        typename std::vector<bool>::size_type vector_size = 0UL;
+        buffer >> vector_size;
+        bool el;
+        vector.clear();
+        for (size_t i = 0; i < vector_size; ++i) {
+            buffer >> el;
+            vector.push_back(el);
+        }
     }
 };
 

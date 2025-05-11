@@ -44,10 +44,6 @@ struct typed_program_node<unique_gather> : typed_program_node_base<unique_gather
         return get_dependency(0);
     }
 
-    bool generates_dynamic_output() const override {
-        return true;
-    }
-
     std::vector<size_t> get_shape_infer_dependencies() const override {
         return {1};
     }

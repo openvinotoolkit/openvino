@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,17 +7,19 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);
     auto gelu = ov::pass::pattern::wrap_type<ov::op::v7::Gelu>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

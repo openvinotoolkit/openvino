@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/test_common.hpp>
-
-#include "ie_system_conf.h"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
@@ -52,12 +51,12 @@ public:
     }
 };
 
-MacOSCpuMapTestCase test_case_arm = {
-    8,                     // param[expected out]: total 8 logcial processors on this simulated platform
-    1,                     // param[expected out]: total 1 numa nodes on this simulated platform
-    1,                     // param[expected out]: total 1 sockets on this simulated platform
-    8,                     // param[expected out]: total 8 CPU cores on this simulated platform
-    {{8, 4, 4, 0, 0, 0}},  // param[expected out]: The proc_type_table of this simulated platform
+MacOSCpuMapTestCase test_case_arm_1 = {
+    8,                        // param[expected out]: total 8 logcial processors on this simulated platform
+    1,                        // param[expected out]: total 1 numa nodes on this simulated platform
+    1,                        // param[expected out]: total 1 sockets on this simulated platform
+    8,                        // param[expected out]: total 8 CPU cores on this simulated platform
+    {{8, 4, 4, 0, 0, 0, 0}},  // param[expected out]: The proc_type_table of this simulated platform
     {
         {"hw.ncpu", 8},
         {"hw.physicalcpu", 8},
@@ -67,18 +66,55 @@ MacOSCpuMapTestCase test_case_arm = {
     },  // param[in]: The system information table of this simulated platform
 };
 
-MacOSCpuMapTestCase test_case_x86 = {
+MacOSCpuMapTestCase test_case_arm_2 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 4, 4, 0, 0, 0, 0}},
+    {
+        {"hw.ncpu", 8},
+        {"hw.physicalcpu", 8},
+        {"hw.optional.arm64", 1},
+    },
+};
+
+MacOSCpuMapTestCase test_case_arm_3 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 4, 4, 0, 0, 0, 0}},
+    {
+        {"hw.ncpu", 8},
+        {"hw.optional.arm64", 1},
+    },
+};
+
+MacOSCpuMapTestCase test_case_x86_1 = {
     12,
     1,
     1,
     6,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {{"hw.ncpu", 12}, {"hw.physicalcpu", 6}},
+};
+
+MacOSCpuMapTestCase test_case_x86_2 = {
+    12,
+    1,
+    1,
+    12,
+    {{12, 12, 0, 0, 0, 0, 0}},
+    {{"hw.ncpu", 12}},
 };
 
 TEST_P(MacOSCpuMapParserTests, MacOS) {}
 
-INSTANTIATE_TEST_SUITE_P(CPUMap, MacOSCpuMapParserTests, testing::Values(test_case_arm, test_case_x86));
+INSTANTIATE_TEST_SUITE_P(
+    CPUMap,
+    MacOSCpuMapParserTests,
+    testing::Values(test_case_arm_1, test_case_arm_2, test_case_arm_3, test_case_x86_1, test_case_x86_2));
 
 #endif
 }  // namespace

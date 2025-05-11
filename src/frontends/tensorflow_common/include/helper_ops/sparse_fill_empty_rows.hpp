@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,15 @@ public:
         set_output_type(1, get_input_element_type(1), output_values_shape);
         set_output_type(2, ov::element::boolean, empty_row_indicator_shape);
         set_output_type(3, get_input_element_type(0), reverse_index_map_shape);
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 4,
+                                      "[TensorFlow Frontend] internal error: SparseFillEmptyRows expects 4 inputs");
+        auto sparse_fill_empty_rows_node =
+            std::make_shared<SparseFillEmptyRows>(inputs[0], inputs[1], inputs[2], inputs[3], m_decoder);
+        sparse_fill_empty_rows_node->set_attrs(get_attrs());
+        return sparse_fill_empty_rows_node;
     }
 };
 }  // namespace tensorflow

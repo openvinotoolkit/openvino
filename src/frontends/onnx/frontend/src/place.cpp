@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-PlaceInputEdge::PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceInputEdge::PlaceInputEdge(const InputEdge& edge, std::shared_ptr<ONNXModelEditor> editor)
     : m_edge{edge},
       m_editor{std::move(editor)},
       m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
 
-PlaceInputEdge::PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceInputEdge::PlaceInputEdge(InputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor)
     : m_edge{std::move(edge)},
       m_editor{std::move(editor)},
       m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
@@ -26,7 +26,7 @@ void PlaceInputEdge::check_if_valid() const {
                             " is outdated since the topology of the model has been changed.");
 }
 
-onnx_editor::InputEdge PlaceInputEdge::get_input_edge() const {
+InputEdge PlaceInputEdge::get_input_edge() const {
     return m_edge;
 }
 
@@ -65,7 +65,7 @@ ov::frontend::Place::Ptr PlaceInputEdge::get_source_tensor() const {
 
 std::vector<ov::frontend::Place::Ptr> PlaceInputEdge::get_consuming_operations() const {
     check_if_valid();
-    return {std::make_shared<PlaceOp>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor)};
+    return {std::make_shared<PlaceOp>(EditorNode{m_edge.m_node_idx}, m_editor)};
 }
 
 ov::frontend::Place::Ptr PlaceInputEdge::get_producing_operation() const {
@@ -76,13 +76,12 @@ ov::frontend::Place::Ptr PlaceInputEdge::get_producing_port() const {
     return get_source_tensor()->get_producing_port();
 }
 
-PlaceOutputEdge::PlaceOutputEdge(const onnx_editor::OutputEdge& edge,
-                                 std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceOutputEdge::PlaceOutputEdge(const OutputEdge& edge, std::shared_ptr<ONNXModelEditor> editor)
     : m_edge{edge},
       m_editor{std::move(editor)},
       m_initial_target_tensor_name{m_editor->get_target_tensor_name(edge)} {}
 
-PlaceOutputEdge::PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceOutputEdge::PlaceOutputEdge(OutputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor)
     : m_edge{std::move(edge)},
       m_editor{std::move(editor)},
       m_initial_target_tensor_name{m_editor->get_target_tensor_name(m_edge)} {}
@@ -95,7 +94,7 @@ void PlaceOutputEdge::check_if_valid() const {
                             " is outdated since the topology of the model has been changed.");
 }
 
-onnx_editor::OutputEdge PlaceOutputEdge::get_output_edge() const {
+OutputEdge PlaceOutputEdge::get_output_edge() const {
     return m_edge;
 }
 
@@ -138,18 +137,18 @@ std::vector<ov::frontend::Place::Ptr> PlaceOutputEdge::get_consuming_ports() con
 
 ov::frontend::Place::Ptr PlaceOutputEdge::get_producing_operation() const {
     check_if_valid();
-    return std::make_shared<PlaceOp>(onnx_editor::EditorNode{m_edge.m_node_idx}, m_editor);
+    return std::make_shared<PlaceOp>(EditorNode{m_edge.m_node_idx}, m_editor);
 }
 
 std::vector<ov::frontend::Place::Ptr> PlaceOutputEdge::get_consuming_operations() const {
     return get_target_tensor()->get_consuming_operations();
 }
 
-PlaceTensor::PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceTensor::PlaceTensor(const std::string& name, std::shared_ptr<ONNXModelEditor> editor)
     : m_name{name},
       m_editor{std::move(editor)} {}
 
-PlaceTensor::PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceTensor::PlaceTensor(std::string&& name, std::shared_ptr<ONNXModelEditor> editor)
     : m_name{std::move(name)},
       m_editor{std::move(editor)} {}
 
@@ -166,7 +165,7 @@ ov::frontend::Place::Ptr PlaceTensor::get_producing_port() const {
 std::vector<ov::frontend::Place::Ptr> PlaceTensor::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> ret;
     auto edges = m_editor->find_output_consumers(m_name);
-    std::transform(edges.begin(), edges.end(), std::back_inserter(ret), [this](const onnx_editor::InputEdge& edge) {
+    std::transform(edges.begin(), edges.end(), std::back_inserter(ret), [this](const InputEdge& edge) {
         return std::make_shared<PlaceInputEdge>(edge, this->m_editor);
     });
     return ret;
@@ -228,12 +227,12 @@ void PlaceTensor::set_name_for_dimension(size_t shape_dim_index, const std::stri
     m_editor->set_name_for_dimension(m_name, shape_dim_index, dim_name);
 }
 
-PlaceOp::PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceOp::PlaceOp(const EditorNode& node, std::shared_ptr<ONNXModelEditor> editor)
     : m_node{node},
       m_editor{std::move(editor)},
       m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
 
-PlaceOp::PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+PlaceOp::PlaceOp(EditorNode&& node, std::shared_ptr<ONNXModelEditor> editor)
     : m_node{std::move(node)},
       m_editor{std::move(editor)},
       m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
@@ -254,7 +253,7 @@ std::vector<std::string> PlaceOp::get_names() const {
     }
 }
 
-const onnx_editor::EditorNode& PlaceOp::get_editor_node() const {
+const EditorNode& PlaceOp::get_editor_node() const {
     return m_node;
 }
 
@@ -269,9 +268,8 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port(int output_port_index) const {
     check_if_valid();
     const int out_ports_number = static_cast<int>(m_editor->get_output_ports(m_node).size());
     if (output_port_index < out_ports_number) {
-        return std::make_shared<PlaceOutputEdge>(
-            m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index}),
-            m_editor);
+        return std::make_shared<PlaceOutputEdge>(m_editor->find_output_edge(m_node, EditorOutput{output_port_index}),
+                                                 m_editor);
     }
     return nullptr;
 }
@@ -280,9 +278,8 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port(const std::string& output_port
     check_if_valid();
     const auto output_ports = m_editor->get_output_ports(m_node);
     if (std::count(std::begin(output_ports), std::end(output_ports), output_port_name) == 1) {
-        return std::make_shared<PlaceOutputEdge>(
-            m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_name}),
-            m_editor);
+        return std::make_shared<PlaceOutputEdge>(m_editor->find_output_edge(m_node, EditorOutput{output_port_name}),
+                                                 m_editor);
     }
     return nullptr;
 }
@@ -298,9 +295,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(int input_port_index) const {
     check_if_valid();
     const int in_ports_number = static_cast<int>(m_editor->get_input_ports(m_node).size());
     if (input_port_index < in_ports_number) {
-        return std::make_shared<PlaceInputEdge>(
-            m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index}),
-            m_editor);
+        return std::make_shared<PlaceInputEdge>(m_editor->find_input_edge(m_node, EditorInput{input_port_index}),
+                                                m_editor);
     }
     return nullptr;
 }
@@ -309,8 +305,7 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(const std::string& input_name) 
     check_if_valid();
     const auto input_ports = m_editor->get_input_ports(m_node);
     if (std::count(std::begin(input_ports), std::end(input_ports), input_name) == 1) {
-        return std::make_shared<PlaceInputEdge>(m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_name}),
-                                                m_editor);
+        return std::make_shared<PlaceInputEdge>(m_editor->find_input_edge(m_node, EditorInput{input_name}), m_editor);
     }
     return nullptr;
 }

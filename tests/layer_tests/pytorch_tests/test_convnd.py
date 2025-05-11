@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -218,4 +218,4 @@ class TestConv2DInSubgraph(PytorchLayerTest):
     @pytest.mark.precommit
     def test_conv2d(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, freeze_model=True, dynamic_shapes=False)
+                   ie_device, precision, ir_version, freeze_model=True)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,9 @@
 #include <openvino/core/node_output.hpp>
 
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/graph/node_output.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -25,37 +26,8 @@ inline void* numpy_to_c(py::array a) {
 }
 
 void regmodule_graph_util(py::module m) {
-    py::module mod = m.def_submodule("util", "openvino.runtime.utils");
+    py::module mod = m.def_submodule("util", "openvino.utils");
     mod.def("numpy_to_c", &numpy_to_c);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    mod.def("get_constant_from_source",
-            &ov::get_constant_from_source,
-            py::arg("output"),
-            R"(
-                Runs an estimation of source tensor.
-
-                :param index: Output node.
-                :type index: openvino.runtime.Output
-                :return: If it succeeded to calculate both bounds and
-                         they are the same, returns Constant operation
-                         from the resulting bound, otherwise Null.
-                :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
-            )");
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    mod.def(
-        "clone_model",
-        [](ov::Model& model) {
-            return model.clone();
-        },
-        py::arg("model"),
-        R"(
-                Creates a copy of a model object.
-
-                :param model: Model to copy.
-                :type model: openvino.runtime.Model
-                :return: A copy of Model.
-                :rtype: openvino.runtime.Model
-            )");
 
     mod.def("replace_output_update_name", &ov::replace_output_update_name, py::arg("output"), py::arg("target_output"));
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,12 +60,15 @@ bool Input<Node>::operator==(const Input& other) const {
 bool Input<Node>::operator!=(const Input& other) const {
     return !(*this == other);
 }
+
 bool Input<Node>::operator<(const Input& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return m_node->get_instance_id() < other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index < other.m_index);
 }
 
 bool Input<Node>::operator>(const Input& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return m_node->get_instance_id() > other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index > other.m_index);
 }
 
 bool Input<Node>::operator<=(const Input& other) const {
@@ -135,11 +138,13 @@ bool Input<const Node>::operator!=(const Input& other) const {
     return !(*this == other);
 }
 bool Input<const Node>::operator<(const Input& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return m_node->get_instance_id() < other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index < other.m_index);
 }
 
 bool Input<const Node>::operator>(const Input& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return m_node->get_instance_id() > other.m_node->get_instance_id() ||
+           (m_node == other.m_node && m_index > other.m_index);
 }
 
 bool Input<const Node>::operator<=(const Input& other) const {

@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
-#include "sliding_window_utils.hpp"
-
-#include "ngraph/validation_util.hpp"
+#include <string>
 
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "primitive_type_base.h"
 #include "json_object.h"
-
-#include <string>
+#include "max_pool_shape_inference.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "pooling_inst.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -28,7 +27,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     auto window_size = desc->size;
 
     // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
-    // FIXME: dirty hack. Replace it with optional output data type (above) once IE returns correct precision on edges
+    // FIXME: dirty hack. Replace it with optional output data type (above) once OV returns correct precision on edges
     auto output_type = input_layout.data_type;
 
     if (output_type == data_types::u8 || output_type == data_types::i8) {
@@ -38,7 +37,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -158,7 +157,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         }
     }
     if (impl_param.has_fused_primitives()) {
-        output_dtype = impl_param.get_fused_output_layout().data_type;
+        output_dtype = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -171,8 +170,18 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     output_shape[0] = input_shape[0];
     output_shape[1] = input_shape[1];
 
+    std::vector<layout> out_layouts = {
+        layout{output_shape, output_dtype, input_layout.format}
+    };
+
+    if (desc->num_outputs == 2) {
+        auto l = out_layouts[0];
+        l.data_type = desc->index_element_type;
+        out_layouts.push_back(l);
+    }
+
     if (input_shape.is_dynamic()) {
-        return { layout{output_shape, input_layout.data_type, input_layout.format} };
+        return out_layouts;
     }
 
     if (desc->with_output_size) {
@@ -221,23 +230,12 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     ov::CoordinateDiff pads_end(desc->pads_end.begin(), desc->pads_end.end());
     auto auto_pad = desc->auto_pad;
 
-    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
-        pads_begin.clear();
-        pads_end.clear();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::try_apply_auto_padding(input_shape,
-                                       kernel_size,
-                                       stride,
-                                       dilation,
-                                       auto_pad,
-                                       pads_end,
-                                       pads_begin);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    if (auto_pad == ov::op::PadType::VALID) {
-        pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-        pads_end = ov::CoordinateDiff(pads_end.size(), 0);
-    }
+    ov::op::v8::MaxPool op;
+    op.set_strides(stride);
+    op.set_kernel(kernel_size);
+    op.set_auto_pad(auto_pad);
+
+    ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation, pads_begin, pads_end);
 
     size_t spatial_size = input_shape.size() - 2;
     for (size_t i = 0; i < spatial_size; ++i) {
@@ -248,7 +246,11 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         output_shape[i + 2] = out_dim;
     }
 
-    return { layout{output_shape, output_dtype, input_layout.format} };
+    for (auto& ol : out_layouts) {
+        ol.set_partial_shape(output_shape);
+    }
+
+    return out_layouts;
 }
 
 template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node, const kernel_impl_params& impl_param);

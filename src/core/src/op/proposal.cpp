@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/proposal.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "proposal_shape_inference.hpp"
 
 namespace ov {
@@ -42,9 +41,7 @@ void op::v0::Proposal::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Proposal_validate_and_infer_types);
 
     validate_element_types();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto intput_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto intput_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, intput_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
@@ -94,9 +91,7 @@ void op::v4::Proposal::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Proposal_validate_and_infer_types);
 
     validate_element_types();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto intput_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto intput_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, intput_shapes);
     const auto& out_et = get_input_element_type(0);
 

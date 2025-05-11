@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 execute_process(
     COMMAND
-        "${PYTHON_EXECUTABLE}"
+        "${Python3_EXECUTABLE}"
         "${CONVERT_SCRIPT}"
     INPUT_FILE "${INPUT_FILE}"
     OUTPUT_FILE "${OUTPUT_FILE}"

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [dataset]
@@ -15,7 +15,7 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-import openvino.runtime as ov
+import openvino as ov
 model = ov.Core().read_model("model_path")
 
 quantized_model = nncf.quantize(model, calibration_dataset)
@@ -29,5 +29,5 @@ input_fp32 = ... # FP32 model input
 res = model_int8(input_fp32)
 
 # save the model
-ov.serialize(quantized_model, "quantized_model.xml")
+ov.save_model(quantized_model, "quantized_model.xml")
 #! [inference]

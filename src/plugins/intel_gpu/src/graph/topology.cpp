@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ void topology::change_input_layout(const primitive_id& id, const layout& new_lay
         throw std::invalid_argument("Unknown format of layout.");
 
     if (new_layout.data_type != data_types::f16 && new_layout.data_type != data_types::f32 &&
-        new_layout.data_type != data_types::i8 && new_layout.data_type != data_types::bin &&
+        new_layout.data_type != data_types::i8 && new_layout.data_type != data_types::u1 &&
         new_layout.data_type != data_types::u8 && new_layout.data_type != data_types::i32 &&
         new_layout.data_type != data_types::i64)
         throw std::invalid_argument("Unknown data_type of layout.");

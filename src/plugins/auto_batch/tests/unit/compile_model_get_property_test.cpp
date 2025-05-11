@@ -1,29 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using get_property_param = std::tuple<std::string,  // Property need to be set
                                       bool>;        // Throw exception
@@ -67,7 +48,7 @@ public:
 
     void SetUp() override {
         std::tie(m_properity_name, m_throw_exception) = this->GetParam();
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::test::utils::make_multi_single_conv();
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
@@ -105,8 +86,8 @@ public:
 
         ON_CALL(*m_core, get_property(_, StrEq("GPU_DEVICE_TOTAL_MEM_SIZE"), _)).WillByDefault(Return("10240"));
 
-        const ov::AnyMap configs = {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(16)"}};
-        ASSERT_NO_THROW(auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
+        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
+        OV_ASSERT_NO_THROW(auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
 
         std::string network_name = m_model.get()->get_name();
         std::vector<ov::PropertyName> supported_props = {ov::optimal_batch_size, ov::cache_dir};
@@ -125,17 +106,6 @@ public:
 
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("EXECUTION_DEVICES"))).WillByDefault(Return("CPU"));
 
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
-            .WillByDefault(Return("CPU"));
-
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
-            .WillByDefault([](const std::string& name) {
-                std::vector<std::string> res_config;
-                res_config.emplace_back("CACHE_DIR");
-                res_config.emplace_back("OPTIMAL_BATCH_SIZE");
-                return res_config;
-            });
-
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("CACHE_DIR"))).WillByDefault(Return("./abc"));
 
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("OPTIMAL_BATCH_SIZE"))).WillByDefault(Return("16"));
@@ -146,20 +116,19 @@ TEST_P(CompileModelGetPropertyTest, CompileModelGetPropertyTestCase) {
     if (m_throw_exception)
         ASSERT_ANY_THROW(auto_batch_compile_model->get_property(m_properity_name));
     else
-        ASSERT_NO_THROW(auto_batch_compile_model->get_property(m_properity_name));
+        OV_ASSERT_NO_THROW(auto_batch_compile_model->get_property(m_properity_name));
 }
 
 const std::vector<get_property_param> compile_model_get_property_param_test = {
-    get_property_param{METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), false},
-    get_property_param{METRIC_KEY(NETWORK_NAME), false},
-    get_property_param{METRIC_KEY(SUPPORTED_METRICS), false},
-    get_property_param{METRIC_KEY(SUPPORTED_CONFIG_KEYS), false},
+    get_property_param{ov::optimal_number_of_infer_requests.name(), false},
+    get_property_param{ov::model_name.name(), false},
+    get_property_param{ov::supported_properties.name(), false},
     get_property_param{ov::execution_devices.name(), false},
-    get_property_param{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), false},
+    get_property_param{ov::device::priorities.name(), false},
     get_property_param{ov::auto_batch_timeout.name(), false},
     get_property_param{ov::cache_dir.name(), false},
     // Config in dependent m_plugin
-    get_property_param{"OPTIMAL_BATCH_SIZE", false},
+    get_property_param{ov::optimal_batch_size.name(), false},
     // Incorrect Property
     get_property_param{"INCORRECT_METRIC", true},
     get_property_param{"INCORRECT_CONFIG", true},

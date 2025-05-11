@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, clamp_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Clamp>();
+    NodeBuilder::opset().insert<ov::op::v0::Clamp>();
     auto data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
 
     double min = 0.4;

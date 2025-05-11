@@ -1,6 +1,6 @@
 # !/usr/bin/env python3
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # pylint:disable=invalid-name,no-name-in-module,logging-format-interpolation,redefined-outer-name
@@ -14,43 +14,42 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from openvino.inference_engine import IECore
+from openvino import Core
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 
-def input_preparation(net):
+def input_preparation(model):
     """
     Function to prepare reproducible from run to run input data
-    :param net: IENetwork object
+    :param model: OpenVINO Model object
     :return: Dict where keys are layers' names and values are numpy arrays with layers' shapes
     """
 
     feed_dict = {}
-    for layer_name, layer_data in net.input_info.items():
+    for layer_name, layer_data in model.input_info.items():
         feed_dict.update({layer_name: np.ones(shape=layer_data.input_data.shape)})
     return feed_dict
 
 
 def infer(ir_path, device):
     """
-    Function to perform IE inference using python API "in place"
+    Function to perform OV inference using python API "in place"
     :param ir_path: Path to XML file of IR
     :param device: Device name for inference
     :return: Dict containing out blob name and out data
     """
 
-    bin_path = os.path.splitext(ir_path)[0] + '.bin'
-    ie = IECore()
-    net = ie.read_network(model=ir_path, weights=bin_path)
-    exec_net = ie.load_network(net, device)
-    res = exec_net.infer(inputs=input_preparation(net))
+    core = Core()
+    model = core.read_model(ir_path)
+    compiled_model = core.compile_model(model, device)
+    res = compiled_model(input_preparation(model))
 
-    del net
-    # It's important to delete executable network first to avoid double free in plugin offloading.
+    del model
+    # It's important to delete compiled model first to avoid double free in plugin offloading.
     # Issue relates ony for hetero and Myriad plugins
-    del exec_net
-    del ie
+    del compiled_model
+    del core
     return res
 
 

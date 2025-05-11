@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from sys import platform
 
 import pytest
 
@@ -41,7 +43,11 @@ class TestUpsample1D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version):
+        if ie_device == "GPU" and mode == "linear":
+            pytest.xfail(reason="1D linear upsample is unsupported on GPU")
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True)
 
@@ -91,10 +97,10 @@ class TestUpsample2D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_upsample2d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})
-
 
 
 class TestUpsample2DAntialias(PytorchLayerTest):
@@ -209,5 +215,41 @@ class TestUpsample2DListSizes(PytorchLayerTest):
     @pytest.mark.parametrize("mode", ['nearest', 'bilinear', 'bicubic'])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_upsample2d_list_sizes(self, mode, ie_device, precision, ir_version):
-        self._test(*self.create_model(mode), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(mode), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestUpsampleScripted(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
+
+    def create_model(self):
+        import torch.nn as nn
+
+        class TestModel(nn.Module):
+            def __init__(self, n_channels, n_classes):
+                super().__init__()
+                self.n_channels = n_channels
+                self.n_classes = n_classes
+
+                self.cv1 = nn.Conv2d(n_channels, 16, kernel_size=3, padding=1)
+                self.mp1 = nn.MaxPool2d((2, 2), (2, 2))
+                self.up = nn.Upsample(scale_factor=2.)
+
+            def forward(self, x):
+                x1 = self.cv1(x)
+                x2 = self.mp1(x1)
+                x3 = self.up(x2)
+                return x3
+
+        return TestModel(1, 3), None, ["prim::If", "aten::upsample_nearest1d", "aten::upsample_nearest2d", "aten::upsample_nearest3d"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(reason="Scripted upsample is not supported")
+    def test_upsample_scripted(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=False)

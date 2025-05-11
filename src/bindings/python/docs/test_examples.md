@@ -18,14 +18,9 @@ export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python
 cd .../openvino/src/bindings/python/
 ```
 
-To run OpenVINO Python API 2.0 tests:
+To run OpenVINO Python API tests:
 ```shell
 pytest tests/
-```
-
-To run OpenVINO Python API 1.0 tests, use this command:
-```
-pytest tests_compatibility/
 ```
 
 By default, tests are run on the CPU plugin. If you want to run them on a different plugin,
@@ -59,22 +54,12 @@ tox
 There are two packages used in the project to check the codestyle of python code: *mypy* and *flake8*.
 Besides, OpenVINO™ uses a [custom configuration file](./../setup.cfg) to exclude some strict rules.
 
-To check the codestyle of the Python API 2.0, run the following commands:
+To check the codestyle of the Python API, run the following commands:
 ```
 python -m flake8 ./src/openvino/ --config=setup.cfg
 python -m mypy ./src/openvino --config-file ./setup.cfg
 ```
-To check the codestyle of the nGraph Python API, run the following commands:
-```
-python -m flake8 ./src/compatibility/ngraph/ --config=setup.cfg
-python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
-```
-To check the codestyle of the InferenceEngine Python API, run the following commands:
-```
-cd src/compatibility/openvino
-python -m flake8 ./ --config=setup.cfg
-python -m mypy ./ --config-file ./setup.cfg
-```
+
 It's recommended to run the mentioned codestyle check whenever new tests are added.
 This check should be executed from the main Python API folder:
 ```
@@ -99,7 +84,6 @@ Note that name of the file is connected to the class/module to be tested. This i
     tests/test_frontend           <-- frontend manager and extensions
     tests/test_runtime            <-- runtime classes such as Core and Tensor
     tests/test_graph              <-- operators and their implementation
-    tests/test_onnx               <-- ONNX Frontend tests and validation
     tests/test_transformations    <-- optimization passes for OV Models 
 
 ### Writing of the test itself
@@ -107,7 +91,7 @@ Let's add a test case for new class. Start with imports and simple test of the c
 ```python
 import pytest
 import numpy as np 
-import openvino.runtime as ov
+import openvino as ov
 
 def test_mytensor_creation():
     tensor = ov.MyTensor([1, 2, 3])
@@ -146,10 +130,6 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 * Hardcode desired results...
 * ... or create reference values during runtime. Always use a good, thrust-worthy library for that!
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
-
-### Difference between *tests* and *tests_compatibility* directories
-<!-- TO-DELETE when compatibility layer is no longer supported in the project -->
-Someone could notice two similar folders [`tests`](./../tests/) and [`tests_compatibility`](./../tests_compatibility/). First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO™ reviewers. Please do not duplicate tests in both directories if not necessary.
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, space_to_batch_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::SpaceToBatch>();
+    NodeBuilder::opset().insert<ov::op::v1::SpaceToBatch>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
     auto pads_begin = make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});

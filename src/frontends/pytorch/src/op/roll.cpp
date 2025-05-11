@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,14 +18,18 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_roll(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 2, 3);
     const auto data = context.get_input(0);
-    const auto shifts = context.get_input(1);
-    const auto axes = context.get_input(2);
-    const auto shifts_pshape = shifts.get_partial_shape();
-    const auto axes_pshape = axes.get_partial_shape();
-    const auto match_dims = axes_pshape.compatible(shifts_pshape);
-    if (!match_dims) {
+    const auto shifts = get_input_concat_if_list(context, 1);
+    Output<Node> axes;
+    bool on_flattened = context.input_is_none(2);
+    if (!on_flattened) {
+        axes = context.get_input(2);
+        const auto& shifts_pshape = shifts.get_partial_shape();
+        const auto& axes_pshape = axes.get_partial_shape();
+        on_flattened = !axes_pshape.compatible(shifts_pshape);
+    }
+    if (on_flattened) {
         const auto const_minus_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
         const auto axis_0 = v0::Constant::create(element::i32, Shape{1}, {0});
         const auto flat = std::make_shared<v1::Reshape>(data, const_minus_1, false);

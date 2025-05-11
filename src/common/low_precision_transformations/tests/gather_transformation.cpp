@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/gather.hpp>
+#include "low_precision/gather.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/gather_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/gather.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -27,15 +27,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     std::vector<size_t> gatherIndicesShape;
@@ -47,18 +47,18 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::PartialShape, GatherTransformationTestValues, int> GatherTransformationParams;
+typedef std::tuple<ov::PartialShape, GatherTransformationTestValues, int> GatherTransformationParams;
 
 class GatherTransformation : public LayerTransformation,
                              public testing::WithParamInterface<GatherTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const GatherTransformationTestValues testValues = std::get<1>(GetParam());
         const int opset_version = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::GatherFunction::getOriginal(inputShape,
+            ov::builder::subgraph::GatherFunction::getOriginal(inputShape,
                                                                    testValues.gatherIndicesShape,
                                                                    testValues.gatherIndicesValues,
                                                                    testValues.axis,
@@ -68,11 +68,11 @@ public:
                                                                    opset_version);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::GatherTransformation, ov::op::v1::Gather>(testValues.params);
+        transformer.add<ov::pass::low_precision::GatherTransformation, ov::op::v1::Gather>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::GatherFunction::getReference(inputShape,
+            ov::builder::subgraph::GatherFunction::getReference(inputShape,
                                                                     testValues.gatherIndicesShape,
                                                                     testValues.gatherIndicesValues,
                                                                     testValues.axis,
@@ -85,7 +85,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GatherTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const GatherTransformationTestValues testValues = std::get<1>(obj.param);
         const int opset_version = std::get<2>(obj.param);
 
@@ -110,8 +110,7 @@ TEST_P(GatherTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<int> opset_version = {1, 7, 8};
 
-const std::vector<ngraph::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
-
+const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {{1},
@@ -149,13 +148,13 @@ const std::vector<GatherTransformationTestValues> testValues = {
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 3, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 3, 1}}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 3, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 3, 1}}}}},
     // U8: per-channel quantization, gather axis match with channel
     {{1},
@@ -237,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 namespace testValues2 {
 const std::vector<int> opset_version = {8};
 
-const std::vector<ngraph::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
 
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization, negative indices value

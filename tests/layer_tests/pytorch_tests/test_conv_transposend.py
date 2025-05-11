@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -62,6 +62,7 @@ class TestConvTranspose2D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_conv_transpose2d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
@@ -121,6 +122,7 @@ class TestConvTranspose1D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_conv_transpose1d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
@@ -191,6 +193,7 @@ class TestConvTranspose3D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_conv_transpose3d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)

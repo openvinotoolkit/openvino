@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,10 @@ public:
     static std::string to_string(scatter_update_node const& node);
 
     typed_primitive_inst(network& network, scatter_update_node const& desc);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using scatter_update_inst = typed_primitive_inst<scatter_update>;

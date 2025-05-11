@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -20,7 +21,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ov::op::util::PadBase>(m.get_match_root());
+        auto pad = ov::as_type_ptr<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;
         }
@@ -41,8 +42,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         }
 
         if (pad->inputs().size() == 4) {
-            if (auto pad_value =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+            if (auto pad_value = ov::as_type_ptr<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;
@@ -64,7 +64,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             return a < 0;
         };
         if (std::any_of(pad_begin.begin(), pad_begin.end(), pred) ||
-            std::any_of(pad_begin.begin(), pad_begin.end(), pred)) {
+            std::any_of(pad_end.begin(), pad_end.end(), pred)) {
             return false;
         }
 

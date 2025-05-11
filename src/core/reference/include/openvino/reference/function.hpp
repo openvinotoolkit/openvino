@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,10 @@
 
 namespace ov {
 namespace reference {
-void function(const std::shared_ptr<Model>& function, const HostTensorVector& inputs, HostTensorVector& outputs);
-}
+void function(const std::shared_ptr<Model>& function, const ov::TensorVector& inputs, ov::TensorVector& outputs);
+void function(const std::shared_ptr<Model>& function,
+              const ov::TensorVector& inputs,
+              ov::TensorVector& outputs,
+              const EvaluationContext& evaluation_context);
+}  // namespace reference
 }  // namespace ov

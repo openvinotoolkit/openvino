@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,27 @@
 #include <limits.h>
 #include <link.h>
 #include <dlfcn.h>
+#endif
+
+#if __cplusplus > 201703L
+
+// Add operators `==` and `!=` for rapidjson::GenericMemberIterator for non const iterator when build with C++20,
+// is more strict regarding type checks.
+namespace rapidjson {
+
+template <typename Encoding, typename Allocator>
+inline bool operator==(GenericMemberIterator<false, Encoding, Allocator> lhs,
+                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
+    return static_cast<GenericMemberIterator<true, Encoding, Allocator>>(lhs) ==
+           static_cast<GenericMemberIterator<true, Encoding, Allocator>>(rhs);
+}
+
+template <typename Encoding, typename Allocator>
+inline bool operator!=(GenericMemberIterator<false, Encoding, Allocator> lhs,
+                       GenericMemberIterator<false, Encoding, Allocator> rhs) {
+    return !(lhs == rhs);
+}
+}  // namespace rapidjson
 #endif
 
 namespace kernel_selector {

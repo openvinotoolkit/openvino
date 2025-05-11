@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "nms_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -71,9 +72,7 @@ bool op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v1::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -83,9 +82,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -104,6 +101,8 @@ EnumNames<op::v1::NonMaxSuppression::BoxEncodingType>::get() {
 std::ostream& operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
 
 // ------------------------------ V3 ------------------------------
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
@@ -171,9 +170,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -183,9 +180,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -204,6 +199,8 @@ EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>::get() {
 std::ostream& operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
 
 // ------------------------------ V4 ------------------------------
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
@@ -263,9 +260,7 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
 void op::v4::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -456,9 +451,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(max_output_boxes_port));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -471,9 +464,7 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto iou_threshold_input = ov::util::get_constant_from_source(input_value(iou_threshold_port));
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -486,9 +477,7 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto score_threshold_input = ov::util::get_constant_from_source(input_value(score_threshold_port));
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -501,9 +490,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto soft_nms_sigma_input = ov::util::get_constant_from_source(input_value(soft_nms_sigma_port));
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -529,9 +516,7 @@ bool op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v5::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -550,7 +535,7 @@ std::ostream& operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEn
 }
 
 template <>
-NGRAPH_API EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>&
+OPENVINO_API EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>&
 EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>(
         "op::v5::NonMaxSuppression::BoxEncodingType",
@@ -693,9 +678,7 @@ int64_t op::v9::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_output_boxes_input = ov::util::get_constant_from_source(input_value(max_output_boxes_port));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -708,9 +691,7 @@ float op::v9::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto iou_threshold_input = ov::util::get_constant_from_source(input_value(iou_threshold_port));
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -723,9 +704,7 @@ float op::v9::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto score_threshold_input = ov::util::get_constant_from_source(input_value(score_threshold_port));
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -738,9 +717,7 @@ float op::v9::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto soft_nms_sigma_input = ov::util::get_constant_from_source(input_value(soft_nms_sigma_port));
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -766,9 +743,7 @@ bool op::v9::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
 void op::v9::NonMaxSuppression::validate_and_infer_types() {
     OV_OP_SCOPE(v9_NonMaxSuppression_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes = shape_infer(this, input_shapes);
 
@@ -787,7 +762,7 @@ std::ostream& operator<<(std::ostream& s, const op::v9::NonMaxSuppression::BoxEn
 }
 
 template <>
-NGRAPH_API EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>&
+OPENVINO_API EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>&
 EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>(
         "op::v9::NonMaxSuppression::BoxEncodingType",
@@ -795,4 +770,7 @@ EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", op::v9::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
+
+AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
 }  // namespace ov

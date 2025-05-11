@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -27,15 +27,15 @@ public:
     class Values {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        ngraph::builder::subgraph::Constant weights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        ngraph::builder::subgraph::Reshape reshape1;
-        ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
-        ngraph::builder::subgraph::Transpose transpose;
-        ngraph::builder::subgraph::Reshape reshape2;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Reshape reshape1;
+        ov::builder::subgraph::DequantizationOperations::Multiply multiply;
+        ov::builder::subgraph::Transpose transpose;
+        ov::builder::subgraph::Reshape reshape2;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -62,7 +62,7 @@ public:
         testValues.expected.dequantizationOnWeights.subtract.constantShape = dequantizationElementwiseShape.second;
         testValues.expected.dequantizationOnWeights.multiply.constantShape = dequantizationElementwiseShape.second;
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},
@@ -82,12 +82,12 @@ public:
         ov::pass::Manager manager;
         auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
         const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
-        decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
+        decomp->add_matcher<ov::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
+        decomp->add_matcher<ov::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             {},

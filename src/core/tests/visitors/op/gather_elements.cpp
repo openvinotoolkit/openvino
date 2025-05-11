@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gather_elements_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v6::GatherElements>();
+    NodeBuilder::opset().insert<ov::op::v6::GatherElements>();
     auto arg1 = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{3});
     auto arg2 = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{7});
     int64_t axis = 0;

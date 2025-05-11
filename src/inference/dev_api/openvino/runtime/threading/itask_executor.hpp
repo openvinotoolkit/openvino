@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,11 @@ run tasks in current thread.
  */
 class OPENVINO_RUNTIME_API ITaskExecutor {
 public:
+    /**
+     * A shared pointer to ITaskExecutor interface
+     */
+    using Ptr = std::shared_ptr<ITaskExecutor>;
+
     /**
      * @brief      Destroys the object.
      */

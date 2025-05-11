@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ class ov_compiled_model_test : public ov_capi_test_base {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model_test, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model, ov_compiled_model_test, ::testing::Values("CPU"));
 
 TEST_P(ov_compiled_model_test, ov_compiled_model_inputs_size) {
     auto device_name = GetParam();

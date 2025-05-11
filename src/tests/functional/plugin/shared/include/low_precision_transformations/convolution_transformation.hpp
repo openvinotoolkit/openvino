@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,26 +8,26 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
 class ConvolutionTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     bool asymmetricQuantizationOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
     std::string layerName;
     std::string expectedKernelType;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionTransformationParam
 > ConvolutionTransformationParams;
 
@@ -40,7 +40,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

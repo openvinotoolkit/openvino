@@ -39,11 +39,11 @@ public:
         bool is_caching_test;
         std::tie(fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test) = this->GetParam();
 
-        auto num_rows = engine_.allocate_memory({type_to_data_type<InputType>::value, fmt, tensor{1}});
+        auto num_rows = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{1}});
         set_values<InputType>(num_rows, {rows});
-        auto num_coloms = engine_.allocate_memory({type_to_data_type<InputType>::value, fmt, tensor{1}});
+        auto num_coloms = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{1}});
         set_values<InputType>(num_coloms, {cols});
-        auto diagonal_index = engine_.allocate_memory({type_to_data_type<InputType>::value, fmt, tensor{1}});
+        auto diagonal_index = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{1}});
         set_values<InputType>(diagonal_index, {diag});
 
         topology tp;
@@ -54,7 +54,7 @@ public:
         auto batch_rank = batch_shape.size() == 3 ? 3 : 2;
         auto oupput_fmt = batch_rank == 3 ? format::bfzyx : format::bfyx;
         if (!batch_shape.empty()) {
-            auto batch = engine_.allocate_memory({type_to_data_type<InputType>::value, fmt, tensor{batch_rank}});
+            auto batch = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{batch_rank}});
             set_values<InputType>(batch, batch_shape);
             tp.add(data("batch", batch));
         }
@@ -66,23 +66,23 @@ public:
                               : std::vector<input_info>{ input_info("num_rows"), input_info("num_columns"), input_info("diagonal_index"), input_info("batch") };
             ouput_op_name = "eye";
             auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
+                eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
             tp.add(std::move(eye_primitive));
         } else {
-            tp.add(reorder("r_num_rows", input_info("num_rows"), fmt, type_to_data_type<InputType>::value));
-            tp.add(reorder("r_num_columns", input_info("num_columns"), fmt, type_to_data_type<InputType>::value));
-            tp.add(reorder("r_diagonal_index", input_info("diagonal_index"), fmt, type_to_data_type<InputType>::value));
+            tp.add(reorder("r_num_rows", input_info("num_rows"), fmt, ov::element::from<InputType>()));
+            tp.add(reorder("r_num_columns", input_info("num_columns"), fmt, ov::element::from<InputType>()));
+            tp.add(reorder("r_diagonal_index", input_info("diagonal_index"), fmt, ov::element::from<InputType>()));
             if (!batch_shape.empty()) {
-                tp.add(reorder("r_batch", input_info("batch"), fmt, type_to_data_type<InputType>::value));
+                tp.add(reorder("r_batch", input_info("batch"), fmt, ov::element::from<InputType>()));
             }
             auto inputs = batch_shape.empty()
                               ? std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index") }
                               : std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index"), input_info("r_batch") };
             auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
+                eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
             tp.add(std::move(eye_primitive));
             ouput_op_name = "output";
-            tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
+            tp.add(reorder("output", input_info("eye"), oupput_fmt, ov::element::from<OutputType>()));
         }
 
         cldnn::network::ptr network = get_network(engine_, tp, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);

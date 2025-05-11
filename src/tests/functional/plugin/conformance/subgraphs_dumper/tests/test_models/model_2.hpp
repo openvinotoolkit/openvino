@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include "openvino/op/result.hpp"
 
 class Model_2 {
+private:
+    using PatternBorders = ov::tools::subgraph_dumper::RepeatPatternExtractor::PatternBorders;
+
 public:
     Model_2() {
         // param
@@ -55,9 +58,17 @@ public:
     }
 
     std::vector<std::shared_ptr<ov::Model>> get_repeat_pattern_ref() {
-        return {};
+        return std::vector<std::shared_ptr<ov::Model>>();
     }
+
+    std::vector<std::vector<ov::NodeVector>>
+    get_ref_node_vector() { return ref_nodes; }
+
+    std::vector<std::vector<PatternBorders>>
+    get_ref_node_borders() { return ref_borders; }
 
 protected:
     std::shared_ptr<ov::Model> model;
+    std::vector<std::vector<ov::NodeVector>> ref_nodes;
+    std::vector<std::vector<PatternBorders>> ref_borders;
 };

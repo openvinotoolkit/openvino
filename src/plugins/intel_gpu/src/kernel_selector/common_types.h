@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,10 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
+    BEAM_TABLE_UPDATE,
+    PA_KV_CACHE_UPDATE,
+    PA_KV_CACHE_ROTATE,
+    PA_SDPA,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -32,14 +36,15 @@ enum class KernelType {
     RESHAPE,
     COUNT_NONZERO,
     GATHER_NONZERO,
+    GROUP_NORMALIZATION,
+    GRU_SEQ_CELL,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_GEMM,
-    LSTM_ELT,
+    LSTM_SEQ_CELL,
     BORDER,
     TILE,
     SELECT,
@@ -47,7 +52,6 @@ enum class KernelType {
     BUCKETIZE,
     GEMM,
     GRID_SAMPLE,
-    PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
     GATHER,
@@ -59,14 +63,12 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHAPE_OF,
+    SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
-    BINARY_CONVOLUTION,
     QUANTIZE,
-    LSTM_DYNAMIC_INPUT,
-    LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
@@ -79,6 +81,7 @@ enum class KernelType {
     EXTRACT_IMAGE_PATCHES,
     LOOP,
     NON_MAX_SUPPRESSION,
+    NON_MAX_SUPPRESSION_GATHER,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE,
@@ -94,8 +97,17 @@ enum class KernelType {
     EYE,
     GENERATE_PROPOSALS,
     MULTICLASS_NMS,
+    MULTINOMIAL,
     UNIQUE_COUNT,
     UNIQUE_GATHER,
+    RMS,
+    SWIGLU,
+    ROPE,
+    DYNAMIC_QUANTIZE,
+    SEARCH_SORTED,
+    STFT,
+    ISTFT,
+    COL2IM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +115,8 @@ enum class KernelType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class Datatype {
     UNSUPPORTED,
-    BINARY,
+    UINT4,
+    INT4,
     INT8,
     UINT8,
     INT16,
@@ -113,6 +126,7 @@ enum class Datatype {
     INT64,
     F16,
     F32,
+    BF16,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,11 +134,14 @@ enum class Datatype {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class WeightsType {
     UNSUPPORTED,
-    BINARY,
     F16,
     F32,
     INT8,
     UINT8,
+    UINT4,
+    INT4,
+    INT32,
+    BF16
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -295,6 +312,11 @@ enum class EltwiseMode {
     IS_FINITE,
     IS_INF,
     IS_NAN,
+    RIGHT_SHIFT,
+    LEFT_SHIFT,
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_XOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -487,8 +509,21 @@ enum class ScatterUpdateAxis {
     Y,
     Z,
     W,
+    U,
+    V,
     FEATURE,
     BATCH,
+};
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ScatterUpdateReduction
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class ScatterUpdateReduction {
+    NONE = 0,
+    SUM,
+    PROD,
+    MIN,
+    MAX,
+    MEAN
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -554,6 +589,15 @@ enum class EmbeddingBagType {
 enum class BoxEncodingType {
     BOX_ENCODING_CORNER,
     BOX_ENCODING_CENTER,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NMSRotationType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class NMSRotationType {
+    NONE,
+    CLOCKWISE,
+    COUNTERCLOCKWISE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

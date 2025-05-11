@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,13 @@ using kernel_id = std::string;
 class kernel {
 public:
     using ptr = std::shared_ptr<kernel>;
-    virtual std::shared_ptr<kernel> clone() const = 0;
+    virtual std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const = 0;
     virtual ~kernel() = default;
     virtual std::string get_id() const { return ""; }
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using Kernel = cldnn::kernel;
+}

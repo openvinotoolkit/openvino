@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/dimension.hpp"
-
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/symbol.hpp"
 
 using namespace std;
 using namespace ov;
@@ -123,42 +123,47 @@ TEST(dimension, division_of_static_dims) {
 }
 
 TEST(dimension, dimension_equality) {
-    auto te = make_shared<TableOfEquivalence>();
-    DimensionTracker dt(te);
-
     // labeling dimensions
-    Dimension A, B, C;
-    dt.set_up_for_tracking(A);
-    dt.set_up_for_tracking(B);
-    dt.set_up_for_tracking(C);
+    PartialShape dimensions = PartialShape::dynamic(5);  // A, B, C, D, E
+    auto symbols = set_shape_symbols(dimensions);
 
-    // checking labels are unique
-    EXPECT_NE(DimensionTracker::get_label(A), no_label);
-    EXPECT_NE(DimensionTracker::get_label(B), no_label);
-    EXPECT_NE(DimensionTracker::get_label(C), no_label);
-    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(B));
-    EXPECT_NE(DimensionTracker::get_label(B), DimensionTracker::get_label(C));
-    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(C));
-    EXPECT_EQ(DimensionTracker::get_label(A), DimensionTracker::get_label(A));
-    EXPECT_EQ(DimensionTracker::get_label(B), DimensionTracker::get_label(B));
-    EXPECT_EQ(DimensionTracker::get_label(C), DimensionTracker::get_label(C));
+    // checking symbols are unique
+    for (const auto& dimension : dimensions)
+        EXPECT_NE(dimension.get_symbol(), nullptr);
 
-    // setting A == B and B == C
-    te->set_as_equal(A, B);
-    te->set_as_equal(C, B);
+    for (const auto& lhs : dimensions) {
+        for (const auto& rhs : dimensions) {
+            if (&lhs == &rhs)
+                continue;
+            EXPECT_NE(lhs.get_symbol(), rhs.get_symbol());
+            EXPECT_FALSE(ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
+        }
+    }
 
-    // expected to see A == B, B == C and A == C
-    EXPECT_TRUE(te->are_equal(A, B));
-    EXPECT_TRUE(te->are_equal(A, C));
-    EXPECT_TRUE(te->are_equal(B, C));
+    ov::symbol::set_equal(dimensions[0].get_symbol(), dimensions[1].get_symbol());  // A == B
+    ov::symbol::set_equal(dimensions[3].get_symbol(), dimensions[4].get_symbol());  // D == E
+    ov::symbol::set_equal(dimensions[2].get_symbol(), dimensions[3].get_symbol());  // C == D
+    ov::symbol::set_equal(dimensions[1].get_symbol(), dimensions[2].get_symbol());  // B == C
+
+    // expected to see A == B == C == D == E
+    for (const auto& lhs : dimensions)
+        for (const auto& rhs : dimensions)
+            EXPECT_TRUE(ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
 
     // clear up all the tracking info
-    DimensionTracker::reset_tracking_info(A);
-    DimensionTracker::reset_tracking_info(B);
-    DimensionTracker::reset_tracking_info(C);
+    for (auto& dimension : dimensions)
+        dimension.set_symbol(nullptr);
 
-    // expected to have no label
-    EXPECT_EQ(DimensionTracker::get_label(A), no_label);
-    EXPECT_EQ(DimensionTracker::get_label(B), no_label);
-    EXPECT_EQ(DimensionTracker::get_label(C), no_label);
+    // checking labels are nullified
+    for (const auto& dimension : dimensions)
+        EXPECT_EQ(dimension.get_symbol(), nullptr);
+}
+
+TEST(dimension, dimension_symbolic_equality) {
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    auto C = std::make_shared<ov::Symbol>(), D = std::make_shared<ov::Symbol>();
+    ov::symbol::set_equal(A, B);
+    ov::symbol::set_equal(D, C);
+    ov::symbol::set_equal(A, D);
+    EXPECT_TRUE(ov::symbol::are_equal(B, C));
 }

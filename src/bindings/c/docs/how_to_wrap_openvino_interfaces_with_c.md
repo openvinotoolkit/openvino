@@ -1,6 +1,6 @@
 # How to wrap OpenVINO interfaces with C
 
-The library `openvino_c` implements most C++ interfaces provided in OpenVINO with C. 
+The library `openvino_c` implements most C++ interfaces provided in OpenVINO with C.
 This page describes how to wrap C++ interfaces from OpenVINO to C interfaces:
  1) Define C interface name and input parameters
  2) Check the validation of input parameters
@@ -20,7 +20,7 @@ flowchart LR
             c_call_cpp_interface["call C++ interface"]
             cpp_parameter_convert["convert C++ returned objects to C object"]
         end
-        
+
         c_return_success["return ov_status_e::OK"]
         c_return_exception["catch EXCEPTION and return"]
 
@@ -78,4 +78,4 @@ The tensor create needs to specify the shape info, so C shape need to be convert
  ## See also
  * [OpenVINO™ README](../../../../README.md)
  * [C API developer guide](../README.md)
- * [C API Reference](https://docs.openvino.ai/2023.1/api/api_reference.html)
+ * [C API Reference](https://docs.openvino.ai/2025/api/api_reference.html)

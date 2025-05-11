@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,17 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     using parent = typed_primitive_impl_ocl<space_to_batch>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::space_to_batch_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::space_to_batch_params, kernel_selector::space_to_batch_optional_params>;
+    using kernel_params_t = kernel_selector::space_to_batch_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::space_to_batch_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<space_to_batch_impl>(*this);
+        return make_deep_copy<space_to_batch_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<space_to_batch>();
         auto params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::space_to_batch_optional_params>(impl_param.get_program());
 
         if (primitive->shape_constant) {
             params.block_type = kernel_selector::base_params::ArgType::Constant;
@@ -56,12 +55,17 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
             params.end_dims = end_layout.count();
         }
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

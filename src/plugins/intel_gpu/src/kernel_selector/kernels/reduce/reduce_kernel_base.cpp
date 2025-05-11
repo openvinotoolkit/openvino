@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 namespace kernel_selector {
 
-bool ReduceKernelBase::Validate(const Params& p, const optional_params&) const {
+bool ReduceKernelBase::Validate(const Params& p) const {
     auto& params = dynamic_cast<const reduce_params&>(p);
 
     if (params.GetType() != KernelType::REDUCE) {
@@ -30,7 +30,7 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        DimensionAccessHelper dims(output);
+        DimensionAccessHelperJit dims(output);
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
                                                                                               dims.y(),
                                                                                               dims.z(),
@@ -231,9 +231,19 @@ Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const 
         return Datatype::F32;
 }
 
-KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
-                                                   const optional_params& options) const {
-    if (!Validate(p, options)) {
+void ReduceKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const reduce_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
+KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p) const {
+    if (!Validate(p)) {
         return {};
     }
 
@@ -243,17 +253,10 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
     KernelData kd = KernelData::Default<reduce_params>(params);
 
     auto cldnn_jit = GetJitConstants(params);
-    auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const reduce_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -268,7 +271,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     params.inputs[0].is_dynamic());
+                     params.is_shape_agnostic);
 
     return {kd};
 }

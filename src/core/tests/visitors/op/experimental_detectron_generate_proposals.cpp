@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ using ExperimentalProposals = ov::op::v6::ExperimentalDetectronGenerateProposals
 using Attrs = ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes;
 
 TEST(attributes, detectron_proposals) {
-    NodeBuilder::get_ops().register_factory<ExperimentalProposals>();
+    NodeBuilder::opset().insert<ExperimentalProposals>();
 
     Attrs attrs;
     attrs.min_size = 0.0f;

@@ -1,26 +1,27 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/detection_output.hpp"
+#include "openvino/op/detection_output.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-#include "op/org.openvinotoolkit/detection_output.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector detection_output(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
+ov::OutputVector detection_output(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
 
     auto box_logits = inputs[0];
     auto class_preds = inputs[1];
     auto proposals = inputs[2];
 
-    ov::op::v8::DetectionOutput::Attributes attrs;
+    v8::DetectionOutput::Attributes attrs;
     attrs.background_label_id = static_cast<int>(node.get_attribute_value<int64_t>("background_label_id", 0));
     attrs.top_k = static_cast<int>(node.get_attribute_value<int64_t>("top_k", -1));
     attrs.variance_encoded_in_target = node.get_attribute_value<int64_t>("variance_encoded_in_target", 0);
@@ -50,25 +51,24 @@ OutputVector detection_output(const Node& node) {
     attrs.objectness_score = node.get_attribute_value<float>("objectness_score", 0);
 
     if (inputs.size() == 3) {
-        return {std::make_shared<ov::op::v8::DetectionOutput>(box_logits, class_preds, proposals, attrs)};
+        return {std::make_shared<v8::DetectionOutput>(box_logits, class_preds, proposals, attrs)};
     } else if (inputs.size() == 5) {
         auto aux_class_preds = inputs[3];
         auto aux_box_preds = inputs[4];
-        return {std::make_shared<ov::op::v8::DetectionOutput>(box_logits,
-                                                              class_preds,
-                                                              proposals,
-                                                              aux_class_preds,
-                                                              aux_box_preds,
-                                                              attrs)};
+        return {std::make_shared<v8::DetectionOutput>(box_logits,
+                                                      class_preds,
+                                                      proposals,
+                                                      aux_class_preds,
+                                                      aux_box_preds,
+                                                      attrs)};
     } else {
-        NGRAPH_CHECK(false, "Invalid number of inputs");
+        FRONT_END_GENERAL_CHECK(false, "Invalid number of inputs");
     }
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+ONNX_OP("DetectionOutput", OPSET_SINCE(1), org_openvinotoolkit::opset_1::detection_output, OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

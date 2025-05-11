@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -30,17 +31,15 @@ ov::pass::ClampFusion::ClampFusion() {
                                                                           pattern::consumers_count(1));
     auto root = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
-        auto min_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());
+        auto min_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());
         if (!min_const)
             return false;
         if (shape_size(min_const->get_shape()) != 1)
             return false;
-        auto max_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(max_const_pattern).get_node_shared_ptr());
+        auto max_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(max_const_pattern).get_node_shared_ptr());
         if (!max_const)
             return false;
         if (shape_size(max_const->get_shape()) != 1)
@@ -48,6 +47,8 @@ ov::pass::ClampFusion::ClampFusion() {
 
         double min_value = min_const->cast_vector<double>()[0];
         double max_value = max_const->cast_vector<double>()[0];
+        if (min_value > max_value)
+            return false;
 
         auto clamp = register_new_node<ov::op::v0::Clamp>(data, min_value, max_value);
 

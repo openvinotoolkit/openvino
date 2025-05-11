@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,10 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSSliceForward::TSSliceForward() {
     MATCHER_SCOPE(TSSliceForward);
-    create_pattern<ov::op::v8::Slice>(true, {0});
+    create_pattern<ov::op::v8::Slice>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         if (main_node->get_input_size() < 5) {
             return false;
         }
@@ -43,6 +43,7 @@ TSSliceForward::TSSliceForward() {
                                                            transpose_axis_order);
         const auto& indices = main_node->input_value(4);
         auto new_axis = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        ov::copy_runtime_info(indices.get_node_shared_ptr(), new_axis);
 
         main_node->input(4).replace_source_output(new_axis);
 
@@ -67,7 +68,7 @@ TSSliceBackward::TSSliceBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -96,6 +97,7 @@ TSSliceBackward::TSSliceBackward() {
                                                            reversed_transpose_order);
         const auto& indices = main_node->input_value(4);
         auto new_axis = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        ov::copy_runtime_info(indices.get_node_shared_ptr(), new_axis);
         main_node->input(4).replace_source_output(new_axis);
 
         main_node->validate_and_infer_types();

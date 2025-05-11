@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -36,13 +37,13 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -58,7 +59,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref, true);
@@ -80,13 +81,13 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -102,7 +103,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref, true);

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
 };
 
@@ -58,9 +58,9 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         3,
         "",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
+            { ov::element::f32 },
             {},
             { 0.01f }
         },
@@ -73,9 +73,9 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         3,
         "relu",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
+            { ov::element::f32 },
             {},
             { 0.01f }
         },
@@ -111,11 +111,11 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             {0.f, 0.f, 0.f},
             {255.f, 255.f, 255.f}
         },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
+            { ov::element::f32 },
             {},
-            { {0.01f, 0.01f, 0.01f}, ngraph::element::f32, {1, 3, 1, 1} }
+            { {0.01f, 0.01f, 0.01f}, ov::element::f32, {1, 3, 1, 1} }
         },
         "Concat",
         "U8",
@@ -133,10 +133,10 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             {0.f, 0.f, 0.f},
             {255.f, 255.f, 255.f}
         },
-        { ngraph::element::u8 },
+        { ov::element::u8 },
         {
-            { ngraph::element::f32 },
-            { {0.01f, 0.01f, 0.01f}, ngraph::element::f32, {1, 3, 1, 1} },
+            { ov::element::f32 },
+            { {0.01f, 0.01f, 0.01f}, ov::element::f32, {1, 3, 1, 1} },
             { 0.01f }
         },
         "Concat",
@@ -145,7 +145,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
     },
 };
 
-const std::vector<std::vector<ngraph::PartialShape>> shapes = {
+const std::vector<std::vector<ov::PartialShape>> shapes = {
     {{ 1, 1, 16, 16 }, { 1, 1, 16, 16 }, { 1, 1, 16, 16 }},
     {{ 4, 1, 16, 16 }, { 4, 1, 16, 16 }, { 4, 1, 16, 16 }}
 };

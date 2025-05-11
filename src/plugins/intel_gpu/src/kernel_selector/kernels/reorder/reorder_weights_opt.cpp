@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,18 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputWeightsType(WeightsType::INT32);
     k.EnableOutputWeightsType(WeightsType::INT8);
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
+    k.EnableOutputWeightsType(WeightsType::INT32);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
+    k.EnableInputWeightsLayout(WeightsLayout::oyxi);
+    k.EnableInputWeightsLayout(WeightsLayout::oyix);
+    k.EnableInputWeightsLayout(WeightsLayout::oxiy);
+    k.EnableInputWeightsLayout(WeightsLayout::iyxo);
+    k.EnableInputWeightsLayout(WeightsLayout::yxio);
     k.EnableInputWeightsLayout(WeightsLayout::oizyx);
     k.EnableInputWeightsLayout(WeightsLayout::iozyx);
     k.EnableInputWeightsLayout(WeightsLayout::goiyx);
@@ -55,7 +62,7 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;
@@ -193,7 +200,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
     return jit;
 }
 
-bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*options*/) const {
+bool ReorderWeightsOpt::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
@@ -209,12 +216,12 @@ bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*
     return true;
 }
 
-KernelsData ReorderWeightsOpt::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsOpt::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderWeightsOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

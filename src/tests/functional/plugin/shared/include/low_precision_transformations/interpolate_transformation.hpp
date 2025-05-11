@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 class interpAttributes {
 public:
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     std::string mode;
     bool align_corners;
     bool antialias;
@@ -24,7 +24,7 @@ public:
 
     interpAttributes() = default;
 
-    interpAttributes(const ngraph::AxisSet& axes,
+    interpAttributes(const ov::AxisSet& axes,
                      const std::string& mode,
                      const bool& align_corners,
                      const bool& antialias,
@@ -36,8 +36,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    std::pair<ngraph::PartialShape, ngraph::Shape>,
+    ov::element::Type,
+    std::pair<ov::PartialShape, ov::Shape>,
     std::string,
     interpAttributes> InterpolateTransformationParams;
 

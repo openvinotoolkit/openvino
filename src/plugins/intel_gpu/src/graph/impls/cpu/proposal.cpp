@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "proposal_inst.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -49,11 +49,11 @@ struct proposal_t {
 
 inline float float_read_helper(const float* mem) { return *mem; }
 
-inline float float_read_helper(const half_t* mem) { return static_cast<float>(*mem); }
+inline float float_read_helper(const ov::float16* mem) { return static_cast<float>(*mem); }
 
 inline void float_write_helper(float* mem, float f) { *mem = f; }
 
-inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t>(f); }
+inline void float_write_helper(ov::float16* mem, float f) { *mem = static_cast<ov::float16>(f); }
 
 /****************************************************************************
  *                                                                          *
@@ -185,6 +185,7 @@ struct im_info_t {
 
 struct proposal_impl : typed_primitive_impl<proposal> {
     using parent = typed_primitive_impl<proposal>;
+    using parent::execute;
     using parent::parent;
 
     proposal_impl() : parent() {}
@@ -194,7 +195,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<proposal_impl>(*this);
+        return std::make_unique<proposal_impl>(*this);
     }
 
     template <typename dtype>
@@ -387,18 +388,19 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, proposal_inst& instance) override {
-        for (auto& a : events) {
-            a->wait();
-        }
-
         auto& stream = instance.get_network().get_stream();
 
-        auto ev = instance.get_network().get_stream().create_user_event(false);
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
+
+        if (!pass_through_events) {
+            stream.wait_for_events(events);
+        }
+
         im_info_t im_info;
         if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
-            read_image_info<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
         } else {
-            read_image_info<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
         }
 
         if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
@@ -408,31 +410,33 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         if (instance.dependencies().size() == 4) {
             auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else if (instance.outputs_memory_count() == 2) {
             auto proposal_probabilities = instance.output_memory_ptr(1);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
             } else {
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
             }
         }
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        ev->set();
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
@@ -447,12 +451,10 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             // - image_info[3] = { img_height, img_width, img_depth }
             // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
             // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
-            if (count != 3 && count != 4 && count != 6) {
-                CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
-            }
+            OPENVINO_ASSERT(one_of(count, {3, 4, 6}), arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return make_unique<proposal_impl>(arg);
+        return std::make_unique<proposal_impl>(arg);
     }
 };
 

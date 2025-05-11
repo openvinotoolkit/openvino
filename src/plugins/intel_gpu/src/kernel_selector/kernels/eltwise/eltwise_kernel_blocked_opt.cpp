@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,15 +62,15 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     return k;
 }
 
-KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -90,13 +90,13 @@ KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params, cons
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
 // Protected
-bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
+    if (!EltwiseKernelBase::Validate(params)) {
         return false;
     }
 
@@ -112,7 +112,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
     }
 
     const auto vec_size = SelectVecSizeFromFormat(ewParams.outputs[0]);
-    const auto input0 = ewParams.inputs[0];
+    const auto& input0 = ewParams.inputs[0];
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
     if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
@@ -137,10 +137,21 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
     };
 
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(ewParams.inputs[i], input0)))
+        const auto& input = ewParams.inputs[i];
+        if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0)))
             return false;
-        if (ewParams.inputs[i].Feature().pad.before % vec_size != 0) {
+        if (input.Feature().pad.before % vec_size != 0) {
             return false;
+        }
+        if (input.GetLayout() == DataLayout::bfyx) {
+            bool is_valid = input.LogicalSize() == 1;           // Scalar value broadcast
+            is_valid |= input.LogicalSize() % vec_size == 0 &&  // Feature value broadcast
+                        input.LogicalSize() == input.Feature().v &&
+                        input.LogicalSize() == output.Feature().v &&
+                        GetInnerBatchBlockSize(input) == 1;
+            if (!is_valid) {
+                return false;
+            }
         }
     }
 
@@ -189,7 +200,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
             else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5)
                 default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), z, y, x";
             else
-                OPENVINO_ASSERT("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
+                OPENVINO_THROW("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
 
             // Generate Jit
             switch (input.mode) {
@@ -422,6 +433,7 @@ static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
 static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfyx:
     case DataLayout::b_fs_yx_fsv4:
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:
@@ -439,7 +451,7 @@ static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     case DataLayout::bs_fs_zyx_bsv32_fsv16:
         return 32;
     default:
-        OPENVINO_ASSERT("GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_THROW("GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;
@@ -465,7 +477,7 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     case DataLayout::bs_fs_zyx_bsv16_fsv32:
         return 32;
     default:
-        OPENVINO_ASSERT("GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_THROW("GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;

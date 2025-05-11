@@ -160,7 +160,7 @@ expected-line-ending-format=
 spelling-dict=en_US
 
 # List of comma separated words that should not be checked.
-spelling-ignore-words=TF, MO, IR, IE, OVC
+spelling-ignore-words=TF, IR, IE, OVC
 
 # A path to a file that contains private dictionary; one word per line.
 spelling-private-dict-file=.pylintdict
@@ -202,7 +202,7 @@ ignore-mixin-members=yes
 # (useful for modules/projects where namespaces are manipulated during runtime
 # and thus existing member attributes cannot be deduced by static analysis. It
 # supports qualified module names, as well as Unix pattern matching.
-ignored-modules=flask_sqlalchemy,app.extensions.flask_sqlalchemy,distutils,openvino,torch,paddle
+ignored-modules=flask_sqlalchemy,app.extensions.flask_sqlalchemy,openvino,torch,paddle
 
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of

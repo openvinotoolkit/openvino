@@ -1,0 +1,14 @@
+bin
+include
+/lib
+!/scripts/lib
+src
+tests
+thirdparty
+
+.eslintrc.js
+CMakeLists.txt
+tsconfig.json
+
+**/*.tsbuildinfo
+*.tgz

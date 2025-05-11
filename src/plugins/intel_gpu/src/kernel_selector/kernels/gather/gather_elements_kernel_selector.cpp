@@ -1,5 +1,5 @@
 /*
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ namespace kernel_selector {
 
 gather_elements_kernel_selector::gather_elements_kernel_selector() { Attach<GatherElementsKernelRef>(); }
 
-KernelsData gather_elements_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GATHER_ELEMENTS);
+KernelsData gather_elements_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GATHER_ELEMENTS);
 }
 }  // namespace kernel_selector

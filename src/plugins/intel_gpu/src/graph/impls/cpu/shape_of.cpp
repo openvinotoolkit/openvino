@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "shape_of_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/shape_of.hpp"
 
@@ -23,7 +22,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::shape_of_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<shape_of_impl>(*this);
+        return std::make_unique<shape_of_impl>(*this);
     }
 
     shape_of_impl() : parent("shape_of_cpu_impl") {}
@@ -39,7 +38,8 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, shape_of_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
-        auto ev = stream.create_user_event(false);
+
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
@@ -59,18 +59,20 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
 
-        ev->set();
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<shape_of_impl>();
+        return std::make_unique<shape_of_impl>();
     }
 };
 
@@ -82,6 +84,7 @@ attach_shape_of_impl::attach_shape_of_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::bfuwzyx
     };
 
     auto types = {
@@ -102,3 +105,4 @@ attach_shape_of_impl::attach_shape_of_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::shape_of_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::shape_of)

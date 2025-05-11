@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,11 +16,11 @@ class TRANSFORMATIONS_API ConvertPriorBox8To0;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertPriorBox8To1 converts v8::PriorBox into v0::PriorBox.
  */
 class ov::pass::ConvertPriorBox8To0 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertPriorBox8To0", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertPriorBox8To0");
     ConvertPriorBox8To0();
 };

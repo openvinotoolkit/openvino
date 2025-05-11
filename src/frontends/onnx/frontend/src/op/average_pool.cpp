@@ -1,26 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/average_pool.hpp"
-
-#include "ngraph/node.hpp"
+#include "core/operator_set.hpp"
 #include "utils/pooling_factory.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector average_pool(const Node& node) {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_avg_pool();
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("AveragePool", OPSET_SINCE(1), ai_onnx::opset_1::average_pool);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

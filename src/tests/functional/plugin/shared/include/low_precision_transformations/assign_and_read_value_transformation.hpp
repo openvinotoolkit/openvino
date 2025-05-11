@@ -1,25 +1,25 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 class AssignAndReadValueTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
 typedef std::tuple <
-    ngraph::element::Type,         // input precision
-    ngraph::PartialShape,          // input shape
+    ov::element::Type,         // input precision
+    ov::PartialShape,          // input shape
     size_t,                        // opset version
     std::string,                   // device
-    ngraph::pass::low_precision::LayerTransformation::Params, // transformation params
+    ov::pass::low_precision::LayerTransformation::Params, // transformation params
     AssignAndReadValueTransformationParam       // test params
 > AssignAndReadValueTransformationParams;
 

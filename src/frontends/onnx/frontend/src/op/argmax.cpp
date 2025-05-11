@@ -1,36 +1,32 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/argmax.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "utils/arg_min_max_factory.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector argmax(const Node& node) {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
 
-}  // namespace set_1
+ONNX_OP("ArgMax", OPSET_RANGE(1, 11), ai_onnx::opset_1::argmax);
+}  // namespace opset_1
 
-namespace set_12 {
-OutputVector argmax(const Node& node) {
+namespace opset_12 {
+ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
 
-}  // namespace set_12
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("ArgMax", OPSET_SINCE(12), ai_onnx::opset_12::argmax);
+}  // namespace opset_12
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

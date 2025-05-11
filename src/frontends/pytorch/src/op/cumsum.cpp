@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cum_sum.hpp"
 #include "utils.hpp"
 
@@ -25,6 +26,19 @@ OutputVector translate_cumsum(const NodeContext& context) {
     if (!context.input_is_none(3)) {
         context.mutate_input(3, result);
     }
+    return {result};
+};
+
+OutputVector translate_cumsum_fx(const NodeContext& context) {
+    // cumsum = torch.ops.aten.cumsum.default(arg0_1, 0, dtype = torch.float64)
+    num_inputs_check(context, 2, 2);
+    auto x = context.get_input(0);
+    auto dim = context.get_input(1);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        x = context.mark_node(std::make_shared<v0::Convert>(x, dtype));
+    }
+    auto result = context.mark_node(std::make_shared<v0::CumSum>(x, dim));
     return {result};
 };
 

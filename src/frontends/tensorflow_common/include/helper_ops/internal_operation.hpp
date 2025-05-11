@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,7 @@ protected:
           m_no_conversion_reason(no_conversion_reason) {}
 
 public:
+    OPENVINO_OP("InternalOperation", "util", ov::frontend::tensorflow::FrameworkNode);
     // get a reason why some operation is unable to convert to OpenVINO opset
     // we store this information for InternalOperation to elaborate the reason
     // for cases such as Constant node of string type

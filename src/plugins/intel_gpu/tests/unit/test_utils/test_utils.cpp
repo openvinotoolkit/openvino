@@ -1,15 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils.h"
-#include "float16.h"
 #include <iostream>
 
-
-namespace cldnn {
-const cldnn::data_types type_to_data_type<FLOAT16>::value;
-}  // namespace cldnn
 
 using namespace cldnn;
 
@@ -37,7 +32,7 @@ void generic_test::run_single_test(bool is_caching_test) {
             if (generic_params->data_type == data_types::f32) {
                 tests::set_random_values<float>(input_mems[i], true, 7, 10);
             } else {
-                tests::set_random_values<FLOAT16>(input_mems[i], true, 5, 10);
+                tests::set_random_values<ov::float16>(input_mems[i], true, 5, 10);
             }
         } else {
             size_t size = generic_params->input_layouts[i].batch() * generic_params->input_layouts[i].feature();
@@ -50,23 +45,23 @@ void generic_test::run_single_test(bool is_caching_test) {
                 tests::set_values_per_batch_and_feature<float>(input_mems[i], values);
                 multipler = values.size();
             } else {
-                std::vector<FLOAT16> values;
+                std::vector<ov::float16> values;
                 for (size_t j = 1; j <= size; j++) {
-                    values.push_back(FLOAT16(static_cast<float>(multipler + j)));
+                    values.push_back(ov::float16(static_cast<float>(multipler + j)));
                 }
-                tests::set_values_per_batch_and_feature<FLOAT16>(input_mems[i], values);
+                tests::set_values_per_batch_and_feature<ov::float16>(input_mems[i], values);
                 multipler = values.size();
             }
         }
         std::string input_name = "input" + std::to_string(i);
-        if ((i == 0) && generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) && generic_params->network_config.get_optimize_data()) {
             // Add reorder after the first input in case of optimize data flag since it might change the input layout.
             input_name = "input0_init";
         }
 
         // First input is provided to the network as input_layout.
         // Other inputs are provided as input_layout if optimize data flag is off. Otherwise they are provided as data.
-        if ((i == 0) || !generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) || !generic_params->network_config.get_optimize_data()) {
             topology.add(input_layout(input_name, input_mems[i]->get_layout()));
             input_layouts_names.push_back(input_name);
         } else {
@@ -79,7 +74,7 @@ void generic_test::run_single_test(bool is_caching_test) {
         }
     }
 
-    if (generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+    if (generic_params->network_config.get_optimize_data()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
         topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
@@ -107,7 +102,7 @@ void generic_test::run_single_test(bool is_caching_test) {
     if (output->get_layout().data_type == data_types::f32) {
         compare_buffers<float>(output, output_ref);
     } else {
-        compare_buffers<FLOAT16>(output, output_ref);
+        compare_buffers<ov::float16>(output, output_ref);
     }
 }
 
@@ -155,20 +150,20 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
 }
 
 static size_t calc_offfset(const layout & layout, const pitches& p) {
-    auto lower_padding = layout.data_padding.lower_size();
+    const auto& lower_padding = layout.data_padding._lower_size;
     if (layout.format == format::bfzyx) {
         return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.z * lower_padding.spatial[2] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+            p.b * lower_padding[0] +
+            p.f * lower_padding[1] +
+            p.z * lower_padding[2 + 2] +
+            p.y * lower_padding[2 + 1] +
+            p.x * lower_padding[2 + 0];
     } else {
         return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+            p.b * lower_padding[0] +
+            p.f * lower_padding[1] +
+            p.y * lower_padding[2 + 1] +
+            p.x * lower_padding[2 + 0];
     }
 }
 
@@ -178,38 +173,38 @@ memory_desc generic_test::get_linear_memory_desc(const layout & layout) {
     switch (layout.format) {
         case format::bfyx: {
             p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfyx)[3] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::bfyx)[2] * p.y;
-            p.b = layout.get_buffer_size().sizes(format::bfyx)[1] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::bfyx)[3] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::bfyx)[2] * p.y;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::bfyx)[1] * p.f;
             break;
         }
         case format::yxfb: {
             p.b = 1;
-            p.f = layout.get_buffer_size().sizes(format::yxfb)[3] * p.b;
-            p.x = layout.get_buffer_size().sizes(format::yxfb)[2] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::yxfb)[1] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::yxfb)[3] * p.b;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::yxfb)[2] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::yxfb)[1] * p.x;
             break;
         }
         case format::fyxb: {
             p.b = 1;
-            p.x = layout.get_buffer_size().sizes(format::fyxb)[3] * p.b;
-            p.y = layout.get_buffer_size().sizes(format::fyxb)[2] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::fyxb)[1] * p.y;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::fyxb)[3] * p.b;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::fyxb)[2] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::fyxb)[1] * p.y;
             break;
         }
         case format::byxf: {
             p.f = 1;
-            p.x = layout.get_buffer_size().sizes(format::byxf)[3] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::byxf)[2] * p.x;
-            p.b = layout.get_buffer_size().sizes(format::byxf)[1] * p.y;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::byxf)[3] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::byxf)[2] * p.x;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::byxf)[1] * p.y;
             break;
         }
         case format::bfzyx: {
             p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfzyx)[4] * p.x;
-            p.z = layout.get_buffer_size().sizes(format::bfzyx)[3] * p.y;
-            p.f = layout.get_buffer_size().sizes(format::bfzyx)[2] * p.z;
-            p.b = layout.get_buffer_size().sizes(format::bfzyx)[1] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[4] * p.x;
+            p.z = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[3] * p.y;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[2] * p.z;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[1] * p.f;
             break;
         }
         default: {
@@ -315,6 +310,29 @@ std::shared_ptr<cldnn::engine> create_test_engine() {
     return ret;
 }
 
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type,
+                                                  cldnn::runtime_types runtime_type,
+                                                  bool allow_usm_mem) {
+    device_query query(engine_type, runtime_type);
+    auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+
+    if (!allow_usm_mem)
+        device->set_mem_caps(cldnn::memory_capabilities({}));
+
+    auto ret = engine::create(engine_type, runtime_type, device);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (ret->get_device_info().supports_immad)
+        ret->create_onednn_engine({});
+#endif
+    return ret;
+}
+
 cldnn::engine& get_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
     if (!test_engine) {
@@ -369,7 +387,7 @@ std::string test_params::print_tensor(cldnn::tensor t) {
 
 std::string test_params::print() {
     std::stringstream str;
-    str << "Data type: " << data_type_traits::name(data_type) << std::endl;
+    str << "Data type: " << ov::element::Type(data_type) << std::endl;
 
     for (int j = 0 ; j < (int)input_layouts.size(); j++) {
         const cldnn::tensor& t = input_layouts[j].get_tensor();
@@ -439,5 +457,42 @@ std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::b
 std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
 std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};
 std::vector<tensor> generic_test::test_input_sizes = { { 1, 1, 100, 100 } ,{ 1, 1, 277, 277 } ,{ 1, 1, 400, 600 } };
+
+namespace {
+double get_exectime_from_profiling_info(const std::vector<instrumentation::profiling_interval>& intervals)
+{
+    using namespace std::chrono;
+    double time = 0.0;
+    for (const auto& i : intervals) {
+        if (i.stage != instrumentation::profiling_stage::executing) {
+            continue;
+        }
+        time = duration_cast<duration<double, microseconds::period>>(i.value->value()).count();
+        break;
+    }
+    return time;
+}
+}  // namespace
+
+double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                    const std::string& primitive_id)
+{
+    const auto event = outputs.at(primitive_id).get_event();
+    event->wait(); // should ensure execution completion, if not segfault will occur
+    const auto intervals = event->get_profiling_info();
+    return get_exectime_from_profiling_info(intervals);
+}
+
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs)
+{
+    std::cout << "Print last run time" << std::endl;
+    for (const auto& o : outputs) {
+        const auto event = o.second.get_event();
+        const auto intervals = event->get_profiling_info();
+        const auto time = get_exectime_from_profiling_info(intervals);
+        std::cout << o.first << ":" << time << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 }  // namespace tests

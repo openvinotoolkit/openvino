@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,10 +104,10 @@ bool squeeze_axes_to_shape(const Output<Node>& input_node,
 TSSqueezeForward::TSSqueezeForward() {
     MATCHER_SCOPE(TSSqueezeForward);
 
-    create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>(true, {0});
+    create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {
@@ -122,10 +122,8 @@ TSSqueezeForward::TSSqueezeForward() {
                 }
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
-                OPENVINO_SUPPRESS_DEPRECATED_START
                 non_negative_axes =
-                    normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                    util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);
             }
         }
 
@@ -196,7 +194,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
@@ -231,10 +229,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
                 }
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
-                OPENVINO_SUPPRESS_DEPRECATED_START
                 non_negative_axes =
-                    normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                    util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);
             }
         }
 

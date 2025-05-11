@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestLeakyRelu(PytorchLayerTest):
@@ -29,8 +29,10 @@ class TestLeakyRelu(PytorchLayerTest):
         return aten_leaky_relu(alpha, inplace), ref_net, "aten::leaky_relu" if not inplace else "aten::leaky_relu_"
 
     @pytest.mark.parametrize("alpha", [0.01, 1.01, -0.01])
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_leaky_relu(self, alpha, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, inplace), ie_device, precision, ir_version)

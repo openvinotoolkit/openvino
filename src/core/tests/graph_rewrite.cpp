@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/pass/graph_rewrite.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
@@ -24,7 +24,7 @@ using namespace ov::pass;
 
 class TestPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestPass");
+    OPENVINO_MATCHER_PASS_RTTI("TestPass");
     TestPass() : MatcherPass() {
         auto divide = std::make_shared<ov::pass::pattern::op::Label>(element::f32,
                                                                      Shape{},
@@ -45,7 +45,7 @@ public:
 
 class GatherNodesPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GatherNodesPass");
+    OPENVINO_MATCHER_PASS_RTTI("GatherNodesPass");
     GatherNodesPass(NodeVector& order) : MatcherPass() {
         ov::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
             order.push_back(m.get_match_root());
@@ -59,20 +59,20 @@ public:
 
 class Anchor : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("Anchor");
+    OPENVINO_GRAPH_REWRITE_RTTI("Anchor");
     Anchor() : GraphRewrite() {}
 };
 
-std::shared_ptr<Model> get_model() {
+inline std::shared_ptr<Model> get_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<ov::op::v1::Divide>(data, divide_constant);
-    return std::make_shared<ov::Model>(ov::NodeVector{divide}, ov::ParameterVector{data});
+    return std::make_shared<ov::Model>(ov::OutputVector{divide}, ov::ParameterVector{data});
 }
 
-ov::pass::param_callback get_callback() {
+inline ov::pass::param_callback get_callback() {
     return [](const std::shared_ptr<const Node>& node) -> bool {
-        if (std::dynamic_pointer_cast<const op::v1::Divide>(node)) {
+        if (ov::as_type_ptr<const op::v1::Divide>(node)) {
             return true;
         } else {
             return false;
@@ -169,11 +169,11 @@ public:
     using ov::op::v1::Divide::Divide;
 };
 
-std::shared_ptr<Model> get_derived_model() {
+static std::shared_ptr<Model> get_derived_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
-    return std::make_shared<ov::Model>(ov::NodeVector{divide}, ov::ParameterVector{data});
+    return std::make_shared<ov::Model>(ov::OutputVector{divide}, ov::ParameterVector{data});
 }
 
 TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
@@ -188,6 +188,7 @@ TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
 
 class TypeBasedTestPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("TypeBasedTestPass");
     TypeBasedTestPass() : MatcherPass() {
         auto divide = std::make_shared<ov::op::v1::Divide>(std::make_shared<ov::pass::pattern::op::Label>(),
                                                            std::make_shared<ov::pass::pattern::op::Label>());
@@ -208,6 +209,7 @@ public:
 
 class TypeBasedTestPassDerived : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("TypeBasedTestPassDerived");
     TypeBasedTestPassDerived() : MatcherPass() {
         auto divide = std::make_shared<PrivateDivide>(std::make_shared<ov::pass::pattern::op::Label>(),
                                                       std::make_shared<ov::pass::pattern::op::Label>());
@@ -389,7 +391,7 @@ TEST(PassConfigTest, Test1) {
 
 class CheckConsumers : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CheckConsumers");
+    OPENVINO_MATCHER_PASS_RTTI("CheckConsumers");
     CheckConsumers() {
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
             auto node = m.get_match_root();
@@ -410,7 +412,7 @@ public:
              * 4. Some GraphRewrite facilities
              */
             auto cnt = consumers(node.get());
-            if (node.use_count() != cnt + 7) {
+            if (node.use_count() != cnt + 6) {
                 OPENVINO_THROW("Wrong number of consumers");
             }
 
@@ -440,5 +442,5 @@ TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_model();
     pass::Manager m;
     m.register_pass<CheckConsumers>();
-    ASSERT_NO_THROW(m.run_passes(f));
+    OV_ASSERT_NO_THROW(m.run_passes(f));
 }

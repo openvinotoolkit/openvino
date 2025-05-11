@@ -1,24 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
 
 using set_property_params = std::tuple<ov::AnyMap,  // Set Property
                                        bool>;
@@ -60,26 +44,23 @@ public:
 
 TEST_P(SetPropertyTest, SetPropertyTestCase) {
     if (m_properties.size() == 0) {
-        ASSERT_NO_THROW(m_plugin->set_property(m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->set_property(m_properties));
         return;
     }
 
     if (m_throw_exception) {
         ASSERT_ANY_THROW(m_plugin->set_property(m_properties));
     } else {
-        ASSERT_NO_THROW(m_plugin->set_property(m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->set_property(m_properties));
     }
 }
 
 const std::vector<set_property_params> plugin_set_property_params_test = {
-    set_property_params{{{"AUTO_BATCH_TIMEOUT", "200"}}, false},
-    set_property_params{{{"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
-    set_property_params{{{"CACHE_DIR", "./xyz"}}, false},
-    set_property_params{{{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}}, false},
-    set_property_params{{{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}, {"CACHE_DIR", "./xyz"}},
-                        false},
+    set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, false},
+    set_property_params{{{ov::device::priorities("CPU(4)")}}, false},
+    set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
     set_property_params{{{"XYZ", "200"}}, true},
-    set_property_params{{{"XYZ", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(4)"}, {"CACHE_DIR", "./xyz"}}, true},
+    set_property_params{{{"XYZ", "200"}, {ov::device::priorities("CPU(4)")}}, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

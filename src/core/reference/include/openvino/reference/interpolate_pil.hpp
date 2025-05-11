@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // The implementation for BILINEAR_PILLOW and BICUBIC_PILLOW is based on the
@@ -40,9 +40,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
-#include "ngraph/op/interpolate.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

@@ -1,17 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/markup_bias.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 MarkupBias::MarkupBias() {
     MATCHER_SCOPE(MarkupBias);

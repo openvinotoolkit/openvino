@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "ov_tensorflow/xla_data.pb.h"
 #include "utils.hpp"
-#include "xla_data.pb.h"
 
 using namespace std;
 using namespace ov;
@@ -29,10 +29,8 @@ namespace op {
 
 namespace {
 vector<int64_t> get_const_vector(const NodeContext& node, const Output<Node>& input, const string& input_name) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_const = get_constant_from_source(input);
+    auto input_const = ov::util::get_constant_from_source(input);
     TENSORFLOW_OP_VALIDATION(node, input_const, "XlaConvV2 is supported only with constant " + input_name + ".");
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return input_const->cast_vector<int64_t>();
 }
 
@@ -113,7 +111,7 @@ OutputVector translate_xla_conv_v2_op(const NodeContext& node) {
                              is_all_one,
                              "[TensorFlow Frontend] internal error: convolutional kernel with holes is not supported");
 
-    ConvolutionDimensionNumbers dimension_numbers;
+    ConvolutionDimensionNumbers dimension_numbers{};
     TENSORFLOW_OP_VALIDATION(
         node,
         dimension_numbers.ParseFromArray(dimension_numbers_message.data(),

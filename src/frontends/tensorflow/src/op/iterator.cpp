@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,12 @@
 
 #include "common_op_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/parameter.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -53,7 +53,7 @@ OutputVector translate_iterator_get_next_op(const NodeContext& node) {
     for (size_t output_ind = 0; output_ind < output_num; ++output_ind) {
         auto output_type = output_types[output_ind];
         auto output_shape = output_shapes[output_ind];
-        auto parameter = make_shared<Parameter>(output_type, output_shape);
+        auto parameter = make_shared<v0::Parameter>(output_type, output_shape);
         if (output_num == 1) {
             set_node_name(node_name, parameter);
         } else {

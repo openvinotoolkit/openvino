@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,12 @@ struct Tensor {
     Any element_type;
 };
 
+struct Complex {
+    Complex() = default;
+    explicit Complex(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
 struct Tuple;
 
 struct List {
@@ -35,6 +41,12 @@ struct Str {};
 
 struct PyNone {};
 
+struct PyScalar {
+    PyScalar() = default;
+    explicit PyScalar(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
 struct Optional;
 struct Dict;
 struct NamedTuple;
@@ -43,9 +55,9 @@ struct Union;
 }  // namespace type
 
 /// Plays a role of node, block and module decoder
-class IDecoder {
+class FRONTEND_API IDecoder {
 public:
-    virtual ~IDecoder() = default;
+    virtual ~IDecoder();
 };
 
 class FRONTEND_API DecoderBase : public IDecoder {

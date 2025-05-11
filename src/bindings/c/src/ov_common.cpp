@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_common.h"
@@ -7,7 +7,7 @@
  * @variable global value for error info.
  * Don't change its order.
  */
-char const* error_infos[] = {"success",
+const char* error_infos[] = {"success",
                              "general error",
                              "it's not implement",
                              "failed to network",

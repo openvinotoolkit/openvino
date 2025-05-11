@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTile(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        assert 'multiples' in inputs_info
-        input_shape = inputs_info['input']
-        multiples_shape = inputs_info['multiples']
+        assert 'input:0' in inputs_info
+        assert 'multiples:0' in inputs_info
+        input_shape = inputs_info['input:0']
+        multiples_shape = inputs_info['multiples:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
-        inputs_data['multiples'] = np.random.randint(1, 4, multiples_shape).astype(np.int32)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
+        inputs_data['multiples:0'] = np.random.randint(1, 4, multiples_shape).astype(np.int32)
 
         return inputs_data
 
@@ -37,10 +37,8 @@ class TestTile(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_tile_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                        use_new_frontend, use_old_api):
+    def test_tile_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tile_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

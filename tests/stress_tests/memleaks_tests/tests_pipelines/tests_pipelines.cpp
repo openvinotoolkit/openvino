@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,7 @@
 
 #include <algorithm>
 #include <array>
-#include <inference_engine.hpp>
 #include <string>
-
-using namespace InferenceEngine;
 
 // Maximum values to compute an average for smoothing
 #define AVERAGE_NUM 5

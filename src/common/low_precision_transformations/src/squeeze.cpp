@@ -1,19 +1,21 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/squeeze.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/squeeze.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,26 +23,26 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
     MATCHER_SCOPE(SqueezeTransformation);
     auto matcher = pattern::wrap_type<opset1::Squeeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool SqueezeTransformation::transform(ov::pass::pattern::Matcher &m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
-    auto squeezeOnConstant = [](const std::shared_ptr<ngraph::Node>& squeeze,
-                                const std::shared_ptr<ngraph::opset1::Constant>& dequantizationOpConstant,
-                                const ngraph::PartialShape& inputShape) {
+    auto squeezeOnConstant = [](const std::shared_ptr<ov::Node>& squeeze,
+                                const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
+                                const ov::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
         const auto constantShape = dequantizationOpConstant->get_shape();
         if (shape_size(constantShape) == 1ul) {
@@ -66,7 +68,9 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions), false);
+    const auto newOperation = moveDequantizationAfter(squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions));
+
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
@@ -74,10 +78,10 @@ bool SqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
     return true;
 }
 
-bool SqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
+bool SqueezeTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

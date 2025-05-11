@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -83,7 +83,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["input_model.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Input model 2
@@ -101,7 +101,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([add, split_2, absolute, sin], "test_graph_2", input_tensors, output_tensors)
-    models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["input_model_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Input model 3
@@ -118,7 +118,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add_2, relu_2], "test_graph_3", input_tensors, output_tensors)
-    models["input_model_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["input_model_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
@@ -130,7 +130,7 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["extract_subgraph.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 2
@@ -144,7 +144,7 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 3
@@ -158,7 +158,7 @@ def create_test_onnx_models():
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
                                            outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([expected_split], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 4
@@ -177,7 +177,7 @@ def create_test_onnx_models():
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 5
@@ -189,7 +189,7 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_5.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["extract_subgraph_5.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs
@@ -203,7 +203,7 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                           opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs 2
@@ -215,7 +215,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs 3
@@ -228,7 +228,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add_2], "test_graph_3", input_tensors, output_tensors)
-    models["test_override_all_outputs_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_override_all_outputs_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_inputs
@@ -249,7 +249,7 @@ def create_test_onnx_models():
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                          opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for cut_and_add_new_input_edge
@@ -267,7 +267,7 @@ def create_test_onnx_models():
     ]
     new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "add_out"], outputs=["out4"])
     graph = make_graph([add, split, relu, new_mul], "test_graph", input_tensors, output_tensors)
-    models["cut_and_add_new_input_edge.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["cut_and_add_new_input_edge.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for cut_and_add_new_input_place
@@ -285,7 +285,7 @@ def create_test_onnx_models():
     new_split = onnx.helper.make_node("Split", inputs=["new_input"],
                                       outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([new_split, relu, new_mul], "test_graph", input_tensors, output_tensors)
-    models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for remove_output
@@ -300,7 +300,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu, split], "test_graph", input_tensors, output_tensors)
-    models["remove_output.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["remove_output.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
@@ -316,7 +316,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (8, 16)),
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["test_partial_shape.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_partial_shape.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test place names model
@@ -343,7 +343,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, sub, split, mul], "test_graph", input_tensors, output_tensors,
                        value_info=value_infos, initializer=initializers)
-    models["test_place_names.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["test_place_names.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Input model with integer types
@@ -361,7 +361,7 @@ def create_test_onnx_models():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    models["input_model_int32.onnx"] = make_model(graph, producer_name="ONNX Importer",
+    models["input_model_int32.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     return models
@@ -390,7 +390,7 @@ def skip_if_onnx_frontend_is_disabled():
         pytest.skip()
 
 
-# Function to compare ng Functions (ops names, types and shapes).
+# Function to compare OV Models (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
 def compare_models(current, expected):  # noqa: C901 the function is too complex
     result = True

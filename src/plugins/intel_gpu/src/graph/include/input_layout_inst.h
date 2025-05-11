@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,11 @@ class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<inpu
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(input_layout_node const& /* node */, const kernel_impl_params& impl_param) {
+        return { impl_param.typed_desc<input_layout>()->layout };
+    }
+
     static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
         return impl_param.typed_desc<input_layout>()->layout;
     }
@@ -35,7 +40,7 @@ public:
     void update_shape() override;
     typed_primitive_inst(network& network, input_layout_node const& node);
 
-    event::ptr set_data(memory::ptr mem);
+    event::ptr set_data(memory::ptr mem, bool need_to_check_memory_to_set = true);
 };
 
 using input_layout_inst = typed_primitive_inst<input_layout>;

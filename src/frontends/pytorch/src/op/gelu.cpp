@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,19 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+namespace {
+OutputVector translate_gelu_common(const NodeContext& context, const std::string& approximate) {
+    auto x = context.get_input(0);
+    if (approximate == "none") {
+        return {context.mark_node(std::make_shared<ov::op::v7::Gelu>(x, ov::op::GeluApproximationMode::ERF))};
+    }
+    if (approximate == "tanh") {
+        return {context.mark_node(std::make_shared<ov::op::v7::Gelu>(x, ov::op::GeluApproximationMode::TANH))};
+    }
+    PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported approximate for Gelu: ", approximate);
+};
+}  // namespace
+
 OutputVector translate_gelu(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
@@ -19,13 +32,17 @@ OutputVector translate_gelu(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         approximate = context.const_input<std::string>(1);
     }
-    if (approximate == "none") {
-        return {context.mark_node(std::make_shared<ov::op::v7::Gelu>(x, ov::op::GeluApproximationMode::ERF))};
+    return translate_gelu_common(context, approximate);
+};
+
+OutputVector translate_gelu_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto x = context.get_input(0);
+    std::string approximate = "none";
+    if (context.has_attribute("approximate")) {
+        approximate = context.get_attribute<std::string>("approximate");
     }
-    if (approximate == "tanh") {
-        return {context.mark_node(std::make_shared<ov::op::v7::Gelu>(x, ov::op::GeluApproximationMode::TANH))};
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported approximate for Gelu: ", approximate);
+    return translate_gelu_common(context, approximate);
 };
 
 }  // namespace op

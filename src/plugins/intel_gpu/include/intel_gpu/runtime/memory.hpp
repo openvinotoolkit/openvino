@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,16 +26,30 @@ enum class mem_lock_type : int32_t {
     read_write
 };
 
+class MemoryTracker {
+public:
+    explicit MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_size, allocation_type alloc_type);
+    ~MemoryTracker();
+
+    size_t size() const { return m_buffer_size; }
+
+private:
+    engine* m_engine;
+    void* m_buffer_ptr;
+    size_t m_buffer_size;
+    allocation_type m_alloc_type;
+};
+
 struct memory {
     using ptr = std::shared_ptr<memory>;
     using cptr = std::shared_ptr<const memory>;
-    memory(engine* engine, const layout& layout,  allocation_type type, bool reused = false);
+    memory(engine* engine, const layout& layout, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
 
-    virtual ~memory();
+    virtual ~memory() = default;
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
-    virtual event::ptr fill(stream& stream, unsigned char pattern) = 0;
-    virtual event::ptr fill(stream& stream) = 0;
+    virtual event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, bool blocking = true) = 0;
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
 
@@ -57,23 +71,54 @@ struct memory {
             return true;
         }
 
-        if (l.data_padding.lower_size() != tensor(0) || l.data_padding.upper_size() != tensor(0)) {
+        if (l.data_padding) {
             return true;
         }
 
-        if (_bytes_count == (l.data_type == data_types::bin ? ceil_div(l.count(), 32) : l.count()) * data_type_traits::size_of(l.data_type)) {
+        if (_bytes_count == l.bytes_count()) {
             return false;
         }
 
         return true;
     }
-    void set_reused(bool reused = true) { _reused = reused; }
 
-    virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool blocking = true) = 0;
-    virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true) = 0;
+    // Device <== Host
+    virtual event::ptr copy_from(stream& stream, const void* src_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) = 0;
 
-    virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) { return other.copy_from(stream, *this, blocking); }
-    virtual event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool blocking = true) = 0;
+    // Device <== Device
+    virtual event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) = 0;
+
+    // Device ==> Host
+    virtual event::ptr copy_to(stream& stream, void* dst_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const = 0;
+
+    // Device ==> Device
+    virtual event::ptr copy_to(stream& stream, memory& dst_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
+        return dst_mem.copy_from(stream, *this, src_offset, dst_offset, size, blocking);
+    }
+
+    virtual event::ptr copy_from(stream& stream, const memory& src_mem, bool blocking = true) {
+        const auto zero_offset = 0;
+        const auto data_size = src_mem._bytes_count;
+        return copy_from(stream, src_mem, zero_offset, zero_offset, data_size, blocking);
+    }
+
+    virtual event::ptr copy_from(stream& stream, const void* src_ptr, bool blocking = true) {
+        const auto zero_offset = 0;
+        const auto data_size = _bytes_count;
+        return copy_from(stream, src_ptr, zero_offset, zero_offset, data_size, blocking);
+    }
+
+    virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) const {
+        const auto zero_offset = 0;
+        const auto data_size = _bytes_count;
+        return copy_to(stream, other, zero_offset, zero_offset, data_size, blocking);
+    }
+
+    virtual event::ptr copy_to(stream& stream, void* dst_ptr, bool blocking = true) const {
+        const auto zero_offset = 0;
+        const auto data_size = _bytes_count;
+        return copy_to(stream, dst_ptr, zero_offset, zero_offset, data_size, blocking);
+    }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const {
@@ -81,26 +126,29 @@ struct memory {
     }
 #endif
 
+    std::shared_ptr<MemoryTracker> get_mem_tracker() const { return m_mem_tracker; }
+    GPU_DEBUG_CODE(bool from_memory_pool = false);
+
 protected:
     engine* _engine;
     const layout _layout;
     // layout bytes count, needed because of traits static map destruction
     // before run of memory destructor, when engine is static
     size_t _bytes_count;
+    std::shared_ptr<MemoryTracker> m_mem_tracker = nullptr;
 
 private:
     allocation_type _type;
-    bool _reused;
 };
 
 struct simple_attached_memory : memory {
     simple_attached_memory(const layout& layout, void* pointer)
-        : memory(nullptr, layout, allocation_type::unknown, true), _pointer(pointer) {}
+        : memory(nullptr, layout, allocation_type::unknown, nullptr), _pointer(pointer) {}
 
     void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char) override { return nullptr; }
-    event::ptr fill(stream& /* stream */) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, unsigned char, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, bool) override { return nullptr; }
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
@@ -109,17 +157,14 @@ struct simple_attached_memory : memory {
 #endif
         0}; };
 
-    event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override {
-        OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
+    event::ptr copy_from(stream& stream, const void* src_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
-    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool /* blocking */) override {
-        OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
-    event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override {
-        OPENVINO_THROW("[GPU] copy_to is not implemented for simple_attached_memory");
-    }
-    event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool /* blocking */) override {
-        OPENVINO_THROW("[GPU] copy_to is not implemented for simple_attached_memory");
+    event::ptr copy_to(stream& stream, void* dst_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
 private:
@@ -186,7 +231,7 @@ template<typename T>
 inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& stream) {
     cldnn::data_types mem_dtype = mem->get_layout().data_type;
     if (mem_dtype == data_types::f16 || mem_dtype == data_types::f32) {
-        if (!std::is_floating_point<T>::value && !std::is_same<T, half_t>::value) {
+        if (!std::is_floating_point<T>::value && !std::is_same<T, ov::float16>::value) {
             OPENVINO_ASSERT(false, "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
         }
     }
@@ -211,7 +256,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             case data_types::f16: {
                 auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(half_to_float(p_mem[i])));
+                    out_vecs.push_back(static_cast<T>(ov::float16::from_bits(p_mem[i])));
                 }
                 break;
             }
@@ -237,7 +282,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
                 break;
             }
             case data_types::f16: {
-                mem_lock<half_t, mem_lock_type::read> lock{mem, stream};
+                mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
                 break;
             }

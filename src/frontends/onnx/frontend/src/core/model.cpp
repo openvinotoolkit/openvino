@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,24 +6,26 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
+using namespace ::ONNX_NAMESPACE;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+std::string get_node_domain(const NodeProto& node_proto) {
     return node_proto.has_domain() ? node_proto.domain() : "";
 }
 
-std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
+std::int64_t get_opset_version(const ModelProto& model_proto, const std::string& domain) {
     // copy the opsets and sort them (descending order)
     // then return the version from the first occurrence of a given domain
     auto opset_imports = model_proto.opset_import();
     std::sort(std::begin(opset_imports),
               std::end(opset_imports),
-              [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs, const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+              [](const OperatorSetIdProto& lhs, const OperatorSetIdProto& rhs) {
                   return lhs.version() > rhs.version();
               });
 
@@ -36,18 +38,18 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
     OPENVINO_THROW("Couldn't find operator set's version for domain: ", domain, ".");
 }
 
-Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset)
+Model::Model(std::shared_ptr<ModelProto> model_proto, ModelOpSet&& model_opset)
     : m_model_proto{std::move(model_proto)},
       m_opset{std::move(model_opset)} {}
 
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {
     const auto dm = m_opset.find(domain);
     if (dm == std::end(m_opset)) {
-        throw error::UnknownDomain{domain};
+        OPENVINO_THROW("Domain isn't supported: " + domain);
     }
     const auto op = dm->second.find(name);
     if (op == std::end(dm->second)) {
-        throw error::UnknownOperator{name, domain};
+        OPENVINO_THROW("Operation isn't supported: " + (domain.empty() ? "" : domain + ".") + name);
     }
     return op->second;
 }
@@ -69,14 +71,13 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     if (m_opset.find(domain) == std::end(m_opset)) {
         const auto opset = ops_bridge.get_operator_set(domain);
         if (opset.empty()) {
-            OPENVINO_WARN << "Couldn't enable domain: " << domain
-                          << " since it does not have any registered operators.";
+            OPENVINO_WARN("Couldn't enable domain: ", domain, " since it does not have any registered operators.");
             return;
         }
         m_opset.emplace(domain, opset);
     }
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

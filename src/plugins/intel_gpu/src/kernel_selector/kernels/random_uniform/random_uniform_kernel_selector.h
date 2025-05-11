@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
         return instance_;
     }
 
-    KernelsData GetBestKernels(const Params &params, const optional_params &options) const override;
+    KernelsData GetBestKernels(const Params &params) const override;
 
 private:
     random_uniform_kernel_selector();

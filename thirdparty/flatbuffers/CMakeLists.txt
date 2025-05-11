@@ -1,14 +1,12 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(FLATBUFFERS_BUILD_FLATLIB OFF CACHE BOOL "" FORCE)
-set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_CPP_STD ${CMAKE_CXX_STANDARD})
 
-# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
     set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
 else()
@@ -35,9 +33,10 @@ else()
         TARGET_NAME host_flatc
         NATIVE_INSTALL_DIR "${HOST_FLATC_INSTALL_DIR}"
         CMAKE_ARGS "-DFLATBUFFERS_BUILD_TESTS=${FLATBUFFERS_BUILD_TESTS}"
-                   "-DFLATBUFFERS_BUILD_FLATLIB=${FLATBUFFERS_BUILD_FLATLIB}"
+                   "-DFLATBUFFERS_BUILD_FLATLIB=OFF"
+                   "-DFLATBUFFERS_BUILD_FLATC=ON"
+                   "-DFLATBUFFERS_BUILD_SHAREDLIB=OFF"
                    "-DFLATBUFFERS_CPP_STD=${FLATBUFFERS_CPP_STD}"
-                   "-DFLATBUFFERS_BUILD_FLATHASH=${FLATBUFFERS_BUILD_FLATHASH}"
         NATIVE_SOURCE_SUBDIR "flatbuffers"
         NATIVE_TARGETS flatc)
 

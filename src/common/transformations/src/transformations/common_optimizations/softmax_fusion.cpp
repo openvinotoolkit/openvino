@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -37,14 +38,14 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
     auto div_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({exp_pattern, reduce_sum_pattern});
 
-    ov::matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
             return false;
 
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto reduce_sum_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-            pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
+        auto reduce_sum_axes =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
         int64_t reduce_sum_axis = reduce_sum_axes->cast_vector<int64_t>()[0];
@@ -55,8 +56,8 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
 
         auto exp_input_is_subtract = pattern_map.count(sub_pattern) != 0;
         if (exp_input_is_subtract) {
-            auto reduce_max_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
+            auto reduce_max_axes =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
             if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
                 return false;
             int64_t reduce_max_axis = reduce_max_axes->cast_vector<int64_t>()[0];

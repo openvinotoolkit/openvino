@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast) {
     using OP_Type = typename TypeParam::op_type;
     const ov::element::Type_t element_type = TypeParam::element_type;
 
-    ov::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ov::test::NodeBuilder::opset().insert<OP_Type>();
     const auto A = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 2, 3});
     const auto B = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{3, 2, 1});
 
@@ -54,7 +54,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, No_Broadcast) {
     using OP_Type = typename TypeParam::op_type;
     const ov::element::Type_t element_type = TypeParam::element_type;
 
-    ov::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    ov::test::NodeBuilder::opset().insert<OP_Type>();
     const auto A = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 2, 3});
     const auto B = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 2, 3});
 

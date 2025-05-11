@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cmath>
-
-#include "ngraph/type/element_type.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {

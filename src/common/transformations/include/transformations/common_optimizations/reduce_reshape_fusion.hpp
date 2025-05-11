@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,12 +16,12 @@ class TRANSFORMATIONS_API ReduceReshapeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReduceReshapeFusion transformation
  * Fuse ReduceOp(keep_dims=false)+Reshape to ReduceOp(keep_dims=true)
  */
 class ov::pass::ReduceReshapeFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReduceReshapeFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReduceReshapeFusion");
     ReduceReshapeFusion();
 };

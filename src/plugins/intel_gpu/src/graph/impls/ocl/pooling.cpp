@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "pooling_inst.h"
-#include "pooling/pooling_kernel_selector.h"
+#include "openvino/core/validation_util.hpp"
 #include "pooling/pooling_kernel_base.h"
-#include "ngraph/validation_util.hpp"
+#include "pooling/pooling_kernel_selector.h"
+#include "pooling_inst.h"
+#include "pooling_shape_inference_util.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -46,17 +46,22 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using parent = typed_primitive_impl_ocl<pooling>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::pooling_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::pooling_params, kernel_selector::pooling_optional_params>;
+    using kernel_params_t = kernel_selector::pooling_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::pooling_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<pooling_impl>(*this);
+        return make_deep_copy<pooling_impl, kernel_params_t>(*this);
     }
 
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
+        // Legacy multi-output
+        if (instance.get_typed_desc<pooling>()->maxPoolOpset8Features) {
+            args.inputs = { instance.dep_memory_ptr(0) };
+            args.outputs.push_back(instance.dep_memory_ptr(1));
+        }
         return args;
     }
 
@@ -64,7 +69,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<pooling>();
         auto params = get_default_params<kernel_selector::pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::pooling_optional_params>(impl_param.get_program());
 
         params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (params.maxPoolOpset8Features) {
@@ -95,23 +99,12 @@ public:
         ov::CoordinateDiff pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
         auto auto_pad = primitive->auto_pad;
 
-        if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
-            pads_begin.clear();
-            pads_end.clear();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                           kernel,
-                                           stride,
-                                           dilation,
-                                           auto_pad,
-                                           pads_end,
-                                           pads_begin);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
-        if (auto_pad == ov::op::PadType::VALID) {
-            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
-        }
+        ov::op::v8::MaxPool op;
+        op.set_strides(stride);
+        op.set_kernel(kernel);
+        op.set_auto_pad(auto_pad);
+
+        ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation, pads_begin, pads_end);
 
         auto spatial_rank = output_layout.get_spatial_rank();
 
@@ -160,7 +153,7 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
-        return {params, optional_params};
+        return params;
     }
 };
 
@@ -174,6 +167,7 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::b_fs_yx_fsv4,
                      format::b_fs_yx_fsv16,
                      format::b_fs_yx_fsv32,
+                     format::fs_b_yx_fsv32,
                      format::bs_fs_yx_bsv16_fsv16,
                      format::bs_fs_yx_bsv16_fsv32,
                      format::bs_fs_yx_bsv32_fsv16,
@@ -188,8 +182,6 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::bs_fs_zyx_bsv32_fsv32 };
 
     auto keys = implementation_map<pooling>::combine(types, formats);
-    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
-    keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
     implementation_map<pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<pooling>::create<pooling_impl>, keys);
 }

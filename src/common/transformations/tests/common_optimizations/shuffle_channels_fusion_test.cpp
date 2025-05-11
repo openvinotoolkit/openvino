@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -52,13 +55,13 @@ public:
             auto reshape_before = std::make_shared<opset6::Reshape>(input0, shape_reshape_before, true);
             auto permute = std::make_shared<opset6::Transpose>(reshape_before, permutation);
             auto reshape_after = std::make_shared<opset6::Reshape>(permute, shape_reshape_after, true);
-            f = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
+            f = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0});
         }
 
         if (values.fuse_happened == FuseHappened::YES) {
             auto input0 = std::make_shared<opset6::Parameter>(element::f32, values.inputPartialShape);
             auto shuffle_channels = std::make_shared<opset6::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
-            f_ref = std::make_shared<ov::Model>(NodeVector{shuffle_channels}, ParameterVector{input0});
+            f_ref = std::make_shared<ov::Model>(OutputVector{shuffle_channels}, ParameterVector{input0});
         } else {
             f_ref = f;
         }
@@ -71,7 +74,7 @@ public:
         manager.register_pass<ov::pass::ShuffleChannelsFusion>(values.check_values);
         manager.register_pass<ov::pass::CheckUniqueNames>(unh);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsFusionTestValues> obj) {

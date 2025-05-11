@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,13 +17,13 @@ TRANSFORMATIONS_API void unmark_shape_subgraph(const std::shared_ptr<Node>& node
 TRANSFORMATIONS_API bool is_shape_subgraph(const std::shared_ptr<const Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief ShapeSubgraph class represents runtime info attribute that marks shape subgraphs.
  * Information whether the node belongs to the shape path or to the data path is needed during evaluate and CF.
  */
 class TRANSFORMATIONS_API ShapeSubgraph : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("shape_subgraph", "0");
+    OPENVINO_RTTI("shape_subgraph", "0", RuntimeAttribute);
 
     ShapeSubgraph() = default;
 

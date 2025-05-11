@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 
 class TestDropout(OnnxRuntimeLayerTest):
@@ -56,7 +56,7 @@ class TestDropout(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         #
         #   Create reference IR net
@@ -129,7 +129,7 @@ class TestDropout(OnnxRuntimeLayerTest):
         args = dict(producer_name='test_model')
         if opset:
             args['opset_imports'] = [helper.make_opsetid("", opset)]
-        onnx_net = helper.make_model(graph_def, **args)
+        onnx_net = onnx_make_model(graph_def, **args)
 
         ref_net = None
 
@@ -147,30 +147,30 @@ class TestDropout(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_dropout_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dropout_opset6(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_dropout(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dropout(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dropout_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dropout_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, opset=6, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='GREEN_SUITE')
-    def test_dropout_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_dropout_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

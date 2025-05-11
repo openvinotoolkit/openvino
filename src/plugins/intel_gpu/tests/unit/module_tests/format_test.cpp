@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,39 +112,126 @@ public:
         ASSERT_EQ(blocks.at(idx).first, param.inner_block.at(idx).first);
         ASSERT_EQ(blocks.at(idx).second, param.inner_block.at(idx).second);
     }
+
+    auto logic_blocks = format::logic_block_sizes(param.in_format);
+    ASSERT_EQ(logic_blocks.size(), param.inner_block.size());
+    for (size_t idx = 0; idx < logic_blocks.size(); idx++) {
+        auto c = param.in_format.internal_order()[param.inner_block.at(idx).first];
+        auto pos = param.in_format.order().find(c);
+        if (pos == std::string::npos)
+            throw std::domain_error(std::string("Unknown coord type: ") + c);
+
+        auto expected_logic_idx = param.in_format.dims_order()[pos];
+        auto expected_logic_size = param.inner_block.at(idx).second;
+
+        ASSERT_EQ(logic_blocks.at(idx).first, expected_logic_idx);
+        ASSERT_EQ(logic_blocks.at(idx).second, expected_logic_size);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, axes_test_format,
     testing::ValuesIn(std::vector<axes_test_format_params>{
         {format::os_is_yx_isa8_osv8_isv4,       {{1, 8}, {0, 8}, {1, 4}}, {{1, 32}, {0, 8}}},
         {format::os_is_yx_isa8_osv16_isv4,      {{1, 8}, {0, 16}, {1, 4}}, {{1, 32}, {0, 16}}},
-        {format::os_is_yx_osa4_isa8_osv8_isv2,  {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
         {format::os_is_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::os_is_zyx_osa4_isa8_osv8_isv2, {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
         {format::os_is_zyx_osa4_isa8_osv8_isv4, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::os_is_yx_osa2_isa8_osv16_isv2, {{0, 2}, {1, 8}, {0, 16}, {1, 2}}, {{0, 32}, {1, 16}}},
-        {format::os_is_yx_osa2_isa8_osv16_isv4, {{0, 2}, {1, 8}, {0, 16}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::os_is_yx_osa2_isa8_osv8_isv2,  {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
-        {format::os_is_zyx_osa2_isa8_osv8_isv2, {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
         {format::os_is_zyx_isa8_osv8_isv4,      {{1, 8}, {0, 8}, {1, 4}}, {{1, 32}, {0, 8}}},
         {format::os_is_zyx_isa8_osv16_isv4,     {{1, 8}, {0, 16}, {1, 4}}, {{1, 32}, {0, 16}}},
-        {format::is_os_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::is_os_yx_isa2_osa8_isv8_osv2,  {{1, 2}, {0, 8}, {1, 8}, {0, 2}}, {{1, 16}, {0, 16}}},
-        {format::is_os_yx_isa4_osa8_isv8_osv4,  {{1, 4}, {0, 8}, {1, 8}, {0, 4}}, {{1, 32}, {0, 32}}},
         {format::os_is_yx_osv8_isv4,            {{0, 8}, {1, 4}}, {{0, 8}, {1, 4}}},
-        {format::os_is_zyx_osv8_isv4,           {{0, 8}, {1, 4}}, {{0, 8}, {1, 4}}},
-        {format::os_is_yx_osv8_isv2,            {{0, 8}, {1, 2}}, {{0, 8}, {1, 2}}},
-        {format::os_is_zyx_osv8_isv2,           {{0, 8}, {1, 2}}, {{0, 8}, {1, 2}}},
-        {format::g_os_is_yx_osa2_isa8_osv8_isv2,  {{0, 2}, {1, 8}, {0, 8}, {1, 2}}, {{0, 16}, {1, 16}}},
-        {format::g_os_is_yx_osa4_isa8_osv8_isv4,  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::g_os_is_zyx_osa4_isa8_osv8_isv4, {{0, 4}, {1, 8}, {0, 8}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::g_os_is_yx_osa4_isa8_osv8_isv2,  {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
-        {format::g_os_is_zyx_osa4_isa8_osv8_isv2, {{0, 4}, {1, 8}, {0, 8}, {1, 2}}, {{0, 32}, {1, 16}}},
-        {format::g_os_is_yx_osa2_isa8_osv16_isv4, {{0, 2}, {1, 8}, {0, 16}, {1, 4}}, {{0, 32}, {1, 32}}},
-        {format::g_os_is_yx_osa2_isa8_osv16_isv2, {{0, 2}, {1, 8}, {0, 16}, {1, 2}}, {{0, 32}, {1, 16}}},
         {format::gs_oiyx_gsv32,                   {{8, 32}}, {{8, 32}}},
-        {format::gs_oizyx_gsv32,                  {{8, 32}}, {{8, 32}}},
         {format::gs_oiyx_gsv16,                   {{8, 16}}, {{8, 16}}},
         {format::gs_oizyx_gsv16,                  {{8, 16}}, {{8, 16}}},
+        {format::i_yxs_os_yxsv2_osv16,            {{0, 16}}, {{0, 16}}},
+        {format::iy_xs_os_xsv2_osv8__ao32,        {{2, 2}, {0, 8}},   {{2, 2}, {0, 8}}},
+        {format::g_is_os_zyx_isv16_osv16,         {{1, 16}, {0, 16}}, {{1, 16}, {0, 16}}},
+        {format::g_is_os_yx_isv16_osv16,          {{1, 16}, {0, 16}}, {{1, 16}, {0, 16}}},
+        {format::gi_yxs_os_yxsv2_osv16,           {{0, 16}},          {{0, 16}}},
+        {format::giy_xs_os_xsv2_osv8__ao32,       {{2, 2}, {0, 8}},   {{2, 2}, {0, 8}}},
     }),
     axes_test_format::PrintToString);
+
+struct find_format_test_params {
+    std::vector<uint64_t> dims_order;
+    std::vector<std::pair<size_t, int>> block_sizes;
+    bool is_weights;
+    bool is_grouped;
+    bool is_image_2d;
+    bool is_winograd;
+    bool is_nv12;
+    format expected_format;
+};
+
+class find_format_test : public testing::TestWithParam<find_format_test_params> {
+public:
+    static std::string PrintToString(testing::TestParamInfo<find_format_test_params> param_info) {
+        auto& p = param_info.param;
+
+        std::string res = "order = [";
+        for (size_t i = 0; i < p.dims_order.size() - 1; ++i) {
+            res += std::to_string(p.dims_order[i]) + ", ";
+        }
+        res += std::to_string(p.dims_order.back()) + "], ";
+
+        res += "block_sizes = [";
+        for (auto block : p.block_sizes) {
+            res += "{ " + std::to_string(block.first) + ", " + std::to_string(block.second) + "}";
+        }
+        res += "], ";
+
+        res += "is_weights = " + std::to_string(p.is_weights) + ", " +
+               "is_grouped = " + std::to_string(p.is_grouped) + ", " +
+               "is_image_2d = " + std::to_string(p.is_image_2d) + ", " +
+               "is_winograd = " + std::to_string(p.is_winograd) + ", " +
+               "is_nv12 = " + std::to_string(p.is_nv12) + ", " +
+               "expected_format = " + param_info.param.expected_format.to_string();
+
+        return res;
+    }
+ };
+
+TEST_P(find_format_test, simple_test) {
+    auto p = GetParam();
+
+    if (p.expected_format == format::any) {
+        ASSERT_ANY_THROW(format::find_format(p.dims_order, p.block_sizes,
+                                             p.is_weights, p.is_grouped, p.is_image_2d, p.is_winograd, p.is_nv12));
+    } else {
+        ASSERT_EQ(format::find_format(p.dims_order, p.block_sizes,
+                                      p.is_weights, p.is_grouped, p.is_image_2d, p.is_winograd, p.is_nv12), p.expected_format);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, find_format_test,
+    testing::ValuesIn(std::vector<find_format_test_params>{
+    //   Dims order             Block sizes               is_weights is_grouped is_image_2d is_winograd is_nv12   Expected format
+        {{0, 1, 2, 3},          {},                       false,     false,     false,      false,      false,    format::bfyx},
+        {{1, 0, 2, 3},          {},                       false,     false,     false,      false,      false,    format::fbyx},
+        {{2, 3, 1, 0},          {},                       false,     false,     false,      false,      false,    format::yxfb},
+        {{0, 2, 3, 1},          {},                       false,     false,     false,      false,      false,    format::byxf},
+        {{1, 2, 3, 0},          {},                       false,     false,     false,      false,      false,    format::fyxb},
+        {{0, 2, 1, 3},          {},                       false,     false,     false,      false,      false,    format::byfx},
+        {{0, 3, 1, 2},          {},                       false,     false,     false,      false,      false,    format::bxfy},
+        {{0, 1, 2, 3},          {{1, 16}},                false,     false,     false,      false,      false,    format::b_fs_yx_fsv16},
+        {{0, 1},                {{0, 8}, {1, 8}},         false,     false,     false,      false,      false,    format::bs_fs_fsv8_bsv8},
+        {{0, 1, 2, 3, 4, 5, 6}, {},                       false,     false,     false,      false,      false,    format::bfuwzyx},
+        {{0, 1, 2, 3},          {},                       false,     false,     true,       false,      true,     format::nv12},
+        {{0, 1, 2, 3},          {},                       false,     false,     true,       false,      false,    format::image_2d_rgba},
+        {{0, 1, 2, 3},          {},                       true,      false,     false,      false,      false,    format::oiyx},
+        {{1, 0, 2, 3},          {},                       true,      false,     false,      false,      false,    format::ioyx},
+        {{1, 2, 3, 0},          {},                       true,      false,     false,      false,      false,    format::iyxo},
+        {{0, 2, 3, 1},          {},                       true,      false,     false,      false,      false,    format::oyxi},
+        {{0, 2, 1, 3},          {},                       true,      false,     false,      false,      false,    format::oyix},
+        {{0, 3, 1, 2},          {},                       true,      false,     false,      false,      false,    format::oxiy},
+        {{2, 3, 1, 0},          {},                       true,      false,     false,      false,      false,    format::yxio},
+        {{0, 1, 2, 3},          {{0, 16}},                true,      false,     false,      false,      false,    format::os_iyx_osv16},
+        {{0, 1, 2, 3},          {},                       true,      false,     false,      true,       false,    format::winograd_2x3_s1_weights},
+        {{0, 1, 2, 3},          {{1, 8}, {0, 8}, {1, 4}}, true,      false,     false,      false,      false,    format::os_is_yx_isa8_osv8_isv4},
+        {{0, 1, 2, 3, 4},       {},                       true,      true,      false,      false,      false,    format::goiyx},
+        {{0, 2, 1, 3, 4},       {{1, 16}, {0, 16}},       true,      true,      false,      false,      false,    format::g_is_os_yx_isv16_osv16},
+
+    //  Expected error throw
+        {{0, 0, 2, 3},          {},                       false,     false,     false,     false,       false,    format::any},
+        {{0, 1, 2, 3},          {{1, 1}},                 false,     false,     false,     false,       false,    format::any},
+        {{0, 1, 2, 3},          {},                       false,     true,      false,     false,       false,    format::any}
+    }),
+    find_format_test::PrintToString);

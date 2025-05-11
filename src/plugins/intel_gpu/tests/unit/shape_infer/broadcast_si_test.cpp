@@ -25,7 +25,7 @@ struct broadcast_test_params {
     layout data_layout;
     layout target_shape_layout;
     ov::Shape target_shape_data;
-    ngraph::AxisSet axes_mapping_data;
+    ov::AxisSet axes_mapping_data;
     ov::op::BroadcastModeSpec mode;
     layout expected_layout;
 };
@@ -122,7 +122,7 @@ TEST_P(broadcast_test_two_inputs_blocked_format, shape_infer) {
 
     auto outputs = network.execute();
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output->get_layout(), p.expected_layout);
 }

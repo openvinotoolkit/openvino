@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/fake_quantize.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
@@ -31,17 +31,17 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
+        std::vector<ov::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
         ov::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     };
 
     class Expected {
     public:
-        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
+        std::vector<ov::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
         ov::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ov::Shape inputShape;
@@ -55,17 +55,17 @@ public:
     void SetUp() override {
         const FuseFakeQuantizeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+        actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
             testValues.actual.branches,
             testValues.actual.precisionFakeQuantizeOnData,
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+        referenceFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
             testValues.expected.branches,
             testValues.expected.precisionFakeQuantizeOnData,

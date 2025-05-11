@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "arg_max_min_kernel_base.h"
 
 namespace kernel_selector {
-bool ArgMaxMinKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ARG_MAX_MIN ||
-        o.GetType() != KernelType::ARG_MAX_MIN) {
+bool ArgMaxMinKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ARG_MAX_MIN) {
         return false;
     }
 
@@ -40,16 +39,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_
     return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
-
-    DispatchData dispatchData = SetDefault(orgParams);
-
-    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+void ArgMaxMinKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -58,9 +48,22 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
+}
+
+KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+
+    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+
+    DispatchData dispatchData = SetDefault(orgParams);
+
+    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+    GetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -76,7 +79,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
                      (uint32_t)orgParams.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      (uint32_t)orgParams.outputs.size(),
-                     orgParams.has_dynamic_tensors());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }

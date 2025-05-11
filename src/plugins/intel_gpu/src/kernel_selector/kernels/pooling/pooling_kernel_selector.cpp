@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ pooling_kernel_selector::pooling_kernel_selector() {
     Attach<Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16>();
 }
 
-KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::POOLING);
+KernelsData pooling_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::POOLING);
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,16 +7,19 @@
 #include <algorithm>
 #include <regex>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {
-namespace pass {
-namespace pattern {
+bool is_used(Node* node);
+
+namespace pass::pattern {
 MatcherState::MatcherState(Matcher* matcher)
     : m_matcher(matcher),
       m_pattern_value_map(matcher->m_pattern_map),
+      m_pattern_symbols(matcher->m_pattern_symbols),
       m_watermark(matcher->m_matched_list.size()),
       m_capture_size(matcher->m_pattern_value_maps.size()) {}
 
@@ -35,6 +38,8 @@ Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name)
 Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode)
     : Matcher(make_node_output(pattern_node), name, strict_mode) {}
 
+Matcher::~Matcher() = default;
+
 MatcherState::~MatcherState() {
     if (m_restore) {
         if (!m_matcher->m_matched_list.empty()) {
@@ -42,12 +47,13 @@ MatcherState::~MatcherState() {
                                             m_matcher->m_matched_list.end());
         }
 
-        if (!m_pattern_value_maps.empty()) {
+        if (!m_matcher->m_pattern_value_maps.empty()) {
             m_matcher->m_pattern_value_maps.erase(m_pattern_value_maps.begin() + m_capture_size,
                                                   m_pattern_value_maps.end());
         }
 
         m_matcher->m_pattern_map = m_pattern_value_map;
+        m_matcher->m_pattern_symbols = m_pattern_symbols;
     }
 }
 
@@ -83,8 +89,30 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
         }
     }
 }
+
+namespace {
+ov::NodeVector get_subgraph_outputs(const NodeVector& nodes, const NodeVector& exclusions, bool ignore_unused) {
+    const std::set<std::shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
+    const std::set<std::shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
+
+    NodeVector outputs;
+
+    for (const auto& n : nodes) {
+        if (exclusions_set.count(n) != 0)
+            continue;
+
+        for (const auto& u : n->get_users()) {
+            bool add_output = nodes_set.count(u) == 0 && (!ignore_unused || is_used(u.get()));
+            if (add_output) {
+                outputs.push_back(n);
+            }
+        }
+    }
+    return outputs;
+}
+}  // namespace
+
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -93,38 +121,38 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
                 label_exclusions.push_back(entry.second.get_node_shared_ptr());
             }
         }
-        return ngraph::get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
+        return get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
     }
 
-    return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_subgraph_outputs(get_matched_nodes(), exclusions, false).size() < 2;
 }
 
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
+    OPENVINO_LOG_MATCHER1(this, pattern_value, graph_value);
 
     return pattern_node->match_value(this, pattern_value, graph_value);
 }
 
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
+        OPENVINO_LOG_MATCHER2(this, i);
         if (!match_value(pattern_args.at(i), args.at(i))) {
+            OPENVINO_LOG_MATCHER3(this, i);
             return false;
         }
+        OPENVINO_LOG_MATCHER4(this, i);
     }
     return true;
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
-
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        OPENVINO_LOG_MATCHER5(this, pattern_args.size(), args.size());
         return false;
     }
 
@@ -137,21 +165,27 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
                       return n1 < n2;
                   });
         do {
+            OPENVINO_LOG_MATCHER6(this);
             auto saved = start_match();
             if (match_permutation(pattern_args, args)) {
-                return saved.finish(true);
+                auto res = saved.finish(true);
+                OPENVINO_LOG_MATCHER7(this);
+                return res;
             }
+            OPENVINO_LOG_MATCHER8(this);
         } while (std::next_permutation(begin(pattern_args),
                                        end(pattern_args),
                                        [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
                                            return n1 < n2;
                                        }));
     } else {
-        return match_permutation(pattern_args, args);
+        OPENVINO_LOG_MATCHER9(this);
+        auto res = match_permutation(pattern_args, args);
+        OPENVINO_LOG_MATCHER10(this, res);
+        return res;
     }
 
-    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_LOG_MATCHER11(this);
     return false;
 }
 
@@ -184,60 +218,7 @@ void Matcher::clear_state() {
     m_pattern_map.clear();
     m_pattern_value_maps.clear();
     m_matched_list.clear();
+    m_pattern_symbols.clear();
 }
-
-namespace {
-std::set<std::shared_ptr<Node>> as_node_set(const std::set<std::shared_ptr<op::Label>>& label_set) {
-    std::set<std::shared_ptr<Node>> result;
-    for (const auto& label : label_set) {
-        result.insert(label);
-    }
-    return result;
-}
-}  // namespace
-
-RecurrentMatcher::RecurrentMatcher(const Output<Node>& initial_pattern,
-                                   const Output<Node>& pattern,
-                                   const std::shared_ptr<Node>& rpattern,
-                                   const std::set<std::shared_ptr<op::Label>>& correlated_patterns)
-    : RecurrentMatcher(initial_pattern, pattern, rpattern, as_node_set(correlated_patterns)) {}
-
-bool RecurrentMatcher::match(Output<Node> graph) {
-    bool matched = false;
-    Matcher m_initial(m_initial_pattern);
-    Matcher m_repeat(m_pattern);
-    Matcher& m = m_initial;
-    PatternValueMap previous_matches;
-    m_matches.clear();
-    m_match_root = graph;
-
-    // try to match one cell (i.e. pattern)
-    while (m.match(graph, previous_matches)) {
-        matched = true;
-        // move to the next cell
-        graph = m.get_pattern_value_map()[m_recurrent_pattern];
-
-        // copy bound nodes for the current pattern graph into a global matches map
-        for (const auto& cur_match : m.get_pattern_value_map()) {
-            m_matches[cur_match.first].push_back(cur_match.second);
-        }
-
-        // pre-populate the pattern map for the next cell with the bound nodes
-        // from the current match. Only bound nodes whose labels are in
-        // correlated_patterns are pre-populated. Skip other labels are
-        // unbounded by default
-        for (const auto& cor_pat : m_correlated_patterns) {
-            previous_matches[cor_pat] = m.get_pattern_value_map()[cor_pat];
-        }
-        m = m_repeat;
-    }
-
-    if (!matched) {
-        m_match_root.reset();
-    }
-
-    return matched;
-}
-}  // namespace pattern
-}  // namespace pass
+}  // namespace pass::pattern
 }  // namespace ov

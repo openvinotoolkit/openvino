@@ -1,25 +1,25 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "single_layer_tests/shape_of.hpp"
+#include "single_op_tests/shape_of.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::ShapeOfLayerTest;
 
 namespace {
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::I32
+    const std::vector<ov::element::Type> model_types = {
+            ov::element::f32,
+            ov::element::i32
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Check, ShapeOfLayerTest,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(InferenceEngine::Precision::I64),
-                                    ::testing::Values(std::vector<size_t>({10, 10, 10})),
+                                    ::testing::ValuesIn(model_types),
+                                    ::testing::Values(ov::element::i64),
+                                    ::testing::Values(ov::test::static_shapes_to_test_representation({{10, 10, 10}})),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ShapeOfLayerTest::getTestCaseName);
 }  // namespace

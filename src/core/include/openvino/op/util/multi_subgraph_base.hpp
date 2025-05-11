@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/sink.hpp"
 
 namespace ov {
 namespace op {
@@ -14,12 +15,12 @@ namespace util {
 /// \brief Abstract base class for sub-graph based ops, i.e ops that have some
 /// sub-graphs
 ///
-class OPENVINO_API MultiSubGraphOp : public Op {
+class OPENVINO_API MultiSubGraphOp : public ov::op::Sink {
 public:
-    OPENVINO_OP("MultiSubGraphOp", "util");
+    OPENVINO_OP("MultiSubGraphOp", "util", ov::op::Sink);
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
-    class InputDescription {
+    class OPENVINO_API InputDescription {
     protected:
         ///
         /// \brief      Constructs a new instance.
@@ -33,7 +34,7 @@ public:
     public:
         using Ptr = std::shared_ptr<InputDescription>;
         using type_info_t = DiscreteTypeInfo;
-        virtual ~InputDescription() = default;
+        virtual ~InputDescription();
         virtual std::shared_ptr<InputDescription> copy() const = 0;
 
         virtual const type_info_t& get_type_info() const = 0;
@@ -44,7 +45,7 @@ public:
 
     /// \brief Abstract class describes how a MultiSubGraphOp output is produced from
     /// the body.
-    class OutputDescription {
+    class OPENVINO_API OutputDescription {
     protected:
         ///
         /// \brief      Constructs a new instance.
@@ -58,7 +59,7 @@ public:
     public:
         using Ptr = std::shared_ptr<OutputDescription>;
         using type_info_t = DiscreteTypeInfo;
-        virtual ~OutputDescription() = default;
+        virtual ~OutputDescription();
         virtual std::shared_ptr<OutputDescription> copy() const = 0;
         virtual const type_info_t& get_type_info() const = 0;
 
@@ -212,7 +213,7 @@ public:
     virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -220,7 +221,7 @@ public:
     const MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) const {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -228,7 +229,7 @@ public:
     MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -236,7 +237,7 @@ public:
     const MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) const {
         return m_output_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -244,7 +245,7 @@ public:
     MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) {
         return m_output_descriptions[index];
     }
-    /// \brief     Sets vector with connections beewtwen operation inputs
+    /// \brief     Sets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -253,7 +254,7 @@ public:
         m_input_descriptions[index] = inputs;
     }
 
-    /// \brief     Sets vector with connections beewtwen operation outputs
+    /// \brief     Sets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -334,6 +335,7 @@ class OPENVINO_API AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiS
 public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>")
 };
@@ -344,6 +346,7 @@ class OPENVINO_API AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiS
 public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>");
 };

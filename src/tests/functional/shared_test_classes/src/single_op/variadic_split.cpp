@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/variadic_split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace test {
@@ -46,9 +47,9 @@ void VariadicSplitLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
     auto split_axis_const =
-        std::make_shared<ov::op::v0::Constant>(element::i64, ngraph::Shape{}, std::vector<int64_t>{axis});
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto num_split_const =
-        std::make_shared<ov::op::v0::Constant>(element::u64, ngraph::Shape{num_splits.size()}, num_splits);
+        std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{num_splits.size()}, num_splits);
     auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(param, split_axis_const, num_split_const);
     function = std::make_shared<ov::Model>(variadic_split->outputs(), ov::ParameterVector{param}, "VariadicSplit");
 }

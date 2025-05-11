@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
-
+#include "kernel_base.h"
 #include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
@@ -15,12 +15,46 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent = typed_primitive_impl_ocl<fully_connected>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::fully_connected_params, kernel_selector::fully_connected_optional_params>;
+    using kernel_params_t = kernel_selector::fully_connected_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
+    fully_connected_impl() = default;
+
+    fully_connected_impl(const kernel_selector::kernel_data& kd) {
+        const auto& params = kd.weightsReorderParams;
+
+        if (params.is_initialized) {
+            // Assumption that kernel data contains already reshaped 2d weights
+            auto crop_to_2d = [](const ov::PartialShape& shape) {
+                return ov::PartialShape({shape[0], shape[1]});
+            };
+
+            auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
+                                                                                 from_weights_tensor(params.dest),
+                                                                                 params.rotate);
+            auto output_layout = weights_reorder_params->get_output_layout();
+            output_layout.set_partial_shape(crop_to_2d(output_layout.get_partial_shape()));
+            weights_reorder_params->set_output_layout(output_layout);
+
+            _weights_reorder_params = weights_reorder_params;
+        }
+        _kernel_data = kd;
+        _kernel_name = kd.kernelName;
+        can_reuse_memory = _kernel_data.can_reuse_memory;
+    }
+
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<fully_connected_impl>(*this);
+        return make_deep_copy<fully_connected_impl, kernel_params_t>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:
@@ -33,17 +67,17 @@ protected:
 
         args.inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
-        if (!desc->decompression_scale.empty())
+        if (desc->decompression_scale.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
 
-        if (!desc->decompression_zero_point.empty())
+        if (desc->decompression_zero_point.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(in_id));
 
         return args;
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+    static kernel_impl_params update_impl_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
@@ -81,68 +115,83 @@ public:
 
             std::vector<layout> layouts{input0_layout, input1_layout};
 
-            bool has_zp = !primitive->decompression_zero_point.empty();
-            bool has_scale = !primitive->decompression_scale.empty();
+            bool has_zp = primitive->decompression_zero_point.is_valid();
+            bool has_scale = primitive->decompression_scale.is_valid();
 
-            size_t offset = primitive->bias.empty() ? 2 : 3;
-            const auto& weights_pshape = input1_layout.get_partial_shape();
+            size_t offset = primitive->bias.is_valid() ? 3 : 2;
             if (has_scale) {
                 auto scale_layout = input_layouts[offset++];
-                if (input1_pshape.size() != 2) {
-                    scale_layout.set_partial_shape(reshape_to_2d(scale_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(scale_layout);
             }
 
             if (has_zp) {
                 auto zp_layout = input_layouts[offset];
-                if (input1_pshape.size() != 2) {
-                    zp_layout.set_partial_shape(reshape_to_2d(zp_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(zp_layout);
             }
 
             return layouts;
         };
 
-        auto get_fc_output_layout = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout) {
+        auto get_fc_output_layout = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout, bool swiglu_fused) {
             auto updated_out_layout = output_layout;
 
             auto input0_pshape = input_layouts[0].get_partial_shape();
             auto input1_pshape = input_layouts[1].get_partial_shape();
             ov::PartialShape updated_out_pshape {input0_pshape[0], input1_pshape[0]};
+            const auto output_feature_size = swiglu_fused ? input1_pshape[0] / 2 : input1_pshape[0];
 
             if (primitive->input_size == 3) {
-                updated_out_pshape = { input0_pshape[0], input0_pshape[1], input1_pshape[0] };
+                updated_out_pshape = { input0_pshape[0], input0_pshape[1], output_feature_size};
             }
             updated_out_layout.set_partial_shape(updated_out_pshape);
 
             return updated_out_layout;
         };
 
-        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         auto updated_impl_param = impl_param;
+        bool swiglu_fused = false;
+        if (updated_impl_param.fused_desc.size() > 0) {
+            for (const auto& f : updated_impl_param.fused_desc) {
+                if (f.is_type<swiglu>())
+                    swiglu_fused = true;
+            }
+        }
 
         const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
-        updated_impl_param.input_layouts[0] = input_layouts[0];
-        updated_impl_param.input_layouts[1] = input_layouts[1];
+        for (size_t i = 0; i < input_layouts.size(); ++i) {
+            updated_impl_param.input_layouts[i] = input_layouts[i];
+        }
         updated_impl_param.weights_layout = input_layouts[1];
 
-        updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
+        updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout(), swiglu_fused);
 
-        const auto& progam = impl_param.get_program();
+        return updated_impl_param;
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<fully_connected>();
+        auto updated_impl_param = update_impl_params(impl_param);
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
-        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
-        optional_params.allowInputReordering = true;
+        params.allowInputReordering = true;
 
-        bool commpressed = !primitive->decompression_scale.empty();
-        bool with_zp = !primitive->decompression_zero_point.empty();
+        bool commpressed = primitive->decompression_scale.is_valid();
+        bool with_zp = primitive->decompression_zero_point.is_valid();
         if (commpressed) {
             params.compressed = true;
-            params.decompression_scale = convert_data_tensor(input_layouts[2]);
+            params.decompression_scale = convert_data_tensor(updated_impl_param.input_layouts[2]);
             if (with_zp) {
                 params.has_decompression_zp = true;
-                params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+                params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
+                if (updated_impl_param.input_layouts[3].get_linear_size() == 1 &&
+                    primitive->decompression_zero_point_scalar.has_value()) {
+                    params.scalar_zp = true;
+                    params.zp_value = primitive->decompression_zero_point_scalar.value();
+                }
+            } else if (primitive->decompression_zero_point_scalar.has_value()) {
+                params.has_decompression_zp = true;
+                params.scalar_zp = true;
+                params.zp_value = primitive->decompression_zero_point_scalar.value();
             }
         }
 
@@ -159,12 +208,27 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        return {params, optional_params};
+        params.dynamic_quantization_group_size =
+            impl_param.get_program().get_config().get_dynamic_quantization_group_size();
+
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        auto& params = static_cast<kernel_params_t&>(*_kernel_data.params);
+        auto updated_impl_param = update_impl_params(impl_param);
+        update_shapes(params, updated_impl_param);
+
+        if (impl_param.typed_desc<fully_connected>()->input_size != 3) {
+            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+        }
+
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
@@ -176,6 +240,7 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
                                              typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
     });
@@ -186,6 +251,7 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
@@ -207,6 +273,8 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
     });
 }
 

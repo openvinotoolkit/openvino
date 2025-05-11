@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,20 +6,22 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
-OPENVINO_SUPPRESS_DEPRECATED_START
+using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
-using Buffer = std::shared_ptr<ngraph::runtime::SharedBuffer<std::shared_ptr<T>>>;
+using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
 public:
-    TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor);
+    TensorExternalData(const TensorProto& tensor);
 
     /// \brief      Load external data from tensor passed to constructor
     ///
@@ -28,7 +30,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ngraph::runtime::AlignedBuffer> load_external_data(const std::string& model_dir) const;
+    Buffer<ov::AlignedBuffer> load_external_data(const std::string& model_dir) const;
 
     /// \brief      Map (mmap for lin, MapViewOfFile for win) external data from tensor passed to constructor
     ///
@@ -44,13 +46,21 @@ public:
     /// \return     State of TensorExternalData as string representation
     std::string to_string() const;
 
+    /// \brief      Object contains a data length after construction. Method allows read-only access to this
+    ///             information.
+    ///
+    /// \return     Returns a stored data size in bytes
+    uint64_t size() const {
+        return m_data_length;
+    }
+
 private:
     std::string m_data_location{};
     uint64_t m_offset = 0;
     uint64_t m_data_length = 0;
     std::string m_sha1_digest{};
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

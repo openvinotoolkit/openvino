@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,10 @@
 #include <utility>
 
 #include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/sparsity_info.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "place.hpp"
-#include "quantization_info.hpp"
 
 namespace ov {
 namespace frontend {
@@ -22,10 +23,12 @@ public:
                     ov::element::Type type,
                     const std::vector<std::string>& names,
                     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> quantization,
+                    std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> sparsity,
                     const void* data)
         : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
           m_quantization(quantization),
-          m_data(data){};
+          m_sparsity(sparsity),
+          m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()){};
 
     void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
 
@@ -56,6 +59,7 @@ public:
 
 protected:
     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> m_quantization;
+    std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> m_sparsity;
     int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,19 +30,19 @@ public:
         return get_dependency(1);
     }
 
-    bool has_num_select_per_class() const { return !get_primitive()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const { return get_primitive()->num_select_per_class.is_valid(); }
     program_node& num_select_per_class_node() const {
         return get_dependency(2);
     }
 
-    bool has_iou_threshold() const { return !get_primitive()->iou_threshold.empty(); }
+    bool has_iou_threshold() const { return get_primitive()->iou_threshold.is_valid(); }
     program_node& iou_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
         return get_dependency(offset);
     }
 
-    bool has_score_threshold() const { return !get_primitive()->score_threshold.empty(); }
+    bool has_score_threshold() const { return get_primitive()->score_threshold.is_valid(); }
     program_node& score_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -50,7 +50,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_soft_nms_sigma() const { return !get_primitive()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const { return get_primitive()->soft_nms_sigma.is_valid(); }
     program_node& soft_nms_sigma_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -59,7 +59,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
+    bool has_second_output() const { return get_primitive()->second_output.is_valid(); }
     program_node& second_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -69,7 +69,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_third_output() const { return !get_primitive()->third_output.empty(); }
+    bool has_third_output() const { return get_primitive()->third_output.is_valid(); }
     program_node& third_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -130,39 +130,39 @@ public:
         return dep_memory_ptr(1);
     }
 
-    bool has_num_select_per_class() const { return !get_typed_desc<non_max_suppression>()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const { return get_typed_desc<non_max_suppression>()->num_select_per_class.is_valid(); }
     memory::ptr num_select_per_class_mem() const {
         return dep_memory_ptr(2);
     }
-    std::shared_ptr<const primitive_inst> num_select_per_class_inst() const {
+    const primitive_inst* num_select_per_class_inst() const {
         return dependencies().at(2).first;
     }
 
-    bool has_iou_threshold() const { return !get_typed_desc<non_max_suppression>()->iou_threshold.empty(); }
+    bool has_iou_threshold() const { return get_typed_desc<non_max_suppression>()->iou_threshold.is_valid(); }
     memory::ptr iou_threshold_mem() const {
         return dep_memory_ptr(get_iou_threshold_offset());
     }
-    std::shared_ptr<const primitive_inst> iou_threshold_inst() const {
+    const primitive_inst* iou_threshold_inst() const {
         return dependencies().at(get_iou_threshold_offset()).first;
     }
 
-    bool has_score_threshold() const { return !get_typed_desc<non_max_suppression>()->score_threshold.empty(); }
+    bool has_score_threshold() const { return get_typed_desc<non_max_suppression>()->score_threshold.is_valid(); }
     memory::ptr score_threshold_mem() const {
         return dep_memory_ptr(get_score_threshold_offset());
     }
-    std::shared_ptr<const primitive_inst> score_threshold_inst() const {
+    const primitive_inst* score_threshold_inst() const {
         return dependencies().at(get_score_threshold_offset()).first;
     }
 
-    bool has_soft_nms_sigma() const { return !get_typed_desc<non_max_suppression>()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const { return get_typed_desc<non_max_suppression>()->soft_nms_sigma.is_valid(); }
     memory::ptr soft_nms_sigma_mem() const {
         return dep_memory_ptr(get_soft_nms_sigma_offset());
     }
-    std::shared_ptr<const primitive_inst> soft_nms_sigma_inst() const {
+    const primitive_inst* soft_nms_sigma_inst() const {
         return dependencies().at(get_soft_nms_sigma_offset()).first;
     }
 
-    bool has_second_output() const { return !get_typed_desc<non_max_suppression>()->second_output.empty(); }
+    bool has_second_output() const { return get_typed_desc<non_max_suppression>()->second_output.is_valid(); }
     memory::ptr second_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -172,7 +172,7 @@ public:
         return dep_memory_ptr(offset);
     }
 
-    bool has_third_output() const { return !get_typed_desc<non_max_suppression>()->third_output.empty(); }
+    bool has_third_output() const { return get_typed_desc<non_max_suppression>()->third_output.is_valid(); }
     memory::ptr third_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -185,5 +185,41 @@ public:
 };
 
 using non_max_suppression_inst = typed_primitive_inst<non_max_suppression>;
+
+template <>
+struct typed_program_node<non_max_suppression_gather> : typed_program_node_base<non_max_suppression_gather> {
+    using parent = typed_program_node_base<non_max_suppression_gather>;
+    using parent::parent;
+
+public:
+    typed_program_node(const std::shared_ptr<non_max_suppression_gather> prim, program& prog) : parent(prim, prog) {
+        can_be_optimized(true);
+        set_runtime_skippable(true);
+    }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1, 2}; }
+};
+
+using non_max_suppression_gather_node = typed_program_node<non_max_suppression_gather>;
+
+template <>
+class typed_primitive_inst<non_max_suppression_gather> : public typed_primitive_inst_base<non_max_suppression_gather> {
+public:
+    using parent = typed_primitive_inst_base<non_max_suppression_gather>;
+    using parent::parent;
+
+    static layout calc_output_layout(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const non_max_suppression_gather_node& node);
+
+    typed_primitive_inst(network& network, non_max_suppression_gather_node const& node);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
+};
+
+using non_max_suppression_gather_inst = typed_primitive_inst<non_max_suppression_gather>;
 
 }  // namespace cldnn

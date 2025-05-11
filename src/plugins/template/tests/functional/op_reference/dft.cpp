@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/dft.hpp"
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/dft.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,19 +17,19 @@ namespace {
 struct DFTParams {
     template <class T>
     DFTParams(const Shape& input_shape,
-                 const Shape& expected_shape,
-                 const element::Type_t& input_type,
-                 const element::Type_t& expected_type,
-                 const std::vector<T>& input_value,
-                 const std::vector<T>& expected_value,
-                 const std::shared_ptr<op::v0::Constant>& axes,
-                 const std::shared_ptr<op::v0::Constant>& signal) {
+              const Shape& expected_shape,
+              const element::Type_t& input_type,
+              const element::Type_t& expected_type,
+              const std::vector<T>& input_value,
+              const std::vector<T>& expected_value,
+              const std::shared_ptr<op::v0::Constant>& axes,
+              const std::shared_ptr<op::v0::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_signal = signal;
     }
@@ -1118,7 +1119,7 @@ static const std::vector<float> expected_dft3d_signal_size_results = {
     1.1392056,    -4.696983,   0.45275614,   1.9134089,  -3.8572056,   -2.009159,   1.6307822,   -0.9646755,
     -1.2407924,   2.6003554};
 
-template<class T>
+template <class T>
 static std::vector<T> convert(const std::vector<float>& v) {
     if (v.empty()) {
         return std::vector<T>();
@@ -1246,7 +1247,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   NULL),
         // dft1d_signal_size_eval
         DFTParams(Shape{2, 10, 10, 2},
-                  Shape{2, 10, 10, 2},
+                  Shape{2, 20, 10, 2},
                   ET,
                   ET,
                   input_data,
@@ -1255,7 +1256,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
         // dft2d_signal_size_eval_1
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{5, 6, 9, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1273,7 +1274,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // dft2d_signal_size_eval_3
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{3, 6, 4, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1291,7 +1292,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // dft2d_signal_size_eval_5
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{5, 6, 4, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1300,7 +1301,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // dft3d_signal_size_eval
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{3, 7, 5, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1402,10 +1403,9 @@ std::vector<DFTParams> generateCombinedParamsForDFT() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_DFT_With_Hardcoded_Refs,
-    ReferenceDFTLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForDFT()),
-    ReferenceDFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_With_Hardcoded_Refs,
+                         ReferenceDFTLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForDFT()),
+                         ReferenceDFTLayerTest::getTestCaseName);
 
 }  // namespace

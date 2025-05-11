@@ -11,8 +11,13 @@
 
 ## How to run the tests locally
 ## C++ tests
-1. Build OpenVINO with the `-DENABLE_TESTS=ON` flag.
-2. Run `<OV_REPO_DIR>/bin/intel64/<OV_BUILD_TYPE>/ov_onnx_frontend_tests`, where <OV_REPO_DIR> is your workspace folder, and `OV_BUILD_TYPE` can be `Debug` or `Release`, depending on the `-DCMAKE_BUILD_TYPE` CMake build option.
+1. Install Python dependencies:
+```
+pip install -r <OV_REPO_DIR>/src/frontends/onnx/tests/requirements.txt
+```
+After that CMake will produce test models from existin [*.prototxt files](../tests/models)
+2. Build OpenVINO with the `-DENABLE_TESTS=ON` flag.
+3. Run `<OV_REPO_DIR>/bin/intel64/<OV_BUILD_TYPE>/ov_onnx_frontend_tests`, where <OV_REPO_DIR> is your workspace folder, and `OV_BUILD_TYPE` can be `Debug` or `Release`, depending on the `-DCMAKE_BUILD_TYPE` CMake build option.
 You can filter tests using the `--gtest_filter` flag like any other gtest-based tests.
 
 For example:
@@ -23,9 +28,9 @@ For example:
 
 
 ## Pre-steps for all Python tests
-1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. To avoid problems with too many Python interpreters installed on the host, you can also set the `-DPYTHON_EXECUTABLE=PYTHON_INTERPRETER_PATH` build option.
+1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. To avoid problems with too many Python interpreters installed on the host, you can also set the `-DPython3_EXECUTABLE=<PYTHON_INTERPRETER_PATH>` build option (requires cmake 3.16 and higher).
 > **NOTE**: If you want to run the tests from the installation directory (like in the CI), add the `-P cmake_install.cmake` and `-DCOMPONENT=tests` CMake build options, and install OpenVINO via `cmake --build . --target install` as additional steps.
-2. Set up Python paths via `source <OV_INSTALL_DIR>/setupvars.sh` for Linux, or `sh <INSTALL_DIR>\setupvars.bat` for Windows.
+2. Set up Python paths via `source <OV_INSTALL_DIR>/setupvars.sh` for Linux, `. <path-to-setupvars-folder>/setupvars.ps1` for Windows PowerShell, or `sh <INSTALL_DIR>\setupvars.bat` for Windows Command Prompt.
 3. Install Python dependencies:
 ```
 pip install -r <OV_REPO_DIR>/src/bindings/python/requirements.txt
@@ -115,7 +120,7 @@ git clone --branch rel-1.8.1 --single-branch --recursive https://github.com/micr
 ```
 - (Optional) To build ONNX Runtime with a non-release OpenVINO version, an additional step is required for the `rel-1.8.1` version:
 ```
-cd <OV_INSTALL_DIR>/deployment_tools/inference_engine && touch version.txt && echo "2021.4" > version.txt
+cd <OV_INSTALL_DIR>/deployment_tools/openvino && touch version.txt && echo "2021.4" > version.txt
 ```
 2. Set up the OpenVINO environment:
 ```

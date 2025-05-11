@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/core/preprocess/input_info.hpp>
-#include <openvino/core/preprocess/output_info.hpp>
-#include <openvino/opsets/opset8.hpp>
-
 #include "color_utils.hpp"
+#include "openvino/core/preprocess/input_info.hpp"
+#include "openvino/core/preprocess/output_info.hpp"
+#include "openvino/op/parameter.hpp"
 #include "preprocess_steps_impl.hpp"
 
 namespace ov {
@@ -37,7 +36,26 @@ private:
 
 class InputModelInfo::InputModelInfoImpl : public ModelInfoImpl {};
 
-class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {};
+class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {
+public:
+    void set_color_format(const ColorFormat& color_format, const std::vector<std::string>& sub_names = {}) {
+        m_color_format_set = (color_format == ColorFormat::RGB) || (color_format == ColorFormat::BGR);
+        OPENVINO_ASSERT(m_color_format_set);
+        m_color_format = color_format;
+        m_planes_sub_names = sub_names;
+    }
+    bool is_color_format_set() const {
+        return m_color_format_set;
+    }
+    const ColorFormat& get_color_format() const {
+        return m_color_format;
+    }
+
+private:
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
+    std::vector<std::string> m_planes_sub_names{};
+    bool m_color_format_set = false;
+};
 
 /// \brief OutputInfoImpl - internal data structure
 struct OutputInfo::OutputInfoImpl {
@@ -103,12 +121,21 @@ public:
         return m_layout;
     }
 
+    void set_names_compatibility_mode(const bool compatiblity_mode) {
+        m_names_compatiblity_mode = compatiblity_mode;
+    }
+
+    const bool get_names_compatibility_mode() const {
+        return m_names_compatiblity_mode;
+    }
+
 protected:
     element::Type m_type = element::dynamic;
     bool m_type_set = false;
 
     Layout m_layout = Layout();
     bool m_layout_set = false;
+    bool m_names_compatiblity_mode = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
@@ -199,7 +226,7 @@ public:
         m_shape_set = true;
     }
 
-    void set_from(const ov::runtime::Tensor& runtime_tensor) {
+    void set_from(const ov::Tensor& runtime_tensor) {
         set_shape(runtime_tensor.get_shape());
         set_element_type(runtime_tensor.get_element_type());
     }
@@ -233,8 +260,8 @@ private:
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
     struct InputInfoData {
-        std::vector<std::shared_ptr<opset8::Parameter>> m_new_params;
-        std::shared_ptr<opset8::Parameter> m_param;
+        std::vector<std::shared_ptr<op::v0::Parameter>> m_new_params;
+        std::shared_ptr<op::v0::Parameter> m_param;
         Layout m_model_layout;
         Layout m_tensor_layout;
         std::vector<Output<Node>> as_nodes() const {
@@ -242,7 +269,7 @@ struct InputInfo::InputInfoImpl {
             std::transform(m_new_params.begin(),
                            m_new_params.end(),
                            std::back_inserter(res),
-                           [](const std::shared_ptr<opset8::Parameter>& param) {
+                           [](const std::shared_ptr<op::v0::Parameter>& param) {
                                return param;
                            });
             return res;
@@ -277,7 +304,7 @@ struct InputInfo::InputInfoImpl {
 
     bool build(const std::shared_ptr<Model>& model,
                std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-               std::list<std::shared_ptr<opset8::Parameter>>& parameters_list);
+               std::list<std::shared_ptr<op::v0::Parameter>>& parameters_list);
 
     void dump(std::ostream& str,
               const std::shared_ptr<Model>& model,

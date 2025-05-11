@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
@@ -28,8 +29,10 @@ public:
     bool match(const std::shared_ptr<ov::Node>& pattern_node, const std::shared_ptr<ov::Node>& graph_node) {
         OPENVINO_ASSERT(pattern_node && graph_node);  // the same condition throws an exception in the
                                                       // non-test version of `match`
-        OPENVINO_DEBUG << "Starting match pattern = " << pattern_node->get_name()
-                       << " , graph_node = " << graph_node->get_name();
+        OPENVINO_DEBUG("Starting match pattern = ",
+                       pattern_node->get_name(),
+                       " , graph_node = ",
+                       graph_node->get_name());
 
         m_pattern_node = pattern_node;
         return ov::pass::pattern::Matcher::match(graph_node, ov::pass::pattern::PatternValueMap{});

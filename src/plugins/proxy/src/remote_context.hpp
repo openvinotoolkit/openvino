@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -26,23 +26,17 @@ public:
      * @param dev_name device name without index
      * @param dev_index device index if exists else 0
      * @param has_index flag is true if device has an index and false in another case
-     * @param is_new_api flag reports which API is used
      *
      * These arguments are needed to support the difference between legacy and 2.0 APIs.
      * In legacy API remote context doesn't contain the index in the name but Blob contains.
      * In 2.0 API Tensor and Context always contain device index
      */
-    RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
-                  const std::string& dev_name,
-                  size_t dev_index,
-                  bool has_index,
-                  bool is_new_api);
+    RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx, const std::string& dev_name, size_t dev_index, bool has_index);
 
     RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
                   const std::string& dev_name,
                   size_t dev_index,
-                  bool has_index,
-                  bool is_new_api);
+                  bool has_index);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
@@ -60,9 +54,8 @@ public:
 private:
     ov::SoPtr<ov::IRemoteContext> m_context;
     std::string m_name;
-    std::string m_tensor_name;
 
-    void init_context(const std::string& dev_name, size_t dev_index, bool has_index, bool is_new_api);
+    void init_context(const std::string& dev_name, size_t dev_index, bool has_index);
 };
 
 }  // namespace proxy

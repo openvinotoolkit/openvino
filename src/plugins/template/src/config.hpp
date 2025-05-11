@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -31,11 +32,31 @@ struct Configuration {
     // Plugin configuration parameters
 
     int device_id = 0;
-    bool perf_count = true;
-    ov::threading::IStreamsExecutor::Config streams_executor_config;
+    bool perf_count = false;
+    ov::threading::IStreamsExecutor::Config streams_executor_config{};
+    int streams = 1;
+    int threads = 0;
+    int threads_per_stream = 0;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
+    uint32_t num_requests = 1;
     bool disable_transformations = false;
     bool exclusive_async_requests = false;
+
+    // unused
+    ov::element::Type inference_precision = ov::element::dynamic;
+    ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::ACCURACY;
+    ov::log::Level log_level = ov::log::Level::NO;
+
+    ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
+
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    bool enableCpuPinning = false;
+    bool enableHyperThreading = false;
+    int compilation_thread_num = 1;
+    EncryptionCallbacks encryption_callbacks{};
+    std::filesystem::path weights_path{};
+    AnyMap compiled_model_runtime_properties{};
+    CacheMode cache_mode{CacheMode::OPTIMIZE_SPEED};
 };
 // ! [configuration:header]
 

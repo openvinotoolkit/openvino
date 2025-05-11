@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -27,17 +27,15 @@ TSFuse::TSFuse() {
                                                   CheckTransposeConsumers);
     auto transpose_2_label =
         pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1_label);
         auto transpose2 = pattern_to_output.at(transpose_2_label);
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 

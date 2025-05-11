@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,11 @@
 #include <pugixml.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/summary/op_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 using namespace ov::test::utils;
 
@@ -31,12 +36,16 @@ OpSummary::OpSummary() {
     reportFilename = ov::test::utils::OP_REPORT_FILENAME;
 }
 
-OpSummary& OpSummary::getInstance() {
+OpSummary& OpSummary::createInstance() {
     if (!p_instance) {
         p_instance = new OpSummary();
         destroyer.initialize(p_instance);
     }
     return *p_instance;
+}
+
+OpSummary& OpSummary::getInstance() {
+    return createInstance();
 }
 
 void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
@@ -47,15 +56,15 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         opsStats.insert({op, PassRate()});
     }
     auto& passrate = opsStats[op];
-    if (isCrashReported) {
-        isCrashReported = false;
+    if (passrate.isCrashReported) {
+        passrate.isCrashReported = false;
         if (passrate.crashed > 0)
             passrate.crashed--;
     } else {
         passrate.rel_all += rel_influence_coef;
     }
-    if (isHangReported) {
-        isHangReported = false;
+    if (passrate.isHangReported) {
+        passrate.isHangReported = false;
         return;
     }
     switch (status) {
@@ -74,12 +83,12 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
         break;
     case PassRate::CRASHED: {
         passrate.crashed++;
-        isCrashReported = true;
+        passrate.isCrashReported = true;
         break;
     }
     case PassRate::HANGED: {
         passrate.hanged++;
-        isHangReported = true;
+        passrate.isHangReported = true;
         break;
     }
     }
@@ -97,13 +106,13 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo& op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const std::string& version) {
+std::string OpSummary::get_opset_number(const std::string& opset_full_name) {
     std::string opset_name = "opset";
-    auto pos = version.find(opset_name);
+    auto pos = opset_full_name.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
     } else {
-        return version.substr(pos + opset_name.size());
+        return opset_full_name.substr(pos + opset_name.size());
     }
 }
 
@@ -136,52 +145,34 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 }
 
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
-    if (model->get_parameters().empty()) {
-        return;
-    }
-    bool isFunctionalGraph = false, isReportConvert = true;
+    bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+            !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             // find all features
-            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-                isReportConvert = false;
-            }
             isFunctionalGraph = true;
-            if (!isReportConvert && isFunctionalGraph) {
-                break;
-            }
+            break;
         }
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+             ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
         }
-        // todo: remove w/a to provide correct convert reporting after merge CVS-110714
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-            if (!isReportConvert) {
-                continue;
-            } else {
-                isReportConvert = false;
-            }
-        }
         if (extractBody) {
-            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+            if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
                 updateOPsStats(ti_body, status, k);
-            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 updateOPsStats(loop_body, status, k);
-            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v8::If>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
                 std::vector<std::shared_ptr<ov::Model>> bodies;
@@ -201,26 +192,24 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+            !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+             ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
-        } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
             auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
             auto ti_body = ti->get_function();
             updateOPsImplStatus(ti_body, implStatus);
-        } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
             auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
@@ -230,23 +219,6 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
         }
     }
 }
-
-#ifdef IE_TEST_DEBUG
-void Summary::saveDebugReport(const char* className,
-                              const char* opName,
-                              unsigned long passed,
-                              unsigned long failed,
-                              unsigned long skipped,
-                              unsigned long crashed,
-                              unsigned long hanged) {
-    std::string outputFilePath = "./part_report.txt";
-    std::ofstream file;
-    file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' '
-         << hanged << '\n';
-    file.close();
-}
-#endif  // IE_TEST_DEBUG
 
 void OpSummary::saveReport() {
     if (isReported) {
@@ -264,8 +236,8 @@ void OpSummary::saveReport() {
     }
     filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!ov::test::utils::directoryExists(outputFolder)) {
-        ov::test::utils::createDirectoryRecursive(outputFolder);
+    if (!ov::util::directory_exists(outputFolder)) {
+        ov::util::create_directory_recursive(outputFolder);
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
@@ -277,7 +249,7 @@ void OpSummary::saveReport() {
         const auto& type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
             auto it = opsInfo.find(type_info);
-            std::string op_version = getOpVersion(opset_version);
+            std::string op_version = get_opset_number(opset_version);
             if (it == opsInfo.end()) {
                 opsInfo.insert({type_info, op_version});
             } else {
@@ -322,15 +294,15 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto& op : opsInfo) {
-        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        std::string name = functional::get_node_version(op.first);
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
-    for (const auto& it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
+    for (auto& it : stats) {
+        std::string name = functional::get_node_version(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);

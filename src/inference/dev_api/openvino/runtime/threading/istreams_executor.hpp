@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
@@ -33,22 +35,128 @@ namespace threading {
 class OPENVINO_RUNTIME_API IStreamsExecutor : virtual public ITaskExecutor {
 public:
     /**
-     * @brief Defines inference thread binding type
+     * A shared pointer to IStreamsExecutor interface
      */
-    enum ThreadBindingType : std::uint8_t {
-        NONE,   //!< Don't bind the inference threads
-        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
-        // the following modes are implemented only for the TBB code-path:
-        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
-               //!< not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
-                      //!< hybrid CPUs)
+    using Ptr = std::shared_ptr<IStreamsExecutor>;
+
+    enum MsgType{
+        TP,
+        START_INFER,
+        CALL_BACK
+    };
+
+    struct MessageInfo{
+        MsgType msg_type;
+        std::vector<int> rank;
+        void* buf;
+        Task task;
     };
 
     /**
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
+    public:
+        enum PreferredCoreType {
+            ANY,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
+                         // (for large #streams)
+        };
+
+        /**
+         * @enum       StreamsMode
+         * @brief      This enum contains definition of each sub streams mode, indicating the main stream situation.
+         */
+        enum class StreamsMode {
+            SUB_STREAMS_NULL,        //!< Do not create sub streams
+            SUB_STREAMS_FOR_SOCKET,  //!< Create sub streams for multiple sockets in main stream
+            LATENCY,                 //!< latency mode
+            THROUGHPUT,              //!< throughput mode
+        };
+
+    private:
+        std::string _name;             //!< Used by `ITT` to name executor threads
+        int _streams = 1;              //!< Number of streams.
+        int _threads_per_stream = 0;   //!< Number of threads per stream that executes `ov_parallel` calls
+        int _threadBindingStep = 1;    //!< In case of @ref CORES binding offset type
+                                       //!< thread binded to cores with defined step
+        int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
+                                       //!< starting from offset
+        int _threads = 0;              //!< Number of threads distributed between streams.
+                                       //!< Reserved. Should not be used.
+        ov::hint::SchedulingCoreType _thread_preferred_core_type =
+            ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
+                                                     //!< ANY_CORE is valid in all machines. Core type priority:
+                                                     //!< physical PCore, ECore, logical PCore
+        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin or
+                                        //!< compiled model. If it is true, cpu_pinning defaults to true.
+        bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
+        bool _cores_limit = true;       //!< Whether to limit the number of streams and threads by the number of cpu cores
+        std::vector<std::vector<int>> _streams_info_table = {};
+        std::vector<std::vector<int>> _stream_processor_ids;
+        int _sub_streams = 0;
+        std::vector<int> _rank = {};
+        bool _add_lock = true;
+
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information,
+         *        streams_info_table must be present in the configuration
+         */
+        void reserve_cpu_threads();
+
+         /**
+         * @brief Modify _streams_info_table and related configuration according to configuration
+         */
+        void update_executor_config();
+
+        void update_executor_config(bool lock);
+
+        /**
+         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
+         *        that is, only create one thread with TBB
+         */
+        void set_config_zero_stream();
+
+    public:
+        /**
+         * @brief      A constructor with arguments
+         *
+         * @param[in]  name                         The executor name
+         * @param[in]  streams                      @copybrief Config::_streams
+         * @param[in]  threads_per_stream           @copybrief Config::_threads_per_stream
+         * @param[in]  thread_preferred_core_type   @copybrief Config::_thread_preferred_core_type
+         * @param[in]  cpu_reservation              @copybrief Config::_cpu_reservation
+         * @param[in]  cpu_pinning                  @copybrief Config::_cpu_pinning
+         * @param[in]  streams_info_table           @copybrief Config::_streams_info_table
+         * @param[in]  rank                         @copybrief Config::_rank
+         */
+        Config(std::string name = "StreamsExecutor",
+               int streams = 1,
+               int threads_per_stream = 0,
+               ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
+               bool cpu_reservation = false,
+               bool cpu_pinning = false,
+               bool cores_limit = true,
+               std::vector<std::vector<int>> streams_info_table = {},
+               std::vector<int> rank = {},
+               bool add_lock = true)
+            : _name{std::move(name)},
+              _streams{streams},
+              _threads_per_stream{threads_per_stream},
+              _thread_preferred_core_type(thread_preferred_core_type),
+              _cpu_reservation{cpu_reservation},
+              _cpu_pinning{cpu_pinning},
+              _cores_limit{cores_limit},
+              _streams_info_table{std::move(streams_info_table)},
+              _rank{std::move(rank)},
+              _add_lock(add_lock) {
+            update_executor_config(_add_lock);
+        }
+
+        // These APIs which includes set_property and get_property can not be removed until they will never be called by
+        // other plugins such as NV plugin.
         /**
          * @brief Sets configuration
          * @param properties map of properties
@@ -69,87 +177,67 @@ public:
          */
         ov::Any get_property(const std::string& key) const;
 
+        std::string get_name() const {
+            return _name;
+        }
+        int get_streams() const {
+            return _streams;
+        }
+        int get_threads() const {
+            return _threads;
+        }
+        int get_threads_per_stream() const {
+            return _threads_per_stream;
+        }
+        bool get_cpu_reservation() const {
+            return _cpu_reservation;
+        }
+        bool get_cpu_pinning() const {
+            return _cpu_pinning;
+        }
+        std::vector<std::vector<int>> get_streams_info_table() const {
+            return _streams_info_table;
+        }
+        std::vector<std::vector<int>> get_stream_processor_ids() const {
+            return _stream_processor_ids;
+        }
+        int get_thread_binding_step() const {
+            return _threadBindingStep;
+        }
+        int get_thread_binding_offset() const {
+            return _threadBindingOffset;
+        }
+        int get_sub_streams() const {
+            return _sub_streams;
+        }
+        std::vector<int> get_rank() const {
+            return _rank;
+        }
+        StreamsMode get_sub_stream_mode() const {
+            const auto proc_type_table = get_proc_type_table();
+            int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
+            return _sub_streams > 0 ? StreamsMode::SUB_STREAMS_FOR_SOCKET
+                                    : (_streams <= sockets ? StreamsMode::LATENCY : StreamsMode::THROUGHPUT);
+        }
+        bool operator==(const Config& config) {
+            if (_name == config._name && _streams == config._streams &&
+                _threads_per_stream == config._threads_per_stream &&
+                _thread_preferred_core_type == config._thread_preferred_core_type) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         /**
          * @brief Create appropriate multithreaded configuration
          *        filing unconfigured values from initial configuration using hardware properties
          * @param initial Inital configuration
-         * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
-         *       whether the executor should be configured for floating point intensive work (as opposite to int8
-         * intensive)
          * @return configured values
          */
-        static Config make_default_multi_threaded(const Config& initial, const bool fp_intesive = true);
-        static int get_default_num_streams(
-            const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
-        static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
-        static void update_hybrid_custom_threads(Config& config);
-        static Config reserve_cpu_threads(const Config& initial);
+        static Config make_default_multi_threaded(const Config& initial);
 
-        std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
-        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
-                                                                         //!< No binding by default
-        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;       //!< In case of @ref CORES binding offset type thread binded to cores
-                                            //!< starting from offset
-        int _threads = 0;                   //!< Number of threads distributed between streams.
-                                            //!< Reserved. Should not be used.
-        int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
-        int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
-        int _threads_per_stream_small = 0;  //!< Threads per stream in small cores
-        int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
-        bool _enable_hyper_thread = true;   //!< enable hyper thread
-        int _plugin_task = NOT_USED;
-        enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
-        enum PreferredCoreType {
-            ANY,
-            LITTLE,
-            BIG,
-            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
-                         // (for large #streams)
-        } _threadPreferredCoreType =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-
-        std::vector<std::vector<int>> _streams_info_table = {};
-        std::vector<std::vector<int>> _stream_processor_ids;
-        bool _cpu_reservation = false;
-        bool _streams_changed = false;
-
-        /**
-         * @brief      A constructor with arguments
-         *
-         * @param[in]  name                 The executor name
-         * @param[in]  streams              @copybrief Config::_streams
-         * @param[in]  threadsPerStream     @copybrief Config::_threadsPerStream
-         * @param[in]  threadBindingType    @copybrief Config::_threadBindingType
-         * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
-         * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
-         * @param[in]  threads              @copybrief Config::_threads
-         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
-         */
-        Config(std::string name = "StreamsExecutor",
-               int streams = 1,
-               int threadsPerStream = 0,
-               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1,
-               int threadBindingOffset = 0,
-               int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuReservation = false)
-            : _name{name},
-              _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType),
-              _streams_info_table{streamsInfoTable},
-              _cpu_reservation{cpuReservation} {}
+        static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
     };
 
     /**
@@ -162,6 +250,12 @@ public:
      * @return An index of current stream. Or throw exceptions if called not from stream thread
      */
     virtual int get_stream_id() = 0;
+
+    /**
+     * @brief Return the total number of streams
+     * @return The total number of streams.
+     */
+    virtual int get_streams_num() = 0;
 
     /**
      * @brief Return the id of current NUMA Node
@@ -178,11 +272,25 @@ public:
     virtual int get_socket_id() = 0;
 
     /**
+     * @brief Return the rank of current stream
+     *        Return {} when current stream has no rank
+     * @return Rank array, or throws exceptions if called not from stream thread
+     */
+    virtual std::vector<int> get_rank() = 0;
+
+    /**
+     * @brief Reset cpu map table when user set enable_cpu_reservation = true
+     */
+    virtual void cpu_reset() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
 };
+
+static std::mutex _streams_executor_mutex;
 
 }  // namespace threading
 }  // namespace ov

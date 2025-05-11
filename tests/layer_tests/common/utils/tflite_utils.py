@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import itertools
 import os
 import warnings
@@ -5,7 +8,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 
-from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
+from common.utils.tf_utils import summarize_graph
 
 
 def make_positive_array(inputs_dict):
@@ -54,13 +57,13 @@ additional_test_params = [
     ],
     [
         {'activation': None},
-        {'activation': tf.nn.relu},
-        {'activation': tf.nn.relu6},
+        {'activation': 'tf.nn.relu'},
+        {'activation': 'tf.nn.relu6'},
         # skip tanh and signbit since tflite doesn't fuse such activations
         # https://github.com/tensorflow/tensorflow/blob/77d8c333405a080c57850c45531dbbf077b2bd0e/tensorflow/compiler/mlir/lite/transforms/optimize_patterns.td#L86:L89
         # {'activation': tf.math.tanh},
         # {'activation': lambda x, name: tf.identity(tf.experimental.numpy.signbit(x), name=name)},
-        {'activation': lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)}
+        {'activation': 'lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)'}
     ]
 ]
 
@@ -80,7 +83,7 @@ def save_pb_to_tflite(pb_model):
     return tflite_model_path
 
 
-def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
+def get_tflite_results(inputs_dict, model_path):
     interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
@@ -108,8 +111,7 @@ def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
     result = dict()
     for out in tf_lite_result.keys():
         _tf_res = tf_lite_result[out]
-        result[out] = transpose_nhwc_to_nchw(_tf_res, use_new_frontend,
-                                             use_old_api)
+        result[out] = _tf_res
 
     return tf_lite_result
 

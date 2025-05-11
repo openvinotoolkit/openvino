@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "broadcast_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/broadcast.hpp"
 
@@ -26,7 +25,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::broadcast_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<broadcast_impl>(*this);
+        return std::make_unique<broadcast_impl>(*this);
     }
 
     broadcast_impl() : parent("broadcast_cpu_impl") {}
@@ -45,14 +44,16 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ob << make_data(&target_shape, sizeof(ov::Shape));
+        ob << target_shape;
         ob << axes_mapping;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ib >> make_data(&target_shape, sizeof(ov::Shape));
+        ib >> target_shape;
         ib >> axes_mapping;
     }
 
@@ -60,11 +61,11 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "broadcast::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
-        auto ev = stream.create_user_event(false);
+        if (!pass_through_events) {
+            stream.wait_for_events(events);
+        }
 
         auto params = instance.get_impl_params();
 
@@ -98,7 +99,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
@@ -107,18 +108,20 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
 
-        ev->set();
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<broadcast_impl>();
+        return std::make_unique<broadcast_impl>();
     }
 };
 

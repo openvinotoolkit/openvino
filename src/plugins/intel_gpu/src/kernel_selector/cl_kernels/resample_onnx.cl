@@ -14,7 +14,12 @@
 #define ACC_VEC_TYPE                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
-#define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
+
+#ifdef RTE_OUTPUT
+    #define TO_OUT_VEC_TYPE(x)          CAT(CAT(convert_, OUT_VEC_TYPE), _rte)(x)
+#else
+    #define TO_OUT_VEC_TYPE(x)          CAT(convert_, OUT_VEC_TYPE)(x)
+#endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
@@ -58,9 +63,6 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
     typedef ACC_VEC_TYPE acc_vec_t;
 
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
-
-    if (feature_num >= OUTPUT_FEATURE_NUM)
-        return;
 
     const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
     const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];

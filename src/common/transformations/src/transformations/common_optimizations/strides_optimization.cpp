@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/strides_property.hpp"
@@ -57,9 +58,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         const auto ones = rg.make<ov::op::v0::Constant>(element::i64, Shape{diff}, vector<int64_t>(diff, 1));
         const auto current_shape = rg.make<ov::op::v3::ShapeOf>(first);
         shared_ptr<Node> new_shape = rg.make<ov::op::v0::Concat>(OutputVector{ones, current_shape}, 0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto constant_new_shape = get_constant_from_source(new_shape)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto constant_new_shape = ov::util::get_constant_from_source(new_shape)) {
             rg.add(constant_new_shape);
             new_shape = constant_new_shape;
         }
@@ -75,9 +74,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         new_node =
             rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto constant_new_node = get_constant_from_source(new_node)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto constant_new_node = ov::util::get_constant_from_source(new_node)) {
         rg.add(constant_new_node);
         new_node = constant_new_node;
     }
@@ -95,7 +92,7 @@ static void handle_not_equal_stride_props(std::vector<ov::Input<ov::Node>>& next
             return s == 1;
         });
         if (!are_strides_ones) {
-            auto conv = dynamic_cast<ov::op::v1::Convolution*>(op.get_node());
+            auto conv = ov::as_type<ov::op::v1::Convolution>(op.get_node());
             if (conv) {
                 conv->set_strides(strides);
             } else {
@@ -126,7 +123,7 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
     auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({data, weights});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
+        auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
 

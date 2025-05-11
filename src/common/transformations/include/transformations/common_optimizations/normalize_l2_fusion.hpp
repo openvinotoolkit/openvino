@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -20,7 +19,7 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief NormalizeL2Fusion transformation replaces sub-graphs:
  * x/(sqrt(max(reduce_sum(x[j0, ..., jN]**2, axes), eps))
  * x/(sqrt(add(reduce_sum(x[j0, ..., jN]**2, axes), eps))
@@ -32,6 +31,6 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
  */
 class ov::pass::NormalizeL2Fusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NormalizeL2Fusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("NormalizeL2Fusion");
     NormalizeL2Fusion();
 };

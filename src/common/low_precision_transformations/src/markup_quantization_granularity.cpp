@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,17 +7,17 @@
 #include <cassert>
 #include <memory>
 #include <vector>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranularity(
+ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranularity(
     const std::vector<QuantizationGranularityRestriction>& restrictions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             PerTensorQuantization r(restriction.specifyVersion);
             r.portsByVersion.emplace(restriction.operationType.version_id, restriction.restrictions);
@@ -25,14 +25,13 @@ ngraph::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGr
         } else {
             it->second.add(restriction.operationType.version_id, restriction.restrictions);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
-bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts) {
-        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity granularity){
+        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity& granularity){
             auto &rt = input.get_rt_info();
             rt.emplace(QuantizationGranularityAttribute::get_type_info_static(), QuantizationGranularityAttribute(granularity));
         };
@@ -45,14 +44,14 @@ bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(co
             }
         } else {
             // markup specific ports
-            for (const auto item : restrictedPorts) {
+            for (const auto& item : restrictedPorts) {
                 Input<Node> input = node->input(item.port);
                 createAttribute(input, item.granularity);
             }
         }
     };
 
-    for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
+    for (const auto& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "tflite_transformations/rfft2d_complex_abs.h"
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 
@@ -30,7 +31,9 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
     ov::OutputVector ov_inputs = node->input_values();
-    ov::frontend::tensorflow_lite::NodeContext node_ctx(node->get_decoder(), ov_inputs);
+    const auto& decoder = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderBase>(node->get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be tensorflow_lite::DecoderBase or its child");
+    ov::frontend::tensorflow_lite::NodeContext node_ctx(decoder, ov_inputs);
     auto new_outputs = translator_it->second(node_ctx);
     ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_outputs);
     auto old_outputs = node->outputs();
@@ -54,21 +57,22 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     if (variants[0].is<std::string>()) {
-        std::string suffix = ".tflite";
         std::string model_path = variants[0].as<std::string>();
-        if (ov::util::ends_with(model_path, suffix.c_str())) {
+        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
             return true;
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
-        std::wstring suffix = L".tflite";
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (ov::util::ends_with(model_path, suffix)) {
+        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
             return true;
         }
     }
 #endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
+        return true;
+    }
     return false;
 }
 
@@ -77,9 +81,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         if (variants[0].is<std::string>()) {
-            std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
-            if (ov::util::ends_with(model_path, suffix.c_str())) {
+            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
@@ -87,15 +90,18 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (variants[0].is<std::wstring>()) {
-            std::wstring suffix = L".tflite";
             std::wstring model_path = variants[0].as<std::wstring>();
-            if (ov::util::ends_with(model_path, suffix)) {
+            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
             }
         }
 #endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
+            auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+            return std::make_shared<tensorflow_lite::InputModel>(graph_iterator, m_telemetry);
+        }
     }
     return nullptr;
 }
@@ -105,7 +111,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     if (!m_transformation_extensions.empty()) {
         auto ov_model = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TFLite:convert");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -134,8 +140,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<ov::frontend::tensorflow::FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<ov::frontend::tensorflow::FrameworkNode>(node),
-                                     m_op_translators);
+            translate_framework_node(ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -147,7 +152,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TFLite:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -219,8 +224,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
 
     // operations
     for (const auto& op_place : model_lite->get_op_places()) {
-        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderFlatBuffer>(op_place->get_decoder());
-        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be DecoderFlatBuffer or its child");
+        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderBaseOperation>(op_place->get_decoder());
+        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be tensorflow_lite::DecoderBase or its child");
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             auto name = decoder->get_input_tensor_name(i);
@@ -287,12 +292,15 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:TFLite:normalize");
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(function);
 }
 
@@ -304,16 +312,20 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return common_conv_ext->get_converter()(context);
         };
     } else if (const auto& tensorflow_conv_ext =
-                   std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::ConversionExtension>(extension)) {
+                   ov::as_type_ptr<ov::frontend::tensorflow_lite::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return tensorflow_conv_ext->get_converter()(context);
         };
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }

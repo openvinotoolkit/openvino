@@ -1,26 +1,23 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cos.hpp"
+#include "openvino/op/cos.hpp"
 
-#include <memory>
+#include "core/operator_set.hpp"
+using namespace ov::op;
 
-#include "default_opset.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector cos(const Node& node) {
-    return {std::make_shared<default_opset::Cos>(node.get_ng_inputs().at(0))};
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector cos(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<v0::Cos>(node.get_ov_inputs().at(0))};
 }
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("Cos", OPSET_SINCE(1), ai_onnx::opset_1::cos);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ namespace MemoryTest {
         pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
         if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb))
             throw std::runtime_error("Can't get system memory values");
+        return pmc;
     }
 
     size_t getVmSizeInKB() {

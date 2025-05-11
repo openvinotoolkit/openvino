@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,19 +24,20 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_API
+        IMPLEMENT_OPENVINO_RUNTIME_API
         CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\")
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${TARGET_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>>)
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_mark_target_as_cc(${TARGET_NAME})
 

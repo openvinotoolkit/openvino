@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,9 +59,7 @@ public:
         m_attributes = attributes;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:
@@ -84,6 +82,7 @@ public:
         : EnumAttributeAdapterBase<op::v9::GridSample::InterpolationMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::GridSample::InterpolationMode>");
+    ~AttributeAdapter() override;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v9::GridSample::PaddingMode>
@@ -93,5 +92,6 @@ public:
         : EnumAttributeAdapterBase<op::v9::GridSample::PaddingMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::GridSample::PaddingMode>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

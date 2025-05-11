@@ -1,0 +1,231 @@
+# List of models
+albert,albert/albert-base-v2
+align,kakaobrain/align-base,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 640) larger than the data shape after padding (dim: 9) at axis 0.
+altclip,BAAI/AltCLIP
+audio-spectrogram-transformer,MIT/ast-finetuned-audioset-10-10-0.4593
+autoformer,huggingface/autoformer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
+bark,suno/bark,xfail,Load error: got an unexpected keyword argument 'input_ids'
+bart,facebook/bart-large-mnli
+beit,microsoft/beit-base-patch16-224-pt22k-ft22k
+bert,sentence-transformers/all-MiniLM-L6-v2
+bert-generation,google/bert_for_seq_generation_L-24_bbc_encoder
+big_bird,google/bigbird-roberta-base
+bigbird_pegasus,google/bigbird-pegasus-large-arxiv
+biogpt,microsoft/biogpt
+bit,google/bit-50
+blenderbot,facebook/blenderbot-400M-distill
+blenderbot-small,facebook/blenderbot_small-90M
+blip,Salesforce/blip-image-captioning-large
+blip_2_qformer,ZinengTang/qformer
+blip_2_vision_model,ZinengTang/clip_last_layer_removed
+blip-2,Salesforce/blip2-opt-2.7b:language_projection
+blip-2,Salesforce/blip2-opt-2.7b:qformer
+blip-2,Salesforce/blip2-opt-2.7b:vision_model
+bort,stefan-it/bort-full
+bridgetower,regisss/bridgetower-newyorker-a100-8x
+bros,naver-clova-ocr/bros-base-uncased
+camembert,Jean-Baptiste/camembert-ner
+canine,google/canine-c,xfail,aten::slice: Parameter axis 3 out of the tensor rank range
+chinese_clip,OFA-Sys/chinese-clip-vit-base-patch16
+clap,laion/clap-htsat-unfused:audio_model
+clap,laion/clap-htsat-unfused:audio_projection
+clip,openai/clip-vit-large-patch14
+clip_text_model,maze/CLIP-ViT-bigG-14
+clip_vision_model,SajjadAyoubi/clip-fa-vision
+clipseg,CIDAS/clipseg-rd64-refined
+clvp,susnato/clvp_dev
+codegen,Salesforce/codegen-350M-mono
+conditional_detr,microsoft/conditional-detr-resnet-50
+convbert,YituTech/conv-bert-base
+convnext,facebook/convnext-large-224
+convnextv2,Pavarissy/ConvNextV2-large-DogBreed
+ctrl,Salesforce/ctrl
+cvt,microsoft/cvt-13
+data2vec-audio,m-a-p/music2vec-v1
+data2vec-text,facebook/data2vec-text-base
+data2vec-vision,facebook/data2vec-vision-large-ft1k
+deberta,microsoft/deberta-base
+deberta-v2,MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7
+decision_transformer,edbeeching/decision-transformer-gym-hopper-expert
+deformable_detr,SenseTime/deformable-detr,xfail,Trace error: op->outputs().size() == 1 INTERNAL ASSERT FAILED
+deit,facebook/deit-base-distilled-patch16-224
+deta,jozhang97/deta-swin-large,xfail,ValueError: operands could not be broadcast together with shapes
+detr,facebook/detr-resnet-50
+dinov2,facebook/dinov2-base
+distilbert,distilbert/distilbert-base-uncased-finetuned-sst-2-english
+donut-swin,pasusarla/donut_encoder
+dpr,facebook/dpr-question_encoder-single-nq-base
+dpt,Intel/dpt-large
+efficientformer,DunnBC22/efficientformer-l3-300-Brain_Tumors_Image_Classification
+efficientnet,google/efficientnet-b7,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 2560) larger than the data shape after padding (dim: 19) at axis 0.
+electra,google/electra-base-discriminator
+encodec,facebook/encodec_24khz
+encoder_decoder,patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,xfail,Load error: You have to specify either input_ids or inputs_embeds
+encoder-decoder,raynardj/wenyanwen-chinese-translate-to-ancient
+ernie,nghuyong/ernie-3.0-base-zh
+ernie_m,MoritzLaurer/ernie-m-large-mnli-xnli
+esm,InstaDeepAI/nucleotide-transformer-500m-human-ref
+f_t5,flax-community/ft5-cnn-dm
+fastspeech2_conformer,espnet/fastspeech2_conformer,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: aten::repeat_interleave/Tile
+fastspeech2_conformer_with_hifigan,espnet/fastspeech2_conformer_with_hifigan,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: __module.model/aten::repeat_interleave/Tile
+flaubert,lincoln/flaubert-mlsum-topic-classification
+flava,facebook/flava-full
+flava_image_codebook,facebook/flava-image-codebook
+fnet,google/fnet-base
+focalnet,microsoft/focalnet-small
+fsmt,facebook/wmt19-en-ru,xfail,Trace error: Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
+funnel,funnel-transformer/small
+git,microsoft/git-large-coco,xfail,Trace error: We don't have an op for aten::full but it isn't a special case
+glpn,vinvino02/glpn-nyu
+gpt_bigcode,bigcode/tiny_starcoder_py
+gpt_neo,EleutherAI/gpt-neo-2.7B
+gptsan-japanese,Tanrei/GPTSAN-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct prim::TupleUnpack
+graphormer,clefourrier/graphormer-base-pcqm4mv2,xfail,Load error: GraphormerForGraphClassification.forward() missing 6 required positional arguments: 'input_edges' 'attn_bias' 'in_degree' 'out_degree' 'spatial_pos' and 'attn_edge_type'
+grounding-dino,IDEA-Research/grounding-dino-base,xfail,Trace error: op->outputs().size() == 1 INTERNAL ASSERT FAILED
+groupvit,nvidia/groupvit-gcc-yfcc
+hiera,namangarg110/hiera_base_224
+hifigan,microsoft/speecht5_hifigan,xfail,Load error: The size of tensor a (100) must match the size of tensor b (80) at non-singleton dimension 1
+hubert,facebook/hubert-large-ls960-ft
+hybridbert,gokuls/bert_12_layer_model_v1
+ibert,DunnBC22/ibert-roberta-base-Abusive_Or_Threatening_Speech
+idefics,HuggingFaceM4/tiny-random-idefics
+imagegpt,openai/imagegpt-small
+informer,huggingface/informer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
+instructblip,Salesforce/instructblip-vicuna-7b
+jukebox,openai/jukebox-1b-lyrics,xfail,Load error: Module [JukeboxModel] is missing the required "forward" function
+jukebox_vqvae,ArthurZ/jukebox-vqvae,skip,Load error: The checkpoint you are trying to load has model type `jukebox_vqvae` but Transformers does not recognize this architecture
+kobert,weonjae0211/ds-kobert
+kosmos-2,microsoft/kosmos-2-patch14-224
+LanguageBindDepth,LanguageBind/LanguageBind_Depth
+LanguageBindImage,LanguageBind/LanguageBind_Image
+LanguageBindThermal,LanguageBind/LanguageBind_Thermal
+layoutlm,impira/layoutlm-document-qa
+layoutlmv3,microsoft/layoutlmv3-base
+led,pszemraj/led-large-book-summary
+levit,facebook/levit-128S,xfail,Trace error: Cannot insert a Tensor that requires grad as a constant
+lilt,nielsr/lilt-xlm-roberta-base
+llama_with_landmark,Leooyii/Landmark_512_Slimpajama_1B
+longformer,allenai/longformer-base-4096
+longt5,pszemraj/long-t5-tglobal-base-16384-book-summary
+luke,oshizo/sbert-jsnli-luke-japanese-base-lite
+lxmert,unc-nlp/lxmert-base-uncased
+m2m_100,facebook/nllb-200-distilled-600M
+mamba,dominguesm/mambarim-110m,xfail,Trace error: Tracer cannot infer type of tensor
+marian,Helsinki-NLP/opus-mt-zh-en
+markuplm,microsoft/markuplm-base
+mask2former,facebook/mask2former-swin-large-coco-panoptic
+maskformer,facebook/maskformer-swin-large-ade
+mbart,facebook/mbart-large-50-many-to-many-mmt
+mctct,speechbrain/m-ctc-t-large
+mega,Bingsu/mega-150m-arch,xfail,Trace error: Cannot insert a Tensor that requires grad as a constant
+megatron-bert,UFNLP/gatortron-base
+mgp-str,alibaba-damo/mgp-str-base
+mobilebert,google/mobilebert-uncased
+mobilenet_v1,google/mobilenet_v1_0.75_192
+mobilenet_v2,google/mobilenet_v2_1.0_224
+mobilevit,apple/mobilevit-small
+mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256
+mpnet,sentence-transformers/all-mpnet-base-v2
+mra,uw-madison/mra-base-512-4
+mt5,csebuetnlp/mT5_multilingual_XLSum
+musicgen,facebook/musicgen-large
+musicgen_melody,ylacombe/musicgen-melody,xfail,Accuracy validation failed
+mvp,RUCAIBox/mtl-data-to-text
+nezha,sijunhe/nezha-cn-base
+nllb_moe,hf-tiny-model-private/tiny-random-NllbMoeForConditionalGeneration,xfail,Trace error: Tracer cannot infer type of Seq2SeqMoEOutput
+nystromformer,uw-madison/nystromformer-4096
+olmo,DrNicefellow/Microscopic-Olmo-2B-1.1k-steps
+oneformer,shi-labs/oneformer_ade20k_swin_tiny,xfail,Different number of outputs between framework and OpenVINO
+openai-gpt,openai-community/openai-gpt
+open-llama,aerner/lm-v2
+owlv2,google/owlv2-base-patch16-ensemble
+owlvit,google/owlvit-base-patch32
+patchtsmixer,ibm-granite/granite-timeseries-patchtsmixer,xfail,Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
+patchtst,ibm/patchtst-etth1-pretrain,xfail,Conversion is failed for: aten::unfold
+pegasus,tuner007/pegasus_paraphrase
+pegasus_x,pszemraj/pegasus-x-large-book-summary
+perceiver,hf-internal-testing/tiny-random-vision_perceiver_conv
+phi,susnato/phi-1_5_dev
+phi3,MaziyarPanahi/calme-2.1-phi3-4b
+pix2struct,google/deplot,xfail,Accuracy validation failed
+pix2struct_vision_model,UiPath/pix2struct-vision-base
+plbart,uclanlp/plbart-base
+poolformer,sail/poolformer_m36
+prophetnet,microsoft/prophetnet-large-uncased-squad-qg
+pvt,Zetatech/pvt-tiny-224
+rag,facebook/rag-token-nq,xfail,Load error: Make sure that `context_input_ids` are passed if no `retriever` is set.
+realm,google/realm-orqa-nq-openqa,xfail,Load error: 'NoneType' object is not callable
+reformer,google/reformer-enwik8,xfail,Trace error: _Map_base::at
+regnet,facebook/regnet-x-002
+rembert,google/rembert
+resnet,microsoft/resnet-50
+roberta,deepset/roberta-base-squad2
+roberta-prelayernorm,andreasmadsen/efficient_mlm_m0.40
+roc_bert,weiweishi/roc-bert-base-zh
+roformer,junnyu/roformer_chinese_sim_char_small
+rt_detr,rafaelpadilla/porting_rt_detr,xfail,Trace error: Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
+rwkv,RWKV/rwkv-4-169m-pile
+sam,facebook/sam-vit-huge
+scibert,Goutham-Vignesh/ContributionSentClassification-scibert
+seamless_m4t,facebook/hf-seamless-m4t-medium
+segformer,mattmdjaga/segformer_b2_clothes
+seg-ment-tation,NiCy/seg-ment-tation
+sew,anton-l/sew-mid-100k-ft-keyword-spotting
+sew-d,asapp/sew-d-base-plus-400k-ft-ls100h
+siglip,google/siglip-base-patch16-224
+siglip_vision_model,bczhou/TinyLLaVA-3.1B-SigLIP
+speech_to_text,facebook/s2t-small-librispeech-asr
+speech_to_text_2,pirxus/s2t2_decoder_base
+speech-encoder-decoder,facebook/wav2vec2-xls-r-300m-en-to-15
+speecht5,microsoft/speecht5_tts,xfail,Unsupported op aten::bernoulli
+splinter,tau/splinter-base-qass
+squeezebert,typeform/squeezebert-mnli
+superpoint,stevenbucaille/superpoint,xfail,Unsupported prim::TupleConstruct prim::TupleUnpack
+swiftformer,MBZUAI/swiftformer-xs
+swin,microsoft/swin-tiny-patch4-window7-224
+swin2sr,caidas/swin2SR-classical-sr-x2-64
+swinv2,microsoft/swinv2-tiny-patch4-window8-256
+switch_transformers,google/switch-base-8,xfail,Unsupported aten::index_put_ aten::logsumexp prim::TupleConstruct prim::TupleUnpack
+t5,google/flan-t5-base
+table-transformer,microsoft/table-transformer-detection
+tapas,google/tapas-base-finetuned-wtq
+tapex,nielsr/tapex-large
+time_series_transformer,huggingface/time-series-transformer-tourism-monthly
+timesformer,facebook/timesformer-base-finetuned-k400
+trajectory_transformer,CarlCochet/trajectory-transformer-halfcheetah-medium-v2
+transfo-xl,transfo-xl/transfo-xl-wt103,xfail,Load error: type_as() missing 1 required positional arguments: "other"
+tvlt,ZinengTang/tvlt-base,xfail,Load error: Matching task requires labels
+tvp,Intel/tvp-base,xfail,Load error: 'NoneType' object has no attribute 'dtype'
+udop,nielsr/udop-large,xfail,Trace error: We don't have an op for aten::full_like but it isn't a special case
+umt5,EleutherAI/pile-t5-large
+unispeech,microsoft/unispeech-1350-en-17h-ky-ft-1h
+unispeech-sat,microsoft/unispeech-sat-base-100h-libri-ft
+univnet,dg845/univnet-dev,xfail,Load error: "normal_kernel_cpu" not implemented for 'Long'
+upernet,openmmlab/upernet-convnext-small
+van,Visual-Attention-Network/van-tiny
+videomae,MCG-NJU/videomae-base-finetuned-kinetics
+vilt,dandelin/vilt-b32-finetuned-vqa,xfail,Accuracy validation failed
+vision-encoder-decoder,nlpconnect/vit-gpt2-image-captioning
+visual_bert,uclanlp/visualbert-vqa-coco-pre
+vit,google/vit-base-patch16-224
+vit_mae,facebook/vit-mae-base
+vit_msn,facebook/vit-msn-large-7
+vit-hybrid,google/vit-hybrid-base-bit-384
+vitmatte,nielsr/vitmatte-small-composition-1k,xfail,Unsupported aten::FloatImplicit aten::__contains__ aten::__isnot__ aten::append prim::Uninitialized prim::unchecked_cast
+vits,facebook/mms-tts-eng,xfail,operands could not be broadcast together with shapes
+vivit,google/vivit-b-16x2-kinetics400
+wav2vec2,jonatasgrosman/wav2vec2-large-xlsr-53-english
+wav2vec2_base,gelbanna/test,xfail,Load error: expected scalar type Long but found Float
+wav2vec2-conformer,codenamewei/speech-to-text
+wavlm,microsoft/wavlm-large
+whisper,openai/whisper-large-v3
+xclip,microsoft/xclip-base-patch32
+xglm,facebook/xglm-564M
+xlm,FacebookAI/xlm-mlm-100-1280
+xlm-prophetnet,microsoft/xprophetnet-large-wiki100-cased
+xlm-roberta,FacebookAI/xlm-roberta-base
+xlm-roberta-xl,facebook/xlm-roberta-xl
+xlnet,xlnet/xlnet-base-cased
+xmod,facebook/xmod-base
+yolos,hustvl/yolos-tiny
+yoso,MrAnderson/yoso-4096-full-trivia

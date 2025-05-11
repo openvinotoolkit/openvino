@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,22 +6,33 @@
 
 #include <string>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-class MatMulShapes {
+class FullyConnectedShapes {
 public:
-    ngraph::PartialShape inputA;
-    ngraph::PartialShape inputB;
+    ov::PartialShape inputA;
+    ov::PartialShape inputB;
     bool transposeA;
     bool transposeB;
 };
 
+class FullyConnectedParams {
+public:
+    bool activation;
+    bool perChannelWeights;
+    bool fq;
+    bool bias;
+    std::string originalLayersNames;
+};
+
 typedef std::tuple<
-    ngraph::element::Type,
-    MatMulShapes,
+    ov::element::Type,
+    FullyConnectedShapes,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params,
+    ov::element::Type,
+    FullyConnectedParams,
+    std::string> FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {
 

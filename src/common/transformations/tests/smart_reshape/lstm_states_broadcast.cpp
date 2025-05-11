@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 using namespace std;
 using namespace ov::opset9;
@@ -26,10 +30,14 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
     shared_ptr<ov::Model> model(nullptr);
     {
         auto parameter = make_shared<Parameter>(p.data_et, ov::PartialShape{p.data_batch_size, p.input_size});
-        auto initial_hidden_state = create_zero_constant(p.data_et, ov::PartialShape{1, p.hidden_size}.to_shape());
-        auto initial_cell_state = create_zero_constant(p.data_et, ov::PartialShape{1, p.hidden_size}.to_shape());
-        auto W = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape());
-        auto R = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape());
+        auto initial_hidden_state =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{1, p.hidden_size}.to_shape(), {0});
+        auto initial_cell_state =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{1, p.hidden_size}.to_shape(), {0});
+        auto W =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape(), {0});
+        auto R =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape(), {0});
 
         auto cell = make_shared<LSTMCell>(parameter,
                                           initial_hidden_state,
@@ -38,9 +46,9 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
                                           R,
                                           static_cast<size_t>(p.hidden_size.get_length()));
 
-        model = make_shared<ov::Model>(ov::NodeVector{cell}, ov::ParameterVector{parameter});
+        model = make_shared<ov::Model>(ov::OutputVector{cell}, ov::ParameterVector{parameter});
     }
-    ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
+    OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
 }
 
 class LSTMStatesBroadcastTestWithTI : public testing::WithParamInterface<LSTMStatesAttributes>,
@@ -52,8 +60,10 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
     shared_ptr<ov::Model> model(nullptr);
     {
         auto X = make_shared<Parameter>(p.data_et, ov::PartialShape{p.data_batch_size, 1, p.input_size});
-        auto H_init = create_zero_constant(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape());
-        auto C_init = create_zero_constant(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape());
+        auto H_init =
+            ov::op::v0::Constant::create(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape(), {0});
+        auto C_init =
+            ov::op::v0::Constant::create(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape(), {0});
 
         auto Xi = make_shared<Parameter>(p.data_et, ov::PartialShape{1, 1, p.input_size});
         auto H_t = make_shared<Parameter>(p.data_et, ov::PartialShape{1, p.hidden_size});
@@ -61,8 +71,10 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
 
         // Body
         auto squeeze = make_shared<Squeeze>(Xi, create_constant<int64_t>({1}));
-        auto W = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape());
-        auto R = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape());
+        auto W =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape(), {0});
+        auto R =
+            ov::op::v0::Constant::create(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape(), {0});
 
         auto lstm_cell =
             make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, static_cast<size_t>(p.hidden_size.get_length()));
@@ -84,9 +96,9 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
 
         auto res_ti_1 = make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = make_shared<Result>(tensor_iterator->output(0));
-        model = make_shared<ov::Model>(ov::NodeVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
+        model = make_shared<ov::Model>(ov::OutputVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
     }
-    ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
+    OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
 }
 
 static vector<LSTMStatesAttributes> params = {

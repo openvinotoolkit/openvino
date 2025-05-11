@@ -1,5 +1,5 @@
 /*
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,6 @@ public:
 
     virtual ~gather_elements_kernel_selector() {}
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 }  // namespace kernel_selector

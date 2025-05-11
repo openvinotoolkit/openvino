@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "compiled_model.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
@@ -24,16 +25,17 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
         const auto& port = compiled_model->inputs()[i];
-        const auto& submodel_idx = compiled_model->m_inputs_to_submodels_inputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._inputs_to_submodels_inputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
     for (size_t i = 0; i < compiled_model->outputs().size(); i++) {
         const auto& port = compiled_model->outputs()[i];
-        const auto& submodel_idx = compiled_model->m_outputs_to_submodels_outputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._outputs_to_submodels_outputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
 
-    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+    std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> temp_tensor_map;
+    for (const auto& kvp : compiled_model->m_mapping_info._submodels_input_to_prev_output) {
         const auto& submodel_idx_in = kvp.first.first;
         const auto& port_idx_in = kvp.first.second;
         const auto& submodel_idx_out = kvp.second.first;
@@ -41,28 +43,29 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 
         const auto& output_port = m_subrequests[submodel_idx_out]->get_compiled_model()->outputs()[port_idx_out];
         const auto& output_tensor = m_subrequests[submodel_idx_out]->get_tensor(output_port);
+        if (temp_tensor_map.find(output_port) == temp_tensor_map.end()) {
+            temp_tensor_map[output_port] = {
+                ov::make_tensor(output_tensor->get_element_type(), output_tensor->get_shape()),
+                nullptr};
+        }
+        m_subrequests[submodel_idx_out]->set_tensor(output_port, temp_tensor_map[output_port]);
         const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
-        m_subrequests[submodel_idx_in]->set_tensor(input_port, output_tensor);
+        m_subrequests[submodel_idx_in]->set_tensor(input_port, temp_tensor_map[output_port]);
     }
 }
 
 ov::hetero::InferRequest::~InferRequest() = default;
 
 ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov::Output<const ov::Node>& port) const {
-    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
-        return node1 == node2 ||
-               (node1->get_friendly_name() == node2->get_friendly_name() &&
-                node1->get_type_info() == node2->get_type_info() &&
-                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
-    };
-
-    for (const auto& kvp : m_port_to_subrequest_idx) {
-        if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
-            check_nodes(kvp.first.get_node(), port.get_node())) {
-            return m_subrequests[kvp.second];
-        }
+    auto found_port = find_port(port);
+    ov::Output<const ov::Node> internal_port;
+    OPENVINO_ASSERT(found_port.found(), "Cannot find infer request for port ", port);
+    if (found_port.is_input()) {
+        internal_port = get_inputs().at(found_port.idx);
+    } else {
+        internal_port = get_outputs().at(found_port.idx);
     }
-    OPENVINO_THROW("Cannot find infer request for port ", port);
+    return m_subrequests[m_port_to_subrequest_idx.at(internal_port)];
 }
 
 ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {

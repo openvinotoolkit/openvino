@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,17 @@
 
 #include <map>
 #include <string>
-#include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include <ie_plugin_config.hpp>
-#include "openvino/runtime/icompiled_model.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/threading/itask_executor.hpp"
-#include "openvino/runtime/remote_tensor.hpp"
-#include "openvino/runtime/threading/thread_safe_containers.hpp"
-#include "utils/log_util.hpp"
+
 #include "openvino/runtime/auto/properties.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
-#include "itt.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -219,10 +215,15 @@ public:
     std::string                                    m_str_devices;
     unsigned int                                   m_model_priority = 0;
     ov::Any                                        m_performance_hint;
+    ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
     std::mutex                                     m_mutex;
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
+    // hold the resource of static variable to avoid the unexpected destruction.
+    std::shared_ptr<std::mutex>                                          m_mtx;
+    std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
+    std::shared_ptr<Log>                                                 m_logger = Log::instance();
     virtual ~ScheduleContext() = default;
 };
 

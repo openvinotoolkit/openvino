@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prim_list_tuple_construct_replacer.hpp"
@@ -14,6 +14,12 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace pass {
+
+namespace {
+bool is_index(const std::string& s) {
+    return !s.empty() && std::all_of(s.begin(), s.end(), isdigit);
+}
+}  // namespace
 
 bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
@@ -34,7 +40,7 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
         const auto& inputs = input_node->inputs();
         // enumerating inputs in reverse order because of results.push_front below
         for (auto pinput = inputs.rbegin(); pinput != inputs.rend(); ++pinput) {
-            const auto& out = pinput->get_source_output();
+            auto out = pinput->get_source_output();
             if (const auto& fw_node = cast_fw_node(out.get_node_shared_ptr(), "prim::Constant")) {
                 const auto& attrs = fw_node->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
@@ -42,6 +48,15 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
                     // function calculation in model, which used only in training stage. When we move model to eval mode
                     // and does not provide annotation, it is not calculated and return by default None.
                     continue;
+                }
+            }
+            auto names = out.get_names();
+            out.set_names({});
+            for (auto& name : names) {
+                if (!is_index(name)) {
+                    // Set first found non-index name as output name. If such name exist it will be debug name
+                    out.set_names({name});
+                    break;
                 }
             }
             auto new_result = std::make_shared<ov::op::v0::Result>(out);

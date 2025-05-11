@@ -2,30 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/normalize_l2.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 using NormalizeL2LayerGPUTestParams = std::tuple<
        InputShape,              // Input shapes
-       ElementType,             // Input precision
+       ov::element::Type,       // Input precision
        std::vector<int64_t>,    // Reduction axes
-       ngraph::op::EpsMode,     // EpsMode
+       ov::op::EpsMode,     // EpsMode
        float>;                  // Epsilon
 
 class NormalizeL2LayerGPUTest : public testing::WithParamInterface<NormalizeL2LayerGPUTestParams>,
-                       virtual public SubgraphBaseTest {
+                                virtual public ov::test::SubgraphBaseTest {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerGPUTestParams> obj) {
        InputShape inputShapes;
-       ElementType netPrecision;
+       ov::element::Type netPrecision;
        std::vector<int64_t> axes;
-       ngraph::op::EpsMode epsMode;
+       ov::op::EpsMode epsMode;
        float eps;
        std::tie(inputShapes, netPrecision, axes, epsMode, eps) = obj.param;
 
@@ -47,32 +49,29 @@ protected:
        targetDevice = ov::test::utils::DEVICE_GPU;
 
        InputShape inputShapes;
-       ElementType netPrecision;
+       ov::element::Type netPrecision;
        std::vector<int64_t> axes;
-       ngraph::op::EpsMode epsMode;
+       ov::op::EpsMode epsMode;
        float eps;
        std::tie(inputShapes, netPrecision, axes, epsMode, eps) = this->GetParam();
 
        init_input_shapes({inputShapes});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-        }
-       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-       auto normalize = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
 
-       ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
-       function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
+       auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
+       auto normalize = std::make_shared<ov::op::v0::NormalizeL2>(params[0], normAxes, eps, epsMode);
+
+       ov::ResultVector results{std::make_shared<ov::op::v0::Result>(normalize)};
+       function = std::make_shared<ov::Model>(results, params, "NormalizeL2");
    }
 };
 
-TEST_P(NormalizeL2LayerGPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(NormalizeL2LayerGPUTest, Inference) {
    run();
 }
-
-namespace {
 
 const std::vector<InputShape> inputShapes_1D = {
        {
@@ -163,8 +162,8 @@ const std::vector<InputShape> inputShapes_5D = {
        }
 };
 
-const std::vector<ngraph::op::EpsMode> epsMode = {
-       ngraph::op::EpsMode::ADD, ngraph::op::EpsMode::MAX
+const std::vector<ov::op::EpsMode> epsMode = {
+       ov::op::EpsMode::ADD, ov::op::EpsMode::MAX
 };
 
 const std::vector<float> epsilon = {
@@ -179,7 +178,7 @@ const std::vector<int64_t> reduction_axes_12 = {1, 2};
 const std::vector<int64_t> reduction_axes_3 = {3};
 const std::vector<int64_t> reduction_axes_2 = {2};
 
-std::vector<ElementType> nrtPrecision = {ElementType::f16, ElementType::f32};
+std::vector<ov::element::Type> nrtPrecision = {ov::element::f16, ov::element::f32};
 
 const auto NormalizeL2_3D = ::testing::Combine(
            ::testing::ValuesIn(inputShapes_3D),
@@ -209,4 +208,3 @@ const auto NormalizeL2_5D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NormalizeL2_5D, NormalizeL2LayerGPUTest, NormalizeL2_5D, NormalizeL2LayerGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions

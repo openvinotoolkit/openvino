@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <thread>
 #include <future>
 
-#include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {

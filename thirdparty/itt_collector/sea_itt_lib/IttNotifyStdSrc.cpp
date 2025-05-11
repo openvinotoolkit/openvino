@@ -99,7 +99,7 @@ inline bool operator==(const __itt_id& left, const __itt_id& right) {
 
 namespace sea {
 
-uint64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());     // in nanoseconds
+uint64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());    // in nanoseconds
 uint64_t g_nAutoCut = 1024ull * 1024 * atoi(get_environ_value("INTEL_SEA_AUTOCUT").c_str());  // in MB
 uint64_t g_features = sea::GetFeatureSet();
 
@@ -1577,15 +1577,13 @@ void FillApiList(__itt_api_info* api_list_ptr) {
 #define ITT_STUB_IMPL_ORIG(name) ITT_STUB_IMPL(name)
 #ifdef _DEBUG  // dangerous stub that doesn't return anything (even when expected) but records the function call for
                // statistics sake
-#    define ITT_STUB_NO_IMPL(fn)                                              \
-        if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {     \
-            struct local {                                                    \
-                static void stub(...) {                                       \
-                    CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn));       \
-                }                                                             \
-            };                                                                \
-            *api_list_ptr[i].func_ptr = reinterpret_cast<void*>(local::stub); \
-            continue;                                                         \
+#    define ITT_STUB_NO_IMPL(fn)                                                              \
+        if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {                     \
+            struct local {                                                                    \
+                static void stub(...) { CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn)); } \
+            };                                                                                \
+            *api_list_ptr[i].func_ptr = reinterpret_cast<void*>(local::stub);                 \
+            continue;                                                                         \
         }
 #else
 #    define ITT_STUB_NO_IMPL(fn)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/roll.hpp"

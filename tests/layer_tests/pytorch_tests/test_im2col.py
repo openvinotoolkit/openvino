@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -37,9 +37,10 @@ class TestIm2Col(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("kernel_size", [[2, 3], [3, 2], [3, 3], [2, 2], [1, 1]])
     @pytest.mark.parametrize("dilation", [1, 2, 3, (1, 2)])
     @pytest.mark.parametrize("padding", [0, 5, 1, [2, 3]])
     @pytest.mark.parametrize("stride", [3, 1, [2, 1]])
-    def test_exp(self, kernel_size, dilation, padding, stride, ie_device, precision, ir_version):
+    def test_im2col(self, kernel_size, dilation, padding, stride, ie_device, precision, ir_version):
         self._test(*self.create_model(kernel_size, dilation, padding, stride), ie_device, precision, ir_version)

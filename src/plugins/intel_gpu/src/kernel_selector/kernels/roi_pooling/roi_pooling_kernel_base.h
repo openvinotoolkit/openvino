@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,13 +38,6 @@ struct roi_pooling_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// roi_pooling_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct roi_pooling_optional_params : optional_params {
-    roi_pooling_optional_params() : optional_params(KernelType::ROI_POOLING) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ROIPoolingKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ROIPoolingKernelBase : public KernelBaseOpenCL {
@@ -54,7 +47,7 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
 protected:
     virtual JitConstants GetJitConstants(const roi_pooling_params& params) const;

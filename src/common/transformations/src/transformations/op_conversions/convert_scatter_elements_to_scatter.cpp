@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -33,8 +34,7 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
-        auto axis_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
+        auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
 
         if (!axis_const) {
             return false;
@@ -61,10 +61,8 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const size_t axis =
-            ov::normalize_axes(scatter->get_friendly_name(), axis_const->cast_vector<int64_t>(), data_pshape.rank())[0];
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis =
+            ov::util::try_normalize_axis(axis_const->cast_vector<int64_t>()[0], data_pshape.rank(), *scatter);
 
         struct Range {
             uint64_t l, r;

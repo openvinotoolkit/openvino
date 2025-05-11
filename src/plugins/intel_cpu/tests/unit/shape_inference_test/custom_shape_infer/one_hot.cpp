@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/one_hot.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -89,7 +90,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 using OneHotCpuShapeInferenceThrowExceptionTest = OneHotCpuShapeInferenceTest;
 TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
     const auto on = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     const auto off = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
@@ -101,9 +101,9 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto off_tensor = ov::Tensor(element::i32, ov::Shape{}, &m_off);
     const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, depth_tensor}, {2, on_tensor}, {3, off_tensor}};
 
-    // TODO , implementation should throw exception
-    ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                 ov::Exception);
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+                    ov::Exception,
+                    testing::HasSubstr("OneHot depth value can't be negative"));
 }
 
 INSTANTIATE_TEST_SUITE_P(

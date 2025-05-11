@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
-enum class ov_entity {
-    ie_plugin,
-    ie_executable_network,
-    ie_infer_request,
-    ov_plugin,
-    ov_compiled_model,
-    ov_infer_request,
-    undefined
-};
+enum class ov_entity { ov_plugin, ov_compiled_model, ov_infer_request, undefined };
 
 class ApiSummary;
 

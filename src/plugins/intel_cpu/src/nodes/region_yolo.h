@@ -1,15 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
-#include <nodes/common/softmax.h>
+#include "node.h"
+#include "nodes/common/softmax.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,16 +18,19 @@ struct jit_args_logistic {
 };
 
 struct jit_logistic_config_params {
-    InferenceEngine::Precision src_dt;
-    InferenceEngine::Precision dst_dt;
+    ov::element::Type src_dt;
+    ov::element::Type dst_dt;
     unsigned src_data_size = 0;
     unsigned dst_data_size = 0;
 };
 
 struct jit_uni_logistic_kernel {
-    void (*ker_)(const jit_args_logistic *);
+    void (*ker_)(const jit_args_logistic*);
 
-    void operator()(const jit_args_logistic *args) { assert(ker_); ker_(args); }
+    void operator()(const jit_args_logistic* args) {
+        assert(ker_);
+        ker_(args);
+    }
 
     virtual void create_ker() = 0;
 
@@ -41,19 +40,21 @@ struct jit_uni_logistic_kernel {
 
 class RegionYolo : public Node {
 public:
-    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     bool needPrepareParams() const override;
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void executeDynamicImpl(const dnnl::stream& strm) override {
+        execute(strm);
+    }
 
 private:
     int classes;
@@ -61,9 +62,7 @@ private:
     int num;
     float do_softmax;
     std::vector<int64_t> mask;
-    InferenceEngine::Precision input_prec, output_prec;
-
-    std::string errorPrefix;
+    ov::element::Type input_prec, output_prec;
 
     int block_size;
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
@@ -75,9 +74,9 @@ private:
     };
 
     inline float logistic_scalar(float src);
-    inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data);
+    inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

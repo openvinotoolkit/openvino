@@ -3,9 +3,8 @@
 //
 
 #include "assign_inst.h"
-#include "implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -19,7 +18,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::assign_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<assign_impl>(*this);
+        return std::make_unique<assign_impl>(*this);
     }
 
     assign_impl() : parent() {}
@@ -35,37 +34,37 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << variable_id;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> variable_id;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
-        auto& variable = instance.get_network().get_variable_memory(variable_id);
+        auto& variable = instance.get_network().get_variable(variable_id);
 
-        if (variable.memory->get_layout() != instance.get_output_layout()) {
-            CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
-        }
+        OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
+                        "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
+                        " assign output layout: ", instance.get_output_layout().to_short_string());
 
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        stream.wait_for_events(events);
 
-        const auto ev_set_memory = variable.memory->copy_from(stream, instance.input_memory());
-        variable.is_set = true;
+        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory(), 0, 0, variable.get_layout().bytes_count(), true);
+        variable.set();
 
         return ev_set_memory;
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const assign_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<assign_impl>();
+        return std::make_unique<assign_impl>();
     }
 };
 
@@ -73,7 +72,8 @@ public:
 namespace detail {
 
 attach_assign_impl::attach_assign_impl() {
-    implementation_map<assign>::add(impl_types::cpu, assign_impl::create, {});
+    implementation_map<assign>::add(impl_types::cpu, shape_types::dynamic_shape, assign_impl::create, {});
+    implementation_map<assign>::add(impl_types::cpu, shape_types::static_shape, assign_impl::create, {});
 }
 
 }  // namespace detail

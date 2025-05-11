@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,15 @@
 #include <string>
 
 #include "reduce_shape_inference.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reduce)
@@ -73,16 +82,19 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
     }
 
     std::vector<reduce_mode> reduce_bool_modes = {reduce_mode::logical_and, reduce_mode::logical_or};
-    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end())
+    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end()) {
         output_type = data_types::i8;
-    else if (output_type == data_types::i8 || output_type == data_types::u8)
-        output_type = data_types::f32;
+    } else if (output_type == data_types::i8 || output_type == data_types::u8) {
+        if (mode != reduce_mode::min && mode != reduce_mode::max) {
+            output_type = data_types::f32;
+        }
+    }
 
     if (desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     if (format_dim == 6)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};
@@ -199,7 +211,7 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     output_type = desc->output_data_types[0].value_or(output_type);
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     auto output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

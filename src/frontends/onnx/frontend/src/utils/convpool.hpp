@@ -1,24 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/strides.hpp"
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
 /// \brief Get shape of kernel (filter) in pixels.
 ///
 /// \param node The Node ptr representing Conv or Pool operation.
 /// \return The kernel Shape object representing its dimensions (height, width, depth).
-Shape get_kernel_shape(const Node& node);
+ov::Shape get_kernel_shape(const ov::frontend::onnx::Node& node);
 
 ///
 /// \brief      Get number of pixels to stride operation by in each direction.
@@ -28,7 +26,7 @@ Shape get_kernel_shape(const Node& node);
 ///
 /// \return     The kernel Shape object representing its dimensions (height, width,
 ///             depth).
-Strides get_strides(const Node& node, const std::size_t kernel_rank = 0UL);
+ov::Strides get_strides(const ov::frontend::onnx::Node& node, const std::size_t kernel_rank = 0UL);
 
 ///
 /// \brief      Get number of pixels for filter dilation in each direction.
@@ -36,16 +34,16 @@ Strides get_strides(const Node& node, const std::size_t kernel_rank = 0UL);
 /// \param[in]  node         The Node ptr representing ONNX operation.
 /// \param[in]  kernel_rank  The operator'skernel rank.
 ///
-/// \return     The Strides object containing number of pixels for filter dilation
+/// \return     The ov::Strides object containing number of pixels for filter dilation
 ///             (height, width, depth).
-Strides get_dilations(const Node& node, const std::size_t kernel_rank = 0UL);
+ov::Strides get_dilations(const ov::frontend::onnx::Node& node, const std::size_t kernel_rank = 0UL);
 
 /// \brief      Gets the 'ceil_mode' (rounding type) attribute value.
 ///
 /// \param[in]  node  The ONNX node we query for attribute.
 ///
-/// \return     The nGraph RoundingType object representing 'ceil_mode' attribute value.
-ngraph::op::RoundingType get_rounding_type(const Node& node);
+/// \return     The OV RoundingType object representing 'ceil_mode' attribute value.
+ov::op::RoundingType get_rounding_type(const ov::frontend::onnx::Node& node);
 
 /// \brief Get padding values for the operation described by an ONNX node.
 /// \details Values are taken from the `pads` attribute.
@@ -57,7 +55,8 @@ ngraph::op::RoundingType get_rounding_type(const Node& node);
 ///
 /// \return A pair of (padding_above, padding_below), which elements contains number of
 ///         pixels to pad in respective dimensions (height, width, depth).
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_t kernel_rank);
+std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const ov::frontend::onnx::Node& node,
+                                                           const size_t kernel_rank);
 
 /// \brief Get padding values for the operation described by an ONNX node.
 /// \details Values are taken from the `pads` attribute.
@@ -68,7 +67,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 ///
 /// \return A pair of (padding_above, padding_below), which elements contains number of
 ///         pixels to pad in respective dimensions (height, width, depth).
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node);
+std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const ov::frontend::onnx::Node& node);
 
 ///
 /// \brief         Calculate paddings with respect to auto_pad value.
@@ -81,22 +80,22 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node);
 /// \param[in,out] padding_below  The paddings below axis.
 /// \param[in,out] padding_above  The paddings above axis.
 ///
-/// \see        ngraph::op::PadType
-void calculate_auto_pads(const Shape& data_shape,
-                         const Shape& filter_shape,
-                         const Strides& strides,
-                         const Strides& dilations,
-                         const ngraph::op::PadType& pad_type,
-                         CoordinateDiff& padding_below,
-                         CoordinateDiff& padding_above);
+/// \see        ov::op::PadType
+void calculate_auto_pads(const ov::Shape& data_shape,
+                         const ov::Shape& filter_shape,
+                         const ov::Strides& strides,
+                         const ov::Strides& dilations,
+                         const ov::op::PadType& pad_type,
+                         ov::CoordinateDiff& padding_below,
+                         ov::CoordinateDiff& padding_above);
 
 /// \brief      Gets the 'auto_pad' attribute value.
 ///
 /// \param[in]  node  The ONNX node we query for attribute.
 ///
-/// \return     The nGraph PadType object representing 'auto_pad' attribute value.
+/// \return     The OV PadType object representing 'auto_pad' attribute value.
 ///
-ngraph::op::PadType get_auto_pad(const Node& node);
+ov::op::PadType get_auto_pad(const ov::frontend::onnx::Node& node);
 
 /// \brief      Reshape group convolution filters to match desired shape:
 ///             from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]
@@ -106,10 +105,8 @@ ngraph::op::PadType get_auto_pad(const Node& node);
 /// \param[in]  groups      Number of groups
 ///
 /// \return     Reshaped filters input.
-Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters, int64_t groups);
+ov::Output<ov::Node> get_reshaped_filters(const ov::Output<ov::Node>& filters, int64_t groups);
 }  // namespace convpool
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

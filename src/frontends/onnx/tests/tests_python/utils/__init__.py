@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from string import ascii_uppercase
@@ -69,7 +69,7 @@ def get_node_model(op_type, *input_data, opset=1, num_outputs=1, **node_attribut
     ]  # type: ignore
 
     graph = make_graph([onnx_node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="Ngraph ONNX Importer")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     model.opset_import[0].version = opset
     return model
 

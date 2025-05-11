@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ class typed_primitive_inst<permute> : public typed_primitive_inst_base<permute> 
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(permute_node const& /*node*/, kernel_impl_params const& impl_param);
+    static std::vector<layout> calc_output_layouts(permute_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(permute_node const& node);
 
@@ -71,7 +71,6 @@ public:
 
 private:
     void on_execute() override;
-    void reuse_input();
 };
 
 using permute_inst = typed_primitive_inst<permute>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,38 +9,38 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/squeeze.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/squeeze.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "ov_lpt_models/squeeze.hpp"
 
 namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
 
-using ngraph::builder::subgraph::SqueezeFunction;
+using ov::builder::subgraph::SqueezeFunction;
 
 class SqueezeTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<float> axes;
     TestTransformationParams params;
     Actual actual;
@@ -52,18 +52,18 @@ public:
     void SetUp() override {
         const SqueezeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::SqueezeFunction::getOriginal(
             testValues.inputShape,
             testValues.axes,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::SqueezeTransformation, ov::op::v0::Squeeze>(testValues.params);
+        transform.add<ov::pass::low_precision::SqueezeTransformation, ov::op::v0::Squeeze>(testValues.params);
 
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::SqueezeFunction::getReference(
+        referenceFunction = ov::builder::subgraph::SqueezeFunction::getReference(
             testValues.inputShape,
             testValues.axes,
             testValues.expected.precisionBeforeDequantization,

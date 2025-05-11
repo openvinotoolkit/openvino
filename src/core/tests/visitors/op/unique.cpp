@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, unique_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v10::Unique>();
+    NodeBuilder::opset().insert<ov::op::v10::Unique>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 5, 5, 2});
 
@@ -31,7 +31,7 @@ TEST(attributes, unique_default_attributes) {
 }
 
 TEST(attributes, unique_sorted_false) {
-    NodeBuilder::get_ops().register_factory<ov::op::v10::Unique>();
+    NodeBuilder::opset().insert<ov::op::v10::Unique>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 5, 5, 2});
 
@@ -48,7 +48,7 @@ TEST(attributes, unique_sorted_false) {
 }
 
 TEST(attributes, unique_index_et_non_default) {
-    NodeBuilder::get_ops().register_factory<ov::op::v10::Unique>();
+    NodeBuilder::opset().insert<ov::op::v10::Unique>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 5, 5, 2});
 

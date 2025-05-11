@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -15,7 +15,11 @@ def paddle_pow(name : str, x, y, data_type):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.fluid.layers.pow(node_x, y, name='pow')
+        if paddle.__version__ >= '2.0.0':
+            y = paddle.to_tensor(y, dtype=data_type)
+            out = paddle.pow(node_x, y, name='pow')
+        else:
+            out = paddle.fluid.layers.pow(node_x, y, name='pow')
         #FuzzyTest supports int32 & float32
         if data_type == "int64":
             out = paddle.cast(out, "float32")
@@ -29,7 +33,7 @@ def paddle_pow(name : str, x, y, data_type):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -40,7 +44,10 @@ def paddle_pow_tensor(name : str, x, y, data_type):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
         node_y = paddle.static.data(name='y', shape=y.shape, dtype=data_type)
-        out = paddle.fluid.layers.pow(node_x, node_y, name='pow')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.pow(node_x, node_y, name='pow')
+        else:
+            out = paddle.fluid.layers.pow(node_x, node_y, name='pow')
         out = paddle.cast(out, "float32")
 
         cpu = paddle.static.cpu_places(1)
@@ -52,7 +59,7 @@ def paddle_pow_tensor(name : str, x, y, data_type):
             feed={'x': x, 'y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                   inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

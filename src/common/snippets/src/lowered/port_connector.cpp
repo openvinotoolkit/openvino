@@ -5,7 +5,7 @@
 #include "snippets/lowered/port_connector.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {

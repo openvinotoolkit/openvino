@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,15 +15,10 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace InferenceEngine {
-class IAsyncInferRequestWrapper;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class InferRequest;
 class IVariableState;
-class IInferRequestInternalWrapper;
 
 /**
  * @brief VariableState class
@@ -42,8 +37,6 @@ class OPENVINO_RUNTIME_API VariableState {
     VariableState(const std::shared_ptr<ov::IVariableState>& impl, const std::shared_ptr<void>& so);
 
     friend class ov::InferRequest;
-    friend class ov::IInferRequestInternalWrapper;
-    friend class InferenceEngine::IAsyncInferRequestWrapper;
 
 public:
     /**

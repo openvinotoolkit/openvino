@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/runtime/event.hpp"
@@ -11,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -21,7 +23,7 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -40,6 +42,18 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+struct ImplementationManager;
+
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    bool m_lockable = false;
+    layout m_layout;
+};
+
 /*
     Base class for all implementations.
 */
@@ -52,26 +66,46 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    std::string get_kernel_name() const { return _kernel_name; }
+    const std::string& get_kernel_name() const { return _kernel_name; }
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
+    virtual bool is_onednn() const { return false; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
-    virtual void init_by_cached_kernels(const kernels_cache&) {}
-    virtual void set_cached_kernel_ids(const kernels_cache&) {}
+    virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
+    virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
-    virtual void load(cldnn::BinaryInputBuffer& ib) {}
+    virtual void save(cldnn::BinaryOutputBuffer& ob) const {
+        ob << can_reuse_memory;
+        ob << _kernel_name;
+        ob << _is_dynamic;
+        if (_weights_reorder_params == nullptr) {
+            ob << false;
+        } else {
+            ob << true;
+            _weights_reorder_params->save(ob);
+        }
+    }
+    virtual void load(cldnn::BinaryInputBuffer& ib) {
+        ib >> can_reuse_memory;
+        ib >> _kernel_name;
+        ib >> _is_dynamic;
+        bool has_weights_reorder_params;
+        ib >> has_weights_reorder_params;
+        if (has_weights_reorder_params) {
+            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            _weights_reorder_params->load(ib);
+        }
+    }
     // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
     virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
         return std::make_pair("", "");
@@ -79,13 +113,16 @@ struct primitive_impl {
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
+    bool can_share_kernels = false;
 
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) { }
+
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -95,17 +132,30 @@ struct primitive_impl {
     }
 
     virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
-    virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
+    const ImplementationManager* m_manager = nullptr;
+
 protected:
     std::shared_ptr<WeightsReorderParams> _weights_reorder_params = nullptr;
     std::string _kernel_name;
     bool _is_dynamic = false;
+};
+
+struct ImplementationsFactory {
+    ImplementationsFactory(const program_node* node);
+
+    const program_node* m_node;
+    std::vector<std::shared_ptr<ImplementationManager>> m_available_impls;
+    program::ImplementationsCache& m_static_impls_cache;
+    std::vector<std::shared_ptr<primitive_impl>> m_dynamic_impls_cache;
+
+    std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
+    bool has(impl_types impl_type) const;
 };
 
 /*
@@ -122,8 +172,8 @@ public:
     primitive_inst(network& network);
     virtual ~primitive_inst() = default;
 
-    const std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>>& dependencies() const {
-        return reinterpret_cast<std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>> const&>(_deps);
+    const std::vector<std::pair<const primitive_inst*, int32_t>>& dependencies() const {
+        return reinterpret_cast<std::vector<std::pair<const primitive_inst*, int32_t>> const&>(_deps);
     }
 
     memory& dep_memory(size_t index) const {
@@ -146,8 +196,8 @@ public:
         return true;
     }
     primitive_type_id type() const { return _type; }
-    primitive_id id() const { return _id; }
-    primitive_id org_id() const { return _org_id; }
+    const primitive_id& id() const { return _id; }
+    const primitive_id& org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
     void set_can_be_optimized(bool optimized) {
         // TODO: consolidate to _impl_param in the future
@@ -155,19 +205,27 @@ public:
          this->_can_be_optimized = optimized;
     }
     std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
-    program_node const& get_node() const { return *_node; }
+    program_node const& get_node() const {
+        OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
+        return *_node;
+    }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
+    const ExecutionConfig& get_config() const { return get_network().get_config(); }
+
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
-    std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
+    const std::list<const cldnn::program_node *>& get_users() const { return get_node().get_users(); }
+    const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
+    void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        return _network.get_primitives(users);
+        _users = get_network().get_primitives(users);
     }
+
+    const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -188,14 +246,23 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
+    void set_shape_info_memory_subbuffer(memory::ptr addr);
 
-    event::ptr execute(const std::vector<event::ptr>& events);
+    void add_dep_events(const std::vector<event::ptr>& events);
+    void add_dep_event(event::ptr ev);
+    void set_out_event(event::ptr&& ev);
+
+    void set_flag(size_t flag, bool value = true);
+    void unset_flag(size_t flag);
+    bool get_flag(size_t flag) const;
+    void reset_flags();
+
+    void reset_events();
+
+    void prepare_primitive();
+    void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
-    }
-
-    void init_by_cached_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_by_cached_kernels(kernels_cache);
     }
 
     void set_arguments();
@@ -203,16 +270,19 @@ public:
     void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
     }
-    bool output_changed() const { return _output_changed; }
-    void reset_output_change() { _output_changed = false; }
-
-    bool shape_changed() const { return _shape_changed; }
-    void reset_shape_change() { _shape_changed = false; }
-    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+
+    void update_paddings();
     void do_runtime_skip_reorder();
+    void do_runtime_skip_gather();
+    void do_runtime_skip_permute();
+    void do_runtime_skip_strided_slice();
+    void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
+    void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
+    void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -235,20 +305,26 @@ public:
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
-            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    static memory::ptr allocate_output(engine& engine,
+                                       memory_pool& pool,
+                                       const program_node& node,
+                                       const kernel_impl_params& impl_params,
+                                       const memory_restricter<uint32_t>& memory_dependencies,
+                                       uint32_t net_id,
+                                       bool is_internal,
+                                       size_t idx = 0,
+                                       bool reset_mem = true,
+                                       bool is_output_buffer = false,
+                                       memory* curr_memory = nullptr,
+                                       bool runtime_alloc = false);
 
-    virtual void save(cldnn::BinaryOutputBuffer& ob) const;
-    virtual void load(cldnn::BinaryInputBuffer& ib);
-    void rebuild_deps(
-        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
-    void rebuild_exec_deps(
-        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
+    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
+
     std::string get_implementation_name() const;
 
-    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode = false);
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode = false);
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
@@ -269,6 +345,11 @@ public:
 
     virtual void update_output_memory() {}
 
+    virtual int32_t get_prealloc_iter_num() { return -1; }
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    bool all_dependencies_cpu_impl() const;
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -278,17 +359,19 @@ protected:
 
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
+    bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
-    std::unique_ptr<primitive_impl> _impl;
-    std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
+    std::shared_ptr<primitive_impl> _impl;
+    std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
-    std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
+    std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
-    std::vector<std::shared_ptr<primitive_inst>> dependant_shape_of_insts;
+    // List of dependant shape_of primitives for shape_of subgraphs
+    std::vector<primitive_inst*> dependant_shape_of_insts;
+
+    std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
@@ -296,8 +379,10 @@ protected:
     // only one fused primitive which will calculate multiple outputs (for example device enqueue can work in such
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
-    std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
-    std::vector<cldnn::primitive_id> _exec_dep_ids;
+    std::vector<primitive_inst*> _exec_deps;
+
+    // List of primitive ids that this primitive can't share memory buffers with
+    memory_restricter<uint32_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -316,8 +401,6 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
-    bool _shape_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -337,13 +420,16 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t max_output_layout_size = 0;
+    std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
-    static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
-        std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
+                                              bool reset_mem = true,
+                                              bool runtime_alloc = false);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
+    void allocate_shape_info_memory();
+    static std::vector<primitive_inst*> build_exec_deps(
+        std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
@@ -351,11 +437,13 @@ protected:
     virtual void on_execute() {}
 
     virtual void update_shape();
-    virtual event::ptr update_weights();
+    virtual void update_weights();
+
+    void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl();
-    event::ptr realloc_if_needed();
+    void update_impl(bool use_async_compilation);
+    void realloc_if_needed(bool prev_execution_skipped = false);
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -383,7 +471,7 @@ protected:
         auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
 
         if (impl_param.has_fused_primitives()) {
-            output_type = impl_param.get_fused_output_layout().data_type;
+            output_type = impl_param.get_output_element_type();
         }
 
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
@@ -394,12 +482,7 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const {
-        std::vector<std::pair<primitive_id, size_t>> users;
-        for (auto u : _node->get_users())
-            users.emplace_back(u->id(), u->get_dependency_index(*_node));
-
-        for (const auto& u : users) {
-            auto user_inst = _network.get_primitive(u.first);
+        for (const auto& user_inst : get_user_insts()) {
             // Check users of optimized_out inst, as the optimized out inst will not be able to
             // reset it's memory
             if (user_inst->can_be_optimized()) {
@@ -408,11 +491,13 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(u.second))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
                 return true;
         }
         return false;
     }
+
+    void clear_output_memory();
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
@@ -433,7 +518,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -444,11 +528,7 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
-    }
-
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
         return {};
     }
 
@@ -472,16 +552,8 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
     }
 
-    kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
-        return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/, kernel_arguments_data& /*args*/) {}
-    virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
-        kernel_arguments_data args;
-        return args;
-    }
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 
@@ -491,7 +563,6 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node* node;
     std::shared_ptr<const PType> argument;
 
     template<typename T>
@@ -505,11 +576,11 @@ public:
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
     typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
+        : primitive_inst(network), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
+        : primitive_inst(network, node, allocate_memory), argument(node.get_primitive()) {}
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {

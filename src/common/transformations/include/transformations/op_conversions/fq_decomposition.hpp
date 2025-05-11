@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FakeQuantizeDecomposition transformation decomposes FakeQuantize layer.
  *
  * Expression from specification:
@@ -44,6 +44,6 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 
 class ov::pass::FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FakeQuantizeDecomposition");
     FakeQuantizeDecomposition();
 };

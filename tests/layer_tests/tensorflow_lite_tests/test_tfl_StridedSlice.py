@@ -13,7 +13,7 @@ test_params = [
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': 4},
     {'shape': [12, 2, 2, 5], 'dtype': np.int64, 'strides': [1], 'begin': [0], 'end': [1],
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
-    {'shape': [12, 2, 2, 5], 'dtype': np.bool, 'strides': [1], 'begin': [0], 'end': [1],
+    {'shape': [12, 2, 2, 5], 'dtype': bool, 'strides': [1], 'begin': [0], 'end': [1],
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
 ]
 
@@ -24,7 +24,7 @@ class TestTFLiteStridedSliceLayerTest(TFLiteLayerTest):
     allowed_ops = ['STRIDED_SLICE']
 
     def _prepare_input(self, inputs_dict, generator=None):
-        if self.input_dtype == np.bool:
+        if self.input_dtype == bool:
             inputs_dict['Input'] = np.random.choice([True, False], size=inputs_dict['Input'])
         else:
             inputs_dict['Input'] = np.random.randint(-255, 255, inputs_dict['Input']).astype(self.input_dtype)

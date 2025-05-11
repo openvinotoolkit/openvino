@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/abs.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/type_util.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace reference {

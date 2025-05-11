@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,12 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::BINARY);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
-    k.EnableQuantizePackedBinaryOutput();
     k.EnableDynamicShapesSupport();
     return k;
 }
@@ -34,7 +32,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) 
 
     auto output = params.outputs[0];
 
-    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
         dispatchData.gws[0] = output.Batch().v;
         dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
         dispatchData.gws[2] = output.Y().v * output.X().v * output.Z().v;
@@ -44,7 +42,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) 
         dispatchData.lws[2] = 1;
     } else {
         dispatchData.gws[0] = output.Batch().v;
-        dispatchData.gws[1] = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
+        dispatchData.gws[1] = output.Feature().v;
         dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v * output.W().v * output.U().v * output.V().v, 16);
 
         dispatchData.lws[0] = 1;
@@ -57,30 +55,21 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) 
 
 JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     }
     return jit;
 }
 
-bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const {
+bool QuantizeKernelRef::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 5)
         return false;
 
-    // Binary packed output is possible only with b_fs_yx_32fp output layout and some input layouts
-    if (params.outputs[0].GetDType() == Datatype::BINARY &&
-        (params.outputs[0].GetLayout() != DataLayout::b_fs_yx_32fp ||
-        (params.inputs[0].GetLayout() != DataLayout::bfyx &&
-         params.inputs[0].GetLayout() != DataLayout::bfzyx &&
-         params.inputs[0].GetLayout() != DataLayout::b_fs_zyx_fsv16 &&
-         params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16 &&
-         params.inputs[0].GetLayout() != DataLayout::fs_b_yx_fsv32)))
-        return false;
     return true;
 }
 
-KernelsPriority QuantizeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority QuantizeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

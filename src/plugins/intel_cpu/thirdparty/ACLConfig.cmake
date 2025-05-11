@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -98,7 +98,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     #
 
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
-    set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -130,8 +129,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ARM_COMPUTE_OPTIONS
         neon=1
         opencl=0
-        openmp=0
-        cppthreads=1
         examples=0
         Werror=0
         gemm_tuner=0
@@ -143,23 +140,31 @@ elseif(NOT TARGET arm_compute::arm_compute)
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
+        build_dir=${OV_CPU_ARM_TARGET_ARCH}
     )
+
+    if(THREADING STREQUAL "OMP")
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=1
+                                        cppthreads=0)
+    else()
+        list(APPEND ARM_COMPUTE_OPTIONS openmp=0
+                                        cppthreads=1)
+    endif()
 
     if(ARM)
         list(APPEND ARM_COMPUTE_OPTIONS estate=32)
     else()
         list(APPEND ARM_COMPUTE_OPTIONS estate=64)
-        if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
-            # arm_sve.h header is not available on gcc older 10.2
-            # TODO: validate it on machines with FP16 / SVE support and enabled back
-            # list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
+            list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+            # let's additionally enable SME as well
+            set(extra_cxx_flags "${extra_cxx_flags} -DENABLE_SME -DARM_COMPUTE_ENABLE_SME -DARM_COMPUTE_ENABLE_SME2")
         endif()
     endif()
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
-            build_dir=${ARM_COMPUTE_BINARY_DIR}
-            install_dir=${ARM_COMPUTE_BINARY_DIR}/install)
+            install_dir=install)
     endif()
 
     if(ARM_COMPUTE_SCONS_JOBS)
@@ -229,7 +234,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS
             compiler_prefix="${ANDROID_TOOLCHAIN_ROOT}/bin/")
 
-        set(extra_flags "${extra_flags} --target=${ANDROID_LLVM_TRIPLE}")
+        set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}")
         set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}")
         set(extra_flags "${extra_flags} --sysroot=${CMAKE_SYSROOT}")
 
@@ -266,6 +271,16 @@ elseif(NOT TARGET arm_compute::arm_compute)
         get_filename_component(toolchain_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${toolchain_prefix}/")
     elseif(APPLE)
+        # we need to bypass this information in case of custom compiler is passed
+        # to cmake call. Such compiler and compiler prefix need to be passed to scons
+        get_filename_component(cxx_compiler "${CMAKE_CXX_COMPILER}" NAME)
+        get_filename_component(c_compiler "${CMAKE_C_COMPILER}" NAME)
+        get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+        set(cmake_build_env
+            CC=${c_compiler}
+            CXX=${cxx_compiler})
+
         if(CMAKE_OSX_DEPLOYMENT_TARGET)
             set(extra_cxx_flags "${extra_cxx_flags} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
             set(minos_added ON)
@@ -277,8 +292,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
             endif()
             set(extra_cxx_flags "${extra_cxx_flags} --sysroot ${CMAKE_OSX_SYSROOT}")
         endif()
-
-        set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        if(OV_COMPILER_IS_CLANG)
+            set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        endif()
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
 
@@ -322,20 +338,22 @@ elseif(NOT TARGET arm_compute::arm_compute)
     if(extra_cxx_flags)
         list(APPEND ARM_COMPUTE_OPTIONS extra_cxx_flags=${extra_cxx_flags})
     endif()
+    if(extra_cc_flags)
+        list(APPEND ARM_COMPUTE_OPTIONS extra_cc_flags=${extra_cc_flags})
+    endif()
 
     if(NOT CMAKE_VERBOSE_MAKEFILE)
         list(APPEND ARM_COMPUTE_OPTIONS --silent)
     endif()
 
     if(MSVC64)
-        set(arm_compute build/arm_compute-static.lib)
-        set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/arm_compute-static.lib)
     else()
-        set(arm_compute ${ARM_COMPUTE_BINARY_DIR}/libarm_compute-static.a)
-        set(arm_compute_full_path "${arm_compute}")
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
+    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 
-    list(APPEND ARM_COMPUTE_OPTIONS experimental_fixed_format_kernels=True)
+    list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
     add_custom_command(
         OUTPUT
@@ -381,5 +399,5 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
+    set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
 endif()

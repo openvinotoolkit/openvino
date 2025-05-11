@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
@@ -26,6 +27,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
@@ -70,7 +72,7 @@ std::pair<std::shared_ptr<ov::op::v1::Split>, uint64_t> get_split_before_concat(
     std::shared_ptr<ov::op::v1::Split> split;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
-        auto split_op = std::dynamic_pointer_cast<ov::op::v1::Split>(input.get_node_shared_ptr());
+        auto split_op = ov::as_type_ptr<ov::op::v1::Split>(input.get_node_shared_ptr());
         if (!split)
             split = split_op;
         if (!split_op || split != split_op)
@@ -150,8 +152,8 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(m.get_match_root());
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
         if (!concat)
             return false;
 
@@ -172,8 +174,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (split_input_rank != 4 && split_input_rank != 5)
             return false;
 
-        auto split_axis_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+        auto split_axis_const = ov::as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_const)
             return false;
 
@@ -214,9 +215,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         std::shared_ptr<Node> sizes_node;
 
         if (use_shape_for_elimination) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            sizes_node = get_constant_from_source(cast_mul_result_to_int);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            sizes_node = ov::util::get_constant_from_source(cast_mul_result_to_int);
         } else {
             disable_constant_folding(shape_node);
         }

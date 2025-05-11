@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,10 +85,10 @@ public:
         return deformable_mode;
     }
 
-    bool bias_term() const { return get_primitive()->bias.size() > 0; }
-    bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
-    bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
-    bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
+    bool bias_term() const { return get_primitive()->bias.is_valid(); }
+    bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.is_valid(); }
+    bool compensation_term() const { return get_primitive()->compensation.is_valid(); }
+    bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.is_valid(); }
     bool use_explicit_padding() const { return get_primitive()->auto_pad == ov::op::PadType::EXPLICIT; }
 
     // Currently convolution with constant weight is only supported for dynamic shape
@@ -188,9 +188,6 @@ public:
     bool weights_zero_points_term() const { return _impl_params->weights_zero_points_layout.has_value(); }
     bool compensation_term() const { return _impl_params->compensation_layout.has_value(); }
     bool activations_zero_points_term() const { return _impl_params->activations_zero_points_layout.has_value(); }
-
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
     int32_t _deform_conv_dep_offset = 0;

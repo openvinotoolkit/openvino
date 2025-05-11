@@ -5,7 +5,7 @@
 #pragma once
 
 #include "gather.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
@@ -105,7 +105,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
     using std::begin;
     using std::end;
 
-    const auto data_shape_strides = ngraph::row_major_strides(data_shape);
+    const auto data_shape_strides = row_major_strides(data_shape);
 
     if (axis && *axis < 0) {
         const auto normalized_axis = *axis + data_shape.size();

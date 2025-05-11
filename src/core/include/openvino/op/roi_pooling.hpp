@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,12 +41,6 @@ public:
     /// \brief Get the output ROI feature map shape (H x W)
     /// \return Shape with pooled_h and pooled_w attributes.
     const Shape& get_output_roi() const;
-
-    OPENVINO_DEPRECATED("Use 'get_output_roi' instead. Use of this member can be ambiguous with Node base "
-                        "'get_output_size' which return number of outputs.")
-    const Shape& get_output_size() const {
-        return m_output_size;
-    }
 
     /// \brief Set the spatial scale value.
     /// \param scale Scale value to set.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,19 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ngraph/factory.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Woverloaded-virtual"
+#endif
 
 namespace ov {
 namespace test {
@@ -26,7 +32,7 @@ class ValueHolder {
     }
 
 public:
-    virtual ~ValueHolder() {}
+    virtual ~ValueHolder() = default;
     virtual operator bool&() {
         OPENVINO_THROW("Invalid type access");
     }
@@ -94,9 +100,6 @@ public:
         OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<uint64_t>&() {
-        OPENVINO_THROW("Invalid type access");
-    }
-    virtual operator HostTensorPtr&() {
         OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::shared_ptr<ov::Model>&() {
@@ -217,10 +220,22 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            auto& data = m_values.get<HostTensorPtr>(name);
-            data->read(a->get()->get_ptr(), a->get()->size());
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            auto& data = m_values.get<ov::Tensor>(name);
+            std::memcpy(a->get()->get_ptr(), data.data(), a->get()->size());
+        } else if (auto a = ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+            // get a data that is ov::Tensor of u8 type representing packed string tensor
+            auto& data = m_values.get<ov::Tensor>(name);
+            auto src_string_aligned_buffer =
+                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data.data<char>(),
+                                                                                                     data.get_size());
+            std::string* src_strings = static_cast<std::string*>(src_string_aligned_buffer->get_ptr());
+            auto dst_string_aligned = a->get();
+            auto num_elements = dst_string_aligned->get_num_elements();
+            auto dst_strings = static_cast<std::string*>(dst_string_aligned->get_ptr());
+            for (size_t ind = 0; ind < num_elements; ++ind) {
+                dst_strings[ind] = src_strings[ind];
+            }
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
                        &adapter)) {
@@ -240,7 +255,6 @@ public:
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be unmarshalled");
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
@@ -290,10 +304,8 @@ public:
         adapter.set(m_values.get<std::vector<double>>(name));
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        HostTensorPtr& data = m_values.get<HostTensorPtr>(name);
-        data->read(adapter.get_ptr(), adapter.size());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto data = m_values.get<ov::Tensor>(name);
+        std::memcpy(adapter.get_ptr(), data.data(), adapter.size());
     }
 
 protected:
@@ -309,10 +321,51 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
-            data->write(a->get()->get_ptr(), a->get()->size());
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            ov::Tensor data(element::u8, Shape{a->get()->size()});
+            std::memcpy(data.data(), a->get()->get_ptr(), a->get()->size());
+            m_values.insert(name, data);
+        } else if (ov::is_type<::ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<::ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
+            auto a1 = ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+            auto a2 = ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+            // write packed string tensor into ov::Tensor of u8 type
+            std::vector<uint8_t> packed_string_tensor;
+            std::shared_ptr<uint8_t> header;
+            size_t header_size;
+            if (a1) {
+                a1->get_header(header, header_size);
+            } else {
+                a2->get_header(header, header_size);
+            }
+            for (size_t ind = 0; ind < header_size; ++ind) {
+                packed_string_tensor.push_back(header.get()[ind]);
+            }
+
+            // write raw strings into packed format
+            size_t num_elements = 0;
+            if (a1) {
+                num_elements = a1->get()->get_num_elements();
+            } else {
+                num_elements = a2->get()->get_num_elements();
+            }
+            for (size_t string_ind = 0; string_ind < num_elements; ++string_ind) {
+                const char* string_ptr;
+                size_t string_size;
+                if (a1) {
+                    a1->get_raw_string_by_index(string_ptr, string_size, string_ind);
+                } else {
+                    a2->get_raw_string_by_index(string_ptr, string_size, string_ind);
+                }
+
+                for (size_t ind = 0; ind < string_size; ++ind) {
+                    packed_string_tensor.push_back(static_cast<uint8_t>(string_ptr[ind]));
+                }
+            }
+
+            size_t packed_string_tensor_size = packed_string_tensor.size();
+            ov::Tensor data(element::u8, Shape{packed_string_tensor_size});
+            std::memcpy(data.data(), packed_string_tensor.data(), packed_string_tensor_size);
             m_values.insert(name, data);
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
@@ -333,7 +386,6 @@ public:
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be marshalled");
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
@@ -409,7 +461,7 @@ public:
     }
 
     std::shared_ptr<Node> create() {
-        std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
+        std::shared_ptr<Node> node(opset().create(m_node_type_info.name));
         node->visit_attributes(*this);
 
         if (m_inputs.size()) {
@@ -426,9 +478,8 @@ public:
     AttributeVisitor& get_node_loader() {
         return *this;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static ngraph::FactoryRegistry<Node>& get_ops();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    static OpSet& opset();
 
 protected:
     Node::type_info_t m_node_type_info;
@@ -437,3 +488,7 @@ protected:
 };  // namespace test
 }  // namespace test
 }  // namespace ov
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif

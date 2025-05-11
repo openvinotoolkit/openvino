@@ -1,0 +1,107 @@
+ir_version: 9
+producer_name: "onnx-frontend-test"
+graph {
+  node {
+    input: "X"
+    input: "rois"
+    output: "Y"
+    op_type: "MMCVRoIAlignRotated"
+    attribute {
+      name: "aligned"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "clockwise"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "output_height"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "output_width"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "sampling_ratio"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "spatial_scale"
+      f: 0.7799999713897705
+      type: FLOAT
+    }
+    domain: "mmdeploy"
+  }
+  name: "test-model"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "rois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "mmdeploy"
+  version: 1
+}
+

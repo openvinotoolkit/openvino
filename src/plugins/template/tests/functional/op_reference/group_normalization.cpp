@@ -46,6 +46,10 @@ public:
         function = CreateFunction(params);
         inputData = {params.data_tensor.data, params.scale_tensor.data, params.bias_tensor.data};
         refOutData = {params.expected_tensor.data};
+
+        if (params.data_tensor.type == element::f16) {
+            threshold = 3e-2f;
+        }
     }
 
     static string getTestCaseName(const testing::TestParamInfo<GroupNormalizationParams>& obj) {
@@ -63,7 +67,7 @@ private:
         const auto in_bias = make_shared<op::v0::Parameter>(params.bias_tensor.type, params.bias_tensor.shape);
         const auto group_norm =
             make_shared<op::v12::GroupNormalization>(in_data, in_scale, in_bias, params.num_groups, params.epsilon);
-        return make_shared<Model>(NodeVector{group_norm}, ParameterVector{in_data, in_scale, in_bias});
+        return make_shared<Model>(OutputVector{group_norm}, ParameterVector{in_data, in_scale, in_bias});
     }
 };
 

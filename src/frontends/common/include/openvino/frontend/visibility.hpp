@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 // Increment each time when FrontEnd/InputModel/Place interface is changed
 #define OV_FRONTEND_API_VERSION 1
 
-#if defined(USE_STATIC_FRONTEND_COMMON) || defined(OPENVINO_STATIC_LIBRARY)
+#if defined(OPENVINO_STATIC_LIBRARY)
 #    define FRONTEND_API
 #    define FRONTEND_C_API
 #else
@@ -20,5 +20,5 @@
 #    else
 #        define FRONTEND_API   OPENVINO_CORE_IMPORTS
 #        define FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
-#    endif  // frontend_common_EXPORTS
-#endif      // USE_STATIC_FRONTEND_COMMON || OPENVINO_STATIC_LIBRARY
+#    endif  // openvino_frontend_common_EXPORTS
+#endif      // OPENVINO_STATIC_LIBRARY

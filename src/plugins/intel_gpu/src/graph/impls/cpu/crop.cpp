@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "crop_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/slice.hpp"
 
@@ -24,7 +21,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::crop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<crop_impl>(*this);
+        return std::make_unique<crop_impl>(*this);
     }
 
     crop_impl() : parent("crop_cpu_impl") {}
@@ -41,11 +38,11 @@ struct crop_impl : public typed_primitive_impl<crop> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "crop::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
-        auto ev = stream.create_user_event(false);
+        if (!pass_through_events) {
+            stream.wait_for_events(events);
+        }
 
         auto params = instance.get_impl_params();
         auto input_layout = params->input_layouts[0];
@@ -98,18 +95,20 @@ struct crop_impl : public typed_primitive_impl<crop> {
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute crop primitive with id ", instance.id());
 
-        ev->set();
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const crop_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<crop_impl>();
+        return std::make_unique<crop_impl>();
     }
 };
 

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "softmax_reshape_elimination.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -24,15 +24,15 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
     register_matcher(
         std::make_shared<ov::pass::pattern::Matcher>(m_reshape1,
-                                                     "ov::frontend::pytorch::pass::PrimTupleUnpackReplacer"),
+                                                     "ov::frontend::pytorch::pass::SoftmaxReshapeElimination"),
         [=](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
 
-            const auto input_shape = reshape0->get_input_partial_shape(0);
-            const auto output_shape = reshape1->get_output_partial_shape(0);
+            const auto& input_shape = reshape0->get_input_partial_shape(0);
+            const auto& output_shape = reshape1->get_output_partial_shape(0);
             if (input_shape.is_dynamic() || output_shape.is_dynamic() ||
                 input_shape.get_shape() != output_shape.get_shape())
                 return false;
@@ -40,9 +40,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                axis = ov::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax_v8);
             } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
                 axis = softmax_v1->get_axis();
             } else {

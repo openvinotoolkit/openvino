@@ -1,0 +1,90 @@
+/* overrides */
+.switcher-set {display: none;}
+
+/* === INTRO TEXT ======================================================================== */
+
+#GSG_introtext a {
+	background-color: #0068B5;
+	height: 100px;
+	padding: 9px;
+	float: left;
+	margin: 20px 1% 35px 1%;
+	width: 32%;
+	color: #fff;
+	text-align: center;
+}
+
+#GSG_introtext a::after {
+	display: block;
+	font-size: 0.8em;
+	margin-top: 6px;
+	padding-top:3px;
+	border-top: solid 1px #fff;
+}
+
+#GSG_introtext a:nth-of-type(1)::after {content: "Estimate image depth (no install required)";}
+#GSG_introtext a:nth-of-type(2)::after {content: "View options";}
+#GSG_introtext a:nth-of-type(3)::after {content: "Tutorials, basics, and features";}
+#GSG_introtext a:nth-of-type(1) {margin-left: 0;}
+#GSG_introtext a:nth-of-type(3) {margin-right: 0;}
+
+
+
+
+/* === SECOND STEP CHOICE ================================================================ */
+#GSG_nextstepchoice {
+	margin: 0 auto;
+	width: 100%;
+}
+
+#GSG_nextstepchoice a {
+	display: block;
+	width: 100%;
+	padding: 10px 15px;
+}
+
+#GSG_nextstepchoice a h4 {
+	display: inline-block;
+    height: 30px;	
+    color: #0068B5;
+    font-size: 1.1em;
+    line-height: 2em;
+    font-weight: bold;
+    margin: 0;
+    border-bottom: 1px solid #0068B5;
+	transition: all 0.5s;
+	-webkit-transition: all 0.5s;
+	-moz-transition: all 0.5s;
+	-o-transition: all 0.5s;
+	-ms-transition: all 0.5s;
+}
+
+#GSG_nextstepchoice a p {
+	color: #0068B5;
+	text-align: left;
+	line-height:1.3em;
+	margin: 0;
+}
+
+#GSG_nextstepchoice a:hover h4 {padding-left: 15px;}
+
+#GSG_nextstepchoice a:hover,
+#GSG_nextstepchoice a:hover h4,
+#GSG_nextstepchoice a:hover p {
+	text-decoration:none;	
+}
+
+/* === screen narrow =========================================================================== */
+@media only screen and (max-width: 800px) {
+	#GSG_introtext a {							/* === intro tiles float === */
+		width: 80%;
+		clear: both;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	#GSG_nextstepchoice a {						/* === further steps height === */
+		height: 140px;
+	}
+	
+}
+

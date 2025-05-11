@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,15 +197,5 @@ static void generate_anchors(unsigned int base_size,
             anchors.push_back(anchor);
         }
     }
-}
-
-void proposal_inst::save(BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _anchors;
-}
-
-void proposal_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> _anchors;
 }
 }  // namespace cldnn

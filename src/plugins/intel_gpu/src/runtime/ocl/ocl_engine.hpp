@@ -26,8 +26,10 @@ public:
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
+    memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
+    bool check_allocatable(const layout& layout, allocation_type type) override;
 
     void* get_user_context() const override;
 
@@ -44,6 +46,8 @@ public:
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
     stream& get_service_stream() const override;
 
+    kernel::ptr prepare_kernel(const kernel::ptr kernel) const override;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig& config) override;
     // Returns onednn engine object which shares device and context with current engine
@@ -55,7 +59,6 @@ public:
 private:
     std::string _extensions;
     std::unique_ptr<stream> _service_stream;
-    std::unique_ptr<cl::UsmHelper> _usm_helper;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::mutex onednn_mutex;

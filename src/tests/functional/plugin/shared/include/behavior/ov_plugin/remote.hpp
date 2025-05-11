@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/op/parameter.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {

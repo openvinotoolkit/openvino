@@ -2,10 +2,10 @@
 
 Historically, GPU plugin was built on top of standalone [clDNN library](https://github.com/intel/clDNN) for DNNs inference on Intel® GPUs,
 but at some point clDNN became a part of OpenVINO, so now it's a part of overall GPU plugin code. Intel® Arc™ Graphics Xe-HPG is supported
-via embedding of [oneDNN library](https://github.com/oneapi-src/oneDNN) 
+via embedding of [oneDNN library](https://github.com/oneapi-src/oneDNN)
 
 OpenVINO GPU plugin is responsible for:
- 1. [IE Plugin API](https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_overview.html) implementation.
+ 1. [IE Plugin API](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html) implementation.
  2. Translation of a model from common IE semantic (`ov::Function`) into plugin-specific one (`cldnn::topology`), which is then compiled into
  GPU graph representation (`cldnn::network`).
  3. Implementation of OpenVINO operation set for Intel® GPU.
@@ -17,7 +17,7 @@ OpenVINO GPU plugin is responsible for:
 Intel GPU Plugin source code structure is shown below:
 <pre>
 src/plugins/intel_gpu                  - root GPU plugin folder
-             ├── include               
+             ├── include
              │   ├── intel_gpu         - library internal headers
              │   │   ├── graph         - headers for internal graph representations
              │   │   ├── plugin        - definition of classes required for OpenVINO plugin API implementation
@@ -29,14 +29,14 @@ src/plugins/intel_gpu                  - root GPU plugin folder
              │   │    ├── graph_optimizer - passes for graph transformations
              │   │    ├── impls - definition of primitive implementations
              │   │    └── include - headers with graph nodes
-             │   │ 
+             │   │
              │   ├── kernel_selector - OpenCL™ kernels (host+device parts) + utils for optimal kernels selection
              │   │   ├── common      - definition of some generic classes/structures used in kernel_selector
              │   │   └── core        - kernels, kernel selectors, and kernel parameters definitions
              │   │       ├── actual_kernels  - host side part of OpenCL™ kernels including applicability checks, performance heuristics and Local/Global work-groups description
              │   │       ├── cache  - cache.json - tuning cache of the kernels which is redistributed with the plugin to improve kernels and kernel parameters selection for better performance
              │   │       ├── cl_kernels - templates of GPU kernels (device part) written on OpenCL™
-             │   │       └── common - utils for code generation and kernels selection 
+             │   │       └── common - utils for code generation and kernels selection
              │   ├── plugin - implementation of OpenVINO plugin API
              │   │    └── ops - factories for conversion of OpenVINO operations to internal primitives
              │   └── runtime

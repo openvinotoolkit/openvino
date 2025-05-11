@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "register.hpp"
 #include "activation_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
@@ -61,7 +61,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<activation_impl>(*this);
+        return std::make_unique<activation_impl>(*this);
     }
 
     activation_impl() : parent("activation_cpu_impl") {}
@@ -78,11 +78,13 @@ struct activation_impl : public typed_primitive_impl<activation> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << make_data(&activation_function, sizeof(activation_func));
         ob << make_data(&additional_params, sizeof(activation_additional_params));
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> make_data(&activation_function, sizeof(activation_func));
         ib >> make_data(&additional_params, sizeof(activation_additional_params));
     }
@@ -108,9 +110,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
-        typename data_type_to_type<DT>::type param_a = static_cast<typename data_type_to_type<DT>::type>(additional_params.a);
+        auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
 
-        auto input_dt = data_type_to_element_type(instance.get_input_layout().data_type);
+        auto input_dt = instance.get_input_layout().data_type;
 
         if (activation_function == activation_func::pow) {
             input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
@@ -139,11 +141,11 @@ struct activation_impl : public typed_primitive_impl<activation> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "activation::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
-        auto ev = stream.create_user_event(false);
+        if (!pass_through_events) {
+            stream.wait_for_events(events);
+        }
 
         if (!op) {
             switch (activation_function) {
@@ -272,18 +274,20 @@ struct activation_impl : public typed_primitive_impl<activation> {
                            params->input_layouts[0].data_type);
         }
 
-        ev->set();
+        if (pass_through_events) {
+            return stream.group_events(events);
+        }
 
-        return ev;
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<activation_impl>();
+        return std::make_unique<activation_impl>();
     }
 };
 

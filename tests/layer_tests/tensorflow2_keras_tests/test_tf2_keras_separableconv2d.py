@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -49,11 +49,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_separableconv2d(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
-                                   use_new_frontend):
+    def test_keras_separableconv2d(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)
 
     # Tests for different activations
     test_data_different_activations = [
@@ -85,11 +84,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_activations)
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_activations(self, params, ie_device, precision,
-                                                         ir_version, temp_dir, use_old_api,
-                                                         use_new_frontend):
+                                                         ir_version, temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)
 
     # Tests for different padding
     test_data_different_padding = [
@@ -104,26 +102,26 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_padding)
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_padding(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_old_api, use_new_frontend):
+                                                     temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)
 
     # Tests for different bias
     test_data_different_bias = [
         dict(input_names=["x1"], input_shapes=[[5, 17, 14, 3]], input_type=tf.float32,
              filters=3, kernel_size=(2, 1), strides=1, padding='valid', data_format='channels_last',
              dilation_rate=1, depth_multiplier=1, activation='relu', use_bias=True),
-        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 14, 12, 2]], input_type=tf.float32,
-                          filters=4, kernel_size=(2, 2), strides=1, padding='valid', data_format='channels_last',
-                          dilation_rate=2, depth_multiplier=3, activation='relu', use_bias=False),
-                     marks=pytest.mark.precommit_tf_fe),
+        dict(input_names=["x1"], input_shapes=[[1, 14, 12, 2]], input_type=tf.float32,
+             filters=4, kernel_size=(2, 2), strides=1, padding='valid', data_format='channels_last',
+             dilation_rate=2, depth_multiplier=3, activation='relu', use_bias=False),
     ]
 
     @pytest.mark.parametrize("params", test_data_different_bias)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_bias(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, use_old_api, use_new_frontend):
+                                                  temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   **params)

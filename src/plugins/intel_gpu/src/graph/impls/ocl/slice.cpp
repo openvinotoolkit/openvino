@@ -1,34 +1,33 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "slice_inst.h"
-#include "data_inst.h"
-#include "slice/slice_kernel_selector.h"
-#include "slice/slice_kernel_ref.h"
-
 #include <algorithm>
 #include <cstddef>
+
+#include "data_inst.h"
+#include "primitive_base.hpp"
+#include "slice/slice_kernel_ref.h"
+#include "slice/slice_kernel_selector.h"
+#include "slice_inst.h"
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
-template<typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
+template <typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
     mem_lock<T> lock{node.get_attached_memory_ptr(), stream};
     T* data = lock.data();
-    std::vector<std::int32_t> integer_data;
+    std::vector<std::int64_t> integer_data;
     integer_data.reserve(node.get_output_layout().count());
     for (size_t i = 0; i < node.get_output_layout().count(); i++) {
-        integer_data.emplace_back(static_cast<std::int32_t>(data[i]));
+        integer_data.emplace_back(static_cast<std::int64_t>(data[i]));
     }
     return integer_data;
 }
 
-std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
+std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
     auto dt = node.get_output_layout().data_type;
     switch (dt) {
     case data_types::u8:
@@ -40,105 +39,172 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     case data_types::i64:
         return extractIntegerData<std::int64_t>(node, stream);
     default:
-        OPENVINO_ASSERT(false, "[GPU] Slice parameters should be of integral type for node ", node.id(), " while got ", dt);
+        OPENVINO_ASSERT(false,
+                        "[GPU] Slice parameters should be of integral type for node ",
+                        node.id(),
+                        " while got ",
+                        dt);
     }
     return {};
 }
 
-std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tensor) {
-    auto logical_dims = tensor.LogicalDims();
-    // LogicalDims method returns dims in reversed order
-    std::vector<int32_t> reverse_logical_dims;
-    for (auto it = logical_dims.rbegin(); it != logical_dims.rend(); ++it) {
-        reverse_logical_dims.push_back(static_cast<int32_t>(*it));
-    }
-    return reverse_logical_dims;
-}
-
-} // namespace
+}  // namespace
 
 struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::slice_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::slice_params, kernel_selector::slice_optional_params>;
-
-    enum InputIndices {
-        kData,
-        kStart,
-        kEnd,
-        kStep,
-        kAxes,
-        kInputsNum
-    };
+    using kernel_params_t = kernel_selector::slice_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<slice_impl>(*this);
+        return make_deep_copy<slice_impl, kernel_params_t>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::slice_params>(impl_param);
-        auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
-        const auto& inputs = arg.get_dependencies();
-        const stream& stream = arg.get_program().get_stream();
-        auto start_elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
-        auto end_elts = extractIntegerData(inputs[InputIndices::kEnd].first->as<data>(), stream);
-        auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
-        auto data_shape = extractShape(params.inputs[0]);
-        std::vector<std::int32_t> axes(data_shape.size());
-        if (inputs.size() == InputIndices::kInputsNum)
-            axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
-        else
-            std::iota(axes.begin(), axes.end(), 0);
-        std::vector<std::int32_t> selected_start(data_shape.size(), 0);
-        std::vector<std::int32_t> selected_step(data_shape.size(), 1);
-        std::vector<std::int32_t> selected_end(data_shape);
-        for (size_t axis = 0; axis < axes.size(); axis++) {
-            auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
-            auto start = start_elts[axis];
-            auto end = end_elts[axis];
-            auto dim_size = data_shape[transformed_axe];
-            selected_start[transformed_axe] = std::max(std::min(start < 0 ? dim_size + start : start, dim_size - 1), 0);
-            selected_end[transformed_axe] = std::max(std::min(end < 0 ? dim_size + end : end, dim_size - 1), 0);
-            selected_step[transformed_axe] = step_elts[axis];
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
-        params.start = std::move(selected_start);
-        params.end = std::move(selected_end);
-        params.step = std::move(selected_step);
-        params.set_dynamic_shape_offsets();
-        auto &kernel_selector =
-                kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
+    }
 
-        return make_unique<slice_impl>(best_kernel);
+    kernel_arguments_data get_arguments(const slice_inst& instance) const override {
+        kernel_arguments_data args;
+
+        const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(instance.get_node());
+
+        for (auto idx : inputs.GetNeededInputIndexes()) {
+            args.inputs.push_back(instance.input_memory_ptr(idx));
+        }
+
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
+
+        args.shape_info = instance.shape_info_memory_ptr();
+        return args;
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::slice_params>(impl_param, is_shape_agnostic);
+        const auto input_rank = params.inputs[0].Dimentions();
+        const auto& arg = impl_param.prog->get_node(impl_param.desc->id);
+
+        if (!PrepareInput(arg,
+                          SliceKernelRefNeededInputs::kStart,
+                          params.compile_time_start,
+                          params.start_data_type,
+                          params.inputs)) {
+            // No kStart input - set it to default:
+            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.compile_time_start = std::vector<int64_t>(input_rank, 0);
+        }
+
+        // NOTE: Stop input is not used by the slice kernel, as this information
+        // is implicitely passed with output shape.
+
+        if (!PrepareInput(arg,
+                          SliceKernelRefNeededInputs::kStep,
+                          params.compile_time_step,
+                          params.step_data_type,
+                          params.inputs)) {
+            // No kStep input - set it to default:
+            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.compile_time_step = std::vector<int64_t>(input_rank, 1);
+        }
+
+        if (!PrepareInput(arg,
+                          SliceKernelRefNeededInputs::kAxes,
+                          params.compile_time_axes,
+                          params.axes_data_type,
+                          params.inputs)) {
+            // No kAxes input - set it to default:
+            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.compile_time_axes.resize(input_rank);
+            std::iota(params.compile_time_axes.begin(), params.compile_time_axes.end(), 0);
+        }
+
+        // Transform compile time axes:
+        for (size_t axis = 0; axis < params.compile_time_axes.size(); ++axis) {
+            const int64_t transformed_axe = params.compile_time_axes[axis] < 0
+                                             ? input_rank + params.compile_time_axes[axis]
+                                             : params.compile_time_axes[axis];
+            params.compile_time_axes[axis] = transformed_axe;
+        }
+
+        params.set_dynamic_shape_offsets();
+
+        return params;
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
+    }
+
+private:
+    // Returns true if input was prepared(was avaiable in node def), false otherwise.
+    static bool PrepareInput(const slice_node& arg,
+                             SliceKernelRefNeededInputs::InputIndices idx,
+                             std::vector<std::int64_t>& out_compile_time_buff,
+                             kernel_selector::Datatype& out_buff_data_type,
+                             kernel_selector::MultiDataTensor& out_runtime_inputs) {
+        const stream& stream = arg.get_program().get_stream();
+        const auto& inputs = arg.get_dependencies();
+
+        if (inputs.size() <= idx)
+            return false;
+
+        const SliceKernelRefNeededInputs kernel_needed_inputs = SliceKernelRefNeededInputs::Create(arg);
+        if (kernel_needed_inputs.IsInputNeededInRuntime(idx)) {
+            const auto layout = inputs[idx].first->get_output_layout(0);
+            out_buff_data_type = to_data_type(layout.data_type);
+            out_compile_time_buff.clear();
+            out_runtime_inputs.push_back(convert_data_tensor(layout));
+        } else {
+            out_buff_data_type = kernel_selector::Datatype::INT64;
+            out_compile_time_buff = extractIntegerData(inputs[idx].first->as<data>(), stream);
+        }
+
+        return true;
     }
 };
 
 namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
-    implementation_map<slice>::add(impl_types::ocl, slice_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-    });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<slice>::add(impl_types::ocl,
+                                   shape_types::any,
+                                   typed_primitive_impl_ocl<slice>::create<slice_impl>,
+                                   types,
+                                   formats);
 }
 
 }  // namespace detail
-
-} // namespace ocl
-} // namespace cldnn
+}  // namespace ocl
+}  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::slice)

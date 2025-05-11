@@ -1,29 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
-
-using namespace ov::mock_autobatch_plugin;
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 class CompileModelGetRuntimeModelTest : public ::testing::Test {
 public:
@@ -48,7 +29,7 @@ public:
     }
 
     void SetUp() override {
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv();
+        m_model = ov::test::utils::make_multi_single_conv();
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
@@ -88,12 +69,12 @@ public:
 
         ON_CALL(*m_mock_i_compile_model.get(), get_runtime_model()).WillByDefault(Return(m_model));
 
-        const ov::AnyMap configs = {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU(16)"}};
+        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
     }
 };
 
 TEST_F(CompileModelGetRuntimeModelTest, CompileModelGetRuntimeModelTestCase) {
-    ASSERT_NO_THROW(m_auto_batch_compile_model->get_runtime_model());
+    OV_ASSERT_NO_THROW(m_auto_batch_compile_model->get_runtime_model());
 }

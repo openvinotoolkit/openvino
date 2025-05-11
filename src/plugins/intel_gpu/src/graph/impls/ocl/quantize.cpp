@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,21 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::quantize_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
+    using kernel_params_t = kernel_selector::quantize_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::quantize_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<quantize_impl>(*this);
+        return make_deep_copy<quantize_impl, kernel_params_t>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:
@@ -45,13 +54,11 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
-        auto quantize_optional_params =
-            get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
+        const auto& arg = impl_param.prog->get_node(impl_param.desc->id).as<quantize>();
 
         quantize_params.levels = arg.get_levels();
-        quantize_params.packed_binary_output = arg.get_packed_binary_output();
         quantize_params.scale_shift_opt = arg.get_scale_shift_opt();
         quantize_params.has_post_scale = arg.get_need_post_scale();
         quantize_params.has_post_shift = arg.get_need_post_shift();
@@ -80,19 +87,17 @@ public:
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
-        quantize_params.is_shape_agnostic = impl_param.is_dynamic();
-        quantize_params.set_dynamic_shape_offsets();
-        auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
-
-        return make_unique<quantize_impl>(best_kernel);
+        return quantize_params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
-        const auto& output_layout = impl_param.get_output_layout();
-        quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
-        (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
@@ -137,15 +142,23 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bfwzyx,
         format::bfuwzyx,
         format::bfvuwzyx,
+        format::b_fs_yx_fsv16,
     };
 
     auto keys = implementation_map<quantize>::combine(types, formats);
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f32, format::yxfb);
 
-    implementation_map<quantize>::add(impl_types::ocl, shape_types::static_shape, quantize_impl::create, keys);
+    implementation_map<quantize>::add(impl_types::ocl,
+                                      shape_types::static_shape,
+                                      typed_primitive_impl_ocl<quantize>::create<quantize_impl>,
+                                      keys);
 
-    implementation_map<quantize>::add(impl_types::ocl, shape_types::dynamic_shape, quantize_impl::create, types, dyn_formats);
+    implementation_map<quantize>::add(impl_types::ocl,
+                                      shape_types::dynamic_shape,
+                                      typed_primitive_impl_ocl<quantize>::create<quantize_impl>,
+                                      types,
+                                      dyn_formats);
 }
 
 }  // namespace detail

@@ -15,9 +15,8 @@ class TestConv2D(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_new_frontend - common parameter
     def create_conv2d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations,
-                                            ir_version, use_new_frontend):
+                                            ir_version):
         """
             Tensorflow net                  IR net
 
@@ -35,7 +34,7 @@ class TestConv2D(CommonTFLayerTest):
         #               Batch   Height Width  Channel
         expl_paddings = [0, 0, 1, 1, 1, 1, 0, 0]
 
-        if input_padding == 'EXPLICIT' and use_new_frontend == False:
+        if input_padding == 'EXPLICIT':
             pytest.xfail(reason="100300")
 
         tf.compat.v1.reset_default_graph()
@@ -70,22 +69,19 @@ class TestConv2D(CommonTFLayerTest):
         pytest.param(
             dict(input_shape=[1, 224, 224, 3], input_filter=[4, 4, 3, 2], input_strides=[1, 2, 2, 1],
                  dilations=[1, 2, 2, 1]),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         # with four groups
         pytest.param(
             dict(input_shape=[2, 224, 224, 4], input_filter=[4, 4, 1, 12], input_strides=[1, 2, 2, 1],
                  dilations=[1, 2, 2, 1]),
-            marks=pytest.mark.precommit_tf_fe)
+            marks=pytest.mark.precommit)
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("padding", ['EXPLICIT', 'SAME', 'VALID'])
     @pytest.mark.nightly
-    def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+    def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104862')
-        self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
-                                                             use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+        self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version),
+                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir)

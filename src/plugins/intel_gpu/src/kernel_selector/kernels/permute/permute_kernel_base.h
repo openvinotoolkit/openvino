@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,11 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~PermuteKernelBase() {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 protected:
     virtual JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const permute_params& params) const = 0;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

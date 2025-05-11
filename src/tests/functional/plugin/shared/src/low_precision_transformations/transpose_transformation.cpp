@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,14 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/transpose_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/transpose.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     std::string targetDevice;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
@@ -31,11 +30,13 @@ std::string TransposeTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void TransposeTransformation::SetUp() {
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
+    init_input_shapes(testValues.inputShape);
+
+    function = ov::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,
         testValues.transposeConstValues,
         testValues.precisionBeforeFq,
@@ -43,7 +44,7 @@ void TransposeTransformation::SetUp() {
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

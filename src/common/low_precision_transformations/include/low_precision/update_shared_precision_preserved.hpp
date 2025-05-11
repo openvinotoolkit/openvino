@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,13 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/pass/pass.hpp>
+#include "openvino/pass/pass.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -22,21 +22,23 @@ class UpdateSharedPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief UpdateSharedPrecisionPreserved transformation updates shared AttributeType attribute instance value to true
  * for precision preserved operations if ExpectedAttributeType exist.
  *
  * For more details about the transformation, refer to
  * [UpdateSharedPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
-class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
+class ov::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
 public:
-    UpdateSharedPrecisionPreserved(const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support) {
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::UpdateSharedPrecisionPreserved");
+    UpdateSharedPrecisionPreserved(
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
         ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
             auto node = m.get_match_root();
 
@@ -50,7 +52,7 @@ public:
                 }
             }
 
-            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::opset1::FakeQuantize>(node)) {
+            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::opset1::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -95,7 +97,7 @@ public:
     }
 
 private:
-    Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
         if (!dequantization.empty() &&
             (ov::is_type<ov::opset1::Convert>(dequantization.data.get_node())) &&
@@ -106,12 +108,12 @@ private:
         return input;
     }
 
-    ov::Any getSourceAttribute(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    ov::Any getSourceAttribute(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
         const auto dequantizationInput = getDequantizationInput(input, defaultPrecisions);
         const auto output = dequantizationInput.get_source_output();
-        auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
+        auto attribute = ov::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
         if (attribute.empty()) {
-            attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
+            attribute = ov::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
         }
         return attribute;
     }

@@ -5,7 +5,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/max_num_params_eltwise.hpp"
 #include "subgraph_simple.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -33,18 +32,18 @@ std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test
 void MaxNumParamsEltwise::SetUp() {
     ov::test::InputShape inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    std::vector<ov::test::InputShape> expandedShapes(10, inputShape);
+    std::vector<ov::test::InputShape> expandedShapes(9, inputShape);
     init_input_shapes(expandedShapes);
 
     auto f = ov::test::snippets::EltwiseMaxNumParamsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
 TEST_P(MaxNumParamsEltwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }

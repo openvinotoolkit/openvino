@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 
 #include "config.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "subgraph_collector.hpp"
 
 namespace ov {
 namespace hetero {
@@ -59,7 +60,17 @@ private:
     DeviceProperties get_properties_per_device(const std::string& device_priorities,
                                                const ov::AnyMap& properties) const;
 
+    void get_device_memory_map(const std::vector<std::string>& device_names,
+                               std::map<std::string, size_t>& device_mem_map) const;
+
+    std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> query_model_update(
+        std::shared_ptr<ov::Model>& model,
+        const ov::AnyMap& properties,
+        bool allow_exception = false) const;
+
     Configuration m_cfg;
+
+    mutable size_t independent_submodel_size = 0;
 };
 
 }  // namespace hetero

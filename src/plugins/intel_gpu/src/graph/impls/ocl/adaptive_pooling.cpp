@@ -14,23 +14,24 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     using parent = typed_primitive_impl_ocl<adaptive_pooling>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::adaptive_pooling_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::adaptive_pooling_params, kernel_selector::adaptive_pooling_optional_params>;
+    using kernel_params_t = kernel_selector::adaptive_pooling_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::adaptive_pooling_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<adaptive_pooling_impl>(*this);
+        return make_deep_copy<adaptive_pooling_impl, kernel_params_t>(*this);
     }
 
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
-        kernel_arguments_data args;
-        const auto num_inputs = instance.inputs_memory_count();
-        for (size_t i = 0; i < num_inputs; ++i) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
+        kernel_arguments_data args = parent::get_arguments(instance);
+        auto desc = instance.get_typed_desc<adaptive_pooling>();
+
+        // Legacy multi-output
+        if (desc->num_outputs == 1 && desc->mode == adaptive_pooling_mode::max) {
+            args.outputs.push_back(instance.dep_memory_ptr(2));
         }
 
-        args.outputs = {instance.output_memory_ptr()};
         return args;
     }
 
@@ -38,29 +39,22 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<adaptive_pooling>();
         auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(impl_param.get_program());
 
         if (primitive->mode == adaptive_pooling_mode::average) {
             params.mode = kernel_selector::PoolType::AVG;
         } else {
             params.mode = kernel_selector::PoolType::MAX;
-
-            switch (primitive->index_element_type) {
-                case cldnn::data_types::i32: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
-                    break;
-                }
-                case cldnn::data_types::i64: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
-                    break;
-                }
-                default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
+            params.poolIndexElementType = to_data_type(primitive->index_element_type);
+            params.outputs_num = 2;
+            if (primitive->num_outputs == 2) {
+                params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+            } else {
+                // Legacy multi-output
+                params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
-
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         }
 
-        return {params, optional_params};
+        return params;
     }
 };
 

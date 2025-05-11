@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
@@ -24,16 +28,37 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
+OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool return_indices) {
+    num_inputs_check(context, 2, 6);
+    auto input = context.get_input(0);
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
 
-OutputVector translate_max_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 3, 6);
+    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+    bool is_static = input.get_partial_shape().rank().is_static();
+    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
+
+    if (is_static) {
+        if (no_batch_dim) {
+            input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
+        }
+    } else {
+        input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
+        auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+        auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
+        auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
+        auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
+        auto reshape_pattern =
+            context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
+        input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
+    }
+
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
     if (!context.input_is_none(2)) {
         strides = context.const_input<Strides>(2);
     }
-    const bool use_kernel = context.input_is_none(2) || (strides.size() == 0);
-    if (use_kernel) {
+    if (context.input_is_none(2) || strides.size() == 0) {
         // In case strides are not provided default is kernel
         strides = kernel;
     }
@@ -43,7 +68,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
     } else {
         pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
     }
-    Strides dilations;
+    auto dilations = Strides(dims, 1);
     if (!context.input_is_none(4)) {
         dilations = context.const_input<Strides>(4);
     }
@@ -51,63 +76,89 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
     if (context.input_is_none(5)) {
         rounding_type = RoundingType::FLOOR;
     } else {
-        rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL : RoundingType::FLOOR;
+        rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
     }
 
-    auto input = context.get_input(0);
-    if (rounding_type == RoundingType::CEIL) {
-        // The corner case of Max Pooling with ceil_mode on
-        // PyTorch allows sliding window go off bound, which leads to this accommodation.
-        // More detail on https://github.com/pytorch/pytorch/issues/57178
-        const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-        const auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
+    auto res = context.mark_node(std::make_shared<v14::MaxPool>(input,
+                                                                strides,
+                                                                dilations,
+                                                                pads,
+                                                                pads,
+                                                                kernel,
+                                                                rounding_type,
+                                                                PadType::EXPLICIT,
+                                                                element::i64,
+                                                                2));
+    if (is_static) {
+        if (no_batch_dim) {
+            if (return_indices) {
+                auto out1 = res->output(0);
+                auto out2 = res->output(1);
+                out1 = context.mark_node(std::make_shared<v0::Squeeze>(out1, const_0));
+                out2 = context.mark_node(std::make_shared<v0::Squeeze>(out2, const_0));
+                return {std::move(out1), std::move(out2)};
+            } else {
+                res = context.mark_node(std::make_shared<v0::Squeeze>(res, const_0));
+                return {res};
+            }
+        } else {
+            if (return_indices) {
+                auto out1 = res->output(0);
+                auto out2 = res->output(1);
+                return {std::move(out1), std::move(out2)};
+            } else {
+                return {res};
+            }
+        }
 
-        const auto padding =
-            context.input_is_none(3)
-                ? context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{pads.size()}, 0))->output(0)
-                : context.get_input(3);
-        const auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
-        const auto pads_remaining = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 0}));
+    } else {
+        auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
 
-        // gather input spatial dims and prepare for compare as values (in_dim + pad)
-        const auto input_shape_rank = get_shape_rank(context, input);
-        const auto end = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size() + 2}));
-        const auto dim_idxs = context.mark_node(std::make_shared<v4::Range>(two, end, one, element::i32));
-        const auto gth_in_dims =
-            context.mark_node(std::make_shared<v8::Gather>(std::get<0>(input_shape_rank), dim_idxs, zero));
-        const auto in_left_padded = context.mark_node(std::make_shared<v1::Add>(gth_in_dims, padding));
+        auto start_index_input = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
+        auto slice_input_shape =
+            context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0));
 
-        // gather output spatial dims and prepare it for compare as values (out_dim - 1) * stride
-        const auto mp = context.mark_node(
-            std::make_shared<v8::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type));
-        const auto shape_of_mp = context.mark_node(std::make_shared<v3::ShapeOf>(mp, element::i32));
-        const auto gth_out_dims = context.mark_node(std::make_shared<v8::Gather>(shape_of_mp, dim_idxs, zero));
-        const auto out_sub_one = context.mark_node(std::make_shared<v1::Subtract>(gth_out_dims, one));
-        const auto stride_node = use_kernel ? context.get_input(1) : context.get_input(2);
-        const auto out_mul_stride = context.mark_node(std::make_shared<v1::Multiply>(out_sub_one, stride_node));
+        auto start_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
+        auto end_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims}));
+        auto slice_pooled_output_shape = context.mark_node(
+            std::make_shared<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0));
 
-        // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.
-        const auto in_gt_out = context.mark_node(std::make_shared<v1::Greater>(in_left_padded, out_mul_stride));
-        const auto selected_pads = context.mark_node(std::make_shared<v1::Select>(in_gt_out, padding, zero));
-
-        // apply padding on input clear pads attribute
-        const auto pb = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, padding}, 0));
-        const auto pe = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, selected_pads}, 0));
-        const auto minus_inf =
-            context.mark_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
-        input = context.mark_node(std::make_shared<v12::Pad>(input, pb, pe, minus_inf, op::PadMode::CONSTANT));
-        std::fill_n(pads.begin(), pads.size(), 0);
+        auto concat_shape = context.mark_node(
+            std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
+        if (return_indices) {
+            auto out1 = res->output(0);
+            auto out2 = res->output(1);
+            out1 = context.mark_node(std::make_shared<v1::Reshape>(out1, concat_shape, true));
+            out2 = context.mark_node(std::make_shared<v1::Reshape>(out2, concat_shape, true));
+            return {std::move(out1), std::move(out2)};
+        } else {
+            res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
+            return {res};
+        }
     }
-
-    return {
-        context.mark_node(std::make_shared<v8::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type))};
 };
 
-OutputVector translate_max_poolnd_fx(const NodeContext& context) {
-    auto output = translate_max_poolnd(context);
+OutputVector translate_max_pool1d(const NodeContext& context) {
+    return translate_max_pool_base(context, 1, context.get_output_size() == 2);
+};
+
+OutputVector translate_max_pool2d(const NodeContext& context) {
+    return translate_max_pool_base(context, 2, context.get_output_size() == 2);
+};
+
+OutputVector translate_max_pool3d(const NodeContext& context) {
+    return translate_max_pool_base(context, 3, context.get_output_size() == 2);
+};
+
+OutputVector translate_max_pool2d_fx(const NodeContext& context) {
+    auto output = translate_max_pool_base(context, 2, true);
     return {context.mark_node(make_list_construct(output))};
-}
+};
+
+OutputVector translate_max_pool3d_fx(const NodeContext& context) {
+    auto output = translate_max_pool_base(context, 3, true);
+    return {context.mark_node(make_list_construct(output))};
+};
 
 }  // namespace op
 }  // namespace pytorch

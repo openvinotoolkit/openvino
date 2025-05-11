@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "perf_count.h"
 #include <vector>
-#include <utility>
-#include <ie_common.h>
-#include <ngraph/partial_shape.hpp>
+
 #include "cpu_types.h"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,13 +31,15 @@ public:
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
         initDims();
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
+            return dim == 0;
+        });
     }
 
-    explicit Shape(const VectorDims& shape) {
-        dims = minDims = maxDims = shape;
-        type = ShapeType::Static;
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+    explicit Shape(const VectorDims& shape) : type(ShapeType::Static), dims(minDims = maxDims = shape) {
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
+            return dim == 0;
+        });
     }
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
@@ -51,19 +51,23 @@ public:
 
         initDims();
 
-        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == Shape::UNDEFINED_DIM; } ))  {
+        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) {
+                return dim == Shape::UNDEFINED_DIM;
+            })) {
             type = ShapeType::Dynamic;
         } else {
             type = ShapeType::Static;
         }
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
+            return dim == 0;
+        });
     }
 
-    Shape(const std::initializer_list<Dim>& shape) {
+    Shape(const std::initializer_list<Dim>& shape) : type(ShapeType::Static) {
         minDims.reserve(shape.size());
         maxDims.reserve(shape.size());
-        type = ShapeType::Static;
+
         for (auto dim : shape) {
             minDims.push_back(dim);
             maxDims.push_back(dim);
@@ -71,7 +75,9 @@ public:
 
         initDims();
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
+            return dim == 0;
+        });
     }
 
     /**
@@ -183,21 +189,21 @@ public:
 
     std::string toString() const;
 
-    bool operator == (const Shape& rhs) const {
+    bool operator==(const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
 
-    bool operator != (const Shape& rhs) const {
+    bool operator!=(const Shape& rhs) const {
         return !(*this == rhs);
     }
 
     bool hasDefinedUpperBounds() const {
-        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim){ return dim != UNDEFINED_DIM; });
+        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim) {
+            return dim != UNDEFINED_DIM;
+        });
     }
 
-    enum : Dim {
-        UNDEFINED_DIM = std::numeric_limits<Dim>::max()
-    };
+    enum : Dim { UNDEFINED_DIM = std::numeric_limits<Dim>::max() };
 
 private:
     void initDims() {
@@ -207,10 +213,7 @@ private:
         }
     }
 
-    enum class ShapeType {
-        Static,
-        Dynamic
-    } type {ShapeType::Static};
+    enum class ShapeType { Static, Dynamic } type{ShapeType::Static};
 
     bool hasZeroDimensions = false;
 
@@ -219,5 +222,17 @@ private:
     VectorDims dims;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+/**
+ * @brief Merges two shapes overlapping their dims intervals.
+ * @note When one of the dims intervals are not overlapped an exception is thrown.
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @return resulting shape
+ */
+
+Shape mergeShapes(const Shape& lhs, const Shape& rhs);
+
+}  // namespace intel_cpu
+}  // namespace ov

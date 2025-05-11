@@ -22,8 +22,7 @@ class TestFillOps(CommonTFLayerTest):
     # input_shape - should be an array
     # value - value which should be set to tensor
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_fill_ops_placeholder_const_net(self, input_shape, value, ir_version, use_new_frontend):
+    def create_fill_ops_placeholder_const_net(self, input_shape, value, ir_version):
         self.stored_shape = input_shape
 
         import tensorflow as tf
@@ -49,11 +48,8 @@ class TestFillOps(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_fill_ops_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
-        self._test(*self.create_fill_ops_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+    def test_fill_ops_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_fill_ops_placeholder_const_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

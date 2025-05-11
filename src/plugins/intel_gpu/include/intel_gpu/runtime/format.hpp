@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
 #include <stdexcept>
+
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -41,6 +43,9 @@ struct format_traits {
     std::string internal_order;
     /// @brief Block sizes as a vector of pairs of dimension number and block size ordered from rare to often.
     std::vector<std::pair<size_t, int>> block_sizes;
+    std::vector<std::pair<size_t, int>> logic_block_sizes;
+    /// @brief Onednn memory descriptor size used for asymmetric compensation.
+    size_t desc_size = 0;
     /// @brief Characters representing batch dimensions in an order.
     static const char* batch_chars() { return "bno"; }
     /// @brief Characters representing feature map/channel dimensions in an order.
@@ -74,13 +79,18 @@ struct format {
     enum type : int32_t {
         // Data formats
         bfyx,                                   ///< the most common format for activations in clDNN.
+        bfxy,
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
         bfuwzyx,                                ///< 7d tensor
         bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
+        fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
+        fybx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        xbfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        ybfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -89,6 +99,8 @@ struct format {
         b_fs_zyx_fsv2,
         b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         b_fs_zyx_fsv4,                          ///< format for input for IMAD 3D convolutions
+        b_fs_yx_fsv8,
+        b_fs_zyx_fsv8,
         b_fs_yx_fsv16,                          ///< format used for blocked convolution
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
@@ -106,6 +118,8 @@ struct format {
         bs_fs_zyx_bsv8_fsv2,                    ///< format used for 3D blocked convolution (batch and features blocked by 8 and 2)
         bs_fs_yx_bsv16_fsv2,                    ///< format used for 2D blocked convolution (batch and features blocked by 16 and 2)
         bs_fs_zyx_bsv16_fsv2,                   ///< format used for 3D blocked convolution (batch and features blocked by 16 and 2)
+        bs_fs_yx_bsv16_fsv8,                    ///< format used for 2D blocked convolution (batch and features blocked by 16 and 8)
+        bs_fs_zyx_bsv16_fsv8,                   ///< format used for 3D blocked convolution (batch and features blocked by 16 and 8)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -118,7 +132,6 @@ struct format {
         bs_fs_fsv8_bsv16,                       ///< format used only for fully connected
         bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
                                                 ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
-        b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
         image_2d_rgba,                          ///< format for image2d RGBA, always allocates memory for 4 feature maps (even when only 3 are used)
@@ -134,20 +147,18 @@ struct format {
         oyix,
         oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
+        o_is_yx_isv4,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
-        os_yxi_osv16,                                 ///< format used only for convolution weights
-        os_is_yx_osv16_isv2,                          ///< format used only for convolution weights
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
+        os_is_yx_osv32_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_is_zyx_osv64_isv16,
+        os_is_yx_osv64_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -176,61 +187,24 @@ struct format {
         os_is_zyx_isa8_osv8_isv4,                     ///< format for weights for MMAD convolution
         os_is_yx_isa8_osv16_isv4,                     ///< format for weights for fully connected MMAD
         os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
-        os_is_yx_isa8_osv8_isv4_swizzled_by_4,        ///< format for weights for MMAD convolution
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
-        os_is_yx_osa4_isa8_osv8_isv2,                 ///< format for weights for MMAD fsv32 convolution
-        os_is_zyx_osa4_isa8_osv8_isv2,                ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
-        os_is_yx_osa2_isa8_osv8_isv2,
-        os_is_zyx_osa2_isa8_osv8_isv2,
-        os_is_yx_osa2_isa8_osv16_isv2,
-        os_is_yx_osa2_isa8_osv16_isv4,
-        os_is_yx_isa8_osv8_isv2,
-        is_os_yx_isa8_osv8_isv2,
-        is_os_yx_isa8_osv8_isv4,
-        is_os_yx_osa8_isv16_osv4,
-        os_is_zyx_isa8_osv8_isv2,
-        is_os_zyx_isa8_osv8_isv2,
-        is_os_zyx_isa8_osv8_isv4,
-        is_os_yx_isa2_osa8_isv8_osv2,
-        is_os_yx_isa4_osa8_isv8_osv4,
-        is_os_yx_osa4_isa8_osv8_isv4,
-        is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
-        is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
-        os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
-        os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv8_isv4,                           ///< format used for convolution i8 weights
-        os_is_zyx_osv8_isv4,                          ///< format used for convolution i8 weights
-        os_is_yx_osv8_isv2,                           ///< format used for convolution fp16 weights
-        os_is_zyx_osv8_isv2,                          ///< format used for convolution fp16 weights
         os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
         os_is_zyx_osv32_isv4,                         ///< format for weights for IMAD convolutions
-        os_is_yx_osv32_isv32p,                        ///< format for weights for binary convolutions
-        lstm_weights_dio,                             ///< dynamic_lstm, direction,
-                                                      ///< than IO (I - input size, O - 4 * hidden_size)
-        os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
         os_iyx_osv8,
         os_iyx_osv32__ai32,
         iy_xs_os_xsv2_osv8__ao32,
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
-        os_i_yxs_osv4_yxsv4,
         os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
-        os_y_is_x_osv8_isv2,
-        os_y_is_x_osv8_isv4,
-        os_yx_is_osv8_isv2,
-        os_yx_is_osv8_isv4,
-        os_zyx_is_osv8_isv2,
-        os_zyx_is_osv8_isv4,
-        os_zy_is_x_osv8_isv2,
-        os_zy_is_x_osv8_isv4,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
@@ -243,20 +217,13 @@ struct format {
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
         gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
-        gs_oizyx_gsv32,                               ///< format used for weights for 3D convolution
         g_is_os_zyx_isv16_osv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
         g_os_is_zyx_osv16_isv16,
         g_is_os_yx_isv16_osv16,
-        g_os_is_yx_isa8_osv8_isv2,
-        g_os_is_yx_isa8_osv8_isv4,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
-        g_os_zy_is_x_osv8_isv2,
-        g_os_zy_is_x_osv8_isv4,
-        g_os_zyx_is_osv8_isv2,
-        g_os_zyx_is_osv8_isv4,
         g_os_zyx_is_osv16_isv4,                       ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv32,                      ///< format for imad deconvolution
@@ -264,52 +231,42 @@ struct format {
         g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
         g_os_is_yx_isv16_osv16,
-        g_os_is_yx_osv8_isv2,
-        g_os_is_yx_osv8_isv4,
         gs_oi_yxs_gsv4_yxsv4,
         gs_oi_yxs_gsv16_yxsv4,
         gs_oi_yxs_gsv32_yxsv4,
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
-        g_os_is_yx_osa2_isa8_osv8_isv2,
-        g_os_is_yx_osa4_isa8_osv8_isv4,
-        g_os_is_yx_osa4_isa8_osv8_isv2,
-        g_os_is_yx_osa2_isa8_osv16_isv2,
-        g_os_is_yx_osa2_isa8_osv16_isv4,
-        g_os_is_zyx_osa4_isa8_osv8_isv2,
-        g_os_is_zyx_osa4_isa8_osv8_isv4,
-        g_os_is_zyx_isa8_osv8_isv2,
-        g_os_is_zyx_isa8_osv8_isv4,
-        g_os_yx_is_osv8_isv2,
-        g_os_yx_is_osv8_isv4,
-        g_os_y_is_x_osv8_isv2,
-        g_os_y_is_x_osv8_isv4,
 
         format_num,  ///< number of format types
+        custom,      ///< means that this format is created based on custom format traits and may have no corresponding label
         any        = -1
     };
 
     /// @brief Get format traits for particular @p format::type
     static const format_traits& traits(type fmt);
+
+    /// @brief Get traits for current format
+    const format_traits& traits() const;
     /// @brief Returns number of batch dimensions for a @p format.
-    static size_t batch_num(type fmt) { return traits(fmt).batch_num; }
+    static size_t batch_num(const format& fmt) { return fmt.traits().batch_num; }
     /// @brief Returns number of feature dimensions for a @p format.
-    static size_t feature_num(type fmt) { return traits(fmt).feature_num; }
+    static size_t feature_num(const format& fmt) { return fmt.traits().feature_num; }
     /// @brief Returns number of spatial dimensions for a @p format.
-    static size_t spatial_num(type fmt) { return traits(fmt).spatial_num; }
+    static size_t spatial_num(const format& fmt) { return fmt.traits().spatial_num; }
     /// @brief Returns number of group dimensions for a @p format.
-    static size_t group_num(type fmt) { return traits(fmt).group_num; }
+    static size_t group_num(const format& fmt) { return fmt.traits().group_num; }
     /// @brief Returns an order of dimensions for a @ format.
-    static const std::string& order(type fmt) { return traits(fmt).order; }
+    static const std::string& order(const format& fmt) { return fmt.traits().order; }
     /// @brief Returns an internal orders of dimensions for a @p format.
-    static const std::string& internal_order(type fmt) { return traits(fmt).internal_order; }
+    static const std::string& internal_order(const format& fmt) { return fmt.traits().internal_order; }
     /// @brief Returns block sizes for @p format.
-    static const std::vector<std::pair<size_t, int>>& block_sizes(type fmt) { return traits(fmt).block_sizes; }
+    static const std::vector<std::pair<size_t, int>>& block_sizes(const format& fmt) { return fmt.traits().block_sizes; }
+    static const std::vector<std::pair<size_t, int>>& logic_block_sizes(const format& fmt) { return fmt.traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within a @p format
-    static size_t dimension(type fmt) { return order(fmt).size(); }
+    static size_t dimension(const format& fmt) { return order(fmt).size(); }
     /// @brief Checks if @p format is a winograd format
-    static bool is_winograd(type fmt) {
+    static bool is_winograd(const format& fmt) {
         return (fmt == winograd_2x3_s1_data ||
                 fmt == winograd_2x3_s1_weights ||
                 fmt == winograd_2x3_s1_fused_weights ||
@@ -317,7 +274,7 @@ struct format {
                 fmt == image_2d_weights_winograd_6x3_s1_fbxyb ||
                 fmt == image_2d_weights_winograd_6x3_s1_xfbyb); }
     /// @brief Checks if @p format is of image2d type
-    static bool is_image_2d(type fmt) {
+    static bool is_image_2d(const format& fmt) {
         return (fmt == image_2d_weights_c4_fyx_b ||
                 fmt == image_2d_weights_c1_b_fyx ||
                 fmt == image_2d_weights_winograd_6x3_s1_fbxyb ||
@@ -326,8 +283,10 @@ struct format {
                 fmt == image_2d_rgba);
     }
     /// @brief Checks if @p format is weights format
-    static bool is_weights_format(type fmt) {
-        const auto internal_order = traits(fmt).internal_order;
+    static bool is_weights_format(const format& fmt) {
+        if (fmt == format::custom)
+            return true;
+        const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
         for (const auto& c : weights_chars) {
             if (internal_order.find_first_of(c) != std::string::npos) {
@@ -337,60 +296,69 @@ struct format {
         return false;
     }
     /// @brief Checks if @p format is simple data format
-    static bool is_simple_data_format(type fmt) {
-        return (fmt == yxfb || fmt == byxf ||
-                fmt == byfx || fmt == bxfy ||
-                fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx ||
-                fmt == bfuwzyx || fmt == bfvuwzyx);
+    static bool is_simple_data_format(const format& fmt) {
+        return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
+                fmt == bfxy ||fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
+                fmt == bfvuwzyx);
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
-    static bool is_default_format(type fmt);
+    static bool is_default_format(const format& fmt);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
+    static format find_format(const std::vector<uint64_t>& order,
+                              const std::vector<std::pair<size_t, int>>& block_sizes,
+                              bool is_weights = false,
+                              bool is_grouped = false,
+                              bool is_image_2d = false,
+                              bool is_winograd = false,
+                              bool is_nv12 = false);
+
     /// @brief Checks if @p format is of grouped type
-    static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
+    static bool is_grouped(const format& fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type
-    static bool is_image(type fmt) { return (is_image_2d(fmt)); }
+    static bool is_image(const format& fmt) { return (is_image_2d(fmt)); }
     /// @brief Checks if @p format is blocked format
-    static bool is_blocked(type fmt) { return !(block_sizes(fmt).empty()); }
+    static bool is_blocked(const format& fmt) { return !(block_sizes(fmt).empty()); }
     /// @brief Checks if @p format is blocked format which has single inner block
-    static bool is_single_blocked(type fmt) { return (block_sizes(fmt).size() == 1); }
+    static bool is_single_blocked(const format& fmt) { return (block_sizes(fmt).size() == 1); }
     /// @brief Checks if @p format is blocked format which has multiple inner blocks
-    static bool is_multi_blocked(type fmt) { return (block_sizes(fmt).size() > 1); }
+    static bool is_multi_blocked(const format& fmt) { return (block_sizes(fmt).size() > 1); }
     /// @brief Checks if @p format is nv12 format
-    static bool is_nv12(type fmt) { return (fmt == nv12); }
+    static bool is_nv12(const format& fmt) { return (fmt == nv12); }
 
     /// @brief Returns number of batch dimensions.
-    size_t batch_num() const { return traits(value).batch_num; }
+    size_t batch_num() const { return traits().batch_num; }
     /// @brief Returns number of feature dimensions.
-    size_t feature_num() const { return traits(value).feature_num; }
+    size_t feature_num() const { return traits().feature_num; }
     /// @brief Returns number of spatial dimensions.
-    size_t spatial_num() const { return traits(value).spatial_num; }
+    size_t spatial_num() const { return traits().spatial_num; }
     /// @brief Returns number of group dimensions.
-    size_t group_num() const { return traits(value).group_num; }
+    size_t group_num() const { return traits().group_num; }
+    /// @brief Returns an order of dimensions.
+    const std::vector<uint64_t>& dims_order() const { return traits()._order; }
     /// @brief Returns an order of dimensions in form of string.
-    const std::string& order() const { return traits(value).order; }
+    const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.
-    const std::string& internal_order() const { return traits(value).internal_order; }
+    const std::string& internal_order() const { return traits().internal_order; }
     /// @brief Returns block sizes as vector of pairs of dimension and block size for that dimension.
-    const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits(value).block_sizes; }
+    const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits().block_sizes; }
+    const std::vector<std::pair<size_t, int>>& logic_block_sizes() const { return traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within this format
-    size_t dimension() const { return order(value).size(); }
+    size_t dimension() const { return traits()._order.size(); }
     /// @brief Checks if @p format is a winograd format
-    bool is_winograd() const { return is_winograd(value); }
+    bool is_winograd() const { return is_winograd(*this); }
     /// @brief Checks if @p format is of image 2d type
-    bool is_image_2d() const { return is_image_2d(value); }
+    bool is_image_2d() const { return is_image_2d(*this); }
     /// @brief Checks if @p format is of image type
-    bool is_image() const { return is_image(value); }
+    bool is_image() const { return is_image(*this); }
     /// @brief Checks if @p format is blocked format
-    bool is_blocked() { return is_blocked(value); }
+    bool is_blocked() { return is_blocked(*this); }
     /// @brief Checks if @p format is a nv12 format
-    bool is_nv12() const { return is_nv12(value); }
+    bool is_nv12() const { return is_nv12(*this); }
 
     /// @brief Transforms dimension from internal order to external order
     size_t internal_to_external(size_t idx) const {
@@ -401,8 +369,15 @@ struct format {
     }
 
     type value;
+
+    std::optional<format_traits> custom_traits = {};
+
     /// @brief Implicit conversion from format::type.
-    constexpr format(type t) : value(t) {}
+    format(type t) : value(t) {}
+
+    /// @brief custom format from format_traits.
+    explicit format(const format_traits& traits) : value(format::custom), custom_traits(traits) {}
+
     /// @brief Implicit conversion to format::type.
     constexpr operator type() const { return value; }
 

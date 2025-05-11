@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/ctc_greedy_decoder.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/region_yolo.hpp"
 #include "openvino/op/reorg_yolo.hpp"
 #include "openvino/op/roi_pooling.hpp"
@@ -72,4 +73,18 @@ TEST(type_prop_layers, roi_pooling) {
     auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{150, 5});
     auto op = make_shared<op::v0::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625f, "max");
     ASSERT_EQ(op->get_shape(), (Shape{150, 3, 6, 6}));
+}
+
+TEST(type_prop_layers, reduce_axes_1) {
+    auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
+    auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    auto op = make_shared<op::v1::ReduceProd>(inputs, axes, false);
+    ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop_layers, reduce_axes_2) {
+    auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
+    auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto op = make_shared<op::v1::ReduceProd>(inputs, axes, false);
+    ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }

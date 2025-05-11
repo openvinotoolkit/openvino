@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,10 @@ public:
     ConvolutionKernel_b_fs_yx_fsv16_1x1();
     virtual ~ConvolutionKernel_b_fs_yx_fsv16_1x1() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
@@ -31,9 +31,10 @@ protected:
                  FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION };
     }
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     struct AutoTuneOption {
         size_t blockWidth;
@@ -48,7 +49,7 @@ protected:
     };
 
     std::vector<AutoTuneOption> autoTuneOptions;
-    AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    AutoTuneOption GetAutoTuneOptions(const convolution_params& arg, int autoTuneIndex) const;
     ConvolutionTuningData GetTuningParams(const convolution_params& params) const;
     float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const;
 };

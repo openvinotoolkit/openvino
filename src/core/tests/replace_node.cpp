@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -64,7 +66,7 @@ TEST(replace_node, replace_nodes) {
     auto mul = make_shared<op::v1::Multiply>(add, k);
     auto sub = make_shared<op::v1::Subtract>(mul, z);
 
-    auto f = make_shared<Model>(NodeVector{sub}, ParameterVector{x, y, z});
+    auto f = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y, z});
 
     unordered_map<shared_ptr<ov::op::v0::Parameter>, shared_ptr<ov::op::v0::Parameter>> parameter_replacement_map;
     auto x_replacement = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
@@ -126,6 +128,33 @@ TEST(replace_node, simple_node_replacement) {
     replace_node(relu, new_relu);
 
     ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "f"}));
+}
+
+TEST(replace_node, replacement_with_direct_parent_node) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+
+    auto child_1 = std::make_shared<ov::op::v0::Relu>(param);
+    auto child_2 = std::make_shared<ov::op::v0::Relu>(param);
+
+    auto model = std::make_shared<ov::Model>(OutputVector{child_1, child_2}, ParameterVector{param});
+    OV_ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    relu->output(0).get_tensor().set_names({"c", "d"});
+    replace_node(param, relu);
+
+    // This check validates that the model is consistent and contains no loops.
+    // The topological sorting throws an exception in case of a loop in the graph.
+    OV_ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    int relu_cnt = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v0::Relu>(op)) {
+            relu_cnt++;
+        }
+    }
+    ASSERT_EQ(relu_cnt, 3);
 }
 
 TEST(replace_node, node_elimination) {

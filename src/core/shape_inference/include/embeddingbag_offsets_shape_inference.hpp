@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "embedding_shape_infer_utils.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "utils.hpp"
 

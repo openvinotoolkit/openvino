@@ -1,49 +1,47 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/broadcast.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
-#include <string>
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/broadcast.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
         std::vector<InputShape>,               // Shapes
         std::vector<int64_t>,                  // Target shapes
         std::vector<int64_t>,                  // Axes mapping
         ov::op::BroadcastType,                 // Broadcast mode
-        ov::element::Type_t,                   // Network precision
+        ov::element::Type,                   // Network precision
         std::vector<bool>,                     // Const inputs
         std::string                            // Device name
 > BroadcastLayerTestParamsSet;
 
 class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerTestParamsSet>,
-                              virtual public SubgraphBaseTest {
+                              virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestParamsSet> obj) {
-        std::vector<ov::test::InputShape> inputShapes;
+        std::vector<ov::test::InputShape> shapes;
         std::vector<int64_t> targetShapes, axesMapping;
         ov::op::BroadcastType mode;
-        ov::element::Type_t netPrecision;
+        ov::element::Type model_type;
         std::vector<bool> isConstInputs;
         std::string deviceName;
-        std::tie(inputShapes, targetShapes, axesMapping, mode, netPrecision, isConstInputs, deviceName) = obj.param;
+        std::tie(shapes, targetShapes, axesMapping, mode, model_type, isConstInputs, deviceName) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : shapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
-        for (const auto& shape : inputShapes) {
+        for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
                 result << ov::test::utils::vec2str(item) << "_";
             }
@@ -51,7 +49,7 @@ public:
         result << "targetShape=" << ov::test::utils::vec2str(targetShapes)  << "_";
         result << "axesMapping=" << ov::test::utils::vec2str(axesMapping)  << "_";
         result << "mode=" << mode << "_";
-        result << "netPrec=" << netPrecision << "_";
+        result << "netPrec=" << model_type << "_";
         result << "constIn=(" << (isConstInputs[0] ? "True" : "False") << "." << (isConstInputs[1] ? "True" : "False") << ")_";
         result << "trgDevice=" << deviceName;
 
@@ -62,11 +60,11 @@ protected:
     std::vector<int64_t> targetShape, axesMapping;
 
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
+        std::vector<InputShape> shapes;
         ov::op::BroadcastType mode;
-        ov::element::Type_t netPrecision;
+        ov::element::Type model_type;
         std::vector<bool> isConstInput;
-        std::tie(inputShapes, targetShape, axesMapping, mode, netPrecision, isConstInput, targetDevice) = this->GetParam();
+        std::tie(shapes, targetShape, axesMapping, mode, model_type, isConstInput, targetDevice) = this->GetParam();
 
         bool isTargetShapeConst = isConstInput[0];
         bool isAxesMapConst = isConstInput[1];
@@ -74,8 +72,8 @@ protected:
         const auto targetShapeRank = targetShape.size();
         const auto axesMappingRank = axesMapping.size();
 
-        if (inputShapes.front().first.rank() != 0) {
-            inputDynamicShapes.push_back(inputShapes.front().first);
+        if (shapes.front().first.rank() != 0) {
+            inputDynamicShapes.push_back(shapes.front().first);
             if (!isTargetShapeConst) {
                 inputDynamicShapes.push_back({ static_cast<int64_t>(targetShape.size()) });
             }
@@ -83,10 +81,10 @@ protected:
                 inputDynamicShapes.push_back({ static_cast<int64_t>(axesMapping.size()) });
             }
         }
-        const size_t targetStaticShapeSize = inputShapes.front().second.size();
+        const size_t targetStaticShapeSize = shapes.front().second.size();
         targetStaticShapes.resize(targetStaticShapeSize);
         for (size_t i = 0lu; i < targetStaticShapeSize; ++i) {
-            targetStaticShapes[i].push_back(inputShapes.front().second[i]);
+            targetStaticShapes[i].push_back(shapes.front().second[i]);
             if (!isTargetShapeConst)
                 targetStaticShapes[i].push_back({ targetShape.size() });
             if (!isAxesMapConst)
@@ -95,9 +93,9 @@ protected:
 
         ov::ParameterVector functionParams;
         if (inputDynamicShapes.empty()) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, targetStaticShapes.front().front()));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, targetStaticShapes.front().front()));
         } else {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front()));
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front()));
             if (!isTargetShapeConst) {
                 functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]));
                 functionParams.back()->set_friendly_name("targetShape");
@@ -108,8 +106,6 @@ protected:
             }
         }
         functionParams.front()->set_friendly_name("data");
-
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
 
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {
@@ -125,36 +121,36 @@ protected:
             } else {
                 axesMappingOp = functionParams.size() > 2 ? functionParams[2] : functionParams[1];
             }
-            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+            broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                 targetShapeOp,
                                                                 axesMappingOp,
                                                                 mode);
         } else if (mode == ov::op::BroadcastType::NUMPY) {
             if (isTargetShapeConst) {
                 auto targetShapeConst = ov::op::v0::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
                                                                       targetShapeConst,
                                                                       mode);
             } else {
-                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
-                                                                      paramOuts[1],
+                broadcastOp = std::make_shared<ov::op::v3::Broadcast>(functionParams[0],
+                                                                      functionParams[1],
                                                                       mode);
             }
         }
 
-        auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
-            ResultVector results;
+        auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+            ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
-                results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
+                results.push_back(std::make_shared<ov::op::v0::Result>(lastNode->output(i)));
 
-            return std::make_shared<Function>(results, params, "BroadcastLayerGPUTest");
+            return std::make_shared<ov::Model>(results, params, "BroadcastLayerGPUTest");
         };
 
         function = makeFunction(functionParams, broadcastOp);
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
@@ -174,8 +170,11 @@ protected:
                 }
             } else {
                 if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
@@ -185,19 +184,15 @@ protected:
     }
 };
 
-TEST_P(BroadcastLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(BroadcastLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-const std::vector<ov::element::Type_t> inputPrecisionsFloat = {
+const std::vector<ov::element::Type> inputPrecisionsFloat = {
     ov::element::f32,
 };
 
-const std::vector<ov::element::Type_t> inputPrecisionsInt = {
+const std::vector<ov::element::Type> inputPrecisionsInt = {
     ov::element::i32,
 };
 
@@ -217,7 +212,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes1D_explicit = {
         { {-1}, {{7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_1d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes1D_explicit),
@@ -234,7 +229,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes1D = {
         { {-1}, {{1}, {7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_1d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes1D),
@@ -253,7 +248,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes2D_explicit = {
         { {-1, -1}, {{3, 5}} }
     }
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_2d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes2D_explicit),
@@ -270,7 +265,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes2D = {
         { {-1, -1}, {{3, 1}, {3, 5}} }
     }
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_2d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes2D),
@@ -289,7 +284,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes3D_explicit = {
         { {-1, -1, -1}, {{4, 5, 6}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_3d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes3D_explicit),
@@ -306,7 +301,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes3D = {
         { {-1, -1, -1}, {{4, 5, 1}, {1, 5, 1}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_3d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes3D),
@@ -325,7 +320,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes4D_explicit = {
         { {-1, -1, -1, -1}, {{1, 16, 1, 7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_4d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes4D_explicit),
@@ -342,7 +337,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes4D = {
         { {-1, -1, -1, -1}, {{2, 1, 1, 3}, {1, 4, 1, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_4d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes4D),
@@ -361,7 +356,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes5D_explicit = {
         { {-1, -1, -1, -1, -1}, {{2, 3, 4, 5, 6}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_5d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes5D_explicit),
@@ -378,7 +373,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes5D = {
         { {-1, -1, -1, -1, -1}, {{8, 1, 1, 7, 1}, {8, 4, 1, 7, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_5d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes5D),
@@ -396,7 +391,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes6D = {
         { {-1, -1, -1, -1, -1, -1}, {{8, 1, 1, 7, 1, 3}, {8, 4, 1, 7, 16, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes6D),
@@ -409,5 +404,3 @@ INSTANTIATE_TEST_CASE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest::getTestCaseName);
 
 } // namespace
-
-} // namespace GPULayerTestsDefinitions

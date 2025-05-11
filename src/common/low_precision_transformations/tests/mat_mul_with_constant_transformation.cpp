@@ -1,21 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <low_precision/mat_mul.hpp>
+#include "low_precision/mat_mul.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -28,24 +27,24 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
 
-        ngraph::builder::subgraph::Constant weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::Constant weights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnData;
-        ngraph::builder::subgraph::Constant weights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnData;
+        ov::builder::subgraph::Constant weights;
 
         ov::element::Type precisionBeforeOperation;
-        ngraph::builder::subgraph::DequantizationOperations resultDequantization;
+        ov::builder::subgraph::DequantizationOperations resultDequantization;
 
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     TestTransformationParams params;
@@ -68,7 +67,7 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
     return out << "_" << values.actual << "_" << values.expected;
 }
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, MatMullTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, MatMullTransformationTestValues>
     MatMulTransformationParams;
 
 class MatMulWithConstantTransformation : public LayerTransformation,
@@ -76,11 +75,11 @@ class MatMulWithConstantTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        const ov::PartialShape inputShape = std::get<1>(GetParam());
         MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::MatMulFunction::getOriginal(precision,
+            ov::builder::subgraph::MatMulFunction::getOriginal(precision,
                                                                    inputShape,
                                                                    testValues.actual.precisionBeforeDequantization,
                                                                    testValues.actual.dequantizationOnData,
@@ -89,19 +88,19 @@ public:
                                                                    testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ov::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
             (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty())
-                ? ngraph::builder::subgraph::MatMulFunction::getReference(
+                ? ov::builder::subgraph::MatMulFunction::getReference(
                       precision,
                       inputShape,
                       testValues.expected.precisionBeforeDequantization,
                       testValues.expected.dequantizationOnData,
                       testValues.expected.weights,
                       testValues.expected.resultDequantization)
-                : ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                : ov::builder::subgraph::MatMulFunction::getOriginal(
                       precision,
                       inputShape,
                       testValues.expected.precisionBeforeDequantization,
@@ -113,7 +112,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape inputShape;
+        ov::PartialShape inputShape;
         MatMullTransformationTestValues testValues;
         std::tie(precision, inputShape, testValues) = obj.param;
 
@@ -137,7 +136,7 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 384, 1024},
     {4, 384, 1024},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}};
@@ -153,6 +152,22 @@ std::vector<MatMullTransformationTestValues> testValues = {
      {ov::element::u8,
       {},
       {std::vector<float>(1024 * 1024, -126.f), ov::element::i8, ov::Shape{1024, 1024}},
+      ov::element::u8,
+      {{}, {}, {0.02f * 0.1f}},
+      {},
+      {}}},
+
+    // test: multiply with f16 constant
+    {LayerTransformation::createParamsU8I8(),
+     {ov::element::u8,
+      {ov::element::f32, {}, ov::builder::subgraph::DequantizationOperations::Multiply{0.02f}.setConstantPrecision(ov::element::f16)},
+      {std::vector<float>(1024 * 1024, 1.f), ov::element::i8, ov::Shape{1024, 1024}},
+      {},
+      {ov::element::f32, {}, {0.1f}},
+     },
+     {ov::element::u8,
+      {},
+      {std::vector<float>(1024 * 1024, 1.f), ov::element::i8, ov::Shape{1024, 1024}},
       ov::element::u8,
       {{}, {}, {0.02f * 0.1f}},
       {},
@@ -184,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {{1, 3, 4},
+const std::vector<ov::PartialShape> inputShapes = {{1, 3, 4},
                                                        {4, 3, 4},
                                                        {Dimension::dynamic(), 3, Dimension::dynamic()}};
 
@@ -348,7 +363,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapes = {{1, 2048},
+const std::vector<ov::PartialShape> inputShapes = {{1, 2048},
                                                        {4, 2048},
                                                        {Dimension::dynamic(), Dimension::dynamic()}};
 
@@ -467,7 +482,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace testValues4 {
-const std::vector<ngraph::PartialShape> inputShapes = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> inputShapes = {PartialShape::dynamic()};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     {LayerTransformation::createParamsU8I8(),

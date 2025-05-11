@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ void register_implementations() {
     REGISTER_COMMON(data);
     REGISTER_COMMON(input_layout);
     REGISTER_COMMON(loop);
-    REGISTER_COMMON(prior_box);
 }
 
 }  // namespace common

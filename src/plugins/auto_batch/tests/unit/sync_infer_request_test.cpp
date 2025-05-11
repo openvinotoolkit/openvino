@@ -1,30 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "sync_infer_request.hpp"
 
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-using ::testing::_;
-using ::testing::AnyNumber;
-using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::NiceMock;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Throw;
 
 using AutoBatchRequestTestParams = std::tuple<uint32_t,              // batch_size
                                               ov::element::Type_t>;  // data type
@@ -43,8 +29,8 @@ public:
 
     ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    std::set<std::string> m_batched_inputs;
-    std::set<std::string> m_batched_outputs;
+    std::set<std::size_t> m_batched_inputs;
+    std::set<std::size_t> m_batched_outputs;
     ov::SoPtr<ov::IRemoteContext> m_remote_context;
 
     std::shared_ptr<MockAutoBatchCompileModel> m_auto_batch_compile_model;
@@ -96,7 +82,7 @@ public:
     void SetUp() override {
         std::tie(m_batch_size, m_element_type) = this->GetParam();
         std::vector<size_t> inputShape = {1, 3, 24, 24};
-        m_model = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, m_element_type);
+        m_model = ov::test::utils::make_multi_single_conv(inputShape, m_element_type);
         m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
 
         m_auto_batch_plugin =
@@ -106,16 +92,16 @@ public:
         m_i_compile_model_without_batch = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_auto_batch_plugin);
         m_compile_model_without_batch = {m_i_compile_model_without_batch, {}};
 
-        m_config = {{"AUTO_BATCH_TIMEOUT", "200"}};
+        m_config = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}};
 
         m_device_info = {"CPU", {}, m_batch_size};
-        m_batched_inputs = {"Parameter_0"};
-        m_batched_outputs = {"Convolution_20"};
+        m_batched_inputs = {};
+        m_batched_outputs = {};
 
         m_i_compile_model_with_batch = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_auto_batch_plugin);
         m_compile_model_with_batch = {m_i_compile_model_with_batch, {}};
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model =
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model =
                             std::make_shared<MockAutoBatchCompileModel>(m_model->clone(),
                                                                         m_auto_batch_plugin,
                                                                         m_config,
@@ -161,15 +147,12 @@ public:
 
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
-        for (size_t i = 0; i < params.size(); i++) {
-            m_batched_inputs.insert(ov::op::util::get_ie_output_name(params[i]->output(0)));
+        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+            m_batched_inputs.insert(input_id);
         }
         const auto& results = model->get_results();
-        for (size_t i = 0; i < results.size(); i++) {
-            const auto& output = results[i];
-            const auto& node = output->input_value(0);
-            m_batched_outputs.insert(
-                ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            m_batched_outputs.insert(output_id);
         }
     }
 };

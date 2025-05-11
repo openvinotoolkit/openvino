@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/mod.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -13,8 +15,9 @@ namespace {
 
 struct ModParams {
     template <class IT>
-    ModParams(const PartialShape& iShape1,
-              const PartialShape& iShape2,
+    ModParams(const Shape& iShape1,
+              const Shape& iShape2,
+              const Shape& oShape,
               const element::Type& iType,
               const std::vector<IT>& iValues1,
               const std::vector<IT>& iValues2,
@@ -23,12 +26,12 @@ struct ModParams {
           pshape2(iShape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(iShape1, iType, iValues1)),
+          inputData2(CreateTensor(iShape2, iType, iValues2)),
+          refData(CreateTensor(oShape, iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
+    Shape pshape1;
+    Shape pshape2;
     element::Type inType;
     element::Type outType;
     ov::Tensor inputData1;
@@ -56,15 +59,15 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto mod = std::make_shared<op::v1::Mod>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{mod}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{mod}, ParameterVector{in1, in2});
     }
 };
 
@@ -88,16 +91,16 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                    const PartialShape& input_shape2,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         auto mod = std::make_shared<op::v1::Mod>(in1, in2);
         mod = std::make_shared<op::v1::Mod>(mod, mod);
 
-        return std::make_shared<Model>(NodeVector{mod}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{mod}, ParameterVector{in1, in2});
     }
 };
 
@@ -113,38 +116,41 @@ template <element::Type_t IN_ET>
 std::vector<ModParams> generateParamsForMod() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ModParams> params{
-        ModParams(ov::PartialShape{1, 2},
-                       ov::PartialShape{1, 2},
-                       IN_ET,
-                       std::vector<T>{256, 56},
-                       std::vector<T>{256, 56},
-                       std::vector<T>{0, 0}),
-        ModParams(ov::PartialShape{2, 2},
-                       ov::PartialShape{2, 2},
-                       IN_ET,
-                       std::vector<T>{256, 56, 21, 14},
-                       std::vector<T>{112, 56, 6, 8},
-                       std::vector<T>{32, 0, 3, 6}),
-        ModParams(ov::PartialShape{1, 2},
-                       ov::PartialShape{3, 2, 2},
-                       IN_ET,
-                       std::vector<T>{1, 2},
-                       std::vector<T>{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3},
-                       std::vector<T>{1, 2, 1, 2, 1, 2, 0, 2, 1, 2, 0, 2}),
-        ModParams(ov::PartialShape{1},
-                       ov::PartialShape{1},
-                       IN_ET,
-                       std::vector<T>{57},
-                       std::vector<T>{13},
-                       std::vector<T>{5}),
-        ModParams(ov::PartialShape{2, 2},
-                       ov::PartialShape{1},
-                       IN_ET,
-                       std::vector<T>{2, 4, 7, 8},
-                       std::vector<T>{8},
-                       std::vector<T>{2, 4, 7, 0})
-    };
+    std::vector<ModParams> params{ModParams(ov::Shape{1, 2},
+                                            ov::Shape{1, 2},
+                                            ov::Shape{1, 2},
+                                            IN_ET,
+                                            std::vector<T>{256, 56},
+                                            std::vector<T>{256, 56},
+                                            std::vector<T>{0, 0}),
+                                  ModParams(ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            IN_ET,
+                                            std::vector<T>{256, 56, 21, 14},
+                                            std::vector<T>{112, 56, 6, 8},
+                                            std::vector<T>{32, 0, 3, 6}),
+                                  ModParams(ov::Shape{1, 2},
+                                            ov::Shape{3, 2, 2},
+                                            ov::Shape{3, 2, 2},
+                                            IN_ET,
+                                            std::vector<T>{1, 2},
+                                            std::vector<T>{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3},
+                                            std::vector<T>{1, 2, 1, 2, 1, 2, 0, 2, 1, 2, 0, 2}),
+                                  ModParams(ov::Shape{1},
+                                            ov::Shape{1},
+                                            ov::Shape{1},
+                                            IN_ET,
+                                            std::vector<T>{57},
+                                            std::vector<T>{13},
+                                            std::vector<T>{5}),
+                                  ModParams(ov::Shape{2, 2},
+                                            ov::Shape{1},
+                                            ov::Shape{2, 2},
+                                            IN_ET,
+                                            std::vector<T>{2, 4, 7, 8},
+                                            std::vector<T>{8},
+                                            std::vector<T>{2, 4, 7, 0})};
     return params;
 }
 
@@ -152,14 +158,13 @@ template <element::Type_t IN_ET>
 std::vector<ModParams> generateParamsForModNegative() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ModParams> params{
-        ModParams(ov::PartialShape{2, 2},
-                       ov::PartialShape{2, 2},
-                       IN_ET,
-                       std::vector<T>{-57, -14, -12, -6},
-                       std::vector<T>{13, -7, 5, -5},
-                       std::vector<T>{-5, 0, -2, -1})
-    };
+    std::vector<ModParams> params{ModParams(ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            IN_ET,
+                                            std::vector<T>{-57, -14, -12, -6},
+                                            std::vector<T>{13, -7, 5, -5},
+                                            std::vector<T>{-5, 0, -2, -1})};
     return params;
 }
 
@@ -167,24 +172,21 @@ template <element::Type_t IN_ET>
 std::vector<ModParams> generateParamsForModInPlace() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ModParams> params{
-        ModParams(ov::PartialShape{2, 2},
-                       ov::PartialShape{2, 2},
-                       IN_ET,
-                       std::vector<T>{1, 2, 3, 4},
-                       std::vector<T>{5, 6, 7, 8},
-                       std::vector<T>{0, 0, 0, 0})
-    };
+    std::vector<ModParams> params{ModParams(ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            IN_ET,
+                                            std::vector<T>{1, 2, 3, 4},
+                                            std::vector<T>{5, 6, 7, 8},
+                                            std::vector<T>{0, 0, 0, 0})};
     return params;
 }
 
 std::vector<ModParams> generateCombinedParamsForMod() {
-    const std::vector<std::vector<ModParams>> allTypeParams{
-        generateParamsForMod<element::Type_t::f32>(),
-        generateParamsForMod<element::Type_t::f16>(),
-        generateParamsForMod<element::Type_t::i64>(),
-        generateParamsForMod<element::Type_t::i32>()
-    };
+    const std::vector<std::vector<ModParams>> allTypeParams{generateParamsForMod<element::Type_t::f32>(),
+                                                            generateParamsForMod<element::Type_t::f16>(),
+                                                            generateParamsForMod<element::Type_t::i64>(),
+                                                            generateParamsForMod<element::Type_t::i32>()};
 
     std::vector<ModParams> combinedParams;
 
@@ -196,12 +198,10 @@ std::vector<ModParams> generateCombinedParamsForMod() {
 }
 
 std::vector<ModParams> generateCombinedParamsForModNegative() {
-    const std::vector<std::vector<ModParams>> allTypeParams{
-        generateParamsForModNegative<element::Type_t::f32>(),
-        generateParamsForModNegative<element::Type_t::f16>(),
-        generateParamsForModNegative<element::Type_t::i64>(),
-        generateParamsForModNegative<element::Type_t::i32>()
-    };
+    const std::vector<std::vector<ModParams>> allTypeParams{generateParamsForModNegative<element::Type_t::f32>(),
+                                                            generateParamsForModNegative<element::Type_t::f16>(),
+                                                            generateParamsForModNegative<element::Type_t::i64>(),
+                                                            generateParamsForModNegative<element::Type_t::i32>()};
 
     std::vector<ModParams> combinedParams;
 
@@ -211,15 +211,12 @@ std::vector<ModParams> generateCombinedParamsForModNegative() {
 
     return combinedParams;
 }
-
 
 std::vector<ModParams> generateCombinedParamsForModInPlace() {
-    const std::vector<std::vector<ModParams>> allTypeParams{
-        generateParamsForModInPlace<element::Type_t::f32>(),
-        generateParamsForModInPlace<element::Type_t::f16>(),
-        generateParamsForModInPlace<element::Type_t::i64>(),
-        generateParamsForModInPlace<element::Type_t::i32>()
-    };
+    const std::vector<std::vector<ModParams>> allTypeParams{generateParamsForModInPlace<element::Type_t::f32>(),
+                                                            generateParamsForModInPlace<element::Type_t::f16>(),
+                                                            generateParamsForModInPlace<element::Type_t::i64>(),
+                                                            generateParamsForModInPlace<element::Type_t::i32>()};
 
     std::vector<ModParams> combinedParams;
 
@@ -230,22 +227,19 @@ std::vector<ModParams> generateCombinedParamsForModInPlace() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Mod_With_Hardcoded_Refs,
-    ReferenceModLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForMod()),
-    ReferenceModLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Mod_With_Hardcoded_Refs,
+                         ReferenceModLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForMod()),
+                         ReferenceModLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Mod_Negative_With_Hardcoded_Refs,
-    ReferenceModLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForModNegative()),
-    ReferenceModLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Mod_Negative_With_Hardcoded_Refs,
+                         ReferenceModLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForModNegative()),
+                         ReferenceModLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Mod_InPlace_With_Hardcoded_Refs,
-    ReferenceModInPlaceLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForModInPlace()),
-    ReferenceModInPlaceLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Mod_InPlace_With_Hardcoded_Refs,
+                         ReferenceModInPlaceLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForModInPlace()),
+                         ReferenceModInPlaceLayerTest::getTestCaseName);
 
 }  // namespace

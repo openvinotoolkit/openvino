@@ -18,7 +18,7 @@ API conformance contains 2 test types:
 
 >**NOTE:** To run only mandatory API Conformance tests use `--gtest_filter=*mandatory*`.
 
-A result of the `apiConformanceTests` run is report `report_api.xml`. It shows OpenVINO API entities' test statistics for each OpenVINO API entity, such as `passed/failed/crashed/skipped/hanging`, tests number, pass rates, and implementation status.
+A result of the `ov_api_conformance_tests` run is report `report_api.xml`. It shows OpenVINO API entities' test statistics for each OpenVINO API entity, such as `passed/failed/crashed/skipped/hanging`, tests number, pass rates, and implementation status.
 
 ### Opset Conformance
 
@@ -30,7 +30,7 @@ The suite contains:
 * `ReadIR_ImportExport` tests exports and imports of compiled model, using a graph (Conformance IR) based on model parameters.
 * `OpImplCheckTest` set checks an operation plugin implementation status, using a simple synthetic single operation graph (`Implemented`/`Not implemented`). The suite checks only `compile_model` without comparison with the reference.
 
-A result of the `conformanceTests` run is the `report_opset.xml` file. It shows tests statistic, like pass rate, passed, crashed, skipped, failed tests, and plugin implementation per operation for devices.
+A result of the `ov_op_conformance_tests` run is the `report_opset.xml` file. It shows tests statistic, like pass rate, passed, crashed, skipped, failed tests, and plugin implementation per operation for devices.
 
 ## How to build
 
@@ -41,23 +41,30 @@ Run the following commands in the build directory:
    ```
 2. Build the targets:
    ```
-   make --jobs=$(nproc --all) subgraphsDumper
-   make --jobs=$(nproc --all) conformanceTests
-   make --jobs=$(nproc --all) apiConformanceTests
+   make --jobs=$(nproc --all) ov_subgraphs_dumper
+   make --jobs=$(nproc --all) ov_op_conformance_tests
+   make --jobs=$(nproc --all) ov_api_conformance_tests
    ```
 3. Build plugins to validate:
    ```
    make --jobs=$(nproc --all) lib_plugin_name
    ```
+4. Install python dependencies to use `run_conformance` script:
+   ```
+   cd /path/to/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary
+   pip3 install -r [requirements.txt](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt)
+   ```
 
-## How to run using [simple conformance runner](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
+## How to run using [simple conformance runner](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
 
 There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
+
+>NOTE: Conformance reports `ov python api` WARNING in case of its absence. `ov python api` is not required to get a conformance results. It is a way to get HASHED conformance IR names after `ov_subgraphs_dumper` tool using (in case of `-s=1`).
 
 ### The conformance pipeline steps:
 
 1. (Optional: Applicable only for Opset Conformance suite) Download models/conformance IR via URL / copy archive to working directory / verify dirs / check list-files.
-2. (Optional: Applicable only for Opset Conformance suite) Run `SubgraphDumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
+2. (Optional: Applicable only for Opset Conformance suite) Run `ov_subgraphs_dumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
 3. Run conformance test executable files.
 4. Generate conformance reports.
 
@@ -82,18 +89,24 @@ The script has the following optional arguments:
 * `c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
                         Specify path to a plugin config file as `.lst` file. Default value is ``
 * `s DUMP_GRAPH, --dump_graph DUMP_GRAPH`
-                        Set '1' to create Conformance IRs from models using subgraphsDumper tool. The default value is '0'.
+                        Set '1' to create Conformance IRs from models using ov_subgraphs_dumper tool. The default value is '0'.
                         NOTE: Applicable only for Opset Conformance.
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``
+*  `-e ENTITY, --entity ENTITY`
+                        Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
 * `p PARALLEL_DEVICES, --parallel_devices PARALLEL_DEVICES`
                         Parallel over HW devices. For example run tests over `GPU.0` and `GPU.1` in case when device are the same
 * `f EXPECTED_FAILURES, --expected_failures EXPECTED_FAILURES`
-                        Excepted failures list file path as csv
+                        Excepted failures list file path as csv. See more in the [Working with expected failures](#working-with-expected-failures) section.
 * `u EXPECTED_FAILURES_UPDATE, --expected_failures_update EXPECTED_FAILURES_UPDATE`
                         Overwrite expected failures list in case same failures were fixed
 * `-cache_path CACHE_PATH`
                         Path to the cache file with test_name list sorted by execution time as `.lst` file!
+* `-r DISABLE_RERUN, --disable_rerun DISABLE_RERUN`
+                        Disable re-run of interapted/lost tests. Default value is `False`
+* `--timeout TIMEOUT`
+                        Set a custom timeout per worker in s
 
 > **NOTE**: All arguments are optional and have default values to reproduce OMZ based Opset conformance results  on `CPU` in a default method.
 
@@ -138,7 +151,7 @@ The target is able to take the following command-line arguments:
 * `-h` prints target command-line options with description.
 * `--device` specifies target device.
 * `--input_folders` specifies the input folders with IRs or `.lst` file. It contains paths, separated by a comma `,`.
-* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices.
+* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in OV Core devices.
 * `--disable_test_config` allows ignoring all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows specifying paths to files. It contains a list of regular expressions to skip tests. [Examples](./op_conformance_runner/skip_configs/skip_config_example.lst)
 * `--config_path` allows specifying the path to a file that contains plugin config. [Example](./op_conformance_runner/config/config_example.txt)
@@ -155,7 +168,7 @@ The target is able to take the following command-line arguments:
 
 > **NOTE**:
 >
-> Using [`parallel_runner`](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistics after unexpected crashes.
+> Using [`parallel_runner`](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistics after unexpected crashes.
 > The tool is able to work in two modes:
 > * one test is run in a separate thread (first run, as the output the cache will be saved as a custom file).
 > * similar load time per one worker based on test execution time. May contain different test count per worker.
@@ -169,16 +182,26 @@ The target is able to take the following command-line arguments:
 > All arguments after `--` symbol is forwarding to `conformanceTests` target.
 >
 >  If you use the `--report_unique_name` argument, run
-> [the merge xml script](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py)
+> [the merge xml script](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py)
 > to aggregate the results to one *xml* file. Check command-line arguments with `--help` before running the command.
 > The example of usage is:
 > ```
 > python3 merge_xmls.py --input_folders=/path/to/temp_output_report_folder --output_folder=/path/to/output_report_folder --output_filename=report_aggregated
 > ```
 
+## Working with expected failures
+
+The `run_conformace.py` script has an optional `--expected_failures` argument which accepts a path to a csv file with a list of tests that should not be run. 
+
+You can find the files with the most up-to-date expected failures for different devices and conformance types [here](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/skip_configs).
+
+These files are used in [the Linux GitHub workflow](./../../../../../../.github/workflows/ubuntu_22.yml) for test skip. 
+
+You can update the file(s) you need with either new passing tests, i.e., when something is fixed, or with new failing tests to skip them. The changes will be reflected in the GitHub actions pipeline, in the `Conformance_Tests` job.
+
 ## How to create a conformance report
 
-Run [the summarize script](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/summarize.py) to generate `html` and `csv` report. Check command-line arguments with `--help` before running the command.
+Run [the summarize script](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/summarize.py) to generate `html` and `csv` report. Check command-line arguments with `--help` before running the command.
 The example of using the script is:
 ```
 python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-parallel/report_opset.xml --out /opt/repo/infrastructure-master/thirdparty/gtest-parallel/ -t OP
@@ -186,7 +209,7 @@ python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-para
 ```
 python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-parallel/report_api.xml --out /opt/repo/infrastructure-master/thirdparty/gtest-parallel/ -t API
 ```
-> **NOTE**: Remember to copy [styles folder](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with filters and other useful features.
+> **NOTE**: Remember to copy [styles folder](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with filters and other useful features.
 
 The report contains statistics based on conformance results and filter fields at the top of the page.
 

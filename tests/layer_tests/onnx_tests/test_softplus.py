@@ -1,9 +1,11 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -43,7 +45,7 @@ class TestSoftplus(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #
         #   Create reference IR net
@@ -128,7 +130,7 @@ class TestSoftplus(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model')
 
         #
         #   Create reference IR net
@@ -171,15 +173,15 @@ class TestSoftplus(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_softplus(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_softplus(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_softplus_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_softplus_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

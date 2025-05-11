@@ -1,30 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <string>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#endif
-
-#include "ngraph/opsets/opset.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#endif
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 /**
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
@@ -33,7 +23,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Serialize");
+    OPENVINO_MODEL_PASS_RTTI("Serialize");
 
     enum class Version : uint8_t {
         UNSPECIFIED = 0,  // Use the latest or function version
@@ -42,19 +32,14 @@ public:
     };
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(std::ostream& xmlFile,
-              std::ostream& binFile,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(const std::string& xmlPath,
-              const std::string& binPath,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
+
+    Serialize(const std::filesystem::path& xmlPath,
+              const std::filesystem::path& binPath,
+              Version version = Version::UNSPECIFIED)
+        : Serialize(xmlPath.string(), binPath.string(), version) {}
 
 private:
     std::ostream* m_xmlFile;
@@ -62,7 +47,7 @@ private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
-    const std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
 
 /**
@@ -73,7 +58,7 @@ private:
  */
 class OPENVINO_API StreamSerialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("StreamSerialize");
+    OPENVINO_MODEL_PASS_RTTI("StreamSerialize");
 
     struct DataHeader {
         size_t custom_data_offset;
@@ -86,22 +71,16 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    StreamSerialize(std::ostream& stream,
-                    std::map<std::string, ngraph::OpSet>&& custom_opsets = {},
-                    const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    Serialize::Version version = Serialize::Version::UNSPECIFIED);
     StreamSerialize(std::ostream& stream,
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
+                    const std::function<std::string(const std::string&)>& cache_encrypt = {},
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
     std::ostream& m_stream;
-    std::map<std::string, ngraph::OpSet> m_custom_opsets;
     std::function<void(std::ostream&)> m_custom_data_serializer;
+    std::function<std::string(const std::string&)> m_cache_encrypt;
     const Serialize::Version m_version;
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 }  // namespace pass
 }  // namespace ov

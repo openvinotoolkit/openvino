@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,52 +23,52 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x) with a Swish op.
  */
 class ov::pass::SwishFusionWithSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoid", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithSigmoid");
     SwishFusionWithSigmoid();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
  */
 class ov::pass::SwishFusionWithSigmoidWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithSigmoidWithBeta");
     SwishFusionWithSigmoidWithBeta();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
  */
 class ov::pass::SwishFusionWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithBeta");
     SwishFusionWithBeta();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
  */
 class ov::pass::SwishFusionWithoutBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithoutBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithoutBeta");
     SwishFusionWithoutBeta();
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusion transformation replaces various sub-graphs with a Swish op.
  */
 class ov::pass::SwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("SwishFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("SwishFusion");
     SwishFusion() {
         add_matcher<ov::pass::SwishFusionWithSigmoid>();
         add_matcher<ov::pass::SwishFusionWithSigmoidWithBeta>();

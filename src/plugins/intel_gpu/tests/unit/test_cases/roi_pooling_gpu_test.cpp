@@ -126,7 +126,7 @@ public:
             testing::TestWithParam<roi_pooling_test_params<T>>::GetParam();
 
         auto& engine = get_test_engine();
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         const auto plane_format = format::bfyx;
 
         std::vector<std::pair<primitive_id, memory::ptr>> inputs;
@@ -165,7 +165,7 @@ public:
         topology topology;
         for (auto& input : inputs) {
             topology.add(input_layout(input.first, input.second->get_layout()));
-            topology.add(reorder("reordered_" + input.first, input_info(input.first), fmt, type_to_data_type<T>::value));
+            topology.add(reorder("reordered_" + input.first, input_info(input.first), fmt, ov::element::from<T>()));
         }
 
         topology.add(roi_pooling("roi_pooling",
@@ -183,7 +183,7 @@ public:
                                  p.spatial_bins_x,
                                  p.spatial_bins_y));
 
-        topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, ov::element::from<T>()));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -225,7 +225,7 @@ public:
         result << "Ss=" << p.spatial_scale << "_";
         result << "Mode=" << mode_str << "_";
         result << "PS=" << position_sensitive << "_";
-        result << "Prec=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
+        result << "Prec=" << ov::element::Type(ov::element::from<T>()) << "_";
         result << "Format=" << fmt_to_str(fmt);
         if (!p.test_name.empty()) {
             result << "_TN=" << p.test_name;

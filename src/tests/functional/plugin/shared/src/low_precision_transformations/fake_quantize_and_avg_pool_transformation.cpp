@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,34 +8,34 @@
 #include <tuple>
 #include <vector>
 #include <string>
-//#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/avg_pool_function.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/avg_pool.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+    return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
-    threshold = 0.5f;
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
+    ov::pass::low_precision::LayerTransformation::Params params;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
 
-    function = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::AvgPoolFunction::getOriginal(
         precision,
         inputShape,
         fakeQuantize);
@@ -44,7 +44,7 @@ void FakeQuantizeAndAvgPoolTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndAvgPoolTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

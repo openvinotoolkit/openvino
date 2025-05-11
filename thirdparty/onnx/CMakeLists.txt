@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,17 +20,15 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4244)
 endif()
 
+set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
 set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
-set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE})
-
-# clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
-unset(Python_ADDITIONAL_VERSIONS CACHE)
+set(ONNX_CUSTOM_PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}")
 
 # build targets
 
@@ -46,14 +44,13 @@ foreach(_onnx_target onnx onnx_proto)
         $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach()
 
-if(WIN32)
-    # from onnx==1.13.1 it requires C++17 when compiling on Windows
-    target_compile_features(onnx PRIVATE cxx_std_17)
+if(MINGW)
     # OPTIONAL is a reserved word for mingw at least
-    if(MINGW)
-        target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
-    endif()
+    target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
 endif()
+
+# from onnx==1.13.1 it requires C++17 when compiling on Windows, and since onnx==1.16.0 on Linux
+target_compile_features(onnx_proto PUBLIC cxx_std_17)
 
 ov_disable_all_warnings(onnx onnx_proto)
 
@@ -72,5 +69,6 @@ if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     endif()
 
     install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
+            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 endif()

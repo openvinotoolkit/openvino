@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 struct RequestExecutor : ov::threading::ITaskExecutor {
     explicit RequestExecutor(ov::SoPtr<ov::IAsyncInferRequest>& request) : m_request(request) {
         m_request->set_callback([this](std::exception_ptr exception_ptr) mutable {
-            m_exception_ptr = exception_ptr;
+            m_exception_ptr = std::move(exception_ptr);
             auto task = std::move(m_task);
             task();
         });

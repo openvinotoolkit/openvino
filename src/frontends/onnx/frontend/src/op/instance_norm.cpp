@@ -1,43 +1,34 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/instance_norm.hpp"
-
-#include <cstddef>
-#include <memory>
-
-#include "default_opset.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/sqrt.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/partial_shape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
-namespace op {
-namespace set_1 {
-OutputVector instance_norm(const Node& node) {
-    Output<ngraph::Node> data(node.get_ng_inputs().at(0));
-    Output<ngraph::Node> scale(node.get_ng_inputs().at(1));
-    Output<ngraph::Node> bias(node.get_ng_inputs().at(2));
-    const PartialShape& data_pshape = data.get_partial_shape();
-    const PartialShape& scale_pshape = scale.get_partial_shape();
-    const PartialShape& bias_pshape = bias.get_partial_shape();
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+ov::OutputVector instance_norm(const ov::frontend::onnx::Node& node) {
+    ov::Output<ov::Node> data(node.get_ov_inputs().at(0));
+    ov::Output<ov::Node> scale(node.get_ov_inputs().at(1));
+    ov::Output<ov::Node> bias(node.get_ov_inputs().at(2));
+    const ov::PartialShape& data_pshape = data.get_partial_shape();
+    const ov::PartialShape& scale_pshape = scale.get_partial_shape();
+    const ov::PartialShape& bias_pshape = bias.get_partial_shape();
     const float epsilon{node.get_attribute_value<float>("epsilon", 1e-5f)};
 
-    element::Type result_et;
+    ov::element::Type result_et;
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
                      "Element types for data and scale input do not match (data element type: ",
                      data.get_element_type(),
                      ", scale element type: ",
@@ -45,7 +36,7 @@ OutputVector instance_norm(const Node& node) {
                      ").");
 
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
                      "Element types for data and bias input do not match (data element type: ",
                      data.get_element_type(),
                      ", bias element type: ",
@@ -71,25 +62,22 @@ OutputVector instance_norm(const Node& node) {
     // all dimensions except spatial/feature
     const auto reduction_axes = common::get_monotonic_range_along_node_rank(data, 2);
 
-    auto mvn =
-        std::make_shared<default_opset::MVN>(data, reduction_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn = std::make_shared<v6::MVN>(data, reduction_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    const auto mvn_shape = std::make_shared<default_opset::ShapeOf>(mvn);
-    const auto mvn_rank = std::make_shared<default_opset::ShapeOf>(mvn_shape);
+    const auto mvn_shape = std::make_shared<v3::ShapeOf>(mvn);
+    const auto mvn_rank = std::make_shared<v3::ShapeOf>(mvn_shape);
 
     // scale * mvn + bias
-    std::shared_ptr<ngraph::Node> result =
-        std::make_shared<default_opset::Multiply>(mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
-    result = std::make_shared<default_opset::Add>(result, reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
+    std::shared_ptr<ov::Node> result =
+        std::make_shared<v1::Multiply>(mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
+    result = std::make_shared<v1::Add>(result, reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
 
     return {result};
 }
 
-}  // namespace set_1
-
-}  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+ONNX_OP("InstanceNormalization", OPSET_SINCE(1), ai_onnx::opset_1::instance_norm);
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

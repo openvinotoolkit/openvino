@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,26 +8,24 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
-#include "lpt_ngraph_functions/multiply_function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_lpt_models/multiply_partial_function.hpp"
 
 
 namespace LayerTestsDefinitions {
 
 std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj) {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type precision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     MultiplyTestValues param;
     std::tie(precision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
-        (param.broadcast1 ? "_broadcast1" : "") <<
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+           (param.broadcast1 ? "_broadcast1" : "") <<
         (param.broadcast2 ? "_broadcast2" : "");
 
     result << "_" << param.expectedPrecisions << "_";
@@ -51,12 +49,33 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void MultiplyTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+    auto inputShape1 = inputShape;
+    if (param.broadcast1) {
+        inputShape1[2] = 1;
+        inputShape1[3] = 1;
+    }
+
+    ov::PartialShape inputShape2;
+    if (param.secondInputIsConstant) {
+        inputShape2 = {};
+    } else {
+        inputShape2 = inputShape;
+        if (param.broadcast2) {
+            inputShape2[2] = 1;
+            inputShape2[3] = 1;
+        }
+    }
+    init_input_shapes(
+            param.secondInputIsConstant ?
+            std::vector<ov::PartialShape>{ inputShape1 } :
+            std::vector<ov::PartialShape>{ inputShape1, inputShape2 });
+
+    function = ov::builder::subgraph::MultiplyPartialFunction::get(
         precision,
         inputShape,
         param.broadcast1,
@@ -69,21 +88,21 @@ void MultiplyTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MultiplyTransformation::Run() {
-    LayerTestsCommon::Run();
+void MultiplyTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
 
-    auto to_string = [](const ngraph::element::Type& precision) -> std::string {
+    auto to_string = [](const ov::element::Type& precision) -> std::string {
         switch (precision) {
-            case ngraph::element::f32: {
-                return "FP32";
+            case ov::element::f32: {
+                return "f32";
             }
-            case ngraph::element::i8: {
-                return "I8";
+            case ov::element::i8: {
+                return "i8";
             }
-            case ngraph::element::u8: {
-                return "U8";
+            case ov::element::u8: {
+                return "u8";
             }
             default: {
                 return "";
@@ -92,13 +111,13 @@ void MultiplyTransformation::Run() {
     };
 
     const auto expectedFqPrecision = to_string(params.expectedPrecisions);
-    const auto actualFqPrecision = getRuntimePrecision("multiply");
+    const auto actualFqPrecision = get_runtime_precision("multiply");
     EXPECT_EQ(expectedFqPrecision, actualFqPrecision);
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

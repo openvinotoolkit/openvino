@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -313,7 +313,7 @@ def test_identity():
         ],
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, shape)],
     )
-    model = make_model(graph, producer_name="ngraph ONNX Importer")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     graph_model = import_onnx_model(model)
     runtime = get_runtime()
     computation = runtime.computation(graph_model)
@@ -394,7 +394,7 @@ def test_cast_errors():
     output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.FLOAT16, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="NgraphBackend")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     with pytest.raises(ValidationError):
         import_onnx_model(model)
 
@@ -407,7 +407,7 @@ def test_cast_errors():
     output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="NgraphBackend")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     with pytest.raises(ValidationError):
         import_onnx_model(model)
 
@@ -420,7 +420,7 @@ def test_cast_errors():
     output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="NgraphBackend")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     with pytest.raises((RuntimeError, OVTypeError)):
         import_onnx_model(model)
 
@@ -433,7 +433,7 @@ def test_cast_errors():
     output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.COMPLEX128, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="NgraphBackend")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     with pytest.raises(RuntimeError):
         import_onnx_model(model)
 

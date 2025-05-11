@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, dft_op) {
-    NodeBuilder::get_ops().register_factory<op::v7::DFT>();
+    NodeBuilder::opset().insert<op::v7::DFT>();
     auto data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 10, 2});
     auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {2});
     auto dft = make_shared<op::v7::DFT>(data, axes);
@@ -27,7 +27,7 @@ TEST(attributes, dft_op) {
 }
 
 TEST(attributes, dft_op_signal) {
-    NodeBuilder::get_ops().register_factory<op::v7::DFT>();
+    NodeBuilder::opset().insert<op::v7::DFT>();
     auto data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 10, 2});
     auto signal = ov::op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20});
     auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {2});

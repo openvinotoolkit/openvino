@@ -39,7 +39,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR OV_COMPILER_IS_CLANG)
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-deprecated-declarations -Wno-multichar)
 endif()
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         DESTINATION tests/sea_itt_lib COMPONENT itt_collector EXCLUDE_FROM_ALL)

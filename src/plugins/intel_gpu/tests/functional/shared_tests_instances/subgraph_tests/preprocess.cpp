@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "shared_test_classes/subgraph/preprocess.hpp"
 
-using namespace SubgraphTestsDefinitions;
+#include <vector>
+
+using namespace ov::test;
 
 namespace {
 
@@ -28,7 +28,7 @@ inline std::vector<preprocess_func> GPU_smoke_preprocess_functions() {
         preprocess_func(resize_nearest, "resize_nearest", 0.01f),
         preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
         preprocess_func(resize_cubic, "resize_cubic", 0.01f),
-        preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { ov::Shape {1, 3, 123, 123} }),
+        preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, {ov::Shape{1, 3, 123, 123}}),
         preprocess_func(crop_basic, "crop_basic", 0.000001f),
         preprocess_func(crop_negative, "crop_negative", 0.000001f),
         preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
@@ -43,10 +43,17 @@ inline std::vector<preprocess_func> GPU_smoke_preprocess_functions() {
     };
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess_GPU, PrePostProcessTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(GPU_smoke_preprocess_functions()),
-                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
+INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess_GPU,
+                         PrePostProcessTest,
+                         ::testing::Combine(::testing::ValuesIn(GPU_smoke_preprocess_functions()),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PrePostProcessTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_PostProcess,
+    PostProcessTest,
+    ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_postprocess_functions()),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    PostProcessTest::getTestCaseName);
 
 }  // namespace

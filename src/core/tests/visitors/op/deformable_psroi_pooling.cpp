@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, deformable_psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformablePSROIPooling>();
+    NodeBuilder::opset().insert<ov::op::v1::DeformablePSROIPooling>();
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 67, 32});
     auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{300, 5});
 
@@ -50,7 +50,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
 }
 
 TEST(attributes, deformable_psroi_pooling_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformablePSROIPooling>();
+    NodeBuilder::opset().insert<ov::op::v1::DeformablePSROIPooling>();
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 67, 32});
     auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{300, 5});
     auto offset = make_shared<ov::op::v0::Parameter>(element::i64, Shape{300, 2, 2, 2});

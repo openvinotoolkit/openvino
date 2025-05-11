@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,13 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/shuffle_channels.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/shuffle_channels.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/shuffle_channels_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/shuffle_channels.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
@@ -28,15 +28,15 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -47,16 +47,16 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ShuffleChannelsTransformationTestValues> ShuffleChannelsTransformationParams;
 
 class ShuffleChannelsTransformation : public LayerTransformation, public testing::WithParamInterface<ShuffleChannelsTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        ov::PartialShape inputShape = std::get<0>(GetParam());
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ShuffleChannelsFunction::getOriginal(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
@@ -64,10 +64,10 @@ public:
             testValues.group);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ov::op::v0::ShuffleChannels>(testValues.params);
+        transform.add<ov::pass::low_precision::ShuffleChannelsTransformation, ov::op::v0::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ShuffleChannelsFunction::getReference(
             testValues.expected.inputPrecision,
             inputShape,
             testValues.expected.dequantizationBefore,
@@ -78,7 +78,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
-        ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        ov::PartialShape inputShape = std::get<0>(obj.param);
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -100,7 +100,7 @@ TEST_P(ShuffleChannelsTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 8, 10 },
     { 4, 3, 8, 10 },
     { -1, -1, -1, -1 }
@@ -148,7 +148,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
@@ -158,7 +158,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         }
@@ -319,8 +319,8 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    ngraph::PartialShape::dynamic()
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
+    ov::PartialShape::dynamic()
 };
 
 const std::vector<ShuffleChannelsTransformationTestValues> testValues = {

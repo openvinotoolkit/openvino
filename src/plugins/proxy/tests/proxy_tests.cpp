@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
@@ -28,7 +27,7 @@ namespace {
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
+                                              mockEngineName + OV_BUILD_POSTFIX);
 }
 
 template <class T>
@@ -492,7 +491,7 @@ void ov::proxy::tests::ProxyTests::reg_plugin(ov::Core& core,
 
     injectProxyEngine(plugin.get());
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                            std::string("mock_engine") + OV_BUILD_POSTFIX),
                          device_name,
                          properties);
     m_mock_plugins.emplace_back(plugin);
@@ -547,7 +546,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capabilities.name()),
                 RO_property(ov::optimal_batch_size.name()),
                 RW_property(ov::hint::performance_mode.name()),
                 RW_property(ov::hint::num_requests.name()),
@@ -596,23 +595,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 std::vector<std::string> capabilities;
                 capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
                 return decltype(ov::device::capabilities)::value_type(capabilities);
-            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : rwProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-                return true;
             } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
                 return decltype(ov::internal::caching_properties)::value_type(caching_properties);
-            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : roProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
             } else if (name == ov::loaded_from_cache.name()) {
                 return m_loaded_from_cache;
             } else if (name == ov::enable_profiling.name()) {
@@ -664,7 +649,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             for (const auto& it : properties) {
                 if (it.first == ov::enable_profiling.name())
                     m_profiling = it.second.as<bool>();
-                else if (it.first == ov::device::id.name())
+                else if (it.first == ov::device::id.name() || it.first == ov::cache_dir.name())
                     continue;
                 else
                     OPENVINO_THROW(get_device_name(), " set config: " + it.first);
@@ -680,7 +665,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capabilities.name()),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -722,23 +707,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 return m_loaded_from_cache;
             } else if (name == ov::enable_profiling.name()) {
                 return decltype(ov::enable_profiling)::value_type{m_profiling};
-            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : rwProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-                return true;
             } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
                 return decltype(ov::internal::caching_properties)::value_type(caching_properties);
-            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : roProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }
@@ -787,7 +758,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capabilities.name()),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -817,20 +788,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 return m_loaded_from_cache;
             } else if (name == ov::enable_profiling.name()) {
                 return decltype(ov::enable_profiling)::value_type{m_profiling};
-            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : rwProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-                return true;
-            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
-                std::vector<std::string> configs;
-                for (const auto& property : roProperties) {
-                    configs.emplace_back(property);
-                }
-                return configs;
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }

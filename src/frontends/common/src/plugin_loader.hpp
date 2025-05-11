@@ -1,19 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 
-#ifdef _WIN32
-static const char PathSeparator[] = ";";
-#else
-static const char PathSeparator[] = ":";
-#endif  // _WIN32
+#include "openvino/frontend/manager.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
+
+std::unordered_map<std::string, std::shared_ptr<void>>& get_shared_objects_map();
+std::mutex& get_shared_objects_mutex();
 
 /// \brief Internal data structure holding by each frontend. Includes library handle and extensions.
 class FrontEndSharedData {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,14 +23,17 @@ public:
     Manager();
     virtual ~Manager();
 
+    //// \brief Construct Manager with a provided name.
+    explicit Manager(std::string name);
+
     //// \brief Construct Manager with shared PassConfig instance
-    explicit Manager(std::shared_ptr<PassConfig> pass_config);
+    explicit Manager(std::shared_ptr<PassConfig> pass_config, std::string name = "UnnamedManager");
 
     /// \brief Register given transformation class type to execution list
     /// Example below show the basic usage of pass::Manager
     ///
     ///     pass::Manager manager;
-    ///     manager.register_pass<MyTransformation>(/*transformation constructor ars*/);
+    ///     manager.register_pass<MyTransformation>(/* transformation constructor args */);
     ///     manager.run_passes(f);
     ///
     /// For some purposes transformation can be registered and disabled by default.
@@ -66,11 +69,8 @@ public:
     ///
     /// \return     Returns true if the model was changed by transformations,
     ///             false otherwise.
-    bool run_passes(std::shared_ptr<Model> model);
+    bool run_passes(const std::shared_ptr<Model>& model);
 
-    void set_pass_visualization(bool new_state) {
-        m_visualize = new_state;
-    }
     /// \brief Set flag to enable/disable running Validate pass after executing
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
@@ -80,7 +80,7 @@ public:
     /// configuration.
     /// This object allows to disable/enable transformations execution, set callback to
     /// particular
-    /// transformation. For mo details see PassConfig class.
+    /// transformation. For more details see PassConfig class.
     std::shared_ptr<PassConfig> get_pass_config() {
         return m_pass_config;
     }
@@ -97,8 +97,11 @@ protected:
 
     std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
-    bool m_visualize = false;
     bool m_per_pass_validation = true;
+    std::string m_name = "UnnamedManager";
+
+private:
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
 };
 }  // namespace pass
 }  // namespace ov

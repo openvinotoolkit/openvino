@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,23 +14,22 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     using parent = typed_primitive_impl_ocl<depth_to_space>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::depth_to_space_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::depth_to_space_params, kernel_selector::depth_to_space_optional_params>;
+    using kernel_params_t = kernel_selector::depth_to_space_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::depth_to_space_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<depth_to_space_impl>(*this);
+        return make_deep_copy<depth_to_space_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<depth_to_space>();
         auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::depth_to_space_optional_params>(impl_param.get_program());
 
         params.block_size = primitive->block_size;
         params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
                                                                            : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
-        return {params, optional_params};
+        return params;
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,22 +7,22 @@
 #include <string>
 #include <memory>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
 class AddTestValues{
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     bool broadcast;
-    std::vector<ngraph::element::Type> precisionOnActivations;
-    std::vector<ngraph::element::Type> expectedPrecisions;
+    std::vector<ov::element::Type> precisionOnActivations;
+    std::vector<ov::element::Type> expectedPrecisions;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     AddTestValues
 > AddTransformationParams;

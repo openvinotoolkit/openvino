@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -17,14 +17,14 @@ class OPENVINO_API RemoveConcatZeroDimInput;
 class OPENVINO_API DisableRemoveConcatZeroDimInput;
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RemoveConcatZeroDimInput transformation
  * removes input of Concat if the tensor size is equal to 0
  */
 
 class RemoveConcatZeroDimInput : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveConcatZeroDimInput", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RemoveConcatZeroDimInput");
     RemoveConcatZeroDimInput();
 };
 
@@ -36,7 +36,7 @@ OPENVINO_API bool remove_concat_zerodim_input_is_disabled(const std::shared_ptr<
 
 class DisableRemoveConcatZeroDimInput : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("DisableRemoveConcatZeroDimInput");
+    OPENVINO_RTTI("DisableRemoveConcatZeroDimInput", "0", ov::RuntimeAttribute);
     DisableRemoveConcatZeroDimInput() = default;
     bool is_copyable() const override {
         return false;

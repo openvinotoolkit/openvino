@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,10 @@ public:
     std::vector<std::pair<ov::element::Type, ov::PartialShape>> get_output_port_infos(
         const std::string& port_name) const {
         return decoder->get_output_port_infos(port_name);
+    }
+
+    int64_t get_version() const {
+        return decoder->get_version();
     }
 
 private:
