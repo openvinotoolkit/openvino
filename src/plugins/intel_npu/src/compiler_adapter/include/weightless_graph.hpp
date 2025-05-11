@@ -7,6 +7,8 @@
 #pragma once
 
 #include "graph.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 
 namespace intel_npu {
 
@@ -29,7 +31,47 @@ public:
 
     ~WeightlessGraph() override;
 
+    // TODO: public for multi-threaded execution
+    struct InputData {
+        // TODO: is it necessary to keep both fields alive? it doesn't seem like
+        // hostTensor field is ever used.
+        std::vector<std::vector<std::shared_ptr<ov::ITensor>>> tensors;
+        ov::SoPtr<ov::ITensor> hostTensor;
+    };
+
+    struct OutputData {
+        // TODO: is it necessary to keep both fields alive? it doesn't seem like
+        // hostTensor field is ever used.
+        std::vector<std::shared_ptr<ov::ITensor>> tensors;
+        ov::SoPtr<ov::ITensor> hostTensor;
+        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
+    };
+
 private:
+    InputData allocateInputs(const std::shared_ptr<IGraph>& initGraph,
+                             const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
+                             const ov::SoPtr<ov::IRemoteContext>& context,
+                             const Config& config);
+
+    OutputData allocateOutputs(const std::shared_ptr<IGraph>& initGraph,
+                               const ov::SoPtr<ov::IRemoteContext>& context,
+                               const Config& config);
+
+    /**
+     * @brief TODO
+     */
+    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
+        const std::shared_ptr<IGraph>& initGraph,
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const Config& config) override;
+
+    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, std::vector<ov::SoPtr<ov::ITensor>>>
+    runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraph,
+                         const std::shared_ptr<const ov::Model>& model,
+                         const ov::SoPtr<ov::IRemoteContext>& context,
+                         const Config& config) override;
+
     std::vector<ze_graph_handle_t> _initHandles;
     std::vector<NetworkMetadata> _initMetadata;
     std::vector<std::unique_ptr<BlobContainer>> _initBlobPtrs;
