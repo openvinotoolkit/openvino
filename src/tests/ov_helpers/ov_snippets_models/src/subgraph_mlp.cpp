@@ -45,16 +45,17 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
+                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
     std::shared_ptr<Node> A = A_param;
     auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                      input_shapes[0].to_shape(),
+                                                      b_shape,
                                                       std::vector<float>{0.1122});
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     std::shared_ptr<Node> current = A;
 
-    auto b_shape = ov::Shape{input_shapes[0].to_shape()[1], input_shapes[0].to_shape()[1]};
     for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
@@ -62,7 +63,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
         current = std::make_shared<ov::op::v1::Multiply>(current, add);
         for (size_t i = 0; i < num_hidden_layers; ++i) {
             auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   input_shapes[0].to_shape(),
+                                                                   b_shape,
                                                                    std::vector<float>{0.1122f + i});
             current = std::make_shared<ov::op::v1::Add>(current, constant);
         }
@@ -85,7 +86,8 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
     if (precisions[0] != ov::element::u8) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
     }
-    auto b_shape = ov::Shape{input_shapes[0].to_shape()[1], input_shapes[0].to_shape()[1]};
+    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
+                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
     auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122});
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
@@ -138,12 +140,13 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     if (precisions[0] != ov::element::u8) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
     }
-    auto b_shape = ov::Shape{input_shapes[0].to_shape()[1], input_shapes[0].to_shape()[1]};
+    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
+                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
 
     std::vector<std::shared_ptr<ov::Node>> constants;
     for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
         constants.push_back(std::make_shared<ov::op::v0::Constant>(
-            ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count}));
+            ov::element::i8, b_shape, std::vector<float>{0.1122f + mm_count}));
     }
 
     std::vector<std::shared_ptr<ov::Node>> transposes;
@@ -151,12 +154,12 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         transposes.push_back(
             std::make_shared<ov::op::v1::Transpose>(
                 constants[mm_count],
-                ov::op::v0::Constant::create(ov::element::i32, {input_shapes[0].get_shape().size()}, std::vector<int64_t>{1, 0})));
+                ov::op::v0::Constant::create(ov::element::i32, {b_shape.size()}, std::vector<int64_t>{1, 0})));
     }
 
     auto zeros_matrix = std::make_shared<ov::op::v0::Constant>(
         ov::element::f32,
-        input_shapes[0].to_shape(),
+        b_shape,
         std::vector<float>{0.1122});
 
     std::vector<std::shared_ptr<ov::Node>> zero_vectors;

@@ -1370,7 +1370,9 @@ void Transformations::MainSnippets() {
                 if (is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0)))
                     return true;
 
-                // TODO: release these conditions
+                // We've only tested MLP sequence tokenization on small model shapes
+                // So we limit tokenization to sequences with small shapes to avoid unexpected behavior
+                // TODO: release these conditions after testing on larger models
                 const auto& input_shape = n->get_input_partial_shape(0);
                 if (input_shape.rank().is_dynamic() || input_shape.size() != 2)
                     return true;
