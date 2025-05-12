@@ -202,14 +202,4 @@ void CompiledModel::configure_stream_executors() {
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
-void CompiledModel::add_weights_inputs(
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const {
-    _weightsInputs.merge(weightsInputs);
-    OPENVINO_ASSERT(weightsInputs.empty(), "Found weights inputs collision between different inits");
-}
-
-void CompiledModel::add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const {
-    _initOutputsTensors.push_back(std::move(tensor));
-}
-
 }  // namespace intel_npu

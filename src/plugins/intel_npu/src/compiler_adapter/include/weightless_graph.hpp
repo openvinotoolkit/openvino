@@ -49,29 +49,21 @@ public:
     };
 
 private:
-    InputData allocateInputs(const std::shared_ptr<IGraph>& initGraph,
-                             const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
-                             const ov::SoPtr<ov::IRemoteContext>& context,
-                             const Config& config);
+    InputData allocate_inputs(const size_t initIndex,
+                              const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants);
 
-    OutputData allocateOutputs(const std::shared_ptr<IGraph>& initGraph,
-                               const ov::SoPtr<ov::IRemoteContext>& context,
-                               const Config& config);
+    OutputData allocate_outputs(const size_t initIndex);
+
+    void create_pipeline(const size_t initIndex);
+
+    void run_pipeline(const size_t initIndex);
 
     /**
      * @brief TODO
      */
-    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
-        const std::shared_ptr<IGraph>& initGraph,
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::SoPtr<ov::IRemoteContext>& context,
-        const Config& config) override;
+    void run_init_single_threaded();
 
-    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, std::vector<ov::SoPtr<ov::ITensor>>>
-    runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraph,
-                         const std::shared_ptr<const ov::Model>& model,
-                         const ov::SoPtr<ov::IRemoteContext>& context,
-                         const Config& config) override;
+    void run_init_multi_threaded();
 
     std::vector<ze_graph_handle_t> _initHandles;
     std::vector<NetworkMetadata> _initMetadata;
@@ -82,9 +74,16 @@ private:
 
     std::vector<std::shared_ptr<CommandQueue>> _initsCommandQueues;
     std::vector<uint32_t> _initsCommandQueueOrdinals;
+    std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
+    std::vector<std::unique_ptr<Fence>> _initsFences;
 
     std::shared_ptr<ov::Model> _model;
-    ov::SoPtr<ov::IRemoteContext> _remoteContext;
+
+    /**
+     * @brief TODO
+     */
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
+    mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
 };
 
 }  // namespace intel_npu

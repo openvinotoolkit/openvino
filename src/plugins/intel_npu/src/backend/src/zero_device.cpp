@@ -9,13 +9,9 @@
 #include <queue>
 
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/type/element_iterator.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "zero_infer_request.hpp"
 
 using namespace intel_npu;

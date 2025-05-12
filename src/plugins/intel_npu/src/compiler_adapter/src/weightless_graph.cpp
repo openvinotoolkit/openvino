@@ -4,11 +4,15 @@
 
 #include "weightless_graph.hpp"
 
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+
 #define USE_SINGLE_THREADED_RUN_INIT 0
 
 namespace {
 
-std::vector<std::shared_ptr<ov::op::v0::Constant>> getAllConstantsInTopologicalOrder(
+std::vector<std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
@@ -56,7 +60,7 @@ class Parallelizer {
 
 public:
     Parallelizer(const std::shared_ptr<const ov::Model>& model, Task1Callable&& task1, Task2Callable&& task2)
-        : _modelConstants(getAllConstantsInTopologicalOrder(model)),
+        : _modelConstants(get_all_constants_in_topological_order(model)),
           _task1(std::forward<Task1Callable>(task1)),
           _task2(std::forward<Task2Callable>(task2)) {}
 
@@ -282,28 +286,25 @@ void WeightlessGraph::initialize(const Config& config) {
         release_blob(config, initBlobPtr, initHandle);
     }
 
-    begin = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 #if USE_SINGLE_THREADED_RUN_INIT
     for (const auto& initGraph : _initGraphs) {
-        auto [weightsInputs, initOutputsTensor] = _device->runInit(initGraph, _model, get_context(), _config);
+        auto [weightsInputs, initOutputsTensor] = run_init_single_threaded();
 
         add_weights_inputs(weightsInputs);
         add_init_out_tensor(std::move(initOutputsTensor));
     }
 #else
-    std::tie(_weightsInputs, _initOutputsTensors) =
-        _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+    std::tie(_weightsInputs, _initOutputsTensors) = run_init_multi_threaded();
 #endif
-    end = std::chrono::steady_clock::now();
-    std::cout << "run_init() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+    std::cout << "run_init() call "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count()
               << "[ms]" << std::endl;
 }
 
-WeightlessGraph::InputData WeightlessGraph::allocateInputs(
-    const std::shared_ptr<IGraph>& initGraph,
-    const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
-    const ov::SoPtr<ov::IRemoteContext>& context,
-    const Config& config) {
+WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
+    const size_t initIndex,
+    const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
     std::vector<std::vector<std::shared_ptr<ov::ITensor>>> inputTensors;
 
     std::chrono::steady_clock::time_point begin;
@@ -317,15 +318,15 @@ WeightlessGraph::InputData WeightlessGraph::allocateInputs(
     begin = std::chrono::steady_clock::now();
     size_t initInputsByteSize = 0;
 
-    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+    for (const IODescriptor& descriptor : _initMetadata.at(initIndex).inputs) {
         initInputsByteSize +=
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
     const ov::SoPtr<ov::ITensor> initInputsTensor = {
-        std::make_shared<ZeroHostTensor>(context._ptr,
-                                         _initStructs,
+        std::make_shared<ZeroHostTensor>(nullptr,
+                                         _zeroInitStruct,
                                          ov::element::Type_t::u8,
                                          ov::Shape({initInputsByteSize}),
                                          ov::intel_npu::TensorType::INPUT)};
@@ -336,7 +337,7 @@ WeightlessGraph::InputData WeightlessGraph::allocateInputs(
         << "[microseconds]" << std::endl;
 
     size_t offset = 0;
-    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+    for (const IODescriptor& descriptor : _initMetadata.at(initIndex).inputs) {
         const size_t id = std::stoi(descriptor.nameFromCompiler);
         auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
         const size_t currentInputSize =
@@ -374,9 +375,7 @@ WeightlessGraph::InputData WeightlessGraph::allocateInputs(
     return {inputTensors, initInputsTensor};
 }
 
-WeightlessGraph::OutputData WeightlessGraph::allocateOutputs(const std::shared_ptr<IGraph>& initGraph,
-                                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const Config& config) {
+WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
     std::vector<std::shared_ptr<ov::ITensor>> outputTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputTensorsMap;
 
@@ -388,15 +387,15 @@ WeightlessGraph::OutputData WeightlessGraph::allocateOutputs(const std::shared_p
     begin = std::chrono::steady_clock::now();
     size_t initOutputsByteSize = 0;
 
-    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+    for (const IODescriptor& descriptor : _initMetadata.at(initIndex).outputs) {
         initOutputsByteSize +=
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
     const ov::SoPtr<ov::ITensor> initOutputsTensor = {
-        std::make_shared<ZeroHostTensor>(context._ptr,
-                                         _initStructs,
+        std::make_shared<ZeroHostTensor>(nullptr,
+                                         _zeroInitStruct,
                                          ov::element::Type_t::u8,
                                          ov::Shape({initOutputsByteSize}),
                                          ov::intel_npu::TensorType::BINDED)};
@@ -407,7 +406,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocateOutputs(const std::shared_p
         << "[microseconds]" << std::endl;
 
     size_t offset = 0;
-    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+    for (const IODescriptor& descriptor : _initMetadata.at(initIndex).outputs) {
         const auto currentOutputBufferLocation = static_cast<unsigned char*>(initOutputsTensor->data()) + offset;
 
         const ov::SoPtr<ov::ITensor> hostTensor =
@@ -426,50 +425,50 @@ WeightlessGraph::OutputData WeightlessGraph::allocateOutputs(const std::shared_p
     return {outputTensors, initOutputsTensor, outputTensorsMap};
 }
 
-std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>>
-WeightlessGraph::runInit(const std::shared_ptr<IGraph>& initGraph,
-                         const std::shared_ptr<const ov::Model>& model,
-                         const ov::SoPtr<ov::IRemoteContext>& context,
-                         const Config& config) {
+void WeightlessGraph::run_init_single_threaded() {
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
     // TODO: this traverses full IR, so ideally only runs once for all inits
-    const auto constants = getAllConstantsInTopologicalOrder(model);
+    const auto constants = get_all_constants_in_topological_order(_model);
 
-    auto [inputTensors, initInputsTensor] = allocateInputs(initGraph, constants, context, config);
+    for (size_t initIndex = 0; initIndex < _initHandles.size(); ++initIndex) {
+        auto [inputTensors, initInputsTensor] = allocate_inputs(initIndex, constants);
 
-    auto [outputTensors, initOutputsTensor, outputTensorsMap] = allocateOutputs(initGraph, context, config);
+        auto [outputTensors, initOutputsTensor, outputTensorsMap] = allocate_outputs(initIndex);
 
-    // Create zero-pipeline and run it (infer init schedule)
-    begin = std::chrono::steady_clock::now();
+        // Create zero-pipeline and run it (infer init schedule)
+        begin = std::chrono::steady_clock::now();
 
-    ze_device_properties_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
+        ze_device_properties_t properties = {};
+        properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                    zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
-    begin = std::chrono::steady_clock::now();
-    Pipeline pipeline(config, _initStructs, initGraph, inputTensors, outputTensors);
-    end = std::chrono::steady_clock::now();
-    std::cout << "Creating the pipeline " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
-              << "[microseconds]" << std::endl;
-    begin = std::chrono::steady_clock::now();
-    pipeline.push();
-    pipeline.pull();
-    end = std::chrono::steady_clock::now();
-    std::cout << "Running the pipeline " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
-              << "[microseconds]" << std::endl;
+        begin = std::chrono::steady_clock::now();
+        // Pipeline pipeline(config, _initStructs, initGraph, inputTensors, outputTensors);
+        create_pipeline();
+        end = std::chrono::steady_clock::now();
+        std::cout << "Creating the pipeline "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                  << std::endl;
+        begin = std::chrono::steady_clock::now();
+        // pipeline.push();
+        // pipeline.pull();
+        run_pipeline();
+        end = std::chrono::steady_clock::now();
+        std::cout << "Running the pipeline "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                  << std::endl;
 
-    return {outputTensorsMap, initOutputsTensor};
+        merge_two_maps(_weightsInputs, outputTensorsMap);
+        _initOutputsTensors.push_back(std::move(initOutputsTensor));
+    }
 }
 
-std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, std::vector<ov::SoPtr<ov::ITensor>>>
-WeightlessGraph::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraphs,
-                                      const std::shared_ptr<const ov::Model>& model,
-                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                      const Config& config) {
+void WeightlessGraph::run_init_multi_threaded() {
     if (initGraphs.size() == 1) {
-        std::cout << "::runInitMultiThreaded() for single init - fallback to ::runInit()" << std::endl;
+        std::cout << "::run_init_multi_threaded() for single init - fallback to ::runInit()" << std::endl;
         auto [map, tensor] = runInit(initGraphs.front(), model, context, config);
         return {map, {tensor}};
     }
@@ -481,14 +480,14 @@ WeightlessGraph::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>
     // allocate I/O -> create Pipeline -> run Pipeline
     //                                    allocate I/O -> create Pipeline -> run Pipeline
     Parallelizer multiThreadedRunner(
-        model,
+        _model,
         [&](const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants, int64_t graphIndex) -> QueueData {
             const auto& initGraph = initGraphs[graphIndex];
 
             QueueData data{};
             data.initGraphIndex = graphIndex;
-            data.inputs = allocateInputs(initGraph, constants, context, config);
-            data.outputs = allocateOutputs(initGraph, context, config);
+            data.inputs = allocate_inputs(initGraph, constants, _config);
+            data.outputs = allocate_outputs(initGraph, _config);
             return data;
         },
         [&](QueueData&& data, std::condition_variable& cv, std::atomic_bool& flag) {
@@ -523,13 +522,60 @@ WeightlessGraph::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>
                       << std::endl;
 
             // TODO: pre-allocate those well in advance? (outside of this loop)
-            merge_two_maps(weightsInputs, data.outputs.tensorsMap);
-            initTensors.push_back(data.outputs.hostTensor);
+            merge_two_maps(_weightsInputs, data.outputs.tensorsMap);
+            _initOutputsTensors.push_back(data.outputs.hostTensor);
         });
 
     multiThreadedRunner.callForAllAndWait(initGraphs);
+}
 
-    return {weightsInputs, initTensors};
+void WeightlessGraph::create_pipeline(const size_t initIndex) {
+    _logger.debug("Init Pipeline - initialize started");
+
+    if (_zeGraphExt == nullptr) {
+        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+
+    _initsCommandLists.at(initIndex) =
+        std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
+    _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueues.at(initIndex));
+
+    size_t io_index = 0;
+    for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
+        auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index));
+        void* data = remote_tensor->get_original_memory();
+
+        _zeGraphExt->setGraphArgumentValue(_initHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+
+        ++io_index;
+    }
+
+    io_index = 0;
+    for (const auto& desc : _initsOutputDescriptors.at(initIndex)) {
+        auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
+        void* data = remote_tensor->get_original_memory();
+
+        _zeGraphExt->setGraphArgumentValue(_initHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        ++io_index;
+    }
+
+    _initsCommandLists.at(initIndex)->appendGraphExecute(static_cast<ze_graph_handle_t>(_initHandles.at(initIndex)),
+                                                         nullptr);
+
+    _logger.debug("Init Pipeline - initialize completed");
+}
+
+void WeightlessGraph::run_pipeline(const size_t initIndex) {
+    _logger.debug("Init Pipeline - push() started");
+    _initsCommandLists.at(initIndex)->close();
+
+    _initsCommandQueues.at(initIndex)->executeCommandList(*_initsCommandLists.at(initIndex),
+                                                          *_initsFences.at(initIndex));
+    _logger.debug("Init Pipeline - push() completed");
+
+    _logger.debug("Init Pipeline - pull() started");
+    _initsFences.at(initIndex)->hostSynchronize();
+    _logger.debug("Init Pipeline - pull() completed");
 }
 
 void ZeroInferRequest::set_weights_inputs(

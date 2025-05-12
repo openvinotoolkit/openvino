@@ -62,26 +62,14 @@ public:
 private:
     void configure_stream_executors();
 
-    void add_weights_inputs(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const;
-    void add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const;
-
     FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
-    /**
-     * @brief TODO
-     *
-     */
-    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
-    mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
-
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
-    std::vector<std::shared_ptr<IGraph>> _initGraphs;
-    std::shared_ptr<ov::Model> _initModel;
 };
 
 }  //  namespace intel_npu
