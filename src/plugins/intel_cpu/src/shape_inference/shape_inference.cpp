@@ -36,6 +36,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "custom/convolution.hpp"
 #include "deformable_convolution_shape_inference.hpp"
 #include "deformable_psroi_pooling_shape_inference.hpp"
 #include "depth_to_space_shape_inference.hpp"
@@ -79,6 +80,9 @@
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -115,6 +119,7 @@
 #include "slice_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
+#include "sparse_fill_empty_rows_shape_inference.hpp"
 #include "split_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
@@ -140,7 +145,7 @@ class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
 
-    ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{std::move(node)} {
+    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_input_ranks{}, m_node{std::move(node)} {
         static_assert(std::is_same_v<int64_t, Dimension::value_type>, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < m_node->get_input_size(); ++i) {
             const auto& shape = m_node->get_input_partial_shape(i);
@@ -310,7 +315,10 @@ public:
 /** @brief Base shape inference object implementing the IStaticShapeInfer with padding support. */
 class ShapeInferPaddingBase : public ShapeInferBase {
 public:
-    ShapeInferPaddingBase(std::shared_ptr<Node> node) : ShapeInferBase(std::move(node)), m_pads_begin{}, m_pads_end{} {}
+    ShapeInferPaddingBase(std::shared_ptr<ov::Node> node)
+        : ShapeInferBase(std::move(node)),
+          m_pads_begin{},
+          m_pads_end{} {}
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;
@@ -346,7 +354,7 @@ public:
 };
 
 /**
- * @brief Shape inference using tensor accessor to get constant data and padding
+ * @brief Shape inference without using tensor accessor to get constant data and padding
  *
  * @tparam TOp   Type of operator.
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
@@ -441,6 +449,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset16
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),
     // opset15
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
@@ -552,7 +561,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(opset1::BinaryConvolution, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::Broadcast, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::Concat, ShapeInferTA, util::bit::mask()),
-    OV_OP_SHAPE_INFER_MASK_REG(opset1::Convolution, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::ConvolutionBackpropData, ShapeInferPaddingTA, util::bit::mask(2)),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::CTCGreedyDecoder, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::DeformableConvolution, ShapeInferPaddingTA, util::bit::mask()),

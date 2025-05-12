@@ -4,7 +4,8 @@
 
 #include "one_hot.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -22,7 +23,7 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
     }
     auto result = input_shapes.front().get();
     auto depth_pos = result.begin();
-    if (result.size() > 0) {
+    if (!result.empty()) {
         depth_pos += m_axis;
     }
     result.insert(depth_pos, depth);

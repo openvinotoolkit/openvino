@@ -5,6 +5,12 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "shared_test_classes/subgraph/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 
@@ -176,7 +182,7 @@ protected:
                                                                         num_groups,
                                                                         epsilon);
 
-        return std::make_shared<Model>(NodeVector{group_norm}, ParameterVector{input});
+        return std::make_shared<Model>(OutputVector{group_norm}, ParameterVector{input});
     }
 };
 

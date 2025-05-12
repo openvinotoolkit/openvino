@@ -51,7 +51,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
@@ -86,40 +86,12 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                           : outputDescriptor.shapeFromCompiler,
             outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
-}
-
-/**
- * @brief Setting batching mode
- * @details  In the case of older drivers, we force batching to compiler mode since it is not
- * supported. Othwersie set it tu AUTO if this wasn't set by the user
- * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
- * @param config A configuration map.
- */
-void set_batch_config(bool isBatchingSupported, FilteredConfig& config) {
-    if (!isBatchingSupported) {
-        if (config.has<BATCH_MODE>()) {
-            if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                OPENVINO_THROW("Batching on plugin is not supported with this driver version");
-            }
-        }
-
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
-
-    if (!config.has<BATCH_MODE>()) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -248,16 +220,15 @@ void Plugin::init_options() {
             REGISTER_OPTION(TURBO);
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
-    }
-
-    filter_config_by_compiler_support(_globalConfig);
-
-    if (_backend) {
+        // register backend options
         _backend->registerOptions(*_options);
     }
 
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
+
+    // filter out unsupported options
+    filter_config_by_compiler_support(_globalConfig);
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -460,14 +431,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
+        !localConfig.has(ov::intel_npu::batch_mode.name())) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
 
-    if (!model->get_variables().empty()) {
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
-
-        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
@@ -540,45 +514,75 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig, remoteProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig);
+    return std::make_shared<RemoteContextImpl>(_backend);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
+
+    ov::AnyMap npu_plugin_properties = properties;
+    ov::Tensor tensor;
+    bool blobAllocatedByPlugin = false;
+
+    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
+        blob_it != npu_plugin_properties.end()) {
+        auto compiledBlob = blob_it->second.as<ov::Tensor>();
+        if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
+            loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
+            tensor = ov::Tensor(
+                compiledBlob,
+                ov::Coordinate{static_cast<size_t>(origStream.tellg())},
+                ov::Coordinate{compiledBlob.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+        } else {
+            tensor = compiledBlob;
+        }
+        npu_plugin_properties.erase(blob_it);
+    } else {  // fallback creating plugin handled buffer for blob
+        size_t streamSize = MetadataBase::getFileSize(origStream);
+        tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+        blobAllocatedByPlugin = true;
+        origStream.read(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+        if (!origStream) {
+            OPENVINO_THROW("Failed to read data from stream!");
+        }
+    }
+
+    ov::SharedStreamBuffer buffer =
+        ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+    std::istream stream{&buffer};
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        ov::npuw::s11n::IndicatorType compiled_model_indicator;
+        ov::npuw::s11n::read(stream, compiled_model_indicator);
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-        // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+
+        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
+        } else {
+            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+        }
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
     // Drop NPUW properties if there are any
-    ov::AnyMap npu_plugin_properties;
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW") == it->first.npos) {
-            npu_plugin_properties.insert(*it);
+        if (it->first.find("NPUW") != it->first.npos) {
+            npu_plugin_properties.erase(it);
         }
-    }
-
-    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
-    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
-        blob_it != npu_plugin_properties.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                     compiled_blob.get_byte_size(),
-                                                                     compiled_blob);
-        npu_plugin_properties.erase(blob_it);
     }
 
     CompilerAdapterFactory compilerAdapterFactory;
@@ -595,8 +599,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
 
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
-
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
         _logger.warning(
@@ -608,35 +610,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            graphSize = storedMeta->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-            graphSize = MetadataBase::getFileSize(stream);
+            tensor = ov::Tensor(tensor,
+                                ov::Coordinate{0},
+                                ov::Coordinate{storedMeta->get_blob_size()});  // ROI tensor to skip NPU plugin metadata
         }
-
-        std::unique_ptr<BlobContainer> blobPtr;
-
-        if (modelBuffer == nullptr) {
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-            if (!stream) {
-                OPENVINO_THROW("Failed to read data from stream!");
-            }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
-        } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
-        }
-
-        auto graph = compiler->parse(std::move(blobPtr), localConfig);
+        auto graph = compiler->parse(std::move(tensor), blobAllocatedByPlugin, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

@@ -1,6 +1,11 @@
 name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
@@ -20,7 +25,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -280,7 +285,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
@@ -288,7 +293,7 @@ jobs:
 
       - name: Upload OpenVINO PDB package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
@@ -296,7 +301,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -304,7 +309,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -345,7 +350,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -409,7 +414,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -437,7 +442,7 @@ jobs:
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -452,7 +457,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

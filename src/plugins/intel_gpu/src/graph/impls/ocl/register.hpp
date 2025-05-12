@@ -26,7 +26,6 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
@@ -86,7 +85,6 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
-REGISTER_OCL(col2im);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);
@@ -159,6 +157,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
+REGISTER_OCL(ISTFT);
 
 #undef REGISTER_OCL
 

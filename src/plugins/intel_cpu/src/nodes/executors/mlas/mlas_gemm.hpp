@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
@@ -14,10 +15,7 @@ namespace ov::intel_cpu {
 
 class MlasGemmExecutor : public Executor {
 public:
-    MlasGemmExecutor(const FCAttrs& attrs,
-                     const PostOps& postOps,
-                     const MemoryArgs& memory,
-                     const ExecutorContext::CPtr& context);
+    MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 
