@@ -180,6 +180,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
+      PACK_DIR: "${{ github.workspace }}\\pack"
       NODE_VERSION: 21
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
@@ -198,10 +199,20 @@ jobs:
           pattern: openvino_[js]*
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
           merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (JS)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.PACK_DIR }}
 
       - name: Extract OpenVINO packages
         run: Expand-Archive openvino_js_package.zip -DestinationPath .
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: Expand-Archive openvino_node_npm_package.zip -DestinationPath .
+        working-directory: ${{ env.PACK_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -240,7 +251,7 @@ jobs:
       - name: Test installation of openvino-node package
         working-directory: ${{ github.workspace }}/project-uses-openvino-node
         run: |
-          npm i openvino-node
+          npm i ${{ env.PACK_DIR }}/openvino-node-2025.2.0.tgz
           node -e "const { addon: ov } = require('openvino-node'); console.log(ov);"
 
   Openvino_tokenizers:
