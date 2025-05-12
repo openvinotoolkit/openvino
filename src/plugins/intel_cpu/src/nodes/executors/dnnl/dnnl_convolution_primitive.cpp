@@ -11,6 +11,7 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
@@ -33,6 +34,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 
 namespace ov::intel_cpu {
@@ -812,12 +814,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
-        const bool zeroPaddingR = std::all_of(attrs.paddingR.begin(), attrs.paddingR.end(), [](const auto& p) {
-            return p == 0;
+        const bool fusedDWconv = std::any_of(attrs.postOps.begin(), attrs.postOps.end(), [](const auto& p) {
+            return std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(p) != nullptr;
         });
 
         if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled
-            !zeroPaddingR) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
+            fusedDWconv) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
             return std::make_tuple(attrs.paddingL, attrs.paddingR);
         }
 
