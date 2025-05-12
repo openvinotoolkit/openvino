@@ -10,19 +10,18 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
-    const bool is_single_thread)
+    const bool is_optimized_single_stream)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
-      m_internal_request(request),
-      m_task_executor(task_executor) {
+      m_internal_request(request) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
+    m_stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
     m_infer_func = [this]() {
         ov::IAsyncInferRequest::infer();
     };
-    if (is_single_thread) {
+    if (is_optimized_single_stream) {
         m_infer_func = [this]() {
             check_tensors();
-            auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
-            streams_executor->execute([this]() {
+            m_stream_executor->execute([this]() {
                 m_internal_request->infer();
             });
         };
