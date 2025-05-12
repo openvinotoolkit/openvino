@@ -66,4 +66,4 @@ namespace ov {}  // namespace ov
 #    define OPENVINO_API_EXTERN
 #else
 #    define OPENVINO_API_EXTERN OPENVINO_API
-#endif // _MSC_VER
+#endif  // _MSC_VER
