@@ -356,6 +356,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
         utils::EltwiseTypes::MULTIPLY,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
+        utils::EltwiseTypes::POWER,
     };
     return eltwiseOpTypesBinInp;
 }

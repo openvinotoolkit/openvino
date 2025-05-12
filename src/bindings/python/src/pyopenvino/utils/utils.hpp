@@ -68,7 +68,7 @@ protected:
         if (python_direction == -1) {
             return pos_type(off_type(-1));
         }
-        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int>();
+        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int64_t>();
         return pos_type(abs_pos);
     }
 
