@@ -11,8 +11,6 @@
 
 #include "cpu_parallel.hpp"
 #include "openvino/core/parallel.hpp"
-#include "tbb/parallel_for.h"
-#include "tbb/task_arena.h"
 
 namespace ov::intel_cpu {
 
@@ -41,6 +39,12 @@ public:
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
         m_cpu_parallel->parallel_simple(n, fn);
+    }
+    void set_partitioner(ov::hint::TbbPartitioner partitoner) {
+        m_partitoner = partitoner;
+    }
+    void set_multiplier(size_t multiplier) {
+        m_multiplier = multiplier;
     }
 };
 
