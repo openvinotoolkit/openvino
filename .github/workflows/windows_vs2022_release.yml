@@ -1,6 +1,11 @@
 name: Windows (VS 2022, Python 3.11, Release)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -13,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
@@ -247,6 +252,7 @@ jobs:
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
+      target-branch: ${{ inputs.target-branch }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
