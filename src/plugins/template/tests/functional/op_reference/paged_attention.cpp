@@ -58,28 +58,7 @@ class ReferencePagedAttentionLayerTest : public testing::TestWithParam<PagedAtte
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        query = std::get<0>(params).data;
-        key = std::get<1>(params).data;
-        value = std::get<2>(params).data;
-        key_cache = std::get<3>(params).data;
-        value_cache = std::get<4>(params).data;
-        past_lens = std::get<5>(params).data;
-        subsequence_begins = std::get<6>(params).data;
-        block_indices = std::get<7>(params).data;
-        block_indices_begins = std::get<8>(params).data;
-        scale = std::get<9>(params).data;
-        sliding_window = std::get<10>(params).data;
-        alibi_slopes = std::get<11>(params).data;
-        max_context_len = std::get<12>(params).data;
-        rotated_block_indices = std::get<13>(params).data;
-        rotation_deltas = std::get<14>(params).data;
-        rotation_trig_lut = std::get<15>(params).data;
-        free_block_indices = std::get<16>(params).data;
-        max_blocks = std::get<17>(params).data;
-        targetDevice = std::get<19>(params);
-
-        function = CreateFunction(params);
-        inputData = {query,
+        const auto& [query,
                      key,
                      value,
                      key_cache,
@@ -94,9 +73,33 @@ public:
                      max_context_len,
                      rotated_block_indices,
                      rotation_deltas,
-                     rotation_trig_lut};
+                     rotation_trig_lut,
+                     free_block_indices,
+                     max_blocks,
+                     ref_out_data,
+                     target_device] = params;
 
-        refOutData = {std::get<18>(params).data};
+        function = CreateFunction(params);
+        inputData = {query.data,
+                     key.data,
+                     value.data,
+                     key_cache.data,
+                     value_cache.data,
+                     past_lens.data,
+                     subsequence_begins.data,
+                     block_indices.data,
+                     block_indices_begins.data,
+                     scale.data,
+                     sliding_window.data,
+                     alibi_slopes.data,
+                     max_context_len.data,
+                     rotated_block_indices.data,
+                     rotation_deltas.data,
+                     rotation_trig_lut.data,
+                     free_block_indices.data,
+                     max_blocks.data};
+
+        refOutData = {ref_out_data.data};
     }
 
     static std::string tensor2str(const reference_tests::Tensor& t) {
@@ -152,43 +155,45 @@ public:
 
 private:
     static std::shared_ptr<ov::Model> CreateFunction(const PagedAttentionParams& params) {
-        const auto& query = std::get<0>(params).data;
-        const auto& key = std::get<1>(params).data;
-        const auto& value = std::get<2>(params).data;
-        const auto& key_cache = std::get<3>(params).data;
-        const auto& value_cache = std::get<4>(params).data;
-        const auto& scale = std::get<9>(params).data;
-        const auto& sliding_window = std::get<10>(params).data;
-        const auto& max_context_len = std::get<12>(params).data;
-        const auto& past_lens = std::get<5>(params).data;
-        const auto& subsequence_begins = std::get<6>(params).data;
-        const auto& block_indices = std::get<7>(params).data;
-        const auto& block_indices_begins = std::get<8>(params).data;
-        const auto& alibi_slopes = std::get<11>(params).data;
-        const auto& rotated_block_indices = std::get<13>(params).data;
-        const auto& rotation_deltas = std::get<14>(params).data;
-        const auto& rotation_trig_lut = std::get<15>(params).data;
-        const auto& free_block_indices = std::get<16>(params).data;
-        const auto& max_blocks = std::get<17>(params).data;
+        const auto& [query,
+                     key,
+                     value,
+                     key_cache,
+                     value_cache,
+                     past_lens,
+                     subsequence_begins,
+                     block_indices,
+                     block_indices_begins,
+                     scale,
+                     sliding_window,
+                     alibi_slopes,
+                     max_context_len,
+                     rotated_block_indices,
+                     rotation_deltas,
+                     rotation_trig_lut,
+                     free_block_indices,
+                     max_blocks,
+                     ref_out_data,
+                     target_device] = params;
 
-        const std::vector<ov::Tensor> funcInputs = {query,
-                                                    key,
-                                                    value,
-                                                    key_cache,
-                                                    value_cache,
-                                                    past_lens,
-                                                    subsequence_begins,
-                                                    block_indices,
-                                                    block_indices_begins,
-                                                    scale,
-                                                    sliding_window,
-                                                    alibi_slopes,
-                                                    max_context_len,
-                                                    rotated_block_indices,
-                                                    rotation_deltas,
-                                                    rotation_trig_lut,
-                                                    free_block_indices,
-                                                    max_blocks};
+        const std::vector<ov::Tensor> funcInputs = {query.data,
+                                                    key.data,
+                                                    value.data,
+                                                    key_cache.data,
+                                                    value_cache.data,
+                                                    past_lens.data,
+                                                    subsequence_begins.data,
+                                                    block_indices.data,
+                                                    block_indices_begins.data,
+                                                    scale.data,
+                                                    sliding_window.data,
+                                                    alibi_slopes.data,
+                                                    max_context_len.data,
+                                                    rotated_block_indices.data,
+                                                    rotation_deltas.data,
+                                                    rotation_trig_lut.data,
+                                                    free_block_indices.data,
+                                                    max_blocks.data};
         ov::ParameterVector inputParams;
         for (auto& input : funcInputs) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_shape()));
@@ -216,26 +221,6 @@ private:
         // TODO add reference tests for second output.
         return std::make_shared<ov::Model>(ov::OutputVector{paged_attn->output(0)}, inputParams);
     }
-
-    ov::Tensor query;
-    ov::Tensor key;
-    ov::Tensor value;
-    ov::Tensor key_cache;
-    ov::Tensor value_cache;
-    ov::Tensor scale;
-    ov::Tensor sliding_window;
-    ov::Tensor max_context_len;
-    ov::Tensor past_lens;
-    ov::Tensor subsequence_begins;
-    ov::Tensor block_indices;
-    ov::Tensor block_indices_begins;
-    ov::Tensor alibi_slopes;
-    ov::Tensor rotated_block_indices;
-    ov::Tensor rotation_deltas;
-    ov::Tensor rotation_trig_lut;
-    ov::Tensor free_block_indices;
-    ov::Tensor max_blocks;
-    std::string targetDevice;
 };
 
 TEST_P(ReferencePagedAttentionLayerTest, CompareWithRefs) {

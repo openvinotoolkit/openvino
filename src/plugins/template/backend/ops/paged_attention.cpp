@@ -62,7 +62,7 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
     case ov::element::f32:
         return evaluate<ov::element::f32>(outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", element_type.get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }
     return true;
 }
