@@ -149,7 +149,7 @@ private:
         auto blobFileName = getBlobFile(id);
 
         if (std::filesystem::exists(blobFileName)) {
-            (void)std::filesystem::remove(blobFileName);
+            std::ignore = std::filesystem::remove(blobFileName);
         }
     }
 };
