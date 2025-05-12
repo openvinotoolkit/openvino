@@ -11,7 +11,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 
-using namespace testing;
+namespace ov {
+namespace testing {
 
 class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::PagedAttentionExtension> {};
 
@@ -181,21 +182,8 @@ TEST(type_prop, paged_attention_invalid_rank_query) {
     auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
     auto scalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    ov::OutputVector args = {query,
-                             key,
-                             value,
-                             dummy,
-                             dummy,
-                             scalar,
-                             scalar,
-                             scalar,
-                             scalar,
-                             dummy,
-                             scalar,
-                             dummy,
-                             scalar,
-                             dummy1D,
-                             dummy1D};
+    ov::OutputVector args =
+        {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar, dummy1D, dummy1D};
 
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
