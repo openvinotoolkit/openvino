@@ -79,16 +79,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             replace_node(list_unpack, split);
 
             return true;
-        } else if (auto split_with_sizes = cast_fw_node(input_node, "aten::split_with_sizes")) {
-            auto split_lengths = concat_list_construct(split_with_sizes->get_input_source_output(1));
-            auto split = rg.make<v1::VariadicSplit>(split_with_sizes->get_input_source_output(0),
-                                                    split_with_sizes->get_input_source_output(2),
-                                                    split_lengths);
-
-            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
-            replace_node(list_unpack, split);
-
-            return true;
         } else if (auto chunk = cast_fw_node(input_node, {"aten::chunk", "aten::unsafe_chunk"})) {
             if (list_unpack->get_output_size() == 1) {
                 list_unpack->output(0).replace(input_node->input_value(0));

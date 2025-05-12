@@ -74,6 +74,34 @@ class TestSlice2D(PytorchLayerTest):
         )
 
 
+class TestSliceComplex(PytorchLayerTest):
+    def _prepare_input(self, params):
+        return (np.array(range(32), np.float32).reshape(16, 2),
+                np.array(params, dtype=np.int32))
+
+    def create_model(self):
+        class aten_slice(torch.nn.Module):
+            def forward(self, x, params):
+                x = torch.view_as_complex(x)
+                x = x[params[0]: params[1]: params[2]]
+                return torch.view_as_real(x)
+
+        return aten_slice(), None, "aten::slice"
+
+    @pytest.mark.parametrize("params", [[0, -1, 1],
+                                        [0, -1, 3],
+                                        [0, 5, 3],
+                                        [2, 7, 3],
+                                        [-7, -15, 2],
+                                        [-1, -7, 2],
+                                        [5, 2, 1]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_slice_complex(self, ie_device, precision, ir_version, params):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"params": params})
+
+
 class TestSliceAndSqueeze(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(1, 1, 32).astype(np.float32),)
@@ -93,5 +121,6 @@ class TestSliceAndSqueeze(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_slice_and_squeeze(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
