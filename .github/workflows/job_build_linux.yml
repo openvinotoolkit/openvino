@@ -148,6 +148,7 @@ jobs:
           target_arch: ${{ inputs.arch }}
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       #
       # Print system info

@@ -101,6 +101,7 @@ jobs:
           target_arch: 'x86_64'
           build_type: ${{ inputs.build-type }}
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       #
       # Print system info
