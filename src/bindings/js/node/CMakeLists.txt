@@ -91,7 +91,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
 endif()
 
 if(APPLE)
-    target_link_options(${PROJECT_NAME} PRIVATE -Wl,-undefined,suppress,-flat_namespace)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,-undefined,dynamic_lookup,-bundle,-flat_namespace)
 elseif(AARCH64 OR ARM)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
 endif()
