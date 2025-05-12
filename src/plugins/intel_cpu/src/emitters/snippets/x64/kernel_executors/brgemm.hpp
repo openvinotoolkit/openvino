@@ -104,11 +104,11 @@ struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
         return nullptr;
     }
     const dnnl::impl::cpu::x64::brgemm_desc_t& get_brg() const override {
-        dnnl::impl::cpu::x64::brgemm_desc_t brg_desc;
-        return brg_desc;
+        return brg;
     }
 
 private:
+    dnnl::impl::cpu::x64::brgemm_desc_t brg;
     BrgemmKernelConfig m_config;
 };
 #endif
