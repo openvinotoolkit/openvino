@@ -2664,15 +2664,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             t.add_primitive(prim);
             added_prim_ids.push_back(prim->id);
         }
-        // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
-        for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
-            auto& in = prim_of_fused_node->input[i];
-            if (!has_primitive_id(added_prim_ids, in.pid)) {
-                auto in_new = tag_port_number(get_node().get_dependency(i).id(), get_node().get_dependency_with_port(i).second);
-                GPU_DEBUG_TRACE_DETAIL << "    update prim_of_fused_node " << in << " -> " << in_new << "\n";
-                in = in_new;
-            }
-        }
+
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
