@@ -33,7 +33,6 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
-#include "moe_expert_inst.h"
 #include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
@@ -1245,6 +1244,7 @@ void primitive_inst::update_impl(bool use_async_compilation) {
             }
         }
 #endif
+
         _impl = _impls_factory->get_primitive_impl_for_params(*this, *_impl_params, use_async_compilation);
         GPU_DEBUG_TRACE_DETAIL << id() << " impl update: was: " << prev_impl_str << " now: " << _impl->get_kernel_name() << std::endl;
     }
@@ -1845,7 +1845,7 @@ void primitive_inst::prepare_primitive() {
     const bool prev_execution_skipped = can_be_optimized()
                         || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
-    if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks() && !get_node().is_type<moe_expert>()) {
+    if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
 
@@ -1954,7 +1954,7 @@ void primitive_inst::prepare_primitive() {
     }
     on_execute();
 
-    if (!get_node().is_type<condition>() && !get_node().is_type<loop>() && !get_node().is_type<moe_expert>()) {
+    if (!get_node().is_type<condition>() && !get_node().is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
             if (!orig_outputs[i] && !_outputs[i])
                 continue;
@@ -1977,7 +1977,7 @@ void primitive_inst::prepare_primitive() {
     if (!_exec_deps.empty()) {
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (_node->is_type<moe_expert>() || out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) ||
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) ||
             (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);

@@ -15,59 +15,6 @@
 #define EACH_EXPERT_WEIGHTS_OFFSET_SIZE 64
 
 #if GATE_UP_ENABLE
-// x: [1, K]
-// y: [1, N]
-inline void gemv_n2(const __global uchar* weight, __global half* scales, __global uchar* zps, const __global half* x,
-    __global half* y, int N, int K, const bool silu) { // __local half x_cache[K]
-    // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
-    int id_sg = get_local_id(2);
-    int id_local = get_local_id(1);
-
-    int n_start = get_global_id(2) * N_BLOCK;
-    int n_end = n_start + N_BLOCK;
-    for (int n = n_start; n < n_end; n++) {
-        const __global uchar* B = weight + n * K / 2;
-        __global half* S = scales + n;
-        __global uchar* Z = zps + n / 2;
-        half sum_all = 0;
-        for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
-            half4 sum = 0;
-            half s = S[0];
-            ushort z = Z[0];
-            half z_hf = convert_half((n & 1) ? (z >> 4) : (z & 0xf));
-            // read 1 group(32*2 or 16*4 bytes)
-            ushort bs;
-            half b_even, b_odd;
-#define ACC(idx, idx_sum)    \
-            bs = b[idx]; b_even = convert_half(bs & 0xf); b_odd = convert_half(bs >> 4);    \
-            sum[2 * idx_sum + 0] = fma(a[2 * idx + 0], b_even - z_hf, sum[2 * idx_sum + 0]);    \
-            sum[2 * idx_sum + 1] = fma(a[2 * idx + 1], b_odd - z_hf,  sum[2 * idx_sum + 1]);
-
-#if SUBGROUP_SIZE == 32
-            half4 a = ((const __global half4*)(x + gk * GROUP_SIZE))[id_local];
-            uchar2 b = ((const __global uchar2*)(B + gk * GROUP_SIZE / 2))[id_local];
-            ACC(0, 0); ACC(1, 1);
-            sum_all += (sum[0] + sum[1] + sum[2] + sum[3]) * s;
-#else
-            half8 a = ((const __global half8*)(x + gk * GROUP_SIZE))[id_local];
-            uchar4 b = ((const __global uchar4*)(B + gk * GROUP_SIZE / 2))[id_local];
-            ACC(0, 0); ACC(1, 1); ACC(2, 0); ACC(3, 1);
-            sum_all += (sum[0] + sum[1] + sum[2] + sum[3]) * s;
-#endif
-#undef ACC
-        }
-
-        sum_all = sub_group_reduce_add(sum_all);
-        if (id_local == 0) {
-			if (silu) {
-                y[n] *= sum_all / (1 + exp(-sum_all));
-			} else {
-                y[n] = sum_all;
-			}
-        }
-    }
-}
-
 inline void gemv_n2x(const __global uchar* weight,
                     __global half* scales,
                     __global uchar* zps,
@@ -210,55 +157,6 @@ KERNEL (mlp_gate_up)(
 }
 
 #elif DOWN_ENABLE
-// x: [1, K]
-// y: [1, N]
-inline void gemv_n(const __global uchar* weight, __global half* scales, __global uchar* zps, const __global half* x,
-    __global half* y, int N, int K, half routing_weights) { // __local half x_cache[K]
-    // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
-    int id_sg = get_local_id(2);
-    int id_local = get_local_id(1);
-
-    int n_start = get_global_id(2) * N_BLOCK;
-    int n_end = n_start + N_BLOCK;
-    for (int n = n_start; n < n_end; n++) {
-        const __global uchar* B = weight + n * K / 2;
-        __global half* S = scales + n;
-        __global uchar* Z = zps + n / 2;
-        half sum_all = 0;
-        for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
-            half4 sum = 0;
-            half s = S[0];
-            ushort z = Z[0];
-            half z_hf = convert_half((n & 1) ? (z >> 4) : (z & 0xf));
-            // read 1 group(32*2 or 16*4 bytes)
-            ushort bs;
-            half b_even, b_odd;
-#define ACC(idx, idx_sum)    \
-            bs = b[idx]; b_even = convert_half(bs & 0xf); b_odd = convert_half(bs >> 4);    \
-            sum[2 * idx_sum + 0] = fma(a[2 * idx + 0], b_even - z_hf, sum[2 * idx_sum + 0]);    \
-            sum[2 * idx_sum + 1] = fma(a[2 * idx + 1], b_odd - z_hf,  sum[2 * idx_sum + 1]);
-
-#if SUBGROUP_SIZE == 32
-            half4 a = ((const __global half4*)(x + gk * GROUP_SIZE))[id_local];
-            uchar2 b = ((const __global uchar2*)(B + gk * GROUP_SIZE / 2))[id_local];
-            ACC(0, 0); ACC(1, 1);
-            sum_all += (sum[0] + sum[1] + sum[2] + sum[3]) * s;
-#else
-            half8 a = ((const __global half8*)(x + gk * GROUP_SIZE))[id_local];
-            uchar4 b = ((const __global uchar4*)(B + gk * GROUP_SIZE / 2))[id_local];
-            ACC(0, 0); ACC(1, 1); ACC(2, 0); ACC(3, 1);
-            sum_all += (sum[0] + sum[1] + sum[2] + sum[3]) * s;
-#endif
-#undef ACC
-        }
-
-        sum_all = sub_group_reduce_add(sum_all);
-
-        if (id_local == 0)
-            y[n] = sum_all * routing_weights;
-    }
-}
-
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (mlp_down)(
     const __global int* expert_list,

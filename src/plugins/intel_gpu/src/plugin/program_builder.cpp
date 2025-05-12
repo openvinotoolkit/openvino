@@ -147,7 +147,6 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
-        std::vector<ov::threading::Task> tasks;
         for (const auto& op : ops) {
             CreateSingleLayerPrimitive(op);
         }
@@ -253,7 +252,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
-        if (ov::is_type<op::Placeholder>(prevOp) /*|| ov::is_type<ov::op::v8::If>(prevOp)*/) {
+        if (ov::is_type<op::Placeholder>(prevOp)) {
             inputInfo.push_back(cldnn::input_info{});
             continue;
         }

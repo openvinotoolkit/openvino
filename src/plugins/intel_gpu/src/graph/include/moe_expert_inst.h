@@ -46,9 +46,6 @@ public:
     static layout calc_output_layout(moe_expert_node const& /* node */, kernel_impl_params const& impl_param);
     static std::string to_string(moe_expert_node const& node);
     typed_primitive_inst(network& network, moe_expert_node const& node);
-
-    void update_output_layout();
-    void update_output_memory(bool need_reset);
 };
 
 using moe_expert_inst = typed_primitive_inst<moe_expert>;

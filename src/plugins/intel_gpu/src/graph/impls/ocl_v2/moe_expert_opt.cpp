@@ -647,8 +647,26 @@ public:
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
-        node.get_program().get_engine().create_onednn_engine(node.get_program().get_config());
-        const auto& moe = node.as<moe_expert>().get_primitive();
+        init(node.as<moe_expert>().get_primitive());
+
+        add_stage(softmax_topk, params);
+        add_stage(gather, params);
+        add_stage(scatter, params);
+        add_stage(mlp_gate_up, params);
+        add_stage(mlp_down, params);
+        add_stage(mlp_reduce, params);
+        if (!(_up_use_cl && _down_use_cl)) {
+            add_stage(cm_mlp_reduce, params);
+        }
+        if (!_up_use_cl) {
+            add_stage(cm_mlp_up, params);
+        }
+        if (!_down_use_cl) {
+            add_stage(cm_mlp_down, params);
+        }
+    }
+
+    void init(const std::shared_ptr<const moe_expert>& moe) {
         const auto& moe_mlp_params = moe->_mlp_params;
         _dnnl_weights.resize(moe_mlp_params.size());
         _hidden_size = static_cast<int>(moe->_config.hidden_size);
@@ -685,25 +703,21 @@ public:
             }
         }
 
-        auto mask = moe->_cm_mask;
+        auto mask = 1;
+        auto p = std::getenv("CM_MASK");
+        if (p) {
+            mask = std::atoi(p);
+        }
+        // TODO(moe): enable cm support
+        mask = 0;
         _up_use_cl = !(mask & 1);
         _down_use_cl = !(mask & 2);
+    }
 
-        add_stage(softmax_topk, params);
-        add_stage(gather, params);
-        add_stage(scatter, params);
-        add_stage(mlp_gate_up, params);
-        add_stage(mlp_down, params);
-        add_stage(mlp_reduce, params);
-        if (mask) {
-            add_stage(cm_mlp_reduce, params);
-        }
-        if (!_up_use_cl) {
-            add_stage(cm_mlp_up, params);
-        }
-        if (!_down_use_cl) {
-            add_stage(cm_mlp_down, params);
-        }
+    void load(BinaryInputBuffer& ib) override {
+        PrimitiveImplOCL::load(ib);
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+        init(impl_params->typed_desc<moe_expert>());
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -902,8 +916,6 @@ public:
         event::ptr ret;
 
         {
-            const auto& scale_zps = moe->_scale_zp;
-
             // scratch.up = up(x) * silu(gate(x))
             if (_up_use_cl) {
                 execute_stage({},
@@ -914,13 +926,13 @@ public:
                               {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                               {1, subgroup_size, SUBGROUP_NUM});
             } else {
-                execute_stage({},
-                              instance,
-                              *cm_mlp_up,
-                              {hidden_states_mem_ptr, batch_mem_ptr, mlp_weight_mem.weights_base, scale_zps.gate_up_addrs},
-                              {scratch.up},
-                              {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
-                              {1, 4});
+                // execute_stage({},
+                //               instance,
+                //               *cm_mlp_up,
+                //               {hidden_states_mem_ptr, batch_mem_ptr, mlp_weight_mem.weights_base, scale_zps.gate_up_addrs},
+                //               {scratch.up},
+                //               {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
+                //               {1, 4});
             }
             // scratch.y = down(scratch.up) * weight[expert_no]
             if (_down_use_cl) {
@@ -932,19 +944,19 @@ public:
                               {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                               {1, subgroup_size, SUBGROUP_NUM});
             } else {
-                execute_stage({},
-                              instance,
-                              *cm_mlp_down,
-                              {scratch.up,
-                               batch_mem_ptr,
-                               routing_mem_ptr,
-                               mlp_weight_mem.weights_base,
-                               scale_zps.down_addrs,
-                               scale_zps.down_scales_addrs,
-                               scale_zps.down_zp_addrs},
-                              {scratch.y},
-                              {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
-                              {1, 4});
+                // execute_stage({},
+                //               instance,
+                //               *cm_mlp_down,
+                //               {scratch.up,
+                //                batch_mem_ptr,
+                //                routing_mem_ptr,
+                //                mlp_weight_mem.weights_base,
+                //                scale_zps.down_addrs,
+                //                scale_zps.down_scales_addrs,
+                //                scale_zps.down_zp_addrs},
+                //               {scratch.y},
+                //               {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
+                //               {1, 4});
             }
             // final = sum(scratch.y)
             if (!_up_use_cl || !_down_use_cl) {
@@ -1071,23 +1083,18 @@ public:
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
-        instance.update_output_layout();
-        instance.update_output_memory(batch != 1);
-
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, batch == 1);
 
-        {
-            // softmax+topk
-            auto lws_size = moe->_config.expert_num;
-            execute_stage(events,
-                          instance,
-                          *softmax_topk,
-                          {instance.input_memory_ptr(1)},
-                          {scratch.topk_id, scratch.topk_weights},
-                          {static_cast<size_t>(batch), lws_size},
-                          {1, lws_size});
-        }
+        // softmax+topk
+        auto lws_size = moe->_config.expert_num;
+        execute_stage(events,
+                        instance,
+                        *softmax_topk,
+                        {instance.input_memory_ptr(1)},
+                        {scratch.topk_id, scratch.topk_weights},
+                        {static_cast<size_t>(batch), lws_size},
+                        {1, lws_size});
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1096,22 +1103,22 @@ public:
             return exec_single_batch(instance, scratch);
         }
 
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto final_hidden_states_layout = instance.get_output_layout(0);
+
+        // onednn path will accumulate to the output
+        final_hidden_states_mem_ptr->fill(stream, false);
+
         expert_mask_cpu expert_mask;
-        {
-            // Wait for topk is ready
-            stream.finish();
-
-            // [batch, max_topk]
-            auto topk_id_mem = scratch.topk_id;
-
-            get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
-        }
+        // Wait for topk is ready
+        stream.finish();
+        // [batch, max_topk]
+        auto topk_id_mem = scratch.topk_id;
+        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
         cldnn::event::ptr result_event;
 
-        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto final_hidden_states_layout = instance.get_output_layout(0);
         auto routing_mem_ptr = scratch.topk_weights;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
@@ -1122,7 +1129,7 @@ public:
             }
             OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
-        auto lws_size = get_best_lws(_hidden_size);
+        lws_size = get_best_lws(_hidden_size);
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
         for (size_t expert_no = 0; expert_no < config.expert_num; expert_no++) {
@@ -1194,4 +1201,5 @@ std::unique_ptr<primitive_impl> MoeExpertOpt::create_impl(const program_node& no
 
 }  // namespace ov::intel_gpu::ocl
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_expert)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeExpertOptImpl)

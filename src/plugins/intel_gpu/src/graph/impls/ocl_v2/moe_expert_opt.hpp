@@ -24,11 +24,10 @@ struct MoeExpertOpt : public ImplementationManager {
             format::bfyx,
         };
 
+        // TODO(MOE): support more precision
         static constexpr std::array supported_types = {
-            ov::element::f32,
+            // ov::element::f32,
             ov::element::f16,
-            // ov::element::u8,
-            // ov::element::i8,
         };
 
         const auto& in0_layout = node.get_input_layout(0);

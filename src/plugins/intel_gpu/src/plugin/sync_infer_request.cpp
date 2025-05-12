@@ -459,7 +459,7 @@ void SyncInferRequest::wait() {
             stream.wait_for_events(copy_events);
         }
     }
-    // auto perf3 = LinuxPerf::Profile("reset");
+
     network.reset_output_remote_memory_ptrs();
 
     // finally collect profiling info

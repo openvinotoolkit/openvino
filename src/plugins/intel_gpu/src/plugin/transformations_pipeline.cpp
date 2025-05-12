@@ -88,20 +88,13 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/increase_position_ids_precision.hpp"
-#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
-#include "plugin/transformations/optimize_subsequent_reshapes.hpp"
-#include "plugin/transformations/lora_horizontal_fusion.hpp"
-#include "plugin/transformations/sink_reshape.hpp"
-#include "transformations/common_optimizations/fuse_moe_expert.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_moe_expert.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -184,7 +177,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/utils/print_model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -450,6 +442,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
         manager.register_pass<ov::pass::FuseMoeExpert>();
         manager.register_pass<ov::pass::FuseMoeExpertRouter>();
         pass_config->set_callback<ov::pass::FuseMoeExpert>(
@@ -464,6 +457,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return true;
             });
+#endif
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression

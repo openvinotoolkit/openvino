@@ -23,18 +23,18 @@ TEST_P(MOEExpertTest, Inference) {
     }
 }
 
-// TODO(MOE): cache feature
 TEST_P(MOEExpertTest, Inference_cached) {
     core->set_property(ov::cache_dir(""));
     auto func_bak = function;
     std::vector<ov::Tensor> actualOutputs, expectedOutputs;
     ElementType inType;
     std::tie(inType) = this->GetParam();
+    targetDevice = ov::test::utils::DEVICE_CPU;
     expectedOutputs = run_test(functionRefs);
-    check_op("moe_expert", 0);
 
     function = func_bak;
 
+    targetDevice = ov::test::utils::DEVICE_GPU;
     std::stringstream ss;
     ss << "gpu_model_cache_"
        << std::hash<std::string>{}(
@@ -64,7 +64,8 @@ TEST_P(MOEExpertTest, Inference_cached) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MOEExpert_basic,
                          MOEExpertTest,
-                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::f16)),
+                         // TODO(MOE): support f32
+                         ::testing::Combine(::testing::Values(ov::element::f16)),
                          MOEExpertTest::getTestCaseName);
 
 } // namespace
