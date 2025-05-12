@@ -26,4 +26,4 @@ public:
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
 
-}  // namespace ov::npuw::util
+}  // namespace ov ::npuw ::util
