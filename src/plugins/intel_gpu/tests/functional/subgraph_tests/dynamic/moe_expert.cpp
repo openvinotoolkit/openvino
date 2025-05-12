@@ -4,12 +4,20 @@
 
 #include "shared_test_classes/subgraph/moe_pattern.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 
 namespace {
 using namespace ov;
 using namespace ov::test;
 
 TEST_P(MOEExpertTest, Inference) {
+    {
+        // moe depends on onednn which depends on xmx
+        auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+        if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+            GTEST_SKIP();
+    }
+    auto ret = core->get_property(ov::test::utils::DEVICE_GPU, ov::internal::supported_properties);
     targetDevice = ov::test::utils::DEVICE_GPU;
     auto actualOutputs = run_test(function);
     check_op("moe_expert", 1);
@@ -24,6 +32,11 @@ TEST_P(MOEExpertTest, Inference) {
 }
 
 TEST_P(MOEExpertTest, Inference_cached) {
+    {
+        auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+        if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+            GTEST_SKIP();
+    }
     core->set_property(ov::cache_dir(""));
     auto func_bak = function;
     std::vector<ov::Tensor> actualOutputs, expectedOutputs;

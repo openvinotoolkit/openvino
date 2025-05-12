@@ -443,20 +443,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        manager.register_pass<ov::pass::FuseMoeExpert>();
-        manager.register_pass<ov::pass::FuseMoeExpertRouter>();
-        pass_config->set_callback<ov::pass::FuseMoeExpert>(
-            [](const_node_ptr& node) -> bool {
+        // moe expert requires onednn enabled which needs in order queue.
+        if (config.get_queue_type() == QueueTypes::in_order) {
+            manager.register_pass<ov::pass::FuseMoeExpert>();
+            manager.register_pass<ov::pass::FuseMoeExpertRouter>();
+            pass_config->set_callback<ov::pass::FuseMoeExpert>([](const_node_ptr& node) -> bool {
                 auto moe = as_type_ptr<const ov::op::internal::MOEExpert>(node);
                 const auto& config = moe->get_config();
                 // TODO(MOE): support more cases
                 if (config.weight_type == ov::element::u4 && config.scale_type == ov::element::f16 && config.zp_type == ov::element::u4 &&
                     config.group_size == 128) {
-                    // TODO(MOE): force using onednn
                     return false;
                 }
                 return true;
             });
+        }
 #endif
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:

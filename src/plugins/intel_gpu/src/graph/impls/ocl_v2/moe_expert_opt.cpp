@@ -4,27 +4,28 @@
 
 #include "moe_expert_opt.hpp"
 
-#include <initializer_list>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
-#include <sstream>
-#include <string_view>
-#include <tuple>
-#include <utility>
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#    include <initializer_list>
+#    include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl_ocl.hpp>
+#    include <sstream>
+#    include <string_view>
+#    include <tuple>
+#    include <utility>
 
-#include "cm/utils/kernel_generator.hpp"
-#include "common_utils/jitter.hpp"
-#include "debug_helper.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/moe_expert.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "moe_expert_inst.h"
-#include "ocl_v2/utils/fused_ops_jitter.hpp"
-#include "ocl_v2/utils/jitter.hpp"
-#include "primitive_inst.h"
-#include "primitive_ocl_base.hpp"
-#include "utils/kernel_generator.hpp"
+#    include "cm/utils/kernel_generator.hpp"
+#    include "common_utils/jitter.hpp"
+#    include "debug_helper.hpp"
+#    include "intel_gpu/graph/kernel_impl_params.hpp"
+#    include "intel_gpu/primitives/moe_expert.hpp"
+#    include "intel_gpu/runtime/stream.hpp"
+#    include "intel_gpu/runtime/utils.hpp"
+#    include "moe_expert_inst.h"
+#    include "ocl_v2/utils/fused_ops_jitter.hpp"
+#    include "ocl_v2/utils/jitter.hpp"
+#    include "primitive_inst.h"
+#    include "primitive_ocl_base.hpp"
+#    include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -421,8 +422,8 @@ protected:
     }
 };
 
-#define N_BLOCK      4
-#define SUBGROUP_NUM 8
+#    define N_BLOCK      4
+#    define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_expert>();
@@ -1200,3 +1201,15 @@ std::unique_ptr<primitive_impl> MoeExpertOpt::create_impl(const program_node& no
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_expert)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeExpertOptImpl)
+
+#else
+
+namespace ov::intel_gpu::ocl {
+
+std::unique_ptr<primitive_impl> MoeExpertOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    OPENVINO_THROW("MoeExpertOpt depends on onednn.");
+}
+
+}  // namespace ov::intel_gpu::ocl
+
+#endif
