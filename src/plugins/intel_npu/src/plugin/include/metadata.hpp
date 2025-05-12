@@ -159,7 +159,7 @@ template <uint32_t version>
 struct Metadata : public MetadataBase {};
 
 /**
- * @brief Template specialization for metadata version 1.0.
+ * @brief Template specialization for metadata version 2.0.
  */
 template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
@@ -187,7 +187,8 @@ public:
      *
      *              - true: if all versions match.
      *
-     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
+     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to
+     * 'YES'.
      */
     bool is_compatible() override;
 

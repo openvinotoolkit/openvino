@@ -8,7 +8,6 @@
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
 
