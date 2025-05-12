@@ -325,12 +325,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_scalar_scale,
 
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_non_multiples_groups = {
+    {{{}, {{4, 2, 8}}}, {8, 8}, 8lu},
     {{{}, {{1, 3, 192}}}, {192, 128}, 96lu},
 };
 
 std::vector<ov::AnyMap> filter_additional_config_non_multiples_groups() {
     std::vector<ov::AnyMap> additional_config = {
-        {{ov::hint::dynamic_quantization_group_size(64)}}
+        {{ov::hint::dynamic_quantization_group_size(2)}},
+        {{ov::hint::dynamic_quantization_group_size(8)}},
+        {{ov::hint::dynamic_quantization_group_size(64)}},
     };
     return additional_config;
 }

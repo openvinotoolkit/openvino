@@ -430,7 +430,11 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
     const float reciprocalNComplex = 1.0f / nComplex;
-    const auto& twiddles = twiddlesMapDFT.find(nComplex)->second;
+    auto twiddlesIter = twiddlesMapDFT.find(nComplex);
+    if (twiddlesIter == twiddlesMapDFT.end()) {
+        THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
+    }
+    const auto& twiddles = twiddlesIter->second;
 
     std::function<void(size_t)> blockIteration;
     if (dftKernel != nullptr) {
@@ -595,25 +599,18 @@ bool DFT::needPrepareParams() const {
 }
 
 void DFT::createPrimitive() {
-    if (!outputShapesDefined() || !m_is_axes_size_const) {
-        if (mayiuse(cpu::x64::sse41)) {
-            createJITKernels(true, true);
-        }
-        return;
-    }
-
-    bool hasDFT = false;
-    bool hasFFT = false;
-
-    axes = getAxes();
-    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-
-    for (auto axis : axes) {
-        size_t nComplex = outputShape[axis];
-        if (!IsPowerOfTwo(nComplex)) {
-            hasDFT = true;
-        } else {
-            hasFFT = true;
+    bool hasDFT = true;
+    bool hasFFT = true;
+    if (m_is_axes_size_const && outputShapesDefined()) {
+        axes = getAxes();
+        const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+        hasDFT = hasFFT = false;
+        for (auto axis : axes) {
+            if (IsPowerOfTwo(outputShape[axis])) {
+                hasFFT = true;
+            } else {
+                hasDFT = true;
+            }
         }
     }
     if (mayiuse(cpu::x64::sse41)) {

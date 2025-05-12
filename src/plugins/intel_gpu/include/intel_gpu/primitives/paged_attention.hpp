@@ -35,7 +35,8 @@ struct paged_attention : public primitive_base<paged_attention> {
 
         auto rhs_casted = downcast<const paged_attention>(rhs);
 
-        return head_size == rhs_casted.head_size &&
+        return k_head_size == rhs_casted.k_head_size &&
+               v_head_size == rhs_casted.v_head_size &&
                heads_num == rhs_casted.heads_num &&
                kv_heads_num == rhs_casted.kv_heads_num &&
                sliding_window == rhs_casted.sliding_window &&
@@ -46,7 +47,8 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<paged_attention>::save(ob);
-        ob << head_size;
+        ob << k_head_size;
+        ob << v_head_size;
         ob << heads_num;
         ob << kv_heads_num;
         ob << has_alibi;
@@ -63,7 +65,8 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<paged_attention>::load(ib);
-        ib >> head_size;
+        ib >> k_head_size;
+        ib >> v_head_size;
         ib >> heads_num;
         ib >> kv_heads_num;
         ib >> has_alibi;
@@ -82,7 +85,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     std::optional<float> scale_val{};
-    size_t head_size = 0;
+    size_t k_head_size = 0;
+    size_t v_head_size = 0;
     size_t heads_num = 0;
     size_t kv_heads_num = 0;
     size_t sliding_window = 0;

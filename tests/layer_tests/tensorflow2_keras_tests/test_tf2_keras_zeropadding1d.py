@@ -30,8 +30,7 @@ class TestKerasZeroPadding1D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_zeropadding1d(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+    def test_keras_zeropadding1d(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_zeropadding1d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
