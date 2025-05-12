@@ -38,7 +38,11 @@ public:
     virtual ~Graph() override;
 
 protected:
+    bool release_blob(const Config& config, const std::unique_ptr<BlobContainer>& blobPtr, ze_graph_handle_t handle);
+
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     Logger _logger;
 
@@ -47,10 +51,6 @@ protected:
     bool _blobIsReleased = false;
 
 private:
-    bool release_blob(const Config& config);
-
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-
     const ov::SoPtr<ICompiler> _compiler;
 };
 

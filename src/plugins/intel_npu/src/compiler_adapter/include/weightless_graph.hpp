@@ -22,6 +22,7 @@ public:
                     const std::vector<ze_graph_handle_t>& initGraphHandles,
                     const std::vector<NetworkMetadata>& initMetadata,
                     const std::vector<std::unique_ptr<BlobContainer>>& initBlobPtrs,
+                    const std::shared_ptr<ov::Model>& model,
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
@@ -75,6 +76,15 @@ private:
     std::vector<ze_graph_handle_t> _initHandles;
     std::vector<NetworkMetadata> _initMetadata;
     std::vector<std::unique_ptr<BlobContainer>> _initBlobPtrs;
+
+    std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
+    std::vector<std::vector<ArgumentDescriptor>> _initsOutputDescriptors;
+
+    std::vector<std::shared_ptr<CommandQueue>> _initsCommandQueues;
+    std::vector<uint32_t> _initsCommandQueueOrdinals;
+
+    std::shared_ptr<ov::Model> _model;
+    ov::SoPtr<ov::IRemoteContext> _remoteContext;
 };
 
 }  // namespace intel_npu

@@ -4,6 +4,8 @@
 
 #include "weightless_graph.hpp"
 
+#define USE_SINGLE_THREADED_RUN_INIT 0
+
 namespace {
 
 std::vector<std::shared_ptr<ov::op::v0::Constant>> getAllConstantsInTopologicalOrder(
@@ -133,6 +135,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::vector<ze_graph_handle_t>& initGraphHandles,
                                  const std::vector<NetworkMetadata>& initMetadata,
                                  const std::vector<std::unique_ptr<BlobContainer>>& initBlobPtrs,
+                                 const std::shared_ptr<ov::Model>& model,
                                  const Config& config,
                                  const ov::SoPtr<ICompiler>& compiler = {nullptr})
     : Graph(zeGraphExt,
@@ -144,7 +147,8 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             compiler),
       _initHandles(initGraphHandles),
       _initMetadata(initMetadata),
-      _initBlobPtrs(initBlobPtrs) {}
+      _initBlobPtrs(initBlobPtrs),
+      _model(model) {}
 
 std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {
@@ -205,79 +209,94 @@ std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ost
 }
 
 void WeightlessGraph::initialize(const Config& config) {
-    _logger.debug("Graph initialize start");
+    // The same operations are performed for the main schedule
+    Graph::initialize(config);
 
-    if (_zeGraphExt == nullptr || _handle == nullptr) {
-        return;
-    }
+    // Simplified version for init schedules
+    const size_t numberOfInits = _initHandles.size();
+    _initsInputDescriptors.reserve(numberOfInits);  // Can be removed after initialization?
+    _initsOutputDescriptors.reserve(numberOfInits);
+    _initsCommandQueues.reserve(numberOfInits);
+    _initsCommandQueueOrdinals.reserve(numberOfInits);
 
-    _logger.debug("performing pfnGetProperties");
-    ze_graph_properties_t props{};
-    props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_handle, &props);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
+    for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+        _logger.debug("Graph initialize start, init schedule ", initIndex);
 
-    _logger.debug("performing pfnGetArgumentProperties3");
-    for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_3_t arg3{};
-        arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_handle, index, &arg3);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+        ze_graph_handle_t initHandle = _initHandles.at(initIndex);
+        std::unique_ptr<BlobContainer>& initBlobPtr = _initBlobPtrs.at(initIndex);
+        std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
+        std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
+        std::shared_ptr<CommandQueue>& initCommandQueue = _initsCommandQueues.at(initIndex);
+        uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
 
-        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
-        } else {
-            _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+        _logger.debug("performing pfnGetProperties");
+        ze_graph_properties_t props{};
+        props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(initHandle, &props);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
+
+        _logger.debug("performing pfnGetArgumentProperties3");
+        for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
+            ze_graph_argument_properties_3_t arg3{};
+            arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
+            auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(initHandle, index, &arg3);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+            if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
+                initInputDescriptors.push_back(ArgumentDescriptor{arg3, index});
+            } else {
+                initOutputDescriptors.push_back(ArgumentDescriptor{arg3, index});
+            }
         }
-    }
 
-    _input_descriptors.shrink_to_fit();
-    _output_descriptors.shrink_to_fit();
+        initInputDescriptors.shrink_to_fit();
+        initOutputDescriptors.shrink_to_fit();
 
-    _command_queue_group_ordinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                                          ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-    uint32_t command_queue_options = 0;
-
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
-            OPENVINO_THROW("Turbo is not supported by the current driver");
+        uint32_t command_queue_options = 0;
+        if (config.has<TURBO>() && config.get<TURBO>()) {
+            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+
+        // TODO do we want this for init schedules?
+        if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+        }
+
+        initCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                          zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                          initCommandQueueOrdinal,
+                                                          command_queue_options);
+
+        if (config.has<WORKLOAD_TYPE>()) {
+            set_workload_type(config.get<WORKLOAD_TYPE>(), initCommandQueue);
+        }
+        _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
+        _logger.debug("Graph initialize finish, init schedule ", initIndex);
+
+        //  We are allowed to release the original blob because weights were loaded in NPU memory during
+        //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
+        //  releasing it here to avoid unnecessary memory usage.
+        release_blob(config, initBlobPtr, initHandle);
     }
 
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    begin = std::chrono::steady_clock::now();
+#if USE_SINGLE_THREADED_RUN_INIT
+    for (const auto& initGraph : _initGraphs) {
+        auto [weightsInputs, initOutputsTensor] = _device->runInit(initGraph, _model, get_context(), _config);
+
+        add_weights_inputs(weightsInputs);
+        add_init_out_tensor(std::move(initOutputsTensor));
     }
-
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _command_queue_group_ordinal,
-                                                    command_queue_options);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
-    }
-
-    _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
-
-    _logger.debug("Graph initialize finish");
-
-    //  We are allowed to release the original blob because weights were loaded in NPU memory during
-    //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
-    //  releasing it here to avoid unnecessary memory usage.
-    _blobIsReleased = release_blob(config);
-
-    _batch_size = get_batch_size(_metadata);
-
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
-
-        _last_submitted_event.resize(number_of_command_lists);
-    }
+#else
+    std::tie(_weightsInputs, _initOutputsTensors) =
+        _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+#endif
+    end = std::chrono::steady_clock::now();
+    std::cout << "run_init() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocateInputs(
@@ -511,6 +530,28 @@ WeightlessGraph::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>
     multiThreadedRunner.callForAllAndWait(initGraphs);
 
     return {weightsInputs, initTensors};
+}
+
+void ZeroInferRequest::set_weights_inputs(
+    const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) {
+    // TODO can optimize this a little
+    for (const auto& [weightName, weightTensor] : weightsInputs) {
+        size_t inputIndex;
+        for (inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
+            const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+            if (inputDescriptor.isMainInputWeights && inputDescriptor.nameFromCompiler == weightName) {
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(inputIndex != _metadata.inputs.size(),
+                        "Did not find an input bearing the ",
+                        weightName,
+                        " weights name");
+
+        _userInputTensors.at(inputIndex) = {weightTensor};
+        set_tensor_data(weightTensor, inputIndex, INPUT);
+    }
 }
 
 WeightlessGraph::~WeightlessGraph() {

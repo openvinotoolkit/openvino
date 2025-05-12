@@ -27,8 +27,6 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 namespace intel_npu {
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
-
 using intel_npu::envVarStrToBool;
 
 std::chrono::steady_clock::time_point begin;
@@ -56,28 +54,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
     configure_stream_executors();
 
-    if (!_initGraphs.empty()) {
-        if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
-            begin = std::chrono::steady_clock::now();
-#if USE_SINGLE_THREADED_RUN_INIT
-            for (const auto& initGraph : _initGraphs) {
-                auto [weightsInputs, initOutputsTensor] =
-                    _device->runInit(initGraph, _initModel, get_context(), _config);
-
-                add_weights_inputs(weightsInputs);
-                add_init_out_tensor(std::move(initOutputsTensor));
-            }
-#else
-            std::tie(_weightsInputs, _initOutputsTensors) =
-                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
-#endif
-            end = std::chrono::steady_clock::now();
-            std::cout << "run_init() call within the \"CompiledModel\" ctor "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-        }
-    }
-
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
@@ -104,46 +80,6 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
-
-    if (!_initGraphs.empty()) {
-        if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
-            begin = std::chrono::steady_clock::now();
-            // TODO: in theory, initialize() could also be pipelined with runInit?
-            for (const auto& initGraph : _initGraphs) {
-                initGraph->initialize(_config);
-            }
-            end = std::chrono::steady_clock::now();
-            std::cout << "Init graph(s) initialize() "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-
-            begin = std::chrono::steady_clock::now();
-#if USE_SINGLE_THREADED_RUN_INIT
-            for (const auto& initGraph : _initGraphs) {
-                auto [weightsInputs, initOutputsTensor] =
-                    _device->runInit(initGraph, _initModel, get_context(), _config);
-
-                add_weights_inputs(weightsInputs);
-                add_init_out_tensor(std::move(initOutputsTensor));
-            }
-#else
-            std::tie(_weightsInputs, _initOutputsTensors) =
-                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
-#endif
-            end = std::chrono::steady_clock::now();
-            std::cout << "run_init() call during inference request creation "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-        }
-
-        OPENVINO_ASSERT(_device != nullptr);
-
-        begin = std::chrono::steady_clock::now();
-        syncInferRequest->set_weights_inputs(_weightsInputs);
-        end = std::chrono::steady_clock::now();
-        std::cout << "set_weights_inputs() call "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-    }
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
                                                get_task_executor(),
