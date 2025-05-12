@@ -286,6 +286,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::brgconv_avx2_dw,
         impl_desc_type::brgconv_avx2_1x1,
         impl_desc_type::brgconv_avx2,
+        impl_desc_type::jit_avx2_1x1_dw,
         impl_desc_type::jit_uni_dw,
         impl_desc_type::jit_uni_1x1,
         impl_desc_type::jit_uni,
