@@ -310,6 +310,13 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         padding_end_x = std::max(pad_x, 0);
         padding_end_y = std::max(pad_y, 0);
         padding_end_z = std::max(pad_z, 0);
+    } else if (padding_begin.size() == 1 && node.get_program().is_new_shape_infer()) {
+        auto input_limit_x = -pad_x + (conv_layout.spatial(1) - 1) * stride_x +
+                            (filter_layout.spatial(1) - 1) * dilation_x + 1;
+
+
+        padding_begin_x = std::max(pad_x, 0);
+        padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(1), 0);
     } else {
         auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
