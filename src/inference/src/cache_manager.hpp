@@ -104,7 +104,11 @@ class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
 
     ov::util::Path getBlobFile(const std::string& blobHash) const {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+        return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
+#else
         return ov::util::make_path(m_cachePath, blobHash + ".blob");
+#endif
     }
 
 public:
