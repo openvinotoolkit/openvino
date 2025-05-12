@@ -104,7 +104,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
-    const auto is_static_input = K.get_partial_shape().is_static();
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
     auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
         return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
