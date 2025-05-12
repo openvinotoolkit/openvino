@@ -120,9 +120,6 @@ struct moe_expert : public primitive_base<moe_expert> {
         ib >> _mlp_weights_mem.weights_base;
         create_weights_memory(_mlp_weights_mem, _config, ib.get_engine(), _mlp_params);
     }
-
-protected:
-    std::vector<input_info> get_dependencies() const override { return {}; }
 };
 
 }  // namespace cldnn

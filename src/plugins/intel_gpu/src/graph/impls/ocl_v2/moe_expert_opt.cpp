@@ -12,9 +12,12 @@
 #include <tuple>
 #include <utility>
 
+#include "cm/utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
+#include "debug_helper.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_expert.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "moe_expert_inst.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
@@ -22,9 +25,6 @@
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
-#include "cm/utils/kernel_generator.hpp"
-#include "debug_helper.hpp"
-#include "intel_gpu/runtime/stream.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -421,7 +421,7 @@ protected:
     }
 };
 
-#define N_BLOCK 4
+#define N_BLOCK      4
 #define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
@@ -745,26 +745,26 @@ public:
         // softmax+topk
         layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
         layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_topk_id, false);               // topk_id
-        internal_buffers.emplace_back(layout_topk_weights, false);          // topk_weights
+        internal_buffers.emplace_back(layout_topk_id, false);       // topk_id
+        internal_buffers.emplace_back(layout_topk_weights, false);  // topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
         layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.intermediate_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, false);            // up
-        internal_buffers.emplace_back(layout_down_out, false);              // y
+        internal_buffers.emplace_back(layout_gateup_out, false);  // up
+        internal_buffers.emplace_back(layout_down_out, false);    // y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, false);              // x, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, false);  // x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_down_out, false);              // routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, false);            // gate, scratch.gate has same layout with up
+        internal_buffers.emplace_back(layout_down_out, false);    // routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, false);  // gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
         for (int i = 0; i < expert_num; i++) {
-            internal_buffers.emplace_back(index_layout, true);              // batch
-            internal_buffers.emplace_back(index_layout, true);              // topk
+            internal_buffers.emplace_back(index_layout, true);  // batch
+            internal_buffers.emplace_back(index_layout, true);  // topk
         }
 
         return internal_buffers;
@@ -785,19 +785,17 @@ public:
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
                 scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
-                scratch.expert_masks[i].topk  = intermediates_memories[7 + 2 * i + 1];
+                scratch.expert_masks[i].topk = intermediates_memories[7 + 2 * i + 1];
             }
         }
     }
 
-    void get_expert_mask_from_gpu(const MOEExpert::Config &config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOEExpert::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [batch, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
 
-        int max_expert_num = static_cast<int>(config.expert_num),
-            max_topk = static_cast<int>(config.topk),
-            max_tokens = static_cast<int>(shape[0]);
+        int max_expert_num = static_cast<int>(config.expert_num), max_topk = static_cast<int>(config.topk), max_tokens = static_cast<int>(shape[0]);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
         expert_mask.batch.resize(max_expert_num, {});
@@ -840,8 +838,7 @@ public:
         }
     }
 
-    void copy_expert_mask_to_gpu(stream& stream, const expert_mask_cpu& expert_mask,
-                                 size_t expert_no, expert_mask_gpu& expert_mask_mem) {
+    void copy_expert_mask_to_gpu(stream& stream, const expert_mask_cpu& expert_mask, size_t expert_no, expert_mask_gpu& expert_mask_mem) {
         auto size = expert_mask.batch[expert_no].size() * sizeof(int);
 
         {
@@ -1089,12 +1086,12 @@ public:
         // softmax+topk
         auto lws_size = moe->_config.expert_num;
         execute_stage(events,
-                        instance,
-                        *softmax_topk,
-                        {instance.input_memory_ptr(1)},
-                        {scratch.topk_id, scratch.topk_weights},
-                        {static_cast<size_t>(batch), lws_size},
-                        {1, lws_size});
+                      instance,
+                      *softmax_topk,
+                      {instance.input_memory_ptr(1)},
+                      {scratch.topk_id, scratch.topk_weights},
+                      {static_cast<size_t>(batch), lws_size},
+                      {1, lws_size});
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.

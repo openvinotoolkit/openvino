@@ -6,6 +6,7 @@
 
 #include <array>
 #include <memory>
+
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
@@ -28,10 +29,10 @@ public:
         size_t hidden_size = 0;
         size_t intermediate_size = 0;
         size_t fused_router_logic = false;
-        size_t group_size = 0;                                  // quantized group size, 0 for no group size. same for gate/up/down
-        ov::element::Type_t weight_type = ov::element::dynamic; // same for gate/up/down
-        ov::element::Type_t scale_type = ov::element::dynamic;  // same for gate/up/down
-        ov::element::Type_t zp_type = ov::element::dynamic;     // same for gate/up/down
+        size_t group_size = 0;  // quantized group size, 0 for no group size. same for gate/up/down
+        ov::element::Type_t weight_type = ov::element::dynamic;  // same for gate/up/down
+        ov::element::Type_t scale_type = ov::element::dynamic;   // same for gate/up/down
+        ov::element::Type_t zp_type = ov::element::dynamic;      // same for gate/up/down
         bool operator==(const Config& rhs) const {
             return memcmp(this, &rhs, sizeof(*this)) == 0;
         }
@@ -48,8 +49,12 @@ public:
 
     const Config& get_config() const;
     void set_config(const Config& config);
-    const std::vector<ConstsPerExpert> get_consts() const { return m_consts; }
-    std::vector<ConstsPerExpert> get_consts() { return m_consts; }
+    const std::vector<ConstsPerExpert> get_consts() const {
+        return m_consts;
+    }
+    std::vector<ConstsPerExpert> get_consts() {
+        return m_consts;
+    }
     void add_consts(int expert_no, const ConstsPerExpert& consts) {
         OPENVINO_ASSERT(expert_no == static_cast<int>(m_consts.size()));
         m_consts.push_back(consts);

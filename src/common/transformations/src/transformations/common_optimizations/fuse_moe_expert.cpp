@@ -27,7 +27,6 @@
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
@@ -195,23 +194,41 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
         config.group_size = group_size;
         config.topk = topk;
         config.weight_type = consts.gate[0]->get_element_type();
-        OPENVINO_ASSERT(consts.up[0]->get_element_type() == config.weight_type, "precision of up wight must be same with gate, gate: ",
-            config.weight_type, ", up: ", consts.up[0]->get_element_type());
-        OPENVINO_ASSERT(consts.down[0]->get_element_type() == config.weight_type, "precision of down wight must be same with gate, gate: ",
-            config.weight_type, ", down: ", consts.down[0]->get_element_type());
+        OPENVINO_ASSERT(consts.up[0]->get_element_type() == config.weight_type,
+                        "precision of up wight must be same with gate, gate: ",
+                        config.weight_type,
+                        ", up: ",
+                        consts.up[0]->get_element_type());
+        OPENVINO_ASSERT(consts.down[0]->get_element_type() == config.weight_type,
+                        "precision of down wight must be same with gate, gate: ",
+                        config.weight_type,
+                        ", down: ",
+                        consts.down[0]->get_element_type());
         if (consts.gate[1]) {
             config.scale_type = consts.gate[1]->get_element_type();
-            OPENVINO_ASSERT(consts.up[1] && consts.up[1]->get_element_type() == config.scale_type, "precision of up scale must be same with gate, gate: ",
-                config.scale_type, ", up: ", consts.up[1]->get_element_type());
-            OPENVINO_ASSERT(consts.down[1] && consts.down[1]->get_element_type() == config.scale_type, "precision of down scale must be same with gate, gate:",
-                config.scale_type, ", down: ", consts.down[1]->get_element_type());
+            OPENVINO_ASSERT(consts.up[1] && consts.up[1]->get_element_type() == config.scale_type,
+                            "precision of up scale must be same with gate, gate: ",
+                            config.scale_type,
+                            ", up: ",
+                            consts.up[1]->get_element_type());
+            OPENVINO_ASSERT(consts.down[1] && consts.down[1]->get_element_type() == config.scale_type,
+                            "precision of down scale must be same with gate, gate:",
+                            config.scale_type,
+                            ", down: ",
+                            consts.down[1]->get_element_type());
         }
         if (consts.gate[2]) {
             config.zp_type = consts.gate[2]->get_element_type();
-            OPENVINO_ASSERT(consts.up[2] && consts.up[2]->get_element_type() == config.zp_type, "precision of up zp must be same with gate, gate: ",
-                config.zp_type, ", up: ", consts.up[2]->get_element_type());
-            OPENVINO_ASSERT(consts.down[2] && consts.down[2]->get_element_type() == config.zp_type, "precision of down zp must be same with gate, gate:",
-                config.zp_type, ", down: ", consts.down[2]->get_element_type());
+            OPENVINO_ASSERT(consts.up[2] && consts.up[2]->get_element_type() == config.zp_type,
+                            "precision of up zp must be same with gate, gate: ",
+                            config.zp_type,
+                            ", up: ",
+                            consts.up[2]->get_element_type());
+            OPENVINO_ASSERT(consts.down[2] && consts.down[2]->get_element_type() == config.zp_type,
+                            "precision of down zp must be same with gate, gate:",
+                            config.zp_type,
+                            ", down: ",
+                            consts.down[2]->get_element_type());
         }
 
         OutputVector new_args(4);

@@ -10,7 +10,10 @@ namespace ov {
 namespace op {
 namespace internal {
 
-MOEExpert::MOEExpert(const OutputVector& args, const Config& cfg, const std::vector<ConstsPerExpert>& consts) : Op(args), m_config(cfg), m_consts(consts) {
+MOEExpert::MOEExpert(const OutputVector& args, const Config& cfg, const std::vector<ConstsPerExpert>& consts)
+    : Op(args),
+      m_config(cfg),
+      m_consts(consts) {
     constructor_validate_and_infer_types();
 }
 
@@ -31,7 +34,9 @@ std::shared_ptr<ov::Node> MOEExpert::clone_with_new_inputs(const ov::OutputVecto
 
 void MOEExpert::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MOEExpert_validate_and_infer_types);
-    OPENVINO_ASSERT(get_input_size() == 2 || get_input_size() == 4, "MOEExpert must have 2/4 inputs whereas it has ", get_input_size());
+    OPENVINO_ASSERT(get_input_size() == 2 || get_input_size() == 4,
+                    "MOEExpert must have 2/4 inputs whereas it has ",
+                    get_input_size());
     OPENVINO_ASSERT(get_output_size() == 1, "MOEExpert must have 1 output whereas it has ", get_output_size());
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
