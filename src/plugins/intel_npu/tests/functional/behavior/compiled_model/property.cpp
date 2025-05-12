@@ -21,8 +21,7 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::enable_profiling.name(), ov::Any(true)},
-    {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
+    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
 };
 

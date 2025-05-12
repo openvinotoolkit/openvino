@@ -246,6 +246,11 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
         const auto nodeOutDims = node->getOutputShapeAtPort(0).getDims();
         const auto channelAxis = node->getFusingAxis();
+        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(nodeOutDims.size()),
+                        "Incorrect channel axis for Conv/Deconv/MatMul node: ",
+                        node->getName(),
+                        ", channel axis: ",
+                        nodeOutDims.size());
         auto OC = nodeOutDims[channelAxis];
 
         if (Shape::UNDEFINED_DIM == OC) {
@@ -363,6 +368,11 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         const auto channelAxis = parentNode->getFusingAxis();
+        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size()),
+                        "Incorrect channel axis for Conv/Deconv/MatMul node: ",
+                        parentNode->getName(),
+                        ", output dims size: ",
+                        parentOutDims.size());
         if (!dimsEqualStrong(biasDims[channelAxis], parentOutDims[channelAxis])) {
             return false;
         }
@@ -2454,6 +2464,11 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
             }
         }
 
+        OPENVINO_ASSERT(channelPos < static_cast<int>(outputDims.size()),
+                        "Channel position is out of bounds. Channel position: ",
+                        channelPos,
+                        ", output dims size: ",
+                        outputDims.size());
         scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
         shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 

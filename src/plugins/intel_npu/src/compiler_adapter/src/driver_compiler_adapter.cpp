@@ -191,16 +191,23 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<Graph>(_zeGraphExt, _zeroInitStruct, graphHandle, std::move(networkMeta), nullptr, config);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   /* blob = */ std::nullopt,
+                                   /* blobAllocatedByPlugin = */ false,
+                                   config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
+                                                     bool blobAllocatedByPlugin,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -210,7 +217,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContain
                                    _zeroInitStruct,
                                    graphHandle,
                                    std::move(networkMeta),
-                                   std::move(blobPtr),
+                                   std::move(blob),
+                                   blobAllocatedByPlugin,
                                    config);
 }
 
