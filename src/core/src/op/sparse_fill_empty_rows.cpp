@@ -24,23 +24,26 @@ void SparseFillEmptyRows::validate_and_infer_types() {
 
     const auto& indices_element_type = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
-                          indices_element_type == element::i32 || indices_element_type == element::i64,
+                          indices_element_type.is_dynamic() || indices_element_type == element::i32 ||
+                              indices_element_type == element::i64,
                           "The element type of the indices input must be i32 or i64. Got: ",
                           indices_element_type);
 
     const auto& dense_shape_element_type = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          dense_shape_element_type == element::i32 || dense_shape_element_type == element::i64,
+                          dense_shape_element_type.is_dynamic() || dense_shape_element_type == element::i32 ||
+                              dense_shape_element_type == element::i64,
                           "The element type of the dense_shape input must be i32 or i64. Got: ",
                           dense_shape_element_type);
 
-    NODE_VALIDATION_CHECK(this,
-                          dense_shape_element_type == indices_element_type,
-                          "The element types of the dense_shape and indices inputs must match. Got: ",
-                          dense_shape_element_type,
-                          " and ",
-                          indices_element_type);
-
+    if (indices_element_type.is_static() && dense_shape_element_type.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              dense_shape_element_type == indices_element_type,
+                              "The element types of the dense_shape and indices inputs must match. Got: ",
+                              dense_shape_element_type,
+                              " and ",
+                              indices_element_type);
+    }
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
     set_output_type(0, indices_element_type, output_shapes[0]);
