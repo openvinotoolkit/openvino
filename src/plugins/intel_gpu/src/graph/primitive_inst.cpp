@@ -1977,8 +1977,7 @@ void primitive_inst::prepare_primitive() {
     if (!_exec_deps.empty()) {
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) ||
-            (can_be_optimized() && needs_completion_event() && !is_output())) {
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);
             }
@@ -2702,7 +2701,7 @@ bool primitive_inst::is_valid_fusion() const {
         }
     }
 
-    const auto out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED)) ?
+    const auto& out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED)) ?
                             _unfused_subgraph->get_primitive(get_node().id())->get_output_layout().get_partial_shape() :
                             _impl_params->get_output_layout().get_partial_shape();
     for (auto& fd : fused_eltwise_prims) {

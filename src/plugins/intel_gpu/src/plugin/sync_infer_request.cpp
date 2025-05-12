@@ -450,6 +450,7 @@ void SyncInferRequest::wait() {
             }
         }
     }
+
     if (!copy_events.empty()) {
         auto& stream = network.get_stream();
         if (stream.get_queue_type() == QueueTypes::in_order) {

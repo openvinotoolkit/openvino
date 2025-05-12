@@ -12,8 +12,6 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/op/if.hpp"
-#include "ov_ops/moe_expert.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
