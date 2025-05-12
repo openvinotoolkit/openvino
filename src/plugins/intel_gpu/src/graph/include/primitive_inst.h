@@ -205,21 +205,24 @@ public:
          this->_can_be_optimized = optimized;
     }
     std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
-    program_node const& get_node() const { return *_node; }
+    program_node const& get_node() const {
+        OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
+        return *_node;
+    }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
+    const std::list<const cldnn::program_node *>& get_users() const { return get_node().get_users(); }
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        _users = _network.get_primitives(users);
+        _users = get_network().get_primitives(users);
     }
 
     const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
@@ -305,7 +308,7 @@ public:
 
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
-                                       const program_node& _node,
+                                       const program_node& node,
                                        const kernel_impl_params& impl_params,
                                        const memory_restricter<uint32_t>& memory_dependencies,
                                        uint32_t net_id,
@@ -488,7 +491,7 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
                 return true;
         }
         return false;
@@ -560,7 +563,6 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node* node;
     std::shared_ptr<const PType> argument;
 
     template<typename T>
@@ -574,11 +576,11 @@ public:
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
     typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
+        : primitive_inst(network), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
+        : primitive_inst(network, node, allocate_memory), argument(node.get_primitive()) {}
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {

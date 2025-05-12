@@ -71,7 +71,7 @@ public:
     const std::vector<BufferExpressionPtr>& get_buffers() const { return m_buffer_expressions; }
     const Config& get_config() const {
 #ifdef SNIPPETS_DEBUG_CAPS
-        OPENVINO_ASSERT(m_config.debug_config, "Debug config is not initialized");
+        assert(m_config.debug_config && "Debug config is not initialized");
 #endif  // SNIPPETS_DEBUG_CAPS
         return m_config;
     }

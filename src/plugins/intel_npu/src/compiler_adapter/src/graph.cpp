@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "driver_graph.hpp"
+#include "graph.hpp"
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
-DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-                         const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                         ze_graph_handle_t graphHandle,
-                         NetworkMetadata metadata,
-                         const Config& config,
-                         std::unique_ptr<BlobContainer> blobPtr)
-    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
+Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+             const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+             ze_graph_handle_t graphHandle,
+             NetworkMetadata metadata,
+             std::optional<ov::Tensor> blob,
+             bool blobAllocatedByPlugin,
+             const Config& config,
+             const ov::SoPtr<ICompiler>& compiler)
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
-      _logger("DriverGraph", config.get<LOG_LEVEL>()) {
-    if (_zeGraphExt == nullptr) {
-        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
-    }
-
+      _blobAllocatedByPlugin(blobAllocatedByPlugin),
+      _compiler(compiler),
+      _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
@@ -31,16 +32,23 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-size_t DriverGraph::export_blob(std::ostream& stream) const {
+size_t Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
+        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
+                       "its lifetime.");
     }
 
-    _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
+    if (_blob ==
+        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
+        _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
+    } else {  // in all other cases, the blob is handled by the plugin
+        blobPtr = static_cast<const uint8_t*>(_blob->data());
+        blobSize = _blob->get_byte_size();
+    }
 
     stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
 
@@ -63,17 +71,31 @@ size_t DriverGraph::export_blob(std::ostream& stream) const {
     return blobSize;
 }
 
-std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                     const Config& config) const {
-    OPENVINO_THROW("Profiling post-processing is not supported.");
+std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                               const Config& config) const {
+    if (_compiler == nullptr) {
+        OPENVINO_THROW("Profiling post-processing is not supported.");
+    }
+
+    std::vector<uint8_t> blob(_blob->get_byte_size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
+                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void DriverGraph::set_argument_value(uint32_t argi, const void* argv) const {
+void Graph::set_argument_value(uint32_t argi, const void* argv) const {
+    if (_zeGraphExt == nullptr) {
+        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
     _zeGraphExt->setGraphArgumentValue(_handle, argi, argv);
 }
 
-void DriverGraph::initialize(const Config& config) {
+void Graph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
+
+    if (_zeGraphExt == nullptr || _handle == nullptr) {
+        return;
+    }
 
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
@@ -102,15 +124,24 @@ void DriverGraph::initialize(const Config& config) {
         zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                 ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-    bool turbo = false;
-    if (config.has<TURBO>()) {
-        turbo = config.get<TURBO>();
+    uint32_t command_queue_options = 0;
+
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                     _command_queue_group_ordinal,
-                                                    turbo);
+                                                    command_queue_options);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -127,15 +158,20 @@ void DriverGraph::initialize(const Config& config) {
 
     _batch_size = get_batch_size(_metadata);
 
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
 
         _last_submitted_event.resize(number_of_command_lists);
     }
 }
 
-bool DriverGraph::release_blob(const Config& config) {
-    if (_blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+bool Graph::release_blob(const Config& config) {
+    if (!_blobAllocatedByPlugin) {
+        return false;
+    }
+
+    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -148,16 +184,13 @@ bool DriverGraph::release_blob(const Config& config) {
         return false;
     }
 
-    if (!_blobPtr->release_from_memory()) {
-        return false;
-    }
-
+    _blob = std::nullopt;
     _logger.debug("Blob is released");
 
     return true;
 };
 
-DriverGraph::~DriverGraph() {
+Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);

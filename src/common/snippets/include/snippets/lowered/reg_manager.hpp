@@ -37,7 +37,7 @@ public:
     inline std::vector<Reg> get_kernel_call_regs(const std::shared_ptr<snippets::op::Kernel>& kernel) const {
         const auto& abi_regs = m_generator->get_target_machine()->get_abi_arg_regs();
         const auto num_kernel_args = kernel->get_num_call_args();
-        OPENVINO_ASSERT(abi_regs.size() > num_kernel_args, "Too many kernel args requested");
+        assert(abi_regs.size() > num_kernel_args && "Too many kernel args requested");
         return {abi_regs.begin(), abi_regs.begin() + static_cast<int64_t>(num_kernel_args)};
     }
 
@@ -51,7 +51,7 @@ public:
     }
 
     inline const LiveInterval& get_live_range(const Reg& reg) const {
-        OPENVINO_ASSERT(m_reg_live_range.count(reg), "Live range for this reg was not set");
+        assert(m_reg_live_range.count(reg) && "Live range for this reg was not set");
         return m_reg_live_range.at(reg);
     }
     inline const std::map<Reg, LiveInterval>& get_live_range_map() const {

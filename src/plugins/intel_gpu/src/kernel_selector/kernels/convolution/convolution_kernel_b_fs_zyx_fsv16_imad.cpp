@@ -186,7 +186,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         return -10.f;
     }
 
-    float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
+    float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize()) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
     bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
     bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
     float max_reg_pressure = twice_increase_max_reg_pressure ? 0.785f : increase_max_reg_pressure ? 0.75f : 0.7f;

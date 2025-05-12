@@ -62,7 +62,7 @@ class TestKerasConv2DTranspose(CommonTF2LayerTest):
                                      strides, padding, data_format, dilation_rate, activation,
                                      use_bias,
                                      ie_device, precision,
-                                     ir_version, temp_dir, use_legacy_frontend):
+                                     ir_version, temp_dir):
         params = {}
         params['input_shapes'] = input_shapes
         self._test(*self.create_keras_conv_2d_transpose_net(input_shapes, input_type,
@@ -72,4 +72,4 @@ class TestKerasConv2DTranspose(CommonTF2LayerTest):
                                                             use_bias),
                    ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

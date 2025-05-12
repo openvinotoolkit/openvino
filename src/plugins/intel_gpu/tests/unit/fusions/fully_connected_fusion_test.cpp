@@ -12,6 +12,7 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/dynamic_quantize.hpp>
 
 #include <cmath>
 
@@ -695,6 +696,66 @@ TEST_P(fc_compressed_int8_bias_eltwise_quantize_u8_onednn, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_eltwise_quantize_u8_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_1, 2, 5 },
     fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
+}));
+
+// Check whether dyn_quan_fc can create quantized output. Currently, OneDNN cannot.
+class fc_compressed_dyn_quan_and_quantized : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto fc_prim_fused = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "", input_info("dyn_quan", 1), input_info("", 0), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim_unfused = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto weights = data("weights", get_mem(get_weights_layout(p)));
+    auto scale = data("scale", get_mem(get_scale_layout(p, 128), 0.05f));
+    auto in_lo = data("in_lo", get_mem(get_per_channel_layout(p), -200.f));
+    auto in_hi = data("in_hi", get_mem(get_per_channel_layout(p), 200.f));
+    auto out_lo = data("out_lo", get_mem(get_single_element_layout(p), 0));
+    auto out_hi = data("out_hi", get_mem(get_single_element_layout(p), 255));
+
+    fc_prim_fused.decompression_zero_point_scalar = 8.0f;
+    fc_prim_unfused.decompression_zero_point_scalar = 8.0f;
+
+    ov::op::internal::DynamicQuantize::Attributes dyn_quan_attr;
+    dyn_quan_attr.group_sizes = std::vector<uint64_t>(get_output_dim_size(p) - 1, 1);
+    dyn_quan_attr.group_sizes.emplace_back(get_input_layout(p).feature()); // per-token quantization
+    dyn_quan_attr.scale_dt = ov::element::f16;
+    dyn_quan_attr.quantization_dt = ov::element::i8;
+
+    // OneDNN does not support quantized output of dyn_quan_fc
+    topology_fused.add(
+        input_layout("input", get_input_layout(p)),
+        weights, scale, in_lo, in_hi, out_lo, out_hi,
+        dynamic_quantize("dyn_quan", input_info("input"), dyn_quan_attr, 2),
+        fc_prim_fused,
+        quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    // Non-fused does not have dyn_quan because it will use cldnn FC
+    topology_non_fused.add(
+        input_layout("input", get_input_layout(p)),
+        weights, scale, in_lo, in_hi, out_lo, out_hi,
+        fc_prim_unfused,
+        quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    tolerance = 10.0f;  // tolerance is OK to be high because it is supposed to have high error due to dyn_quan
+    execute(p, false, true);
+}
+
+#define CASE_FC_FP16_INT8_COMP_DYN_QUAN { 64, 128 }, { 64, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_and_quantized, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 4, 3 },
 }));
 
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};

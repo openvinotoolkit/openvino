@@ -147,5 +147,4 @@ class TestROIAlign(OnnxRuntimeLayerTest):
         if ie_device != "GPU":
             self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
                        ir_version,
-                       temp_dir=temp_dir,
-                       use_legacy_frontend=True)
+                       temp_dir=temp_dir)

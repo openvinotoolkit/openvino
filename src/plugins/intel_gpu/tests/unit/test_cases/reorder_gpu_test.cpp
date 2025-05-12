@@ -2920,7 +2920,7 @@ public:
     memory::ptr generate_reference_typed(const std::vector<cldnn::memory::ptr>& inputs)
     {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(layer_params);
-        primitive_id mean = reorder->mean;
+        primitive_id mean = reorder->mean.pid;
         std::vector<float> subtract_per_feature = reorder->subtract_per_feature;
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
@@ -3608,4 +3608,76 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<int32_t> upper_size) {
+    auto& engine = get_test_engine();
+
+    layout in_layout({in_shape, data_types::i4, format::bfyx});
+    auto input = engine.allocate_memory(in_layout);
+
+    std::vector<uint8_t> input_data  = {
+        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
+        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8,
+        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
+        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8
+    };
+
+    set_values(input, input_data);
+
+    layout reorder_in_layout = in_layout.convert_to_weights_layout(false);
+    layout reorder_out_layout = reorder_in_layout;
+    reorder_out_layout.data_padding = padding::max(reorder_out_layout.data_padding, padding({0}, upper_size));
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(reorder_in_layout, reorder_out_layout, false, false);
+    layout out_layout(reorder_out_layout.get_partial_shape(), reorder_out_layout.data_type, format::bfyx, reorder_out_layout.data_padding);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), weights_reorder_params));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    std::vector<uint8_t> expected_data  = {
+        0x21, 0x43, 0x65, 0x07,
+        0x98, 0xba, 0xdc, 0x0e,
+        0x1f, 0x25, 0x83, 0x0a,
+        0xd2, 0xf7, 0x89, 0x0e,
+        0x21, 0x43, 0x65, 0x07,
+        0x98, 0xba, 0xdc, 0x0e,
+        0x1f, 0x25, 0x83, 0x0a,
+        0xd2, 0xf7, 0x89, 0x0e
+    };
+
+    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(expected_data.size(), output_ptr.size());
+    for (size_t idx = 0; idx < output_ptr.size(); idx++)
+        ASSERT_EQ(expected_data[idx], output_ptr[idx]);
+}
+
+
+TEST(reorder_gpu_i4, reorder_for_padding_2d)
+{
+    run_reorder_weight_int4({8, 7}, {0, 1});
+}
+
+TEST(reorder_gpu_i4, reorder_for_padding_3d)
+{
+    run_reorder_weight_int4({4, 2, 7}, {0, 0, 1});
+}
+
+TEST(reorder_gpu_i4, reorder_for_padding_4d)
+{
+    run_reorder_weight_int4({2, 2, 2, 7}, {0, 0, 0, 1});
 }

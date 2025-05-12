@@ -107,9 +107,9 @@ class TestMapFN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_multiple_inputs = [
@@ -125,9 +125,9 @@ class TestMapFN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_multiple_inputs)
     @pytest.mark.nightly
-    def test_multiple_inputs(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_multiple_inputs(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_multiple_outputs = [
@@ -145,9 +145,9 @@ class TestMapFN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_multiple_outputs)
     @pytest.mark.nightly
-    def test_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_multiple_inputs_outputs_int32 = [
@@ -166,8 +166,7 @@ class TestMapFN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_legacy_frontend):
+    def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)

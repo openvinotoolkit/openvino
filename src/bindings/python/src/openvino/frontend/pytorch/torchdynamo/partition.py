@@ -22,7 +22,6 @@ import typing as t
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class PatternNode:
@@ -133,6 +132,7 @@ class Partitioner:
                         self.supported_ops.enable_by_name(pattern_op)
 
     def make_partitions(self, graph_module: GraphModule, options) -> GraphModule:
+        logger.debug(f"Graph module before partitioning {graph_module}")
         allow_single_node_partition = _is_testing(options)
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
@@ -141,5 +141,6 @@ class Partitioner:
         partitions = partitioner.propose_partitions()
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
+        logger.debug(f"Graph module after partitioning {fused_graph_module}")
 
         return fused_graph_module

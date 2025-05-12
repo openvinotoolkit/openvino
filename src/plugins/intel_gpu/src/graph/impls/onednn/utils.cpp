@@ -273,7 +273,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool use_strides) {
     dnnl::memory::dims dims;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
@@ -318,10 +318,53 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     }
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
-    dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
-    dnnl::memory::desc res(dims, dt, fmt);
-
-    return res;
+    if (use_strides) {
+        dnnl::memory::dims strides;
+        OPENVINO_ASSERT(flatten == false, "The padded layout cannot be flattened.");
+        auto padded_dims = l.get_padded_dims();
+        if (target_fmt == dnnl::memory::format_tag::ab) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+        } else if (target_fmt == dnnl::memory::format_tag::abc) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+        } else if (target_fmt == dnnl::memory::format_tag::acb) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[2]);
+        } else if (target_fmt == dnnl::memory::format_tag::abdc) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[3]);
+        } else if (target_fmt == dnnl::memory::format_tag::abced) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[4]);
+        } else if (target_fmt == dnnl::memory::format_tag::abcdfe) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3] * padded_dims[5]);
+        } else if (target_fmt == dnnl::memory::format_tag::ba) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[1]);
+        } else {
+            auto pitches = l.get_pitches();
+            strides.assign(pitches.begin(), pitches.end());
+        }
+        dnnl::memory::desc res(dims, dt, strides);
+        return res;
+    } else {
+        dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
+        dnnl::memory::desc res(dims, dt, fmt);
+        return res;
+    }
 }
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {

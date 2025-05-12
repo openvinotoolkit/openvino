@@ -140,12 +140,13 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
                                   shape_v_t.rank().is_static() &&
                                   ((shape_q_t.size() == shape_k_t.size()) && (shape_q_t.size() == shape_v_t.size()));
     if (is_broadcastable) {
-        size_t max_rank = shape_q_t.size();
+        size_t max_rank = shape_q_t.size() -1;
         for (size_t i = 0; i < max_rank; ++i) {
             if (shape_q_t[i].is_static() && shape_k_t[i].is_static()) {
                 auto broadcasted_dim = shape_q_t[i].get_length();
                 shape_k_t[i] = broadcasted_dim;
             }
+
             if (shape_q_t[i].is_static() && shape_v_t[i].is_static()) {
                 auto broadcasted_dim = shape_q_t[i].get_length();
                 shape_v_t[i] = broadcasted_dim;

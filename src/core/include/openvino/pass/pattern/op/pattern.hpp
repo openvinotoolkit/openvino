@@ -22,6 +22,7 @@ using PatternValueMap = std::map<std::shared_ptr<Node>, Output<Node>>;
 using PatternValueMaps = std::vector<PatternValueMap>;
 
 using PatternMap = std::map<std::shared_ptr<Node>, std::shared_ptr<Node>>;
+using Attributes = std::unordered_map<std::string, ov::Any>;
 
 PatternMap as_pattern_map(const PatternValueMap& pattern_value_map);
 PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
@@ -61,7 +62,10 @@ OPENVINO_API op::Predicate type_matches_any(const std::vector<element::Type>& ty
 
 OPENVINO_API op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates);
 
+OPENVINO_API op::Predicate attrs_match(const Attributes& expected_attrs);
+
 OPENVINO_API op::Predicate shape_matches(const std::string& shape_notation);
+OPENVINO_API op::Predicate value_matches(const std::string& value_notation);
 
 namespace op {
 OPENVINO_DEPRECATED("This method is deprecated. Use constructor of ov::pass::pattern::Predicate instead")

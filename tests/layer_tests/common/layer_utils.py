@@ -42,12 +42,11 @@ class BaseInfer:
 
 
 class InferAPI(BaseInfer):
-    def __init__(self, model, weights, device, use_legacy_frontend):
+    def __init__(self, model, weights, device):
         super().__init__('OpenVINO')
         self.device = device
         self.model = model
         self.weights = weights
-        self.use_legacy_frontend = use_legacy_frontend
 
     def fw_infer(self, input_data, config=None):
         print("OpenVINO version: {}".format(ie2_get_version()))
@@ -69,14 +68,8 @@ class InferAPI(BaseInfer):
             # For the new frontend we make this the right way because
             # we know that tensor can have several names due to fusing
             # and one of them the framework uses
-            if not self.use_legacy_frontend:
-                for tensor_name in out_obj.get_names():
-                    result[tensor_name] = out_tensor
-            else:
-                for tensor_name in out_obj.get_names():
-                    result[tensor_name] = out_tensor
-                    tensor_name = tensor_name.split(':')[0]
-                    result[tensor_name] = out_tensor
+            for tensor_name in out_obj.get_names():
+                result[tensor_name] = out_tensor
 
         if "exec_net" in locals():
             del exec_net

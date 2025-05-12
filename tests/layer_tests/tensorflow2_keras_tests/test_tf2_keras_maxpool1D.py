@@ -44,10 +44,10 @@ class TestKerasMaxPool1D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_maxpool1D_pool_strides_float32(self, params, ie_device, precision, temp_dir,
-                                                  ir_version, use_legacy_frontend):
+                                                  ir_version):
         self._test(*self.create_keras_maxpool1D_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     test_data_p_dformat_float32 = [
         dict(input_names=["x"], input_shapes=[[5, 6, 1]], input_type=tf.float32, pool_size=1,
@@ -64,7 +64,7 @@ class TestKerasMaxPool1D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_maxpool1D_padding_and_data_format(self, params, ie_device, precision, temp_dir,
-                                                     ir_version, use_legacy_frontend):
+                                                     ir_version):
         self._test(*self.create_keras_maxpool1D_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

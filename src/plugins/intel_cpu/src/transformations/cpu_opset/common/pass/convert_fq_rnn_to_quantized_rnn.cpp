@@ -229,10 +229,10 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             // dequantize with subtract
             if (subtract_it != pattern_map.end()) {
                 const auto subtract = ov::as_type_ptr<op::v1::Subtract>(subtract_it->second.get_node_shared_ptr());
-                multiply_input = subtract->clone_with_new_inputs({multiply_input, subtract->input_value(1)});
+                multiply_input = subtract->clone_with_new_inputs({multiply_input->output(0), subtract->input_value(1)});
             }
 
-            auto new_multiply = multiply->clone_with_new_inputs({multiply_input, multiply->input_value(1)});
+            auto new_multiply = multiply->clone_with_new_inputs({multiply_input->output(0), multiply->input_value(1)});
             new_multiply->set_friendly_name(rnn_quantized->get_friendly_name() + ".1");
 
             for (auto output : H_outputs) {

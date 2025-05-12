@@ -38,12 +38,11 @@ class TestRound(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_round_basic(self, input_shape, input_type, ie_device, precision,
-                         ir_version, temp_dir, use_legacy_frontend):
+                         ir_version, temp_dir):
         if input_type in [np.int8, np.int16, np.int32, np.int64]:
             pytest.skip('TensorFlow issue: https://github.com/tensorflow/tensorflow/issues/74789')
         if platform.machine() in ["aarch64", "arm64", "ARM64"] and \
                 input_type == np.float32 and input_shape == [10, 5, 1, 5]:
             pytest.skip("150999: Accuracy issue on CPU")
         self._test(*self.create_tf_round_net(input_shape, input_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

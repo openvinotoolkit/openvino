@@ -237,6 +237,9 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
+    } else if (any.is<std::shared_ptr<const ov::Model>>()) {
+        auto model = std::const_pointer_cast<ov::Model>(any.as<std::shared_ptr<const ov::Model>>());
+        return py::cast(model);
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -316,6 +319,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::hint::model.name()) {
+            auto model = Common::utils::convert_to_model(property.second);
+            properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
@@ -399,6 +405,21 @@ bool py_object_is_any_map(const py::object& py_obj) {
 ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
     ov::AnyMap return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
+}
+
+std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    std::unordered_map<std::string, ov::Any> return_value = {};
     for (auto& item : py::cast<py::dict>(py_obj)) {
         std::string key = py::cast<std::string>(item.first);
         py::object value = py::cast<py::object>(item.second);

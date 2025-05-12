@@ -6,7 +6,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestReLU6(CommonTFLayerTest):
-    def create_relu6_net(self, shape, ir_version, use_legacy_frontend):
+    def create_relu6_net(self, shape, ir_version):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -29,12 +29,9 @@ class TestReLU6(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = [dict(shape=[1]),
                  pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit),
@@ -44,8 +41,6 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

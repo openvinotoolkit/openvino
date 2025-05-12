@@ -34,7 +34,7 @@ public:
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
-    bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
+    bool is_parameterized() const { return typed_desc()->additional_params_input.is_valid(); }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<ActivationFuseParams>(typed_desc());
@@ -61,7 +61,7 @@ public:
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 
-    bool is_parameterized() const { return !get_typed_desc<activation>()->additional_params_input.empty(); }
+    bool is_parameterized() const { return get_typed_desc<activation>()->additional_params_input.is_valid(); }
 };
 
 using activation_inst = typed_primitive_inst<activation>;

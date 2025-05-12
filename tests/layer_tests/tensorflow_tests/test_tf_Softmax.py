@@ -34,11 +34,10 @@ class TestSoftmax(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_softmax(self, input_shape, input_type,
-                     ie_device, precision, ir_version, temp_dir,
-                     use_legacy_frontend):
+                     ie_device, precision, ir_version, temp_dir):
         custom_eps = None
         if input_type == np.float16:
             custom_eps = 1e-3
         self._test(*self.create_softmax_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)

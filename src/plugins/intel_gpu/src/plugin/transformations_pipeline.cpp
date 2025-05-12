@@ -505,18 +505,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
 
-            // - The number of dimensions for each input is expected to be 4
-            if (query_ps.size() != 4 || key_ps.size() != 4 || value_ps.size() != 4) {
+            // - The number of dimensions for each input is expected to be 4 or 3
+            if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
+                !(key_ps.size() == 3 || key_ps.size() == 4) ||
+                !(value_ps.size() == 3 || value_ps.size() == 4))
                 return false;
-            }
 
             // - The head size of all Q, K, and V inputs should be the same static value
             if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
-                return false;
-            }
-
-            if (query_ps[query_ps.size() - 1].get_length() != key_ps[key_ps.size() - 1].get_length() ||
-                query_ps[query_ps.size() - 1].get_length() != value_ps[value_ps.size() - 1].get_length()) {
                 return false;
             }
 
@@ -721,8 +717,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
-            } else if (ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
-                return false;
+            } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                return gru_seq->get_clip() == 0.0f &&
+                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                    max_seq_len != 1 &&
+                    !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
+                                                       gru_seq->get_input_node_shared_ptr(2)) &&
+                    gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
@@ -833,8 +834,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
             [&](const_node_ptr &node) -> bool {
-            // Convert to NMSIEInternal when model is static
-            return !func->is_dynamic() ? false : true;
+            // Convert to NMSIEInternal when input shape is static
+            // Otherwise keep NMS op
+            return !node->get_input_partial_shape(0).is_dynamic() ? false : true;
         });
 
         // List of enabled/disabled transformations
@@ -1157,6 +1159,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::SDPAScaleFusion>();
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
+            const auto& rank = node->input(0).get_partial_shape().rank().get_length();
+            return rank != 4;
+        });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
@@ -1217,6 +1223,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     && dynamic_quantization_group_size != UINT64_MAX) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " asym 8bit weight does not support grouped quantization" << std::endl;
+                    return true;
+                }
+
+                if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
                     return true;
                 }
 

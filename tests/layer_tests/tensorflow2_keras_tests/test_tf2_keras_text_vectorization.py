@@ -51,7 +51,7 @@ class TestTextVectorization(CommonTF2LayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_text_vectorization(self, input_shapes, vocabulary, output_mode, output_sequence_length, strings_dictionary,
-                                ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                ie_device, precision, ir_version, temp_dir):
         if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
                                                                      'aarch64',
                                                                      'arm64',
@@ -64,4 +64,4 @@ class TestTextVectorization(CommonTF2LayerTest):
         params['output_sequence_length'] = output_sequence_length
         params['strings_dictionary'] = strings_dictionary
         self._test(*self.create_text_vectorization_net(**params), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, **params)

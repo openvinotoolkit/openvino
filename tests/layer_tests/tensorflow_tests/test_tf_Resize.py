@@ -60,11 +60,10 @@ class TestResize(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op,
-                          ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                          ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and images_type == tf.int32 and resize_op == 'tf.raw_ops.ResizeNearestNeighbor':
             pytest.skip("Couldn't find a suitable kernel for interpolate:Interpolate_8438725 issue on GPU")
         params = dict(images_shape=images_shape, images_type=images_type, size_value=size_value,
                       align_corners=align_corners, half_pixel_centers=half_pixel_centers, resize_op=OPS[resize_op])
         self._test(*self.create_resize_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

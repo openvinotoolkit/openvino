@@ -90,13 +90,10 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_binary_op(self, x_shape, y_shape, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_legacy_frontend):
-        if use_legacy_frontend and op_type in ['Xdivy']:
-            pytest.skip("Xdivy op is supported only by new TF FE.")
+    def test_binary_op(self, x_shape, y_shape, ie_device, precision, ir_version, temp_dir, op_type):
         if op_type in ['Pow', 'Mod'] and ie_device == 'GPU':
             pytest.skip("For Mod and Pow GPU has inference mismatch")
         if op_type in ['Mod', 'FloorDiv', 'FloorMod']:
             pytest.skip("Inference mismatch for Mod and FloorDiv")
         self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   precision, ir_version, temp_dir=temp_dir)

@@ -57,11 +57,10 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_simple)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_lstm_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                          use_legacy_frontend):
+    def test_keras_lstm_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     test_data_without_bias = [
         dict(input_names=["x"], input_shapes=[[2, 2, 7]], input_type=tf.float32, units=1,
@@ -81,10 +80,10 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_lstm_without_bias_float32(self, params, ie_device, precision, temp_dir,
-                                             ir_version, use_legacy_frontend):
+                                             ir_version):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     test_data_different_flags = [
         dict(input_names=["x"], input_shapes=[[2, 3, 2]], input_type=tf.float32, units=1,
@@ -101,10 +100,9 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_flags)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_lstm_flags_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                      use_legacy_frontend):
+    def test_keras_lstm_flags_float32(self, params, ie_device, precision, temp_dir, ir_version):
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("inference mismatch issue on ARM")
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

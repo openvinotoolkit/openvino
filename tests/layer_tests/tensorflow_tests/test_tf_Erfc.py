@@ -35,8 +35,6 @@ class TestAddTypes(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_erfc(self, input_shape, input_type,
-                  ie_device, precision, ir_version, temp_dir,
-                  use_legacy_frontend):
+                  ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_erfc_net(input_shape, input_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -558,6 +558,10 @@ void Partitioner::identifySubgraphs() {
         std::sort(input_mapping_sorted.begin(),
                   input_mapping_sorted.end(),
                   [](const PairNodePtr& p1, const PairNodePtr& p2) {
+                      // FIXME: some compilers could potentially compare element with itself
+                      if (p1.first.get() == p2.first.get()) {
+                          return false;
+                      }
                       // Sanity check
                       NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
                       return p1.first->get_friendly_name() < p2.first->get_friendly_name();

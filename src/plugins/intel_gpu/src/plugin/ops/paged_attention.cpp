@@ -27,13 +27,18 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     const auto& rt_info = op->get_rt_info();
     const auto k_head_size_id = "k_head_size";
+    const auto v_head_size_id = "v_head_size";
     const auto num_k_heads_id = "num_k_heads";
     const auto has_rt_params = rt_info.find(k_head_size_id) != rt_info.end() &&
+                               rt_info.find(v_head_size_id) != rt_info.end() &&
                                rt_info.find(num_k_heads_id) != rt_info.end();
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);
-    auto head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    auto value_cache_ps = op->get_input_partial_shape(4);
+
+    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
 
     // WA: in some cases, the query input may have a bounded dimension
@@ -41,13 +46,14 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto heads_num = 0;
     auto query_merged_dim = query_ps[1];
     if (query_merged_dim.is_static()) {
-        heads_num = query_merged_dim.get_length() / head_size;
+        heads_num = query_merged_dim.get_length() / k_head_size;
     } else {
         auto reshape_input = op->get_input_node_shared_ptr(0)->get_input_partial_shape(0);
         heads_num = reshape_input[2].get_length();
     }
 
-    prim.head_size = head_size;
+    prim.k_head_size = k_head_size;
+    prim.v_head_size = v_head_size;
     prim.kv_heads_num = kv_heads_num;
     prim.heads_num = heads_num;
 

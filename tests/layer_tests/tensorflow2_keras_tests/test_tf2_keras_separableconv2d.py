@@ -49,11 +49,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_separableconv2d(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_legacy_frontend):
+    def test_keras_separableconv2d(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     # Tests for different activations
     test_data_different_activations = [
@@ -85,11 +84,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_activations)
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_activations(self, params, ie_device, precision,
-                                                         ir_version, temp_dir,
-                                                         use_legacy_frontend):
+                                                         ir_version, temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     # Tests for different padding
     test_data_different_padding = [
@@ -104,10 +102,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_padding)
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_padding(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_legacy_frontend):
+                                                     temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     # Tests for different bias
     test_data_different_bias = [
@@ -123,7 +121,7 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_separableconv2d_different_bias(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, use_legacy_frontend):
+                                                  temp_dir):
         self._test(*self.create_keras_separableconv2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

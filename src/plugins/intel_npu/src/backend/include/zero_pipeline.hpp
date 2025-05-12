@@ -35,6 +35,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
