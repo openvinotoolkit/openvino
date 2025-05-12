@@ -94,13 +94,13 @@ void PagedAttentionLayerTest::SetUp() {
     auto max_context_len_const = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.max_context_len});
 
     /*
-    * [13/6]: free_block_indices
+    * [13/16]: free_block_indices
     * shape: [num_blocks], type: i32
     * [14/17]: max_blocks
     * shape: [batch_size_in_sequences], type: i32
     */
-    auto free_block_indices = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.free_block_indices});
-    auto max_blocks = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.max_blocks});
+    auto free_block_indices = ov::op::v0::Constant::create(ov::element::i32, {i32_attr.free_block_indices.size()}, i32_attr.free_block_indices);
+    auto max_blocks = ov::op::v0::Constant::create(ov::element::i32, {i32_attr.max_blocks.size()}, i32_attr.max_blocks);
 
     std::shared_ptr<ov::Node> paged_attn;
     if (!rotation_attr.has_value()) {
