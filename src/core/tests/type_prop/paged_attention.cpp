@@ -13,8 +13,6 @@
 
 using namespace testing;
 
-namespace ov::test {
-
 class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::PagedAttentionExtension> {};
 
 TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_15_inputs) {
@@ -141,4 +139,103 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-}  // namespace ov::test
+TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
+    using namespace ov::op;
+    const auto dyn = PartialShape::dynamic();
+
+    const auto query = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto key = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto value = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto key_cache = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto value_cache = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto past_lens = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto subsequence_begins = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto block_indices = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto block_indices_begins = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto scale = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto sliding_window = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto alibi_slopes = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto max_context_len = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+
+    ov::OutputVector args = {query,
+                             key,
+                             value,
+                             key_cache,
+                             value_cache,
+                             past_lens,
+                             subsequence_begins,
+                             block_indices,
+                             block_indices_begins,
+                             scale,
+                             sliding_window,
+                             alibi_slopes,
+                             max_context_len};
+
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
+}
+
+TEST(type_prop, paged_attention_invalid_rank_query) {
+    auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
+    auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    auto scalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    ov::OutputVector args =
+        {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar, dummy1D, dummy1D};
+
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, paged_attention_invalid_type_scale) {
+    auto scale = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    auto dummy2D = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    auto dummyScalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    ov::OutputVector args = {dummy2D,
+                             dummy2D,
+                             dummy2D,
+                             dummy2D,
+                             dummy2D,
+                             dummy1D,
+                             dummy1D,
+                             dummy1D,
+                             dummy1D,
+                             scale,
+                             dummyScalar,
+                             dummy2D,
+                             dummyScalar,
+                             dummy1D,
+                             dummy1D};
+
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, paged_attention_invalid_rank_key_cache) {
+    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
+    auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    auto dummyScalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+
+    ov::OutputVector args = {dummy,
+                             dummy,
+                             dummy,
+                             key_cache,
+                             dummy,
+                             dummy1D,
+                             dummy1D,
+                             dummy1D,
+                             dummy1D,
+                             dummyScalar,
+                             dummyScalar,
+                             dummy,
+                             dummyScalar,
+                             dummy1D,
+                             dummy1D};
+
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+}  // namespace testing
+}  // namespace ov
