@@ -231,7 +231,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         (axis == 0 && src_x.get_shape()[0] % block_size == 0) || (axis == 1 && src_x.get_shape()[1] % block_size == 0),
         "DequantizeLinear doesn't support case when dimension of X cannot be divided by block_size");
 
-    bool is_cw_quantize = (src_x.get_shape()[0] == block_size) || (src_x.get_shape()[1] == block_size);
+    bool is_cw_quantize = (axis == 0 && src_x.get_shape()[0] == block_size) || \
+                          (axis == 1 && src_x.get_shape()[1] == block_size);
     if (is_cw_quantize)
     {
         ov::Output<ov::Node> converted_x = std::make_shared<v0::Convert>(src_x, scale.get_element_type());
