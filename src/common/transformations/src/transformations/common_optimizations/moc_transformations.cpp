@@ -131,7 +131,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i16,
+        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i32,
+                                                                                ov::element::u32,
+                                                                                ov::element::i16,
                                                                                 ov::element::u16,
                                                                                 ov::element::i8,
                                                                                 ov::element::u8,
