@@ -135,17 +135,17 @@ jobs:
       - name: System info
         uses: ./src/.github/actions/system_info
         
-      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
-        id: create_manifest
-        uses: ./src/.github/actions/create_manifest
-        with:
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-          product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: ${{ env.ARCH }}
-          build_type: ${{ env.CMAKE_BUILD_TYPE }}
-          save_to: ${{ env.MANIFEST_PATH }}
-          trigger_repo_branch: ${{ inputs.target-branch }}
+      # - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+      #   id: create_manifest
+      #   uses: ./src/.github/actions/create_manifest
+      #   with:
+      #     repos: |
+      #       ${{ env.OPENVINO_REPO }}
+      #     product_type: ${{ env.PRODUCT_TYPE }}
+      #     target_arch: ${{ env.ARCH }}
+      #     build_type: ${{ env.CMAKE_BUILD_TYPE }}
+      #     save_to: ${{ env.MANIFEST_PATH }}
+      #     trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: Build OpenVINO
         run: |
