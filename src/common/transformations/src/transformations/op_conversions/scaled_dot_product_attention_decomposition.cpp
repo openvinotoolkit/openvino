@@ -51,7 +51,7 @@ bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
     }
 
     // using the original implementation to calculate the shapes.
-    // we need to move scale after MatMul only if tensor after MatMul is smallerю
+    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
     auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
     auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
     const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
