@@ -30,7 +30,7 @@ void not_equal(const T* arg0,
         using S = std::make_signed_t<T>;
         const auto sig0 = reinterpret_cast<const S*>(arg0);
         const auto sig1 = reinterpret_cast<const S*>(arg1);
-        autobroadcast_binop(sig0, sig1, out, arg0_shape, arg1_shape, broadcast_spec, func::not_equal<int64_t>);
+        autobroadcast_binop(sig0, sig1, out, arg0_shape, arg1_shape, broadcast_spec, func::not_equal<S>);
     } else {
         autobroadcast_binop(arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, func::not_equal<T>);
     }
