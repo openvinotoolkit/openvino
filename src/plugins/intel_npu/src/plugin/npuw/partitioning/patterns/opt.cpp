@@ -252,10 +252,8 @@ DQMatMulCWi_Transpose::DQMatMulCWi_Transpose(Context::Ref ctx) {
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
-            !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b() &&
-            tr_in_shape.size() == 2 && tr_out_shape.size() == 2 &&
-            tr_in_shape[0] == tr_out_shape[1] && tr_in_shape[1] == tr_out_shape[0]) {
-
+            !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b() && tr_in_shape.size() == 2 &&
+            tr_out_shape.size() == 2 && tr_in_shape[0] == tr_out_shape[1] && tr_in_shape[1] == tr_out_shape[0]) {
             auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
             matched_matmul->input(1).replace_source_output(matched_node_qmuls);
             matched_matmul->set_transpose_b(true);
