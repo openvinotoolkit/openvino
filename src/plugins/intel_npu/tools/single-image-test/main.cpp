@@ -749,7 +749,6 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
             auto it = inputFileMap.find(name);
             if (it != inputFileMap.end()) {
                 inputValues[i] = it->second;
-                std::cout << "--- Matched input: " << name << " with value: " << it->second << std::endl;
                 break;
             }
         }
@@ -776,7 +775,6 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
         }
         result += inputValues[i];
     }
-    std::cout << "--- Final input files: " << result << std::endl;
 
     return result;
 }
@@ -2060,6 +2058,7 @@ static int runSingleImageTest() {
 
             // Parse input files string (matching of node names - if given)
             std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
+            std::cout << "--- Parsed input files: " << fileMatch << std::endl;
 
             inputFilesPerCase = splitStringList(fileMatch, ';');
             for (const auto& images : inputFilesPerCase) {
