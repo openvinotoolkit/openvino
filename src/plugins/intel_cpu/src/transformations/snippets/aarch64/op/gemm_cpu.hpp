@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "brgemm_copy_b.hpp"
-#include "brgemm_utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 
@@ -48,7 +46,5 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    void validate_with_scratchpad() const;
-    void validate_inputs() const;
 };
 }  // namespace ov::intel_cpu::aarch64
