@@ -81,8 +81,13 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
                                   " elements).");
 
             const auto& k = (*k_as_shape)[0];
-            if (k.is_static()) {
-                dim_axis = k;
+            if (k.is_static() && input_shape.is_static()) {
+                // For the scenario that Topk is a subsequent node of NMS, if k equals in_shape[axis] which equals
+                // max_output_boxes_per_class of NMS in original model, but in_shape[axis] is updated to be valid
+                // object number which is less than max_output_boxes_per_class, i.e., less than k, then k should
+                // also be updated to be valid object number, so should sorting dimension size of output shape.
+                dim_axis =
+                    k.get_length() > input_shape[normalized_axis].get_length() ? input_shape[normalized_axis] : k;
             } else {
                 // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
