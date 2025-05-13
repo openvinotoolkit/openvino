@@ -279,6 +279,9 @@ REGISTER_FACTORY(v15, SearchSorted);
 REGISTER_FACTORY(v15, STFT);
 REGISTER_FACTORY(v15, Col2Im);
 
+// ------------------------------ Supported v16 ops ----------------------------- //
+REGISTER_FACTORY(v16, ISTFT);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
