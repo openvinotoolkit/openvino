@@ -30,13 +30,11 @@ public:
 
     void initialize(const Config& config) override;
 
-    ~WeightlessGraph() override;
-
     // TODO: public for multi-threaded execution
     struct InputData {
         // TODO: is it necessary to keep both fields alive? it doesn't seem like
         // hostTensor field is ever used.
-        std::vector<std::vector<std::shared_ptr<ov::ITensor>>> tensors;
+        std::vector<std::shared_ptr<ov::ITensor>> tensors;
         ov::SoPtr<ov::ITensor> hostTensor;
     };
 
@@ -54,7 +52,9 @@ private:
 
     OutputData allocate_outputs(const size_t initIndex);
 
-    void create_pipeline(const size_t initIndex);
+    void create_pipeline(const size_t initIndex,
+                         const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+                         const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
     void run_pipeline(const size_t initIndex);
 
@@ -64,6 +64,10 @@ private:
     void run_init_single_threaded();
 
     void run_init_multi_threaded();
+
+    void set_weights_inputs();
+
+    void free_init_resourcese(const size_t initIndex);
 
     std::vector<ze_graph_handle_t> _initHandles;
     std::vector<NetworkMetadata> _initMetadata;

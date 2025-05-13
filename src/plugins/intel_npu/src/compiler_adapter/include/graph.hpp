@@ -35,7 +35,7 @@ public:
 
     virtual void initialize(const Config& config) override;
 
-    virtual ~Graph() override;
+    ~Graph() override;
 
 protected:
     bool release_blob(const Config& config, const std::unique_ptr<BlobContainer>& blobPtr, ze_graph_handle_t handle);
