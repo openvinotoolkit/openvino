@@ -4,10 +4,15 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
+#include <llvm/Support/Error.h>
+#include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/Support/TargetSelect.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/MemRefUtils.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/DialectRegistry.h>
+#include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Target/LLVMIR/Dialect/All.h>
@@ -17,19 +22,12 @@
 #include <sstream>
 
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
-#include "llvm/Support/Error.h"
-#include "llvm/Support/InitLLVM.h"
-#include "llvm/Support/TargetSelect.h"
-#include "mlir/IR/DialectRegistry.h"
-#include "mlir/IR/MLIRContext.h"
-#include "openvino/core/type/element_type.hpp"
-#include "zero_remote_tensor.hpp"
 
 namespace intel_npu {
 
@@ -39,24 +37,37 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
     : Pipeline(config, init_structs, graph, "DynamicPipeline"),
-      _initStructs(init_structs),
       _levelZeroInputTensors(input_tensors),
       _levelZeroOutputTensors(output_tensors) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
     _logger.debug("DynamicPipeline - initialize started");
 
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
+                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    if (profiling_pool.create()) {
-        profiling_query.create(profiling_pool._handle);
+    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        auto profiling_pool =
+            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+        if (profiling_pool->create()) {
+            _profiling_query->create(profiling_pool);
+        }
+
+        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
+            _npu_profiling =
+                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
+        }
     }
 
     // TODO: We have multiple command list to support batch, do we still need this for IR blob?
-    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
-            std::make_shared<EventPool>(init_structs->getDevice(),
-                                        init_structs->getContext(),
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
                                         _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
 
         _events.reserve(_number_of_command_lists);
@@ -71,7 +82,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
+            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {
@@ -137,7 +148,8 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             ++io_index;
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 // TODO: this wait shall for the final execution, but if multiple graph inside IR, how to wait? And
                 // still no graph handle, IR shall maintain this
@@ -153,8 +165,8 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         }
 
         // FIXME(askrebko): commands will added on the fly
-        /* _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()), */
-        /*                                          profiling_query.getHandle()); */
+        //_command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
+        //                                         _profiling_query ? _profiling_query->getHandle() : nullptr);
 
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
@@ -163,7 +175,8 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -178,8 +191,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             _command_lists.at(i)->appendBarrier();
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
-        // FIXME(askrebko): commands will added on the fly
-        /* _command_lists.at(i)->close(); */
     }
 
     llvm::InitializeNativeTarget();
@@ -270,9 +281,9 @@ void DynamicPipeline::push() {
                                                                         static_cast<float*>(output->data()),
                                                                         outputShapeRef,
                                                                         outputShapeRef);
-    void* contextHandlePtr = _initStructs->getContext();
-    void* deviceHandlePtr = _initStructs->getDevice();
-    void* ddiTableHandlePtr = _initStructs->getGraphDdiTable().getImpl();
+    void* contextHandlePtr = _init_structs->getContext();
+    void* deviceHandlePtr = _init_structs->getDevice();
+    void* ddiTableHandlePtr = _init_structs->getGraphDdiTable().getImpl();
     void* commandListHandlePtr = _command_lists.at(0)->handle();
 
     // TODO: function shall accept profiling handle like ze_graph_profiling_pool_handle_t
@@ -288,9 +299,10 @@ void DynamicPipeline::push() {
     }
 
     // TODO: if we support batch, need close more. If we have multiple graph inside IR, need know which to close
-    _command_lists.at(0)->close();
+    //_command_lists.at(0)->close();
 
-    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
@@ -303,9 +315,9 @@ void DynamicPipeline::push() {
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "DynamicPipeline", "push");
+        _command_lists.at(i)->close();
+        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
-            // TODO: If we have multiple graph inside IR, then shall also pass command queue to IR..
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
@@ -319,8 +331,6 @@ void DynamicPipeline::pull() {
     _logger.debug("DynamicPipeline - pull() started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
 
-    // TODO: if we have one commandlist, this synchronize means inference done, but if we have commandlist inside IR,
-    // need a way to know the work down
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
@@ -350,7 +360,7 @@ void DynamicPipeline::reset() const {
     _logger.debug("DynamicPipeline - rest() completed");
 };
 
-void DynamicPipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) {
+void DynamicPipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
     _logger.debug("DynamicPipeline - updateCommandList");
 
@@ -363,18 +373,9 @@ void DynamicPipeline::updateCommandList(uint32_t arg_index, const void* arg_data
     }
 };
 
-void DynamicPipeline::closeCommandList() {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "closeCommandList");
-    _logger.debug("DynamicPipeline - closeCommandList");
-
-    const size_t number_of_command_lists = _command_lists.size();
-
-    for (size_t i = 0; i < number_of_command_lists; i++) {
-        _command_lists.at(i)->close();
-    }
-};
-
-void DynamicPipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
+void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
+                                                      const void* arg_data,
+                                                      size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",
@@ -390,20 +391,27 @@ void DynamicPipeline::updateCommandListIndex(uint32_t arg_index, const void* arg
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
 };
 
-void DynamicPipeline::closeCommandListIndex(size_t command_list_index) {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
-                      itt::domains::LevelZeroBackend,
-                      "DynamicPipeline",
-                      "closeCommandListIndex");
-    _logger.debug("DynamicPipeline - closeCommandListIndex");
+std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
+    _logger.debug("InferRequest::get_profiling_info started");
+    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
+        return {};
+    }
 
-    const size_t number_of_command_lists = _command_lists.size();
-
-    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    command_list_index);
-
-    _command_lists.at(command_list_index)->close();
-};
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
+        return _npu_profiling->getNpuInferStatistics();
+    }
+    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
+    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::MLIR) {
+        // For plugin compiler retreive raw profiling data from backend and delegate
+        // processing to the compiler
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
+    } else {
+        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+        return _profiling_query->getLayerStatistics();
+    }
+}
 
 }  // namespace intel_npu

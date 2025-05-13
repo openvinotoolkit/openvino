@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/MemRefUtils.h>
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "zero_memory.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
@@ -22,9 +22,6 @@ public:
     DynamicPipeline(const Config& config,
                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
-                    zeroProfiling::ProfilingPool& profiling_pool,
-                    zeroProfiling::ProfilingQuery& profiling_query,
-                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
@@ -36,14 +33,12 @@ public:
     virtual void pull() override;
     virtual void reset() const override;
 
-    virtual void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) override;
-    virtual void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index) override;
+    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
+    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
-    virtual void closeCommandList() override;
-    virtual void closeCommandListIndex(size_t command_list_index) override;
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
-    const std::shared_ptr<ZeroInitStructsHolder>& _initStructs;
     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     const std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
     std::unique_ptr<mlir::ExecutionEngine> _engine;
