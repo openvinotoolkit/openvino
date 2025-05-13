@@ -728,14 +728,14 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
  * The final returned string is semicolon-delimited and ordered to match the inputInfo.
  *
  * @param inputInfo      A vector of OpenVINO output objects representing model inputs.
- * @param input_file     A string containing input file specifications, typically as key-value pairs.
+ * @param inputFiles     A string containing input file specifications, typically as key-value pairs.
  * @return               A semicolon-delimited string of input file values, ordered to match inputInfo.
  *
  * @throws               Throws an assertion if duplicate or incomplete input specifications are found.
  */
-std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string& input_file) {
+std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string& inputFiles) {
     // Parse input string into key-value pairs
-    std::map<std::string, std::string> inputFileMap = parseArgMap(input_file);
+    std::map<std::string, std::string> inputFileMap = parseArgMap(inputFiles);
 
     // Create vector to store matched values for each input
     std::vector<std::string> inputValues(inputInfo.size());
@@ -748,11 +748,6 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
         for (const auto& name : inputNames) {
             auto it = inputFileMap.find(name);
             if (it != inputFileMap.end()) {
-                // If we already have a value for this input, it's a duplicate
-                if (!inputValues[i].empty()) {
-                    OPENVINO_ASSERT(false, "Duplicate input specification found for input with name ",
-                                  name);
-                }
                 inputValues[i] = it->second;
                 std::cout << "--- Matched input: " << name << " with value: " << it->second << std::endl;
                 break;
@@ -765,7 +760,12 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
 
     // All inputs must have values or none must have values
     if (valueCount > 0 && valueCount < inputInfo.size()) {
-        OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none.");
+        OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none. "
+                               "Check if there are duplicate input names in the input file map.");
+    }
+    // If there are no matches, valueCount will be 0. Hence we directly return the inputFiles string.
+    if (valueCount == 0) {
+        return inputFiles;
     }
 
     // Concatenate results with ; delimiter
@@ -776,6 +776,7 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
         }
         result += inputValues[i];
     }
+    std::cout << "--- Final input files: " << result << std::endl;
 
     return result;
 }
