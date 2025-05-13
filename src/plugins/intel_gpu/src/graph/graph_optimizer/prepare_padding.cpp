@@ -298,7 +298,7 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     tensor::value_type padding_begin_x, padding_begin_y, padding_begin_z;
     tensor::value_type padding_end_x, padding_end_y, padding_end_z;
 
-    if ((node.is_dynamic() || (node.get_program().is_new_shape_infer() && conv_layout.get_partial_shape().rank() == 3)) && node.use_explicit_padding()) {
+    if (node.get_program().is_new_shape_infer() && node.use_explicit_padding()) {
         padding_begin_x = std::max(pad_x, 0);
         padding_begin_y = std::max(pad_y, 0);
         padding_begin_z = std::max(pad_z, 0);
