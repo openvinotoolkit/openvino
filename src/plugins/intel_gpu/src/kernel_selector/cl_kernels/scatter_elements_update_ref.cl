@@ -191,9 +191,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             __global int count_v[COUNT_LIMIT];
             count_length = COUNT_LIMIT;
         #elif COUNT_LENGTH == 0
-            __local int count_k[COUNT_LIMIT/64];
-            __local int count_v[COUNT_LIMIT/64];
-            count_length = COUNT_LIMIT/64;
+            __local int count_k[COUNT_MINIMUM];
+            __local int count_v[COUNT_MINIMUM];
+            count_length = COUNT_MINIMUM;
         #else
             __local int count_k[COUNT_LENGTH];
             __local int count_v[COUNT_LENGTH];
