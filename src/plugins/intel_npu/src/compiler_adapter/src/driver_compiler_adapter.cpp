@@ -215,13 +215,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
-    // Check If blob is ELF, if not, create IRGraph
-    size_t blobSize = blobPtr->size();
+    // Check If blob is ELF, if not, create graph for LLVM IR
+    size_t blobSize = blob.get_byte_size();
     // Temporarily use 20 as header length
     size_t headerSize = blobSize > 20 ? 20 : blobSize;
-    std::string header(reinterpret_cast<const char*>(blobPtr->get_ptr()), headerSize);
+    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
     if (header.find("ELF") == std::string::npos) {
-        _logger.debug("blob is not ELF format, create IRGraph!");
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
         // TODO: Fake metadata here, need to get from driver|compiler
         int64_t dynamicWidth = [] {
             const auto env = std::getenv("DYNAMIC_WIDTH");
@@ -262,7 +262,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
                                          "output",
                                          {"output"},
                                          std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
-        return std::make_shared<IRGraph>(_zeroInitStruct, config, metadata, std::move(blobPtr));
+        return std::make_shared<Graph>(_zeGraphExt,
+                                       _zeroInitStruct,
+                                       nullptr,
+                                       std::move(metadata),
+                                       std::move(blob),
+                                       blobAllocatedByPlugin,
+                                       config);
     }
 
     _logger.debug("parse start");
