@@ -164,23 +164,23 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
 
     auto zeros_matrix = std::make_shared<ov::op::v0::Constant>(
         ov::element::f32,
-        b_shape,
+        b_row,
         std::vector<float>{0.1122});
 
     std::vector<std::shared_ptr<ov::Node>> zero_vectors;
     for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
         zero_vectors.push_back(
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.0f + mm_count}));
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.0f + mm_count}));
     }
     std::vector<std::shared_ptr<ov::Node>> hidden_vectors;
     for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
         hidden_vectors.push_back(
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count}));
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122f + mm_count}));
     }
 
     // Create subgraph parameters (must be preserved even if similar constants exist).
     auto sub_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
-    auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_shape);
+    auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
     auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
     std::vector<std::shared_ptr<ov::op::v0::Parameter>> sub_zeros64_vec;
     for (size_t i = 0; i < num_hidden_layers; ++i) {
@@ -190,7 +190,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     }
     std::vector<std::shared_ptr<ov::op::v0::Parameter>> sub_hidden_vec;
     for (size_t i = 0; i < num_hidden_layers; ++i) {
-        sub_hidden_vec.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_shape));
+        sub_hidden_vec.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row));
     }
     auto sub_trans_zeros1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
 
