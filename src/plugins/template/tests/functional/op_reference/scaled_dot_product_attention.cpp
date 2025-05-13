@@ -32,18 +32,17 @@ struct SDPAParams {
 
 template <typename T>
 SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
-                                            const PartialShape& kShape,
-                                            const PartialShape& vShape, 
-                                            const PartialShape& attentionMaskShape,
-                                            const PartialShape& outputShape,
-                                            bool isCausal,
-                                            const std::vector<T>& qData,
-                                            const std::vector<T>& kData,
-                                            const std::vector<T>& vData,
-                                            const std::vector<T>& attentionMaskData,
-                                            const std::vector<T>& expectedOutputData,
-                                            const std::string& description) {
-
+                                 const PartialShape& kShape,
+                                 const PartialShape& vShape,
+                                 const PartialShape& attentionMaskShape,
+                                 const PartialShape& outputShape,
+                                 bool isCausal,
+                                 const std::vector<T>& qData,
+                                 const std::vector<T>& kData,
+                                 const std::vector<T>& vData,
+                                 const std::vector<T>& attentionMaskData,
+                                 const std::vector<T>& expectedOutputData,
+                                 const std::string& description) {
     SDPAParams ret;
     const auto elementType = element::from<T>();
 
@@ -68,7 +67,7 @@ public:
         const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.qData.data, params.kData.data, params.vData.data};
-        if( params.attentionMaskData.data.get_size() != 0 ) {
+        if (params.attentionMaskShape.size() != 0) {
             inputData.push_back(params.attentionMaskData.data);
         }
         refOutData = {params.expectedOutputData.data};
@@ -91,24 +90,22 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const SDPAParams& params) {
-        const auto q =
-            std::make_shared<op::v0::Parameter>(params.qData.data.get_element_type(), params.qShape);
-        const auto k =
-            std::make_shared<op::v0::Parameter>(params.kData.data.get_element_type(), params.kShape);
-        const auto v =
-            std::make_shared<op::v0::Parameter>(params.vData.data.get_element_type(), params.vShape);
+        const auto q = std::make_shared<op::v0::Parameter>(params.qData.data.get_element_type(), params.qShape);
+        const auto k = std::make_shared<op::v0::Parameter>(params.kData.data.get_element_type(), params.kShape);
+        const auto v = std::make_shared<op::v0::Parameter>(params.vData.data.get_element_type(), params.vShape);
 
         OutputVector inputs = {q, k, v};
         ParameterVector paramsVec = {q, k, v};
 
-        if( params.attentionMaskData.data.get_size() != 0 ) {
+        if (params.attentionMaskShape.size() != 0) {
             const auto attentionMask =
-                std::make_shared<op::v0::Parameter>(params.attentionMaskData.data.get_element_type(), params.attentionMaskShape);
+                std::make_shared<op::v0::Parameter>(params.attentionMaskData.data.get_element_type(),
+                                                    params.attentionMaskShape);
             inputs.push_back(attentionMask);
             paramsVec.push_back(attentionMask);
         }
-      
-        const auto op = std::make_shared<op::v13::ScaledDotProductAttention>( inputs, params.isCausal);
+
+        const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(inputs, params.isCausal);
 
         return std::make_shared<Model>(OutputVector{op}, paramsVec);
     }
@@ -123,31 +120,30 @@ std::vector<SDPAParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<SDPAParams> params;
 
-#define  TEST_DATA(q_shape, \
-          k_shape,\
-          v_shape,\
-          attention_mask_shape,\
-          output_shape,\
-          is_causal,\
-          q_data,\
-          k_data,\
-          v_data,\
-          attention_mask_data,\
-          expected_output_data,\
-          description) \
-    params.push_back(PrepareTestCaseParams<T>(q_shape,                                                            \
-                                                k_shape,                                                            \
-                                                v_shape,                                                            \
-                                                attention_mask_shape,                                                \
-                                                output_shape,                                                       \
-                                                is_causal,                                                          \
-                                                q_data,                                                            \
-                                                k_data,                                                            \
-                                                v_data,                                                            \
-                                                attention_mask_data,                                                 \
-                                                expected_output_data,                                                \
-                                                description));
-
+#define TEST_DATA(q_shape,                                          \
+                  k_shape,                                          \
+                  v_shape,                                          \
+                  attention_mask_shape,                             \
+                  output_shape,                                     \
+                  is_causal,                                        \
+                  q_data,                                           \
+                  k_data,                                           \
+                  v_data,                                           \
+                  attention_mask_data,                              \
+                  expected_output_data,                             \
+                  description)                                      \
+    params.push_back(PrepareTestCaseParams<T>(q_shape,              \
+                                              k_shape,              \
+                                              v_shape,              \
+                                              attention_mask_shape, \
+                                              output_shape,         \
+                                              is_causal,            \
+                                              q_data,               \
+                                              k_data,               \
+                                              v_data,               \
+                                              attention_mask_data,  \
+                                              expected_output_data, \
+                                              description));
 
 #include "unit_test_utils/tests_data/scaled_dot_product_attention_data.h"
 #undef TEST_DATA
