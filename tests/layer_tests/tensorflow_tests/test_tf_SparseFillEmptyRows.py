@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng(475912)
 
@@ -88,7 +87,7 @@ class TestSparseFillEmptyRows(CommonTFLayerTest):
     def test_sparse_fill_empty_rows(self, data_type,
                                    dense_shape, values_count, empty_rows,
                                    ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU' or run_in_jenkins():
+        if ie_device == 'GPU':
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_sparse_fill_empty_rows_net(data_type,
                                                          dense_shape, values_count, empty_rows),
