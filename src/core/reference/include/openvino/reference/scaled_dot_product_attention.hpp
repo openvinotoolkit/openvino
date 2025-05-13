@@ -33,7 +33,7 @@
 
 namespace helpers {
 template <typename T>
-std::vector<T> GetAttentionMask(const ov::Shape& shape) {
+std::vector<T> CreateAttentionMask(const ov::Shape& shape) {
     std::vector<T> maskData(shape_size(shape), std::numeric_limits<T>::lowest());
     auto L = shape[shape.size() - 2];
     auto S = shape[shape.size() - 1];
@@ -46,14 +46,41 @@ std::vector<T> GetAttentionMask(const ov::Shape& shape) {
     }
     return maskData;
 }
+
+template <typename T>
+typename std::enable_if<!std::is_same<T, char>::value, const T*>::type GetRawPtr(const T* maskBool) {
+    return maskBool;
+}
+
+template <typename T>
+const T* GetRawPtr(const char* maskBool);
+
+// This function will be never called, only bool version is needed.
+template <typename T>
+std::vector<T> CreateAttentionMaskFromBool(const T* maskBool, const ov::Shape& shape);
+
+template <typename T>
+std::vector<T> CreateAttentionMaskFromBool(const char* maskBool, const ov::Shape& shape) {
+    std::vector<T> maskData(shape_size(shape));
+
+    std::transform(maskBool, maskBool + shape_size(shape), maskData.begin(), [](char val) {
+        if (val == 0) {
+            return std::numeric_limits<T>::lowest();
+        } else {
+            return static_cast<T>(0);
+        }
+    });
+
+    return maskData;
+}
 }  // namespace helpers
 namespace ov {
 namespace reference {
-template <typename T>
+template <typename T, typename TMask>
 void scaled_dot_product_attention(const T* query,
                                   const T* key,
                                   const T* value,
-                                  const T* mask,
+                                  const TMask* mask,
                                   const T* scale,
                                   T* output,
                                   bool is_causal,
@@ -62,20 +89,28 @@ void scaled_dot_product_attention(const T* query,
                                   const Shape& value_shape,
                                   const Shape& mask_shape,
                                   const Shape& output_shape) {
+    static_assert(std::is_same<T, TMask>::value || std::is_same<TMask, char>::value,
+                  "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
+
     const T* bias = nullptr;
     Shape biasShape = {};
 
-    if (mask) {
-        bias = mask;
+    std::vector<T> attentionMaskData;
+    if (mask && !is_causal) {
+        if (std::is_same<TMask, char>::value) {
+            attentionMaskData = helpers::CreateAttentionMaskFromBool<T>(mask, biasShape);
+            bias = attentionMaskData.data();
+        } else {
+            bias = helpers::GetRawPtr<T>(mask);
+        }
         biasShape = mask_shape;
     }
 
-    std::vector<T> attentionMaskData;
     if (is_causal) {
         auto L = query_shape[query_shape.size() - 2];
         auto S = key_shape[key_shape.size() - 2];
         biasShape = {L, S};
-        attentionMaskData = helpers::GetAttentionMask<T>(biasShape);
+        attentionMaskData = helpers::CreateAttentionMask<T>(biasShape);
         bias = attentionMaskData.data();
     }
 
