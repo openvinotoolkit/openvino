@@ -20,7 +20,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::Gather>& op,
                                            op->get_input_shape(0),
                                            op->get_input_shape(1),
                                            op->get_output_shape(0),
-                                           op->get_axis(),
+                                           static_cast<size_t>(op->get_axis()),
                                            op->get_batch_dims());
     } else if (op->get_input_element_type(1) == ov::element::i64) {
         ov::reference::gather<T, int64_t>(inputs[0].data<T>(),
@@ -29,7 +29,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::Gather>& op,
                                           op->get_input_shape(0),
                                           op->get_input_shape(1),
                                           op->get_output_shape(0),
-                                          op->get_axis(),
+                                          static_cast<size_t>(op->get_axis()),
                                           op->get_batch_dims());
     } else if (op->get_input_element_type(1) == ov::element::i32) {
         ov::reference::gather<T, int32_t>(inputs[0].data<T>(),
@@ -38,7 +38,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::Gather>& op,
                                           op->get_input_shape(0),
                                           op->get_input_shape(1),
                                           op->get_output_shape(0),
-                                          op->get_axis(),
+                                          static_cast<size_t>(op->get_axis()),
                                           op->get_batch_dims());
     } else {
         OPENVINO_THROW("Unexpected indices type for Gather operation");
