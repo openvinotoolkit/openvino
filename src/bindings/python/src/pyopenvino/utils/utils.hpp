@@ -66,7 +66,7 @@ protected:
         if (python_direction == -1) {
             return pos_type(off_type(-1));
         }
-        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int>();
+        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int64_t>();
         return pos_type(abs_pos);
     }
 
@@ -139,6 +139,8 @@ protected:
     bool py_object_is_any_map(const py::object& py_obj);
 
     ov::AnyMap py_object_to_any_map(const py::object& py_obj);
+
+    std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj);
 
     ov::Any py_object_to_any(const py::object& py_obj);
 

@@ -63,16 +63,16 @@ protected:
             const auto weights_dt = instance.get_input_layout(1).data_type;
             auto weight_bitwidth = ov::element::Type(weights_dt).bitwidth();
             OPENVINO_ASSERT(weight_bitwidth == 8 || weight_bitwidth == 4, "[GPU] oneDNN supports only 4bit/8bit compressed weights");
-            int idx = prim->bias.empty() ? 2 : 3;
+            int idx = prim->bias.is_valid() ? 3 : 2;
 
-            if (!prim->decompression_scale.empty()) {
+            if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
             }
 
-            if (!prim->decompression_zero_point.empty()) {
+            if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
@@ -168,21 +168,32 @@ protected:
         // Transform weights_layout according to input layout
         {
             ov::PartialShape new_weights_pshape;
+            std::vector<int32_t> lower_sizes;
+            std::vector<int32_t> upper_sizes;
 
             for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
                 new_weights_pshape.push_back(1);
+                lower_sizes.push_back(0);
+                upper_sizes.push_back(0);
             }
 
             for (size_t i = 0; i < prim_weights_rank; i++) {
                 new_weights_pshape.push_back(weights_layout.get_partial_shape()[i]);
+                lower_sizes.push_back(weights_layout.data_padding._lower_size[i]);
+                upper_sizes.push_back(weights_layout.data_padding._upper_size[i]);
             }
 
             weights_layout.set_partial_shape(new_weights_pshape);
+            weights_layout.data_padding = cldnn::padding(lower_sizes, upper_sizes);
             weights_layout.format = input_layout.format;
         }
 
+        bool use_strides_for_weight_md = weights_layout.data_padding
+                                        && format::is_default_format(weights_layout.format)
+                                        && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4);
+
         dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt, false);
-        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false);
+        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false, use_strides_for_weight_md);
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt, false);
 
         if (has_bias) {
@@ -229,7 +240,7 @@ public:
         auto prim = impl_params->typed_desc<fully_connected>();
         size_t input_size = prim->input_size;
         size_t weights_rank = prim->weights_rank;
-        bool has_bias = !prim->bias.empty();
+        bool has_bias = prim->bias.is_valid();
         bool is_compressed = prim->compressed_weights;
         ob << input_size;
         ob << weights_rank;
@@ -238,13 +249,13 @@ public:
         ob << prim->dynamic_quantized_activation;
         ob << prim->dynamic_quantized_activation_zp;
 
-        bool has_decompression_scale = !prim->decompression_scale.empty();
+        bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
             ob << _ds_group_size;
             ob << make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
+        bool has_decompression_zp = prim->decompression_zero_point.is_valid() || prim->decompression_zero_point_scalar.has_value();
         if (has_decompression_zp) {
             ob << make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
         }
@@ -280,7 +291,7 @@ public:
         int per_oc = PER_OC << shift_size;
         int grouped = GROUPED << shift_size;
 
-        bool has_decompression_scale = !prim->decompression_scale.empty();
+        bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
@@ -290,7 +301,7 @@ public:
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
         }
 
-        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
+        bool has_decompression_zp = prim->decompression_zero_point.is_valid() || prim->decompression_zero_point_scalar.has_value();
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 2 : 3;
 
@@ -363,13 +374,15 @@ public:
             int per_oc = PER_OC << shift_size;
             int grouped = GROUPED << shift_size;
 
-            if (!prim->decompression_scale.empty()) {
+            if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
                 auto ngroups = scale_layout.get_dim(1);
                 group_size = ifm / ngroups;
+                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
+                    "group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
@@ -379,7 +392,7 @@ public:
                 }
             }
 
-            if (!prim->decompression_zero_point.empty()) {
+            if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = ++idx;
                 auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
                 dzp_data_type = convert_data_type(dzp_layout.data_type);
@@ -413,7 +426,7 @@ public:
 
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                             prim->input_size, prim->weights_rank, !prim->bias.empty(), *attr);
+                                                             prim->input_size, prim->weights_rank, prim->bias.is_valid(), *attr);
 
             auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
             prim_onednn->_ds_group_size = group_size;
@@ -422,7 +435,7 @@ public:
             return prim_onednn;
         } else {
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                             prim->input_size, prim->weights_rank, !prim->bias.empty(), *attr);
+                                                             prim->input_size, prim->weights_rank, prim->bias.is_valid(), *attr);
 
             return std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
         }

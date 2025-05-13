@@ -577,8 +577,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
 }
 
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
     using namespace ov::util;
     auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
@@ -589,6 +587,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
+
+    std::lock_guard<std::mutex> lock(get_mutex());
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
         std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
@@ -1456,11 +1456,9 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    ov::AnyMap properties;
-    if (arguments.count(ov::device::priorities.name())) {
-        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
-    }
-    return plugin.supports_model_caching(properties);
+    ov::AnyMap properties_to_virtual_dev = arguments.empty() ? ov::AnyMap{ov::device::priorities("")} : arguments;
+    return ov::is_virtual_device(plugin.get_name()) ? plugin.supports_model_caching(properties_to_virtual_dev)
+                                                    : plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {

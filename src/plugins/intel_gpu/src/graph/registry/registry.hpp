@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,7 @@ REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
+REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
@@ -224,3 +225,4 @@ REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(ISTFT, OCL_S, OCL_D);
