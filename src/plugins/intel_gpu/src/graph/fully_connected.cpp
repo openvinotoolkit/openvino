@@ -330,7 +330,7 @@ template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::Parti
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto bias_id = desc->bias != "" ? desc->bias : "no bias";
+    auto bias_id = desc->bias.is_valid() ? desc->bias.pid : "no bias";
     auto weights_id = desc->weights;
 
     std::stringstream primitive_description;
