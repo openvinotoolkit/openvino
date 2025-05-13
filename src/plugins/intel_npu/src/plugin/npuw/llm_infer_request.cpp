@@ -171,18 +171,15 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed) {
     LOG_ERROR("Prefill::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
 }
-void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx)  {
-   // LOG_ERROR("Prefill::complete_subrequest - initiate do an kv-kache copy for prefill model [" << idx << "]");
-
-    LOG_ERROR("Copying " << idx << " kv-cache from prefill to generate model.");
+void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> /*request*/, std::size_t idx)  {
+    if (!m_copy_cache_inline) {
+        return;
+    }
+    LOG_DEBUG("Copying " << idx << " kv-cache from prefill to generate model.");
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    // const auto& prefill_submodel_compiled = request->get_compiled_model();
-   // const auto& prefill_cache_name = prefill_submodel_compiled->outputs()[i].get_any_name();
-
-    auto cache_non_indexed_pattern = std::regex("present");
-   // auto cache_node_pattern = std::regex("present\.[0-9]+");
+    auto cache_node_pattern = std::regex("present");
     auto cache_node_name = std::string("present.") + std::to_string(idx);
 
     const std::size_t kStartOutputKVCacheLayers = 1u;
@@ -195,42 +192,26 @@ void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferReq
             continue;
         }
 
-        const auto& input_name = std::regex_replace(output_name, cache_non_indexed_pattern, "past_key_values");
-
-        LOG_ERROR("Copying " << output_name << " kv-cache from prefill to generate model: " << input_name);
+        const auto& input_name = std::regex_replace(output_name, cache_node_pattern, "past_key_values");
 
         // or we can use newly created request received here???
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-        LOG_ERROR("Copying A.");
-
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-        LOG_ERROR("Copying A..");
 
         // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
         //        taking into account kvcache dimension.
         fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-        LOG_ERROR("Copying A...");
-
 
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                 ? 3u
                                 : kvcache_desc.dim;
 
-        LOG_ERROR("Copying A....");
-
-
         auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
                                                    kv_dim,
                                                    kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
                                                    kvcache_desc.max_prompt_size);
-        LOG_ERROR("Copying A.....");
-
 
         auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-        LOG_ERROR("Copying A......");
-
-        LOG_ERROR("Copying kv_dim=" << kv_dim);
 
         if (kv_dim == 3u) {
             copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
@@ -239,7 +220,6 @@ void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferReq
         } else {
             prefill_out_slice->copy_to(kvcache_in_slice._ptr);
         }
-        LOG_ERROR("Done.");
     }
 }
 
@@ -299,11 +279,14 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                 position_ids->get_size(),
                 padded_position_ids->data<int64_t>() + padded_position_ids->get_size() - position_ids->get_size());
 
+    // num stored tokens are used to calculate copying slice during prefill execution
+    // if infer failed anyway this tokens number might not be accessed anyway
+    // so we increment it before actual inference generates them
+    m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens +=
+            static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+
     m_prefill_request->infer();
 
-    m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens +=
-        static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
-   
     m_need_copy_kvcache = true;
 
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
@@ -349,6 +332,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                         kvcache_desc.max_prompt_size);
 
                 auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+
+                LOG_ERROR("Copying kv_dim=" << kv_dim);
+                LOG_ERROR("kvcache_desc.max_prompt_size: "<< kvcache_desc.max_prompt_size);
+                LOG_ERROR("kvcache_desc.max_prompt_size: "<< kvcache_desc.num_stored_tokens);
+                
+                LOG_ERROR("Prefill_tensor: " << prefill_out_tensor->get_shape());
+                LOG_ERROR("kvcache_tensor: " << kvcache_in_tensor->get_shape());
 
                 if (kv_dim == 3u) {
                     copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
