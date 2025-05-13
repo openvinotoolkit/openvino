@@ -559,7 +559,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end(); ++it) {
         if (it->first.find("NPUW") != it->first.npos) {
-            npu_plugin_properties.erase(it);
+            npu_plugin_properties.erase(it->first);
         }
     }
 
