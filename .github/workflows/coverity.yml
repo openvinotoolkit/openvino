@@ -198,6 +198,7 @@ jobs:
             --dir cov-int \
             --stream OpenVINO-master-stream \
             --url  https://coverityent.devtools.intel.com/prod1 \
+            --version "${{ github.sha }}" \
             --user <user> \
             --password <coverity> \
             --strip-path ${{ env.OPENVINO_REPO }} --noxrefs
