@@ -161,6 +161,11 @@ jobs:
             
       - name: Build Python API (Python 3.9-3.13)
         run: |
+          export CC=/usr/local/gcc-10.2.0/bin/gcc
+          export CXX=/usr/local/gcc-10.2.0/bin/g++
+          export LIBRARY_PATH=/usr/local/gcc-10.2.0/lib64:$LIBRARY_PATH
+          export LD_LIBRARY_PATH=/usr/local/gcc-10.2.0/lib64:/usr/local/gcc-10.2.0:/usr/local/gcc-10.2.0/lib
+          
           SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
 
