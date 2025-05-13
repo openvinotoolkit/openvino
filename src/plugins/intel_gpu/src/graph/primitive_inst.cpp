@@ -2703,8 +2703,8 @@ bool primitive_inst::is_valid_fusion() const {
     }
 
     const auto& out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED)) ?
-                            _unfused_subgraph->get_primitive(get_node().id())->get_output_layout().get_partial_shape() :
-                            _impl_params->get_output_layout().get_partial_shape();
+                            _unfused_subgraph->get_primitive(get_node().id())->get_output_layout_reference().get_partial_shape() :
+                            _impl_params->get_output_layout_reference().get_partial_shape();
     for (auto& fd : fused_eltwise_prims) {
         auto outer_dep_idx = fd.outer_dep_start_idx;
         if (outer_dep_idx < 0) // no outer dep
