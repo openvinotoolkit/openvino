@@ -4,9 +4,10 @@
 
 #include "roi_align_rotated.h"
 
-#include <openvino/opsets/opset15.hpp>
-
 #include "common/cpu_convert.h"
+#include "openvino/op/roi_align_rotated.hpp"
+#include "openvino/opsets/opset14_decl.hpp"
+#include "openvino/opsets/opset15_decl.hpp"
 #include "openvino/reference/roi_align.hpp"
 
 namespace ov::intel_cpu::node {

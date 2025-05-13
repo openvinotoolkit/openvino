@@ -397,7 +397,7 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&place](ov::frontend::Place::Ptr const& output) {
+                                     [&place](const ov::frontend::Place::Ptr& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());

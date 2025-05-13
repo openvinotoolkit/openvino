@@ -189,7 +189,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             auto& fc_node = node->get_dependency(0);
             if (node->get_dependencies().size() > 1)
                 continue;
-            if (!node->get_dependency(0).get_fused_primitives().empty())
+            if (!fc_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = fc_node.get_input_layout(0).data_type;
             if (in_dt != data_types::f16)
@@ -253,10 +253,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             return node.as<fully_connected>().get_primitive()->input_size == 3;
         };
 
-
+        auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
         if (node->get_output_layout().is_dynamic()) {
             if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
-                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
                 if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
                     continue;
 
@@ -298,6 +297,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
             }
+            // Handle eltw as a bias only when eltw's shape is to be broadcasted to parent node
+            if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
+                continue;
         }
         auto& bias_node = eltw_node.get_dependency(const_dep_idx);
         primitive_id bias_name = bias_node.id();
@@ -371,6 +373,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
+            // XXX: deformable convolution does not support bias fusing at this moment.
+            // It is just not tested and deformable_mode value is not properly handled below.
+            if (desc->deformable_mode)
+                continue;
             primitive_id biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
@@ -388,11 +394,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
                                                                      desc->input[0],
-                                                                     desc->weights,
+                                                                     desc->weights.pid,
                                                                      biases,
-                                                                     desc->weights_zero_points,
-                                                                     desc->activations_zero_points,
-                                                                     desc->compensation,
+                                                                     desc->weights_zero_points.pid,
+                                                                     desc->activations_zero_points.pid,
+                                                                     desc->compensation.pid,
                                                                      desc->groups,
                                                                      desc->stride,
                                                                      desc->dilation,
@@ -410,7 +416,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
             auto desc = deconv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (deconv.bias_term()) {
@@ -427,8 +432,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
                                                                          desc->input[0],
-                                                                         desc->weights,
-                                                                         biases,
+                                                                         desc->weights.pid,
+                                                                         bias_name,
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
@@ -436,6 +441,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
+            deconv_with_bias_prim->pads_begin = desc->pads_begin;
+            deconv_with_bias_prim->pads_end = desc->pads_end;
+            deconv_with_bias_prim->out_padding = desc->out_padding;
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
@@ -455,24 +463,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto fc_with_bias_prim = std::make_shared<fully_connected>(desc->id + "_tmp",
-                                                                       desc->input[0],
-                                                                       desc->weights,
-                                                                       bias_name,
-                                                                       fc.get_output_layout().data_type,
-                                                                       desc->input_size);
+            auto fc_with_bias_prim = desc->clone();
+            fc_with_bias_prim->id = desc->id + "_tmp";
+            fc_with_bias_prim->bias = bias_name;
+            fc_with_bias_prim->output_data_types = {optional_data_type{fc.get_output_layout().data_type}};
 
-            if (desc->compressed_weights) {
-                fc_with_bias_prim->compressed_weights = true;
-                fc_with_bias_prim->decompression_scale = desc->decompression_scale;
-                fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
-                if (desc->decompression_zero_point_scalar.has_value())
-                    fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
-                fc_with_bias_prim->activation_scale = desc->activation_scale;
-                fc_with_bias_prim->activation_zero_point = desc->activation_zero_point;
-                fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
-                fc_with_bias_prim->dynamic_quantized_activation_zp = desc->dynamic_quantized_activation_zp;
-            }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
         }
@@ -737,11 +732,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 auto additional_params_input = activation_node.get_primitive()->additional_params_input;
-                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                if (activation_func == cldnn::activation_func::relu_negative_slope && additional_params_input.is_valid() &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
+
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -884,7 +880,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            if (input_data.is_type<fully_connected>()) {
+                // Do not allow quantization fusion
+                auto& fc = input_data.as<fully_connected>();
+                auto desc = fc.get_primitive();
+                // WA: OneDNN weight-compressed dyn-quan matmul does not support fusion with quantization
+                auto fc_in_dt = fc.get_input_layout(0).data_type;
+                bool is_onednn_compressed_weights_dyn_quan = supports_immad && desc->compressed_weights && data_type_traits::is_i8_u8(fc_in_dt);
+                should_fuse |= !is_onednn_compressed_weights_dyn_quan && quantize_node.get_scale_shift_opt();
+            }
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1142,8 +1146,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<gemm>())
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
@@ -1282,7 +1285,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
                 if (desc->compressed_weights) {
                     size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
                     valid_weights_indices.push_back(scale_idx);
-                    if (!desc->decompression_zero_point.empty()) {
+                    if (desc->decompression_zero_point.is_valid()) {
                         valid_weights_indices.push_back(scale_idx + 1);
                     }
                 }

@@ -13,7 +13,7 @@ import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend import FrontEndManager
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
@@ -123,7 +123,9 @@ class PytorchLayerTest:
                 from openvino import convert_model
                 from torch.export import export
 
-                em = export(model, tuple(torch_inputs))
+                dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
+
+                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
 
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)

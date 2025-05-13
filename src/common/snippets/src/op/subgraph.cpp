@@ -289,7 +289,7 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
         node);
 }
 
-bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
+bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) {
     const auto elementwise = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(node);
     return
         (elementwise == nullptr) ||
@@ -486,7 +486,8 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
-        lowered::pass::InsertPerfCount perf_count_pass({});
+        const std::map<std::string, std::string> bound_names = {};
+        lowered::pass::InsertPerfCount perf_count_pass(bound_names);
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
 #endif
@@ -558,7 +559,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
-    OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    assert(m_generator && "Generator has not been inited!");
     return m_generator->get_target_machine()->get_runtime_configurator();
 }
 

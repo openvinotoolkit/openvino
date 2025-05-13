@@ -76,6 +76,7 @@ struct Config {
     size_t keyCacheGroupSize = 0ul;
     size_t valueCacheGroupSize = 0ul;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
+    CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;

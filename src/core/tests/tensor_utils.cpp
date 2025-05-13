@@ -235,4 +235,12 @@ TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
                      ov::Exception);
     }
 }
+
+TEST_F(FunctionalOffloadTensorTest, read_null_shape) {
+    auto new_shape = shape;
+    // 1 dynamic dimension and 1 null dimension
+    new_shape[0] = 0;
+    new_shape[1] = Dimension::dynamic();
+    { EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0), ov::Exception); }
+}
 }  // namespace ov::test

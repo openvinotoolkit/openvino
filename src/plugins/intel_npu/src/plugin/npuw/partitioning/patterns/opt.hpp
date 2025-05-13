@@ -120,6 +120,12 @@ public:
     DQLiftGatherSymGQ();
 };
 
+class DQLiftGatherCW : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherCW");
+    DQLiftGatherCW();
+};
+
 // Head vocab unpacks
 
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
@@ -152,6 +158,12 @@ class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWu");
     DQUnpackDictMatMulCWu(Context::Ref ctx);
+};
+
+class DQUnpackDictMatMulCWf8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWf8");
+    DQUnpackDictMatMulCWf8(Context::Ref ctx);
 };
 
 class DQUnpackDictMatMulGQi : public ov::pass::MatcherPass {

@@ -6,10 +6,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 
 template <class TOp>

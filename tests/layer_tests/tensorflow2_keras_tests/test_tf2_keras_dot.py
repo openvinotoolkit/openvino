@@ -49,10 +49,9 @@ class TestKerasDot(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_dot(self, input_shapes, axes, input_type, normalize,
-                       ie_device, precision, temp_dir, ir_version,
-                       use_legacy_frontend):
+                       ie_device, precision, temp_dir, ir_version):
         params = {}
         params['input_shapes'] = input_shapes
         self._test(*self.create_keras_dot_net(input_shapes, axes, input_type, normalize),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

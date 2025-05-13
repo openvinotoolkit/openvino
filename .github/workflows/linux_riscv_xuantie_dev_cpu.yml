@@ -2,13 +2,25 @@ name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
     inputs:
-      testFilter:
-        description: 'Filter for google tests'
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+      testFilterType:
+        description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
-        default: '*smoke_AdaPoolAvg4DLayoutTest*'
+        default: 'CONCISE'
   pull_request:
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
+      - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
+      - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -18,8 +30,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.testFilter || '*smoke_AdaPoolAvg4DLayoutTest*' }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
@@ -82,7 +93,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
-    name: Build (RVV 0.7.1)
+    name: Build (RVV 1.0)
     needs: [Smart_CI, Docker]
     timeout-minutes: 150
     defaults:
@@ -157,7 +168,7 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake
+          -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
@@ -185,7 +196,7 @@ jobs:
         
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -193,7 +204,7 @@ jobs:
           
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -214,10 +225,11 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
@@ -232,11 +244,11 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu c910v ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
-        timeout-minutes: 25
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
 
   Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
+    name: ci/gha_overall_status_linux_riscv_xuantie
     needs: [Smart_CI, Build, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
