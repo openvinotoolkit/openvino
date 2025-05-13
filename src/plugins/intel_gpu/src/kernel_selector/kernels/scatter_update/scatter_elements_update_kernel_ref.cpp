@@ -201,6 +201,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_MINIMUM", params.engineInfo.maxLocalMemSize/64));
             cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2]));
             if (newParams.mode != ScatterUpdateReduction::NONE) {
                 dispatchData.gws = {1, 1, 1};
