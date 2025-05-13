@@ -175,7 +175,11 @@ void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferReq
     if (!m_copy_cache_inline) {
         return;
     }
+    
+
+    auto start = std::chrono::high_resolution_clock::now();
     LOG_DEBUG("Copying " << idx << " kv-cache from prefill to generate model.");
+
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -221,6 +225,13 @@ void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferReq
             prefill_out_slice->copy_to(kvcache_in_slice._ptr);
         }
     }
+    // Stop measuring time
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    std::chrono::duration<double, std::milli> duration_ms = end - start;
+
+    LOG_ERROR("KV-cache" << idx << " copy completed in: " << duration_ms.count() << " ms");
 }
 
 void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
@@ -306,9 +317,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         OPENVINO_THROW("KV-Cache is full.");
     }
 
+
+
     if (m_need_copy_kvcache) {
         if (!m_copy_cache_inline) {
-            LOG_ERROR("Copying kv-cache from prefill to generate model.");
+            // Start measuring time
+            auto start = std::chrono::high_resolution_clock::now();
+            LOG_DEBUG("Copying kv-cache from prefill to generate model.");
             const std::size_t kStartOutputKVCacheLayers = 1u;
             const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
             for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
@@ -348,6 +363,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     prefill_out_slice->copy_to(kvcache_in_slice._ptr);
                 }
             }
+            // Stop measuring time
+            auto end = std::chrono::high_resolution_clock::now();
+
+            // Calculate the duration
+            std::chrono::duration<double, std::milli> duration_ms = end - start;
+        
+            LOG_ERROR("KV-cache copy completed in: " << duration_ms.count() << " ms");
         }
 
         LOG_ERROR("Prepare attention mask pattern.");
@@ -357,6 +379,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
         m_need_copy_kvcache = false;
     }
+
+
+  
 
     // FIXME: these tensors should be shared between the parent & child models
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
