@@ -25,10 +25,12 @@ class MLPSeqFunction : public SnippetsFunctionBase {
 public:
     explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes,
                             const std::vector<ov::element::Type>& precisions,
-                            size_t num_hidden_layers)
+                            size_t num_hidden_layers,
+                            size_t hidden_matmul_size)
         : SnippetsFunctionBase(inputShapes),
           precisions(precisions),
-          num_hidden_layers(num_hidden_layers) {
+          num_hidden_layers(num_hidden_layers),
+          hidden_matmul_size(hidden_matmul_size) {
         OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
     }
 
@@ -36,7 +38,7 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
     const std::vector<ov::element::Type> precisions;
-    const size_t num_hidden_layers;
+    const size_t num_hidden_layers, hidden_matmul_size;
 };
 
 /* Graph:
@@ -63,10 +65,12 @@ class MLPSeqQuantizedFunction : public SnippetsFunctionBase {
 public:
     explicit MLPSeqQuantizedFunction(const std::vector<PartialShape>& inputShapes,
                                                 const std::vector<ov::element::Type>& precisions,
-                                                size_t num_hidden_layers)
+                                                size_t num_hidden_layers,
+                                                size_t hidden_matmul_size)
         : SnippetsFunctionBase(inputShapes),
           precisions(precisions),
-          num_hidden_layers(num_hidden_layers) {
+          num_hidden_layers(num_hidden_layers),
+          hidden_matmul_size(hidden_matmul_size) {
         OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
     }
 
@@ -74,17 +78,19 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
     const std::vector<ov::element::Type> precisions;
-    const size_t num_hidden_layers;
+    const size_t num_hidden_layers, hidden_matmul_size;
 };
 
 class MLPSeqQuantizedTypeRelaxedFunction : public SnippetsFunctionBase {
 public:
     explicit MLPSeqQuantizedTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes,
                                                 const std::vector<ov::element::Type>& precisions,
-                                                size_t num_hidden_layers)
+                                                size_t num_hidden_layers,
+                                                size_t hidden_matmul_size)
         : SnippetsFunctionBase(inputShapes),
           precisions(precisions),
-          num_hidden_layers(num_hidden_layers) {
+          num_hidden_layers(num_hidden_layers),
+          hidden_matmul_size(hidden_matmul_size) {
         OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
     }
 
@@ -93,7 +99,7 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
-    const size_t num_hidden_layers;
+    const size_t num_hidden_layers, hidden_matmul_size;
 };
 
 }  // namespace ov::test::snippets
