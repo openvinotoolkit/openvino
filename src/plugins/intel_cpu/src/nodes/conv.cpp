@@ -638,8 +638,8 @@ ExecutorPtr Convolution::createFallbackExecutor() {
     PostOps& fallbackPostOps = fallbackAttrs.postOps;
     // remove sum post-op from fallback post-ops
     auto sumPostOp =
-        std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-            return std::dynamic_pointer_cast<SumPostOp>(postOp);
+        std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const auto& postOp) {
+            return typeid(SumPostOp) == postOp.type();
         });
 
     fallbackPostOps.erase(sumPostOp, fallbackPostOps.end());

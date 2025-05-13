@@ -815,7 +815,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
         const bool fusedDWconv = std::any_of(attrs.postOps.begin(), attrs.postOps.end(), [](const auto& p) {
-            return std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(p) != nullptr;
+            return p.type() == typeid(DepthwiseConvolutionPostOp);
         });
 
         if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled
