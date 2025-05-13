@@ -4,10 +4,14 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "behavior/compiled_model/import_export.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/core/model_util.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace {
 
 using namespace ov::test::behavior;
+using ov::op::v0::Parameter, ov::op::v0::Result;
 
 const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::i8,
@@ -22,6 +26,62 @@ const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::f32,
 };
 const ov::AnyMap empty_property = {};
+
+TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
+    const std::vector<ov::element::Type> unsupported_precisions{ov::element::i16, ov::element::u16, ov::element::u32, ov::element::u64};
+
+    if (std::find(unsupported_precisions.begin(),
+                  unsupported_precisions.end(),
+                  elementType) != unsupported_precisions.end()) {
+        GTEST_SKIP() << "Element type " << elementType << " is not supported by Interpolate v4";
+    }
+    // Create model with interpolate which v0 and v4 are supported by TypeRelaxedExtension
+    {
+        using ov::op::v4::Interpolate;
+
+        ov::ParameterVector inputs;
+        auto data = std::make_shared<Parameter>(elementType, ov::PartialShape{1, 3, 64, 64});
+        data->set_friendly_name("data");
+        auto output_shape = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{2});
+        output_shape->set_friendly_name("output_shape");
+        auto scales = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{2});
+        scales->set_friendly_name("scales");
+
+        Interpolate::InterpolateAttrs attrs{};
+        attrs.antialias = false;
+        attrs.pads_begin = {0, 0, 0, 0};
+        attrs.pads_end = {0, 0, 0, 0};
+        attrs.cube_coeff = -0.75;
+        auto interpolate = std::make_shared<ov::op::TypeRelaxed<Interpolate>>(data, output_shape, scales, attrs);
+
+        auto result = std::make_shared<Result>(interpolate);
+        result->set_friendly_name("result");
+        function = std::make_shared<ov::Model>(ov::ResultVector{result},
+                                               ov::ParameterVector{data, output_shape, scales},
+                                               "Interpolate");
+        ov::util::set_tensors_names(ov::AUTO, *function);
+    }
+
+    auto execNet = core->compile_model(function, target_device, configuration);
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
+    EXPECT_EQ(function->inputs().size(), 3);
+    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+    EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+    EXPECT_NO_THROW(importedCompiledModel.output());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedCompiledModel.output("result").get_node());
+    EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
+
+    EXPECT_EQ(elementType, importedCompiledModel.input("data").get_element_type());
+    EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                          OVCompiledGraphImportExportTest,
@@ -67,4 +127,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
                          OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
 
 }  // namespace
-
