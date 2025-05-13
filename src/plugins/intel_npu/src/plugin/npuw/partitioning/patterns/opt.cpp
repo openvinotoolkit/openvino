@@ -1561,7 +1561,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 }
 
 SliceLastMatmul::SliceLastMatmul() {
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul, ov::op::v7::Einsum>({opp::any_input(), opp::any_input()});
     auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
@@ -1596,7 +1596,7 @@ SliceLastMatmul::SliceLastMatmul() {
 }
 
 SliceLastMatmulAdd::SliceLastMatmulAdd() {
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul, ov::op::v7::Einsum>({opp::any_input(), opp::any_input()});
     auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
     auto res = opp::wrap_type<ov::op::v0::Result>({add});
 
@@ -1632,7 +1632,7 @@ SliceLastMatmulAdd::SliceLastMatmulAdd() {
 }
 
 SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul, ov::op::v7::Einsum>({opp::any_input(), opp::any_input()});
     auto add = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
     auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
 
@@ -1668,7 +1668,7 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
 }
 
 SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul, ov::op::v7::Einsum>({opp::any_input(), opp::any_input()});
     auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
     auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
