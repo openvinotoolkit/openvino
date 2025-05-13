@@ -718,6 +718,21 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
     return out;
 }
 
+/**
+ * @brief Parses input file specifications and matches them to model input names.
+ *
+ * This function takes a vector of model input information and a string representing
+ * input file specifications (in key-value format), then matches each model input
+ * to its corresponding file value. It ensures that all inputs are specified or none,
+ * and detects duplicate specifications for the same input.
+ * The final returned string is semicolon-delimited and ordered to match the inputInfo.
+ *
+ * @param inputInfo      A vector of OpenVINO output objects representing model inputs.
+ * @param input_file     A string containing input file specifications, typically as key-value pairs.
+ * @return               A semicolon-delimited string of input file values, ordered to match inputInfo.
+ *
+ * @throws               Throws an assertion if duplicate or incomplete input specifications are found.
+ */
 std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string& input_file) {
     // Parse input string into key-value pairs
     std::map<std::string, std::string> inputFileMap = parseArgMap(input_file);
@@ -745,7 +760,6 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
         }
     }
 
-    // Count how many inputs have values
     size_t valueCount = std::count_if(inputValues.begin(), inputValues.end(),
                                     [](const std::string& s) { return !s.empty(); });
 
@@ -2012,17 +2026,17 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> inModelLayouts = parseLayoutRegex(FLAGS_iml);
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
-        // Move input file processing to after checking of loadable network
+        // Declare input file variables
         std::vector<std::string> inputFilesPerCase;
         using FilesPerInput = std::vector<std::string>;
         using FilesForModelInputs = std::vector<FilesPerInput>;
         std::vector<FilesForModelInputs> inputFilesForOneInfer;
-        // Move output file processing to after checking of loadable network
+
+        // Declare output file / reference file variables
         std::vector<std::string> refFilesPerCase;
         using RefFilesPerInput = std::vector<std::string>;
         using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
         RefFilesForModelOutputs refFilesForOneInfer;
-        // Move processing of input binaries to after checking of loadable network
 
         if (FLAGS_network.empty()) {
             std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
@@ -2042,39 +2056,16 @@ static int runSingleImageTest() {
             ov::preprocess::PrePostProcessor ppp(model);
 
             const ov::OutputVector inputInfo = model->inputs();
-            // To determine the type of `inputInfo`, you can use `decltype`:
-            using InputInfoType = decltype(inputInfo);
-            std::cout << "Type of inputInfo: " << typeid(InputInfoType).name() << std::endl;
 
-            // Input files
-            // std::vector<std::string> inputFilesPerCase;
-            // using FilesPerInput = std::vector<std::string>;
-            // using FilesForModelInputs = std::vector<FilesPerInput>;
-            // std::vector<FilesForModelInputs> inputFilesForOneInfer;
+            // Parse input files string (matching of node names - if given)
+            std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
 
-            // START TEST
-            auto fileMatch = parseInputFiles(inputInfo, FLAGS_input);
-            // Log the vector fileMatch
-            std::cout << "[HI] Final parsed input string: " << fileMatch << std::endl;
-            // END TEST
-
-            inputFilesPerCase = splitStringList(FLAGS_input, ';');
+            inputFilesPerCase = splitStringList(fileMatch, ';');
             for (const auto& images : inputFilesPerCase) {
                 std::vector<std::string> filesPerModel = splitStringList(images, ',');
                 FilesForModelInputs entireModelFiles;
                 entireModelFiles.reserve(filesPerModel.size());
-                // START TEST
-                // Log the vector filesPerModel
-                for (const auto& file : filesPerModel) {
-                    std::cout << "Input file: " << file << " " << std::endl;
-                    for (size_t i = 0; i < inputInfo.size(); ++i) {
-                        // Log all inputs
-                        std::cout << "InputInfo name: " << inputInfo[i].get_any_name() << std::endl;
-                    }
-                }
-                // END OF TEST
                 for (auto &&filesPerInput : filesPerModel) {
-                    // TODO SOME MAGIC HERE
                     // from now on each input of a model support multiple image files as content of a batched input
                     entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
                 }
@@ -2220,7 +2211,6 @@ static int runSingleImageTest() {
             compiledModel = core.import_model(file, FLAGS_device);
         }
 
-        // START OF MOVED CODE BLOCK - Input Binaries
         std::vector<std::string> inputBinPrecisionStrPerCase;
         std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
         if (FLAGS_img_as_bin) {
@@ -2256,7 +2246,6 @@ static int runSingleImageTest() {
                 ++inferIdx;
             }
         }
-        // END OF MOVED CODE BLOCK - Input Binaries
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
