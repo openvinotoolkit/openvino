@@ -27,7 +27,6 @@ void TokenizeMLPSnippetsTests::run() {
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL1) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::f32}),
-                                                       2,
                                                        1);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -37,7 +36,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL1) 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL2) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::f32}),
-                                                       2,
                                                        2);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -47,7 +45,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL2) 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL3) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::f32}),
-                                                       2,
                                                        3);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -57,7 +54,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL3) 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL5) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::f32}),
-                                                       2,
                                                        5);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -67,7 +63,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL5) 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL7) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::f32}),
-                                                       2,
                                                        7);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -77,7 +72,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL7) 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL1) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::u8}),
-                                                       2,
                                                        1);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -87,7 +81,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL1) {
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL2) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::u8}),
-                                                       2,
                                                        2);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -97,7 +90,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL2) {
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL3) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::u8}),
-                                                       2,
                                                        3);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -107,7 +99,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL3) {
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL5) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::u8}),
-                                                       2,
                                                        5);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -117,7 +108,6 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL5) {
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8_HL7) {
     const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
                                                        std::vector<ov::element::Type>({ov::element::u8}),
-                                                       2,
                                                        7);
     model = f.getOriginal();
     model_ref = f.getReference();

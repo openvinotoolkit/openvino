@@ -47,7 +47,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
                                             ::testing::Values(1),  // MLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLP::getTestCaseName);
 
@@ -61,7 +60,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32,
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLPQuantized::getTestCaseName);
 
@@ -75,7 +73,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_i8,
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLPQuantized::getTestCaseName);
 
@@ -89,7 +86,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32_EnforceBF16,
                                             ::testing::Values(1),  // MLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLP::getTestCaseName);
 
@@ -103,7 +99,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32_EnforceBF16,
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLPQuantized::getTestCaseName);
 
@@ -117,7 +112,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_i8_EnforceBF16,
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::Values(2),
                                             ::testing::ValuesIn(numHiddenLayers())),
                          MLPQuantized::getTestCaseName);
 }  // namespace

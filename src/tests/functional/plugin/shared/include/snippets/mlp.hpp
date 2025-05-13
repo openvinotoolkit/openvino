@@ -19,7 +19,6 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    size_t,                          // Expected num subgraphs
                    std::string,                     // Target Device
                    ov::AnyMap,                      // Config
-                   size_t,                          // Expected num input nodes
                    size_t                           // Expected num hidden layers
                    >
     MLPParams;
@@ -32,7 +31,7 @@ protected:
     void SetUp() override;
     void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_input_nodes, size_t num_hidden_layers) const = 0;
+    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers) const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
     size_t m_thread_count;
@@ -46,13 +45,13 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj);
 
 protected:
-    std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_input_nodes, size_t num_hidden_layers) const override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers) const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
 };
 
 class MLPQuantized : public MLP {
 protected:
-    std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_input_nodes, size_t num_hidden_layers) const override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers) const override;
 };
 
 }  // namespace snippets

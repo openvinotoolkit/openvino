@@ -29,7 +29,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
                                                       std::vector<float>{0.1122});
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
         for (size_t i = 0; i < num_hidden_layers; ++i) {
@@ -61,7 +61,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
         current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
@@ -100,7 +100,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
         current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f + mm_count});
 
@@ -237,7 +237,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
 
     std::shared_ptr<ov::Node> current = sub_A;
     current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::f32);
-    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
         current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
         current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
 
