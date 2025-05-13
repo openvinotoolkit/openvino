@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
@@ -16,7 +18,8 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
       m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
     m_subrequest_devices.resize(m_num_submodels, {});
-    m_completion_cbs.resize(m_num_submodels, {});
+    // TODO: not used yet
+    // m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
@@ -170,8 +173,7 @@ void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
 }
 
 void ov::npuw::IBaseInferRequest::check_tensors() const {
-    // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
-    // `m_tensors` are not allocated
+    // Ignore 
     return;
 }
 
@@ -215,7 +217,8 @@ void ov::npuw::IBaseInferRequest::infer() {
         bool failover = false;
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
-        complete_subrequest(idx);
+
+        complete_subrequest(get_real_subrequest(idx), idx);
         if (m_npuw_model->m_acc_check) {
             ensure_subrequest_is_accurate(idx, failover);
             failover_happened |= failover;
@@ -698,4 +701,30 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
 
 ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
+}
+
+void ov::npuw::IBaseInferRequest::add_infer_requests_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> new_listener) {
+    m_subscribers.push_back(new_listener);
+}
+
+void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
+    std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, cb](RListenerPtr& subreq) {
+        if (auto shared = subreq.lock()) {
+            shared->subscribe_subrequest(idx, cb);
+        }
+    });
+}
+
+void ov::npuw::IBaseInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) {
+    std::for_each(m_subscribers.begin(), m_subscribers.end(), [request, idx](RListenerPtr& subreq) {
+        if (auto shared = subreq.lock()) {
+            shared->complete_subrequest(request, idx);
+        }
+    });
+}
+
+ov::npuw::IBaseInferRequest::RqPtr ov::npuw::IBaseInferRequest::get_real_subrequest(std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    return m_subrequests[real_idx];
 }

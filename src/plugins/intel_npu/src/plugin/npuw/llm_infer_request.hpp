@@ -9,11 +9,13 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "base_sync_infer_request.hpp"
+#include "prefill_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest final : public ov::ISyncInferRequest{
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -42,11 +44,19 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
+    void subscribe_subrequest(std::size_t, IInferRequestSubmissionListener::Completed) ;
+    void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest>, std::size_t);
+                    
+
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    std::shared_ptr<LLMPrefillInferRequest> m_prefil_request_listener;
+
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
+    // copying kv-cache values happened in parallel with prefill inference
+    bool m_copy_cache_inline = true;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;

@@ -77,8 +77,8 @@ protected:
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t idx) override;
     void run_subrequest_for_success(std::size_t idx, bool& failover) override;
-    void subscribe_subrequest(std::size_t idx, Completed cb) override;
-    void complete_subrequest(std::size_t idx) override;
+    // void subscribe_subrequest(std::size_t idx, Completed cb) override;
+    // void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
     bool supports_async_pipeline() const override;
     void update_subrequest_links(std::size_t idx) override;
@@ -88,8 +88,6 @@ protected:
     ////////////////////////////////////
     // now own API
 
-    // FIXME: probably this one should go to the base class too
-    RqPtr get_real_subrequest(std::size_t idx);
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);

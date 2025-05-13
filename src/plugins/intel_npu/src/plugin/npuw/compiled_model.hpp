@@ -34,6 +34,8 @@ public:
 };
 
 class InferRequest;
+class IInferRequestSubmissionListener;
+
 class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
@@ -63,6 +65,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -105,6 +108,9 @@ private:
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
 
+    //
+    void set_infer_request_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> lst);
+    std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> m_listener;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;

@@ -29,9 +29,21 @@ using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            std::size_t /* Subrequest output index */
                            >;          // FIXME: This is a third, if not fourth, definitiion of such structure
 
+// infer sub-request state changed listeners bridge
+class   IInferRequestSubmissionListener {
+public:
+    using Completed = std::function<void(std::exception_ptr)>;
+    // TODO: not used for now
+    //std::vector<IBaseInferRequest::IInferRequestSubmissionListener> m_completion_cbs;
+
+    virtual ~IInferRequestSubmissionListener() = default;
+    virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
+    virtual void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) = 0;
+};
+
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
-class IBaseInferRequest : public ov::ISyncInferRequest {
+class IBaseInferRequest : public ov::ISyncInferRequest, public IInferRequestSubmissionListener {
 public:
     explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>&);
 
@@ -45,6 +57,7 @@ public:
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
     void set_tensors(const ov::Output<const ov::Node>& port,
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+                     
 
     void check_tensors() const override;
 
@@ -53,17 +66,16 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     using sptr = std::shared_ptr<IBaseInferRequest>;
-    using Completed = std::function<void(std::exception_ptr)>;
 
     virtual void prepare_for_infer() = 0;
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
-    virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
-    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
-    virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
+    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
+    using RListenerPtr = std::weak_ptr<IInferRequestSubmissionListener> ;
+    void add_infer_requests_listener(RListenerPtr);
 
 protected:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
@@ -76,9 +88,11 @@ protected:
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
     void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
     virtual void update_subrequest_links(std::size_t idx) = 0;
+    // FIXME: probably this one should go to the base class too
+    RqPtr get_real_subrequest(std::size_t idx);
+
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
-    std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
 
     // This vector is used to track devices for individual subrequests
@@ -176,6 +190,12 @@ protected:
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
+
+    std::vector<RListenerPtr> m_subscribers;
+    // IInferRequestSubmissionListener : dispatch impl
+    void subscribe_subrequest(std::size_t idx, Completed cb) override;
+    void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) override;
+
 
 private:
     now_t m_now_idx;

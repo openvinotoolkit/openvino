@@ -448,11 +448,6 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Done");
 }
 
-ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subrequest(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    return m_subrequests[real_idx];
-}
 
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
     auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);
@@ -865,13 +860,18 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
     }  // if (replaced_by)
 }
 
-void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
-    get_real_subrequest(idx)->set_callback(std::move(cb));
-}
+// void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
+//     get_real_subrequest(idx)->set_callback(std::move(cb));
 
-void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
-    // do nothing here
-}
+//     LOG_ERROR("JustInferRequest::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+
+// }
+
+// void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
+//     LOG_ERROR("JustInferRequest::complete_subrequest - initiate do an kv-kache copy for prefil model [" << idx << "]");
+
+//     // do nothing here
+// }
 
 void ov::npuw::JustInferRequest::cancel_subrequest(std::size_t idx) {
     m_subrequests[idx]->cancel();

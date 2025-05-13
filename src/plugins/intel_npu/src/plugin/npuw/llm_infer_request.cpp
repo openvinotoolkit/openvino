@@ -140,6 +140,17 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
+
+    m_prefil_request_listener = std::make_shared<LLMPrefillInferRequest>(
+        [this](std::size_t idx, IInferRequestSubmissionListener::Completed cb){
+            this->subscribe_subrequest(idx, cb);
+        },
+        [this](ov::SoPtr<ov::IAsyncInferRequest> req, size_t idx){
+            this->complete_subrequest(req, idx);
+        }
+    );
+
+    compiled_model->m_prefill_compiled->set_infer_request_listener(m_prefil_request_listener);
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
@@ -154,6 +165,81 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
+    }
+}
+
+void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed) {
+    LOG_ERROR("Prefill::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+}
+void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx)  {
+   // LOG_ERROR("Prefill::complete_subrequest - initiate do an kv-kache copy for prefill model [" << idx << "]");
+
+    LOG_ERROR("Copying " << idx << " kv-cache from prefill to generate model.");
+
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    // const auto& prefill_submodel_compiled = request->get_compiled_model();
+   // const auto& prefill_cache_name = prefill_submodel_compiled->outputs()[i].get_any_name();
+
+    auto cache_non_indexed_pattern = std::regex("present");
+   // auto cache_node_pattern = std::regex("present\.[0-9]+");
+    auto cache_node_name = std::string("present.") + std::to_string(idx);
+
+    const std::size_t kStartOutputKVCacheLayers = 1u;
+    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
+        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+
+        // orthers tensors might be not ready or already copied
+        if (output_name.find(cache_node_name) == std::string::npos) {
+            continue;
+        }
+
+        const auto& input_name = std::regex_replace(output_name, cache_non_indexed_pattern, "past_key_values");
+
+        LOG_ERROR("Copying " << output_name << " kv-cache from prefill to generate model: " << input_name);
+
+        // or we can use newly created request received here???
+        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+        LOG_ERROR("Copying A.");
+
+        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+
+        LOG_ERROR("Copying A..");
+
+        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
+        //        taking into account kvcache dimension.
+        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        LOG_ERROR("Copying A...");
+
+
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                ? 3u
+                                : kvcache_desc.dim;
+
+        LOG_ERROR("Copying A....");
+
+
+        auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                                                   kv_dim,
+                                                   kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                   kvcache_desc.max_prompt_size);
+        LOG_ERROR("Copying A.....");
+
+
+        auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+        LOG_ERROR("Copying A......");
+
+        LOG_ERROR("Copying kv_dim=" << kv_dim);
+
+        if (kv_dim == 3u) {
+            copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+        } else if (kv_dim == 2u) {
+            copy_by_planes(prefill_out_slice, kvcache_in_slice);
+        } else {
+            prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+        }
+        LOG_ERROR("Done.");
     }
 }
 
@@ -217,6 +303,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens +=
         static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+   
     m_need_copy_kvcache = true;
 
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
@@ -237,41 +324,43 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     if (m_need_copy_kvcache) {
-        LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-        const std::size_t kStartOutputKVCacheLayers = 1u;
-        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
-            const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-            auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+        if (!m_copy_cache_inline) {
+            LOG_ERROR("Copying kv-cache from prefill to generate model.");
+            const std::size_t kStartOutputKVCacheLayers = 1u;
+            const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+            for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
+                const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+                auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
-            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+                const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+                auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
-            // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
-            //        taking into account kvcache dimension.
-            fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+                // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
+                //        taking into account kvcache dimension.
+                fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
+                const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                        ? 3u
+                                        : kvcache_desc.dim;
 
-            auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                       kv_dim,
-                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                       kvcache_desc.max_prompt_size);
+                auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                                                        kv_dim,
+                                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                        kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
-            if (kv_dim == 3u) {
-                copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
-            } else if (kv_dim == 2u) {
-                copy_by_planes(prefill_out_slice, kvcache_in_slice);
-            } else {
-                prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+                if (kv_dim == 3u) {
+                    copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+                } else if (kv_dim == 2u) {
+                    copy_by_planes(prefill_out_slice, kvcache_in_slice);
+                } else {
+                    prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+                }
             }
         }
 
-        LOG_DEBUG("Prepare attention mask pattern.");
+        LOG_ERROR("Prepare attention mask pattern.");
         auto* attention_mask_data =
             m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
         attention_mask_data[kvcache_desc.total_size - 1] = 1;
