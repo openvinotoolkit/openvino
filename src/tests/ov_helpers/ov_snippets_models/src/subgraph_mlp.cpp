@@ -32,7 +32,6 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
     for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        current = std::make_shared<ov::op::v1::Multiply>(current, add);
         for (size_t i = 0; i < num_hidden_layers; ++i) {
             auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
                                                                    b_row,
@@ -47,10 +46,13 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+    std::shared_ptr<Node> A = A_param;
+    if (precisions[0] != ov::element::f32) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+    }
     auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
                              static_cast<unsigned long>(input_shapes[0][1].get_length())};
     auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    std::shared_ptr<Node> A = A_param;
     auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
                                                       b_row,
                                                       std::vector<float>{0.1122});
