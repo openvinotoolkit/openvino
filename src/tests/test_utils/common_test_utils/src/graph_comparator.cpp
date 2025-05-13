@@ -230,6 +230,12 @@ public:
         return equal_parameters(lhs.m_parameter, rhs.m_parameter);
     }
 
+#ifndef NDEBUG
+    const Parameter* get_parameter() const {
+        return m_parameter;
+    }
+#endif
+
 private:
     const InputNode m_input;
     const Parameter* m_parameter;
@@ -528,6 +534,22 @@ private:
 
         if (lhs_sub_inputs.size() != rhs_sub_inputs.size() ||
             !std::is_permutation(begin(lhs_sub_inputs), end(lhs_sub_inputs), begin(rhs_sub_inputs))) {
+#ifndef NDEBUG
+            std::stringstream ss;
+            if (lhs_sub_inputs.size() != rhs_sub_inputs.size()) {
+                ss << "Different number of inputs: lhs_sub_inputs.size() = " << lhs_sub_inputs.size()
+                   << ", rhs_sub_inputs.size() == " << rhs_sub_inputs.size() << '\n';
+            }
+            ss << "Left subgraph inputs (" << lhs_sub_inputs.size() << "):\n";
+            for (size_t i = 0; i < lhs_sub_inputs.size(); i++) {
+                ss << "  " << i << ": " << lhs_sub_inputs[i].get_parameter()->get_partial_shape() << '\n';
+            }
+            ss << "Right subgraph inputs (" << rhs_sub_inputs.size() << "):\n";
+            for (size_t i = 0; i < rhs_sub_inputs.size(); i++) {
+                ss << "  " << i << ": " << rhs_sub_inputs[i].get_parameter()->get_partial_shape() << '\n';
+            }
+            std::cerr << ss.str() << std::endl;
+#endif
             return Result::error("different SubGraph InputDescription");
         }
         return Result::ok();
