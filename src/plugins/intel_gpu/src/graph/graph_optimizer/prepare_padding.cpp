@@ -295,10 +295,10 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     tensor::value_type pad_y = padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0;
     tensor::value_type pad_x = padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0;
 
-    tensor::value_type padding_begin_x, padding_begin_y = 0, padding_begin_z = 0;
-    tensor::value_type padding_end_x, padding_end_y = 0, padding_end_z = 0;
+    tensor::value_type padding_begin_x, padding_begin_y, padding_begin_z;
+    tensor::value_type padding_end_x, padding_end_y, padding_end_z;
 
-    if (node.is_dynamic() && node.use_explicit_padding()) {
+    if ((node.is_dynamic() || (node.get_program().is_new_shape_infer() && conv_layout.get_partial_shape().rank() == 3)) && node.use_explicit_padding()) {
         padding_begin_x = std::max(pad_x, 0);
         padding_begin_y = std::max(pad_y, 0);
         padding_begin_z = std::max(pad_z, 0);
@@ -310,13 +310,6 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         padding_end_x = std::max(pad_x, 0);
         padding_end_y = std::max(pad_y, 0);
         padding_end_z = std::max(pad_z, 0);
-    } else if (padding_begin.size() == 1 && node.get_program().is_new_shape_infer()) {
-        auto input_limit_x = -pad_x + (conv_layout.spatial(1) - 1) * stride_x +
-                            (filter_layout.spatial(1) - 1) * dilation_x + 1;
-
-
-        padding_begin_x = std::max(pad_x, 0);
-        padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(1), 0);
     } else {
         auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
