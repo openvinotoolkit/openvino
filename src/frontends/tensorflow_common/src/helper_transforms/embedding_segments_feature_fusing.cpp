@@ -66,11 +66,10 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
     // SparseFillEmptyRows outputs segment ids along with indices for each segment. Indices correspond to vectors from
     // embedding table if some segment ids are not specified, SparseFillEmptyRows generate default indice for this
     // segment
-    auto sparse_fill_empty_rows = make_shared<v16::SparseFillEmptyRows>(gather0_1->output(0),
-                                                                        gather0_2->output(0),
+    auto sparse_fill_empty_rows = make_shared<v16::SparseFillEmptyRows>(gather0_2->output(0),
                                                                         dense_shape_pattern->output(0),
+                                                                        gather0_1->output(0),
                                                                         default_value_pattern->output(0));
-
     auto strided_slice =
         make_shared<v1::StridedSlice>(sparse_fill_empty_rows->output(0),
                                       make_shared<v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 0}),
