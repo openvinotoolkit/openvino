@@ -170,7 +170,7 @@ jobs:
             PIP_VER=$(${python_path} -c "import pip; print(pip.__version__)")
             export "PIP_CACHE_DIR=${{ env.PIP_CACHE_PATH }}/${PIP_VER}"
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-            /usr/bin/cmake -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+            /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
