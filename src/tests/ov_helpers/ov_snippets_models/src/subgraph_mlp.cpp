@@ -38,6 +38,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
                                                                    std::vector<float>{0.1122f + i});
             current = std::make_shared<ov::op::v1::Add>(current, constant);
         }
+        current = std::make_shared<ov::op::v0::Relu>(current);
     }
     auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
     auto result = std::make_shared<ov::op::v0::Result>(softmax);
@@ -72,6 +73,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
                                                                    std::vector<float>{0.1122f + i});
             current = std::make_shared<ov::op::v1::Add>(current, constant);
         }
+        current = std::make_shared<ov::op::v0::Relu>(current);
     }
     ov::builder::subgraph::FakeQuantizeOnData onData2 =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
@@ -127,6 +129,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
                 ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
                 ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
         }
+        current = std::make_shared<ov::op::v0::Relu>(current);
     }
     ov::builder::subgraph::FakeQuantizeOnData onData2 =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
@@ -262,6 +265,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
                 ov::op::TemporaryReplaceOutputType(
                     sub_hidden_vec[i], ov::element::f32).get());
         }
+        current = std::make_shared<ov::op::v0::Relu>(current);
     }
 
     current = decomposed_fq(current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
