@@ -58,8 +58,6 @@ public:
 
     const std::optional<std::size_t> get_batch_size() const;
 
-    std::vector<uint8_t> _blob;
-
 protected:
     /**
      * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by

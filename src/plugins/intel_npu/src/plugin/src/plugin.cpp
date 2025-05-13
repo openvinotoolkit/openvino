@@ -838,7 +838,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             mainSize = MetadataBase::getFileSize(stream);
         }
 
-        std::unique_ptr<BlobContainer> blobPtr;
+        std::unique_ptr<BlobContainer> mainBlobPtr;
+        std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs;
 
         if (modelBuffer == nullptr) {
             std::vector<uint8_t> blob(mainSize);
@@ -848,20 +849,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             }
             _logger.debug("Successfully read %zu bytes into blob.", mainSize);
 
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+            mainBlobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
         } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), mainSize);
+            mainBlobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), mainSize);
             stream.seekg(mainSize, std::ios_base::cur);
         }
 
-        auto graph = compiler->parse(std::move(blobPtr), localConfig);
-        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-
-        if (initSizes.empty()) {
-            const std::shared_ptr<ov::Model> modelDummy =
-                create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
-            compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
-        } else {
+        std::shared_ptr<ov::Model> originalModel;
+        if (!initSizes.empty()) {
             // Read the init compiled models as well
             // TODO adjust for multiple init parts
             std::vector<std::shared_ptr<IGraph>> initGraphs;
@@ -874,19 +869,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                     }
                     _logger.debug("Successfully read %zu bytes into init blob.", initSize);
 
-                    blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+                    initBlobPtrs.push_back(std::make_unique<BlobContainerVector>(std::move(blob)));
                 } else {
-                    blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), initSize);
+                    initBlobPtrs.push_back(
+                        std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), initSize));
                     stream.seekg(initSize, std::ios_base::cur);
                 }
-
-                std::shared_ptr<IGraph> initGraph = compiler->parse(std::move(blobPtr), localConfig);
-                initGraph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-                initGraphs.push_back(initGraph);
             }
 
             // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-            std::shared_ptr<ov::Model> originalModel;
             if (localConfig.get<MODEL_PTR>()) {
                 originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
             } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
@@ -916,34 +907,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             }
 
             runOVPasses(originalModel);
-
-            if (!localConfig.get<BENCHMARK_INIT>()) {
-                const std::shared_ptr<ov::Model> modelDummy =
-                    create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
-                compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                                shared_from_this(),
-                                                                device,
-                                                                graph,
-                                                                localConfig,
-                                                                initGraphs,
-                                                                originalModel);
-            } else {
-                // TODO: BENCHMARK_INIT must become an integer?
-                if (initGraphs.empty()) {
-                    OPENVINO_THROW("Can't BENCHMARK_INIT: single init function not found");
-                }
-
-                const std::shared_ptr<ov::Model> modelDummy =
-                    create_dummy_model(initGraphs.at(0)->get_metadata().inputs,
-                                       initGraphs.at(0)->get_metadata().outputs,
-                                       true);
-                compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                                shared_from_this(),
-                                                                device,
-                                                                initGraphs.at(0),
-                                                                localConfig);
-            }
         }
+
+        auto graph = compiler->parse(std::move(mainBlobPtr), initBlobPtrs, localConfig, originalModel);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+
+        const std::shared_ptr<ov::Model> modelDummy =
+            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {

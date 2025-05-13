@@ -57,22 +57,6 @@ class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
 
-    /**
-     * @brief TODO
-     */
-    virtual std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
-        const std::shared_ptr<IGraph>& initGraph,
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::SoPtr<ov::IRemoteContext>& context,
-        const Config& config) = 0;
-
-    virtual std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>,
-                      std::vector<ov::SoPtr<ov::ITensor>>>
-    runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraph,
-                         const std::shared_ptr<const ov::Model>& model,
-                         const ov::SoPtr<ov::IRemoteContext>& context,
-                         const Config& config);
-
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;

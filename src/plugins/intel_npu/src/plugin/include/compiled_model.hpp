@@ -33,9 +33,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const FilteredConfig& config,
-                  const std::vector<std::shared_ptr<IGraph>>& initGraphs = {},
-                  const std::shared_ptr<ov::Model>& initModel = nullptr);
+                  const FilteredConfig& config);
 
     CompiledModel(const CompiledModel&) = delete;
 

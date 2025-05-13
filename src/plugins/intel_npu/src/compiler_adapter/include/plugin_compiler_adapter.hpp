@@ -24,7 +24,10 @@ public:
     std::vector<std::shared_ptr<IGraph>> compileWS(const std::shared_ptr<ov::Model>& model,
                                                    const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> mainBlobPtr,
+                                  std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
+                                  const Config& config,
+                                  const std::shared_ptr<ov::Model>& model) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

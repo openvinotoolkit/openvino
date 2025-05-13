@@ -34,9 +34,6 @@ public:
 
     void get_result() override;
 
-    void set_weights_inputs(
-        const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) override;
-
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 

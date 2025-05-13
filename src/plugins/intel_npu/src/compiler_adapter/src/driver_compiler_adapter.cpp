@@ -78,6 +78,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
+#include "weightless_graph.hpp"
 
 namespace {
 
@@ -502,24 +503,48 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
     return graphs;
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
-                                                     const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> mainBlobPtr,
+                                                     std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
+                                                     const Config& config,
+                                                     const std::shared_ptr<ov::Model>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlobPtr->get_ptr()), mainBlobPtr->size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphHandle,
-                                   std::move(networkMeta),
-                                   std::move(blobPtr),
-                                   config);
+    if (initBlobPtrs.empty()) {
+        return std::make_shared<Graph>(_zeGraphExt,
+                                       _zeroInitStruct,
+                                       graphHandle,
+                                       std::move(networkMeta),
+                                       std::move(mainBlobPtr),
+                                       config);
+    }
+
+    std::vector<ze_graph_handle_t> initGraphHandles;
+    std::vector<NetworkMetadata> initMetadata;
+    for (const auto& initBlobPtr : initBlobPtrs) {
+        ze_graph_handle_t initGraphHandle =
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlobPtr->get_ptr()), initBlobPtr->size());
+        initGraphHandles.push_back(initGraphHandle);
+        initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphHandle));
+    }
+
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             graphHandle,
+                                             std::move(networkMeta),
+                                             std::move(mainBlobPtr),
+                                             initGraphHandles,
+                                             initMetadata,
+                                             initBlobPtrs,
+                                             model,
+                                             config);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

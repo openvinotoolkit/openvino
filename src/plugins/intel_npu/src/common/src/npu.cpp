@@ -79,12 +79,4 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
-std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, std::vector<ov::SoPtr<ov::ITensor>>>
-IDevice::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraph,
-                              const std::shared_ptr<const ov::Model>& model,
-                              const ov::SoPtr<ov::IRemoteContext>& context,
-                              const Config& config) {
-    OPENVINO_THROW("runInitMultiThreaded is not supported");
-}
-
 }  // namespace intel_npu
