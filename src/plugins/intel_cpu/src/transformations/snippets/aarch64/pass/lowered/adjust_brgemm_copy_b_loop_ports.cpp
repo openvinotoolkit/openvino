@@ -33,10 +33,11 @@ bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                         const auto& in_0_shape = brg->get_input_shape(0);
                         int64_t k_blk_size = in_0_shape.back(); // K dimension if k w/o block
                         std::cout << "K:" << k_blk_size << std::endl;
+                        // ptr_increment is 1, inc is 64.
                         loop_desc.ptr_increment =
-                            snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_blk_size);
+                            snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (k_blk_size + 1));
                         loop_desc.finalization_offset =
-                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_blk_size);
+                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, (k_blk_size + 1));
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }

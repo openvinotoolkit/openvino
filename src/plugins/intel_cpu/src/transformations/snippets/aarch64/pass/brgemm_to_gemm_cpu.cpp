@@ -81,13 +81,13 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         }
 
         // std::shared_ptr<aarch64::GemmCPU> gemm_cpu = std::make_shared<aarch64::GemmCPU>(brgemm->input_value(0),
-        //                                                                                   gemm_repacking->input_value(1),
-        //                                                                                   offset_a,
-        //                                                                                   offset_b,
-        //                                                                                   offset_c,
-        //                                                                                   layout_a,
-        //                                                                                   layout_b,
-        //                                                                                   layout_c);
+        //                                                                                 brgemm->input_value(1),
+        //                                                                                 offset_a,
+        //                                                                                 offset_b,
+        //                                                                                 offset_c,
+        //                                                                                 layout_a,
+        //                                                                                 layout_b,
+        //                                                                                 layout_c);
         std::shared_ptr<aarch64::GemmCPU> gemm_cpu = std::make_shared<aarch64::GemmCPU>(brgemm->input_value(0),
                                                                                         gemm_repacking->output(0),
                                                                                         offset_a,

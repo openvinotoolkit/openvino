@@ -38,6 +38,7 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
 }
 
 // void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0) {
+//     std::cout << "GemmKaiKernelExecutor::execute" << std::endl;
 //     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
 //     // process subtensor. k should not be blocked as kai doesn't support beta == 1.
 //     // repack input2, directly done here and no copyB needed. ok? where to allocate memory for repacked input?
@@ -56,6 +57,16 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
 //     auto thread_idx = parallel_get_thread_num();
 //     auto packed = static_cast<float*>(executor->get_packed_mem());
 //     packed += thread_idx * executor->rhsPackedSize;
+//     float* src_ptr_test = static_cast<float*>(in1);
+//     // for (size_t i = 0; i < K * N; i++) {
+//     //     std::cout << "inp_i:" << i << " value:" << src_ptr_test[i] << std::endl;
+//     // }
+//     std::cout << "N" << N << std::endl;
+//     std::cout << "K" << K << std::endl;
+//     std::cout << "nr" << nr << std::endl;
+//     std::cout << "kr" << kr << std::endl;
+//     std::cout << "sr" << sr << std::endl;
+//     std::cout << "rhs_stride" << rhs_stride << std::endl;
 //     kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
 //                                                      N,
 //                                                      K,
@@ -69,6 +80,10 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
 //                                                      packed,                    // RHS packed
 //                                                      0,
 //                                                      nullptr);
+//     float* dst_ptr_test = static_cast<float*>(packed);
+//     // for (size_t i = 0; i < K * N; i++) {
+//     //     std::cout << "out_i:" << i << " value:" << dst_ptr_test[i] << std::endl;
+//     // }
 
 //     const size_t BLOCK_SIZE = 8;
 //     size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -101,7 +116,9 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
 // }
 
 void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0) {
+    // return;
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
+    std::cout << "GemmKaiKernelExecutor in1:" << reinterpret_cast<size_t>(in1) << std::endl;
     // process subtensor. k should not be blocked as kai doesn't support beta == 1.
     // repack input2, directly done here and no copyB needed. ok? where to allocate memory for repacked input?
     // matmul for input1 and slices of repacked input2
