@@ -208,7 +208,7 @@ kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_
 
 uint32_t primitive_inst::get_network_id() const { return get_network().get_id(); }
 
-void primitive_inst::check_memory_to_set(const memory& mem, const layout& l) const {
+void primitive_inst::check_memory_compatibility(const memory& mem, const layout& l) const {
     // The layout with empty tensor (scalar) is regarded as 1 dimension with value 1
     bool single_value_layout = false;
     if (!l.is_dynamic()) {
@@ -264,7 +264,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     const auto& ol = _impl_params->get_output_layout(idx);
 
     if (check)
-        check_memory_to_set(*mem_new, ol);
+        check_memory_compatibility(*mem_new, ol);
 
     if (is_constant()) {
         ev = mem_new->copy_from(get_network().get_stream(), *_outputs[idx], false);
@@ -278,8 +278,8 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
 void primitive_inst::update_shape() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
-    if (update_shape_done_by_other) {
-        update_shape_done_by_other = false; // reset
+    if (_update_shape_done_by_other) {
+        _update_shape_done_by_other = false; // reset
         GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: "
                                << _impl_params->output_layouts[0].to_short_string() << std::endl;
         return;
@@ -367,8 +367,8 @@ void primitive_inst::update_shape() {
     // Do not update shapes in shape_of subraph if shape_of's input shape is not changed
     if (get_node().is_in_shape_of_subgraph()) {
         bool subgraph_input_changed = false;
-        for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
-            if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+        for (size_t i = 0; i < _dependant_shape_of_insts.size(); i++) {
+            if (_dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 subgraph_input_changed = true;
                 break;
             }
@@ -393,7 +393,7 @@ void primitive_inst::update_shape() {
         (_deps[i].first->get_node().get_selected_impl() ? _deps[i].first->get_node().get_selected_impl()->is_cpu()
         : _deps[i].first->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             bool can_skip = true;
-            const auto& insts = _deps[i].first->dependant_shape_of_insts;
+            const auto& insts = _deps[i].first->_dependant_shape_of_insts;
             for (auto& inst : insts) {
                 can_skip &= !inst->get_flag(ExecutionFlags::SHAPE_CHANGED);
             }
@@ -574,9 +574,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
         auto concat_inst = users.front();
         if (concat_inst->can_be_optimized()) {
-            if (!concat_inst->allocation_done_by_other) {
+            if (!concat_inst->_allocation_done_by_other) {
                 concat_inst->realloc_if_needed();
-                concat_inst->allocation_done_by_other = true;
+                concat_inst->_allocation_done_by_other = true;
             }
             this->_outputs[0] = concat_inst->_outputs[0];
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
@@ -743,7 +743,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
-            if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->update_shape_done_by_other)) {
+            if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->_update_shape_done_by_other)) {
                 size_t dep_idx = 0;
                 for (const auto& dep : user->_deps) {
                     if (dep.first->id() == id()) {
@@ -756,13 +756,13 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 // Setting update_shape_done_by_other to false before running update_shape,
                 // since update_Shape is already called in realloc_if_needed of current node's dep node
                 // but current node's output layout is not updated to the this user node yet.
-                user->update_shape_done_by_other = false;
+                user->_update_shape_done_by_other = false;
                 bool prev_shape_changed = user->get_flag(ExecutionFlags::SHAPE_CHANGED);
                 user->update_shape();
                 // Set again shape_change status if shape is changed in the prev udpate_shape() for this user node.
                 if (prev_shape_changed)
                     user->set_flag(ExecutionFlags::SHAPE_CHANGED);
-                user->update_shape_done_by_other = true;
+                user->_update_shape_done_by_other = true;
                 auto fc_impl_params = *user->_impl_params;
                 auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
                 if (fc_input_layout.bytes_count() > updated_layouts[dep_idx].bytes_count()) {
@@ -893,8 +893,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     // Handle runtime dynamic concat optimization
-    if (get_node().is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
-        allocation_done_by_other = false;
+    if (get_node().is_type<concatenation>() && can_be_optimized() && _allocation_done_by_other) {
+        _allocation_done_by_other = false;
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return;
     }
@@ -1084,7 +1084,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                                                : allocation_type::unknown;
             bool can_reuse = true;
             can_reuse &= alloc_type != allocation_type::unknown &&
-                         buffer_descs[i].m_layout.bytes_count() <= max_intermediates_memory_sizes[i];
+                         buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
             can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
                          (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
@@ -1097,11 +1097,11 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 const bool need_reset = false;
                 if (i < _intermediates_memory.size()) {
                     _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
-                    max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
+                    _max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
                     _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
-                    max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
+                    _max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
                 GPU_DEBUG_CODE(memalloc_info +=
                                (((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") +
@@ -1177,7 +1177,7 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     }
 }
 
-void primitive_inst::set_shape_info_memory_subbuffer(memory::ptr addr) {
+void primitive_inst::set_shape_info_memory(memory::ptr addr) {
     _shape_info_memory = addr;
 }
 
@@ -1332,7 +1332,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                 }
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
                 u->update_shape();
-                u->update_shape_done_by_other = true;
+                u->_update_shape_done_by_other = true;
 
                 if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
                     std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
@@ -1619,7 +1619,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_IF(get_config().get_disable_runtime_buffer_fusing()) {
         return;
     }
-    if (update_shape_done_by_other) {
+    if (_update_shape_done_by_other) {
         return;
     }
     if (get_users().size() != 1) return;
@@ -1642,15 +1642,15 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] Preparing for runtime buffer fusing" << std::endl;
     // Do shape_infer for all concat's preds and concat
     for (auto pred : concat_preds) {
-        if (!pred->update_shape_done_by_other) {
+        if (!pred->_update_shape_done_by_other) {
             GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << pred->id() << std::endl;
             pred->update_shape();
-            pred->update_shape_done_by_other = true;
+            pred->_update_shape_done_by_other = true;
         }
     }
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << concat_inst->id() << std::endl;
     concat_inst->update_shape();
-    concat_inst->update_shape_done_by_other = true;
+    concat_inst->_update_shape_done_by_other = true;
     layout concat_layout = concat_inst->_impl_params->get_output_layout();
 
     std::vector<kernel_impl_params> pred_params;
@@ -1737,17 +1737,17 @@ void primitive_inst::do_runtime_in_place_crop() {
             if (u->get_node().can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
                 u->update_shape();
-                u->update_shape_done_by_other = true;
+                u->_update_shape_done_by_other = true;
 
                 const auto& crop_users = u->get_user_insts();
                 std::pair<const program_node*, layout> user_info;
                 if (crop_users.front()->get_node().is_type<reshape>()) {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
                     auto reshape_inst = crop_users.front();
-                    if (!reshape_inst->update_shape_done_by_other) {
+                    if (!reshape_inst->_update_shape_done_by_other) {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
-                        reshape_inst->update_shape_done_by_other = true;
+                        reshape_inst->_update_shape_done_by_other = true;
                         user_info.first = &reshape_inst->get_node();
                         user_info.second = reshape_inst->_impl_params->get_output_layout();
                     }
@@ -1857,10 +1857,10 @@ void primitive_inst::prepare_primitive() {
 
         // subgraph_input_changed can be available only shape_of is dynamic.
         // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
-        if (get_node().is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
+        if (get_node().is_in_shape_of_subgraph() && _dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
-            for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
-                if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+            for (size_t i = 0; i < _dependant_shape_of_insts.size(); i++) {
+                if (_dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     subgraph_input_changed = true;
                     break;
                 }
@@ -1872,7 +1872,7 @@ void primitive_inst::prepare_primitive() {
         }
 
         if (get_flag(ExecutionFlags::SKIP)) {
-            update_shape_done_by_other = false; // reset
+            _update_shape_done_by_other = false; // reset
             return;
         }
 
@@ -1927,7 +1927,7 @@ void primitive_inst::prepare_primitive() {
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
-    update_shape_done_by_other = false; // reset
+    _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
@@ -2064,9 +2064,9 @@ void primitive_inst::build_deps() {
 }
 
 void primitive_inst::configure_shape_of_dependencies() {
-    if (dependant_shape_of_insts.empty()) {
+    if (_dependant_shape_of_insts.empty()) {
         for (auto shape_of : get_node().get_dependant_shape_of_nodes()) {
-            dependant_shape_of_insts.push_back(get_network().get_primitive(shape_of->id()).get());
+            _dependant_shape_of_insts.push_back(get_network().get_primitive(shape_of->id()).get());
         }
     }
 }
@@ -2253,7 +2253,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
         intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset));
-        max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
+        _max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;
 }
