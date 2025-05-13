@@ -212,19 +212,19 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ always() }}
-        uses: ./src/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.MANIFEST_PATH }}
-            ${{ env.INSTALL_WHEELS_DIR }}/wheels
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
+      # - name: Store artifacts to a shared drive
+      #   id: store_artifacts
+      #   if: ${{ always() }}
+      #   uses: ./src/.github/actions/store_artifacts
+      #   with:
+      #     artifacts: |
+      #       ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+      #       ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+      #       ${{ env.MANIFEST_PATH }}
+      #       ${{ env.INSTALL_WHEELS_DIR }}/wheels
+      #     storage_dir: ${{ env.PRODUCT_TYPE }}
+      #     storage_root: ${{ env.ARTIFACTS_SHARE }}
+      #     branch_name: ${{ inputs.target-branch }}
 
   Python_API_Tests:
     name: Python API tests
