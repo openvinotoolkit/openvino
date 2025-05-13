@@ -51,7 +51,6 @@ void GemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size
                                                           const std::vector<size_t>& layout_b,
                                                           const std::vector<size_t>& layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
-    validate_inputs();
 
     const std::vector<ov::PartialShape> planar_input_shapes{
         snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),

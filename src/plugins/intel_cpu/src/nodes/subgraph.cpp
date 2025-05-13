@@ -54,6 +54,9 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/shape_inference.hpp"
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
@@ -558,6 +561,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                repacked_constant_input_config);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -588,10 +594,13 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
+// #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
+//     using PassPosition = ov::snippets::pass::PassPosition;
+//     using Place = PassPosition::Place;
+// #endif
+
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
@@ -639,6 +648,12 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                            ov::intel_cpu::pass::InitRepackedConstantInputs,
                                            context->getParamsCache(),
                                            repacked_constant_input_config);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::pass::GemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                           ov::snippets::lowered::pass::InitLoops,
+                                           ov::intel_cpu::pass::aarch64::AdjustBrgemmCopyBLoopPorts);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -693,8 +708,9 @@ void Subgraph::optimizeIR() {
 
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
+    std::cout << "before control_flow_transformations......." << std::endl;
     subgraph->data_flow_transformations(in_blocked_shapes, precisions.first, precisions.second, getDataFlowPasses());
-
+    std::cout << "after data_flow_transformations......." << std::endl;
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
     OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
@@ -712,14 +728,14 @@ void Subgraph::optimizeIR() {
         in_shapes.emplace_back(s.first);
     }
     subgraph->shape_infer(in_shapes);
+    std::cout << "after shape_infer......." << std::endl;
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
-
+    // control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
@@ -731,6 +747,7 @@ void Subgraph::optimizeIR() {
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                            control_flow_config,
                                            control_flow_passes);
+    std::cout << "after control_flow_transformations......." << std::endl;
 }
 
 void Subgraph::prepareWeights() {
