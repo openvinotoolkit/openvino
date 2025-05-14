@@ -116,8 +116,8 @@ bool GridSample::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 }
 
 bool GridSample::has_evaluate() const {
-    return (get_input_element_type(0) == element::f32 && get_input_element_type(1) == element::f32) ||
-           (get_input_element_type(0) == element::f64 && get_input_element_type(1) == element::f64);
+    return (get_input_element_type(0) == element::f32 || get_input_element_type(0) == element::f64) &&
+           (get_input_element_type(1) == element::f32 || get_input_element_type(1) == element::f64);
 }
 }  // namespace v9
 }  // namespace op
