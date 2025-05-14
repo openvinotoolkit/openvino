@@ -66,31 +66,17 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
-
-    const auto indicesPrecision = getParentEdgeAt(2)->getMemory().getDesc().getPrecision();
     int64_t numRows = 0;
 
-    if (indicesPrecision == ov::element::i32) {
-        const auto* denseShapePtr = getSrcDataAtPortAs<const int32_t>(1);
-        numRows = static_cast<int64_t>(denseShapePtr[0]);
-    } else {
-        const auto* denseShapePtr = getSrcDataAtPortAs<const int64_t>(1);
-        numRows = denseShapePtr[0];
-    }
+    const auto* denseShapePtr = getSrcDataAtPortAs<const int32_t>(1);
+    numRows = static_cast<int64_t>(denseShapePtr[0]);
 
     std::unordered_set<int64_t> existingRows;
     size_t indicesCount = indicesShape.getElementsCount() / 2;  // Divide by 2 because indices is [M, 2]
 
-    if (indicesPrecision == ov::element::i32) {
-        const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
-        for (size_t i = 0; i < indicesCount; i++) {
-            existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2]));
-        }
-    } else {
-        const auto* indicesPtr = getSrcDataAtPortAs<const int64_t>(2);
-        for (size_t i = 0; i < indicesCount; i++) {
-            existingRows.insert(indicesPtr[i * 2]);
-        }
+    const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
+    for (size_t i = 0; i < indicesCount; i++) {
+        existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2]));
     }
 
     size_t emptyRowsCount = numRows - existingRows.size();
@@ -109,14 +95,14 @@ struct SparseFillEmptyRowsContext {
 };
 }  // namespace
 
-template <typename T, typename T_IND>
+template <typename T>
 void SparseFillEmptyRows::executeImpl() {
     ov::reference::sparse_fill_empty_rows(getSrcDataAtPortAs<const T>(0),                        // values
                                           getSrcMemoryAtPort(0)->getShape().getElementsCount(),  // values_size
-                                          getSrcDataAtPortAs<const T_IND>(1),                    // dense_shape
-                                          getSrcDataAtPortAs<const T_IND>(2),                    // indices
+                                          getSrcDataAtPortAs<const int32_t>(1),                  // dense_shape
+                                          getSrcDataAtPortAs<const int32_t>(2),                  // indices
                                           *getSrcDataAtPortAs<const T>(3),                       // default_value
-                                          getDstDataAtPortAs<T_IND>(0),                          // output_indices
+                                          getDstDataAtPortAs<int32_t>(0),                        // output_indices
                                           getDstDataAtPortAs<T>(1),                              // output_values
                                           getDstDataAtPortAs<bool>(2));                          // empty_row_indicator
 }
@@ -126,11 +112,9 @@ struct SparseFillEmptyRows::SparseFillEmptyRowsExecute {
     void operator()(SparseFillEmptyRowsContext& ctx) {
         auto indicesPrecision = ctx.node.getParentEdgeAt(2)->getMemory().getDesc().getPrecision();
         if (indicesPrecision == ov::element::i32) {
-            ctx.node.executeImpl<T, int32_t>();
-        } else if (indicesPrecision == ov::element::i64) {
-            ctx.node.executeImpl<T, int64_t>();
+            ctx.node.executeImpl<T>();
         } else {
-            OPENVINO_THROW("SparseFillEmptyRows operation supports only i32 or i64 indices precision");
+            OPENVINO_THROW("SparseFillEmptyRows operation supports only i32 indices precision");
         }
     }
 };
