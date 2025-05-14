@@ -327,6 +327,12 @@ public:
         return equal_results(lhs.m_result, rhs.m_result);
     }
 
+#ifndef NDEBUG
+    const Result* get_result() const {
+        return m_result;
+    }
+#endif
+
 private:
     const OutputNode m_output;
     const Result* m_result;
@@ -572,6 +578,22 @@ private:
 
         if (lhs_sub_outputs.size() != rhs_sub_outputs.size() ||
             !std::is_permutation(begin(lhs_sub_outputs), end(lhs_sub_outputs), begin(rhs_sub_outputs))) {
+#ifndef NDEBUG
+            std::stringstream ss;
+            if (lhs_sub_outputs.size() != rhs_sub_outputs.size()) {
+                ss << "Different number of outputs: lhs_sub_outputs.size() = " << lhs_sub_outputs.size()
+                   << ", rhs_sub_outputs.size() == " << rhs_sub_outputs.size() << '\n';
+            }
+            ss << "Left subgraph outputs (" << lhs_sub_outputs.size() << "):\n";
+            for (size_t i = 0; i < lhs_sub_outputs.size(); i++) {
+                ss << "  " << i << ": " << lhs_sub_outputs[i].get_result()->output(0).get_partial_shape() << '\n';
+            }
+            ss << "Right subgraph outputs (" << rhs_sub_outputs.size() << "):\n";
+            for (size_t i = 0; i < rhs_sub_outputs.size(); i++) {
+                ss << "  " << i << ": " << rhs_sub_outputs[i].get_result()->output(0).get_partial_shape() << '\n';
+            }
+            std::cerr << ss.str() << std::endl;
+#endif
             return Result::error("different SubGraph OutputDescription");
         }
         return Result::ok();
