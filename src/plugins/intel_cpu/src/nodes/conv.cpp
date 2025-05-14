@@ -286,6 +286,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::brgconv_avx2_dw,
         impl_desc_type::brgconv_avx2_1x1,
         impl_desc_type::brgconv_avx2,
+        impl_desc_type::jit_avx2_1x1_dw,
         impl_desc_type::jit_uni_dw,
         impl_desc_type::jit_uni_1x1,
         impl_desc_type::jit_uni,
@@ -338,9 +339,11 @@ void Convolution::selectOptimalPrimitiveDescriptor() {
     }
 }
 
-static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape& sumShape) {
+static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
+                                   const Shape& sumShape,
+                                   ov::element::Type sumPrecision) {
     if (outputDesc->getShape().isStatic()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     // When we set the input shape with ranged dimensions, the sum node's input shape may mismatch with the output
@@ -348,7 +351,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
     // {128, 256}} Sum input shape = {1, 160, 1, 1} Update sum shape to {1, 160, {1, 256}, {1, 256}}
     const auto& shape = outputDesc->getShape();
     if (shape.getRank() != sumShape.getRank()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     const auto& sumDims = sumShape.getDims();
@@ -363,7 +366,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
 
     auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
-    return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
+    return std::make_shared<CpuBlockedMemoryDesc>(sumPrecision,
                                                   Shape(minDims, maxDims),
                                                   blockedOutputDesc->getBlockDims(),
                                                   blockedOutputDesc->getOrder(),
@@ -525,10 +528,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         }
 
         if (withSum) {
-            nodeConfig.inConfs.emplace_back(
-                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1)),
-                BlockedMemoryDesc::FULL_MASK,
-                -1);
+            auto sumDesc =
+                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1), sumType);
+            nodeConfig.inConfs.emplace_back(sumDesc, BlockedMemoryDesc::FULL_MASK, -1);
         }
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);

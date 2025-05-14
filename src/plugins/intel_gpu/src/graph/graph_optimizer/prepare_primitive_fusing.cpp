@@ -463,7 +463,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto fc_with_bias_prim = desc->clone();
+            auto fc_with_bias_prim = desc->typed_clone();
             fc_with_bias_prim->id = desc->id + "_tmp";
             fc_with_bias_prim->bias = bias_name;
             fc_with_bias_prim->output_data_types = {optional_data_type{fc.get_output_layout().data_type}};
