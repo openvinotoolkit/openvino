@@ -11,7 +11,6 @@
 namespace {
 
 using namespace ov::test::behavior;
-using ov::op::v0::Parameter, ov::op::v0::Result;
 
 const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::i8,
@@ -27,14 +26,10 @@ const std::vector<ov::element::Type_t> netPrecisions = {
 };
 const ov::AnyMap empty_property = {};
 
-TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
-    const std::vector<ov::element::Type> unsupported_precisions{ov::element::i16, ov::element::u16, ov::element::u32, ov::element::u64};
+#ifdef OPENVINO_ARCH_X86_64
+using ov::op::v0::Parameter, ov::op::v0::Result;
 
-    if (std::find(unsupported_precisions.begin(),
-                  unsupported_precisions.end(),
-                  elementType) != unsupported_precisions.end()) {
-        GTEST_SKIP() << "Element type " << elementType << " is not supported by Interpolate v4";
-    }
+TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
     // Create model with interpolate which v0 and v4 are supported by TypeRelaxedExtension
     {
         using ov::op::v4::Interpolate;
@@ -82,6 +77,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtensio
     EXPECT_EQ(elementType, importedCompiledModel.input("data").get_element_type());
     EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
 };
+#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                          OVCompiledGraphImportExportTest,

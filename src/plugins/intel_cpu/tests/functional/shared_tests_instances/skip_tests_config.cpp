@@ -328,6 +328,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
+        // Interpolate used in the test not support all test precisions
+        R"(.*importExportModelWithTypeRelaxedExtension.*elementType=(i16|u16|u32|u64).*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
