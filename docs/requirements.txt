@@ -6,7 +6,7 @@ beautifulsoup4==4.9.3
 breathe==4.35.0
 certifi==2024.7.4
 colorama==0.4.6
-Cython==0.29.33
+Cython==3.0.12
 docutils==0.20
 idna==3.7
 imagesize==1.3.0
