@@ -133,7 +133,7 @@ private:
                     for (int j = 0; j < 4; ++j) {
                         var[j] = (priorVar[start_idx + j]);
                     }
-                    currPrVar.push_back(var);
+                    currPrVar.push_back(std::move(var));
                 }
             }
             priorData += off;
@@ -366,12 +366,25 @@ private:
     void mxNetNms(const LabelBBox& decodeBboxesImage,
                   const std::map<int, std::vector<dataType>>& confScores,
                   std::map<int, std::vector<int>>& indices) {
+        const auto is_background_label = [this](int c) {
+            return attrs.background_label_id > -1 && c == attrs.background_label_id;
+        };
         std::vector<std::pair<dataType, std::pair<int, int>>> scoreIndexPairs;
         for (size_t p = 0; p < numPriors; p++) {
             dataType conf = -1;
             int id = 0;
-            for (int c = 1; c < numClasses; c++) {
-                if (attrs.background_label_id > -1 && c == attrs.background_label_id)
+            int c = 1;
+            if constexpr (std::is_unsigned_v<dataType>) {
+                for (; c < numClasses; ++c) {
+                    if (is_background_label(c))
+                        continue;
+                    conf = confScores.at(c)[p];
+                    id = c++;
+                    break;
+                }
+            }
+            for (; c < numClasses; ++c) {
+                if (is_background_label(c))
                     continue;
                 dataType temp = confScores.at(c)[p];
                 if (temp > conf) {
@@ -538,9 +551,9 @@ public:
                     int idx = scoreIndexPairs[j].second.second;
                     newIndices[label].push_back(idx);
                 }
-                allIndices.push_back(newIndices);
+                allIndices.push_back(std::move(newIndices));
             } else {
-                allIndices.push_back(indices);
+                allIndices.push_back(std::move(indices));
             }
         }
 
