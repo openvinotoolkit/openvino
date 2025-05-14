@@ -755,6 +755,7 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
     }
     // If there are no matches, valueCount will be 0. Hence we directly return the inputFiles string.
     if (valueCount == 0) {
+        std::cout << "No input files specified. Using default input files -->" << inputFiles << std::endl;
         return inputFiles;
     }
 
@@ -766,7 +767,7 @@ std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string
         }
         result += inputValues[i];
     }
-
+    std::cout << "Input files: " << result << std::endl;
     return result;
 }
 
@@ -2053,6 +2054,19 @@ static int runSingleImageTest() {
                 }
                 inputFilesForOneInfer.push_back(std::move(entireModelFiles));
             }
+            // Log what is in inputFilesForOneInfer
+            std::cout << "[Debug] Parsed input files for model: " << std::endl;
+            for (size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
+                std::cout << "Input " << i << ": ";
+                for (const auto& files : inputFilesForOneInfer[i]) {
+                    std::cout << "[";
+                    for (const auto& file : files) {
+                        std::cout << file << " ";
+                    }
+                    std::cout << "]";
+                }
+                std::cout << std::endl;
+            }
 
             // Input precision
             if (!FLAGS_ip.empty()) {
@@ -2242,6 +2256,7 @@ static int runSingleImageTest() {
                 ++inferIdx;
             }
         }
+        std::cout << "[Debug] Image bin precision processed!" << std::endl;
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
