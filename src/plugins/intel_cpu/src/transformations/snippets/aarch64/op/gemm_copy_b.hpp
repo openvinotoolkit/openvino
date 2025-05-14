@@ -4,7 +4,6 @@
 
 #pragma once
 
-// #include "brgemm_utils.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -24,15 +23,15 @@ public:
     OPENVINO_OP("GemmCopyB", "SnippetsOpset");
 
     GemmCopyB(const Output<Node>& x,
-                const element::Type src_type,
-                const size_t offset_in = 0lu,
-                const size_t offset_out0 = 0lu,
-                const std::vector<size_t>& layout_input = {});
+              const element::Type src_type,
+              const size_t offset_in = 0lu,
+              const size_t offset_out0 = 0lu,
+              const std::vector<size_t>& layout_input = {});
     GemmCopyB(const Output<Node>& x,
-                const element::Type src_type,
-                const PortDescriptor& desc_in0,
-                const PortDescriptor& desc_out0,
-                const std::vector<size_t>& layout_input = {});
+              const element::Type src_type,
+              const PortDescriptor& desc_in0,
+              const PortDescriptor& desc_out0,
+              const std::vector<size_t>& layout_input = {});
     GemmCopyB() = default;
 
     size_t get_offset_in() const {
