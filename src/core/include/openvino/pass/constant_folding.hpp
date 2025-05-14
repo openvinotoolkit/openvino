@@ -6,7 +6,7 @@
 
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/pass/pass.hpp"
-
+#include "ov_ops/rotary_positional_embeddings.hpp"
 namespace ov {
 namespace pass {
 
@@ -26,6 +26,13 @@ protected:
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
     bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model);
+};
+
+class OPENVINO_API CountRope : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("CountRope");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    int rope_counter = 0;
 };
 
 /**
