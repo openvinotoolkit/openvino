@@ -113,8 +113,6 @@ protected:
             }
         }
 
-        std::cout << "Sparse rate = " << countZero * 100 / vec_len << "%" << std::endl;
-
         return res;
     }
 
