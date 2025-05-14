@@ -160,7 +160,9 @@ std::vector<SDPAParams> generateParams() {
 }
 
 std::vector<SDPAParams> generateCombinedParams() {
-    const std::vector<std::vector<SDPAParams>> generatedParams{generateParams<element::Type_t::f32>()};
+    const std::vector<std::vector<SDPAParams>> generatedParams{generateParams<element::Type_t::f32>(),
+                                                               generateParams<element::Type_t::f16>(),
+                                                               generateParams<element::Type_t::f64>()};
     std::vector<SDPAParams> combinedParams;
 
     for (const auto& params : generatedParams) {
