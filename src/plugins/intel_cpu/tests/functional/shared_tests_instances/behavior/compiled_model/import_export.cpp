@@ -26,7 +26,6 @@ const std::vector<ov::element::Type_t> netPrecisions = {
 };
 const ov::AnyMap empty_property = {};
 
-#ifdef OPENVINO_ARCH_X86_64
 using ov::op::v0::Parameter, ov::op::v0::Result;
 
 TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
@@ -77,7 +76,6 @@ TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtensio
     EXPECT_EQ(elementType, importedCompiledModel.input("data").get_element_type());
     EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
 };
-#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                          OVCompiledGraphImportExportTest,
