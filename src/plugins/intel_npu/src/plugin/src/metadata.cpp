@@ -177,8 +177,10 @@ bool isELFBlob(std::istream& stream) {
     stream.read(buffer, 20);
     std::streamsize count = stream.gcount();
 
-    stream.clear();
-    stream.seekg(pos);
+    // ov::SharedStreamBuf can not work with below call, stream status is bad after that
+    // stream.clear();
+    // stream.seekg(pos);
+    stream.seekg(-stream.tellg() + pos, std::ios::cur);
     std::string header(buffer, count);
     return header.find("ELF") != std::string::npos;
 }
