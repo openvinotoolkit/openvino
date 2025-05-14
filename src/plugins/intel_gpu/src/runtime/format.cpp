@@ -136,7 +136,6 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_i_osv16__ai8,                              1, 1, 0, 0, {0, 1},          "oi",     "oi",    {{1, 8}, {0, 16}},                 {{1, 8}, {0, 16}}),  // NOLINT
         FMT_TRAITS(os_i_osv8__ai8,                               1, 1, 0, 0, {0, 1},          "oi",     "oi",    {{1, 8}, {0, 8}},                  {{1, 8}, {0, 8}}),  // NOLINT
 
-        FMT_TRAITS(goix,                                         1, 1, 1, 1, {0, 1, 2, 3},       "goix",   "oix?????g", {},                         {}),  // NOLINT
         FMT_TRAITS(goiyx,                                        1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {},                         {}),  // NOLINT
         FMT_TRAITS(gioyx,                                        1, 1, 2, 1, {0, 2, 1, 3, 4},    "gioyx",  "oixy????g", {},                         {}),  // NOLINT
         FMT_TRAITS(goizyx,                                       1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz???g", {},                         {}),  // NOLINT
