@@ -34,13 +34,8 @@ void lora_inst::on_execute() {
 }
 
 void lora_inst::update_output_memory() {
-    size_t fused_dep_size = 0;
-    for (const auto& fused_desc : _impl_params->fused_desc) {
-        fused_dep_size += fused_desc.deps.size();
-    }
-
     bool is_empty_lora = true;
-    for (size_t i = 2; i < _impl_params->input_layouts.size() - fused_dep_size; ++i) {
+    for (size_t i = 2; i < _impl_params->desc->input_size(); ++i) {
         is_empty_lora &= _impl_params->get_input_layout(i).count() == 0;
     }
 

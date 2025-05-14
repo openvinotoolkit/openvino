@@ -876,6 +876,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 auto first_dep = add->get_input_node_shared_ptr(0);
                 auto second_dep = add->get_input_node_shared_ptr(1);
                 return !config.get_enable_lora_operation() ||
+                       device_info.supports_immad ||
                        ov::is_type<ov::op::v1::Convolution>(first_dep) ||
                        ov::is_type<ov::op::v1::Convolution>(second_dep);
         });
