@@ -1,26 +1,111 @@
-name: Take Issue
+name: Handle Issue Assignments
 
 on:
   issue_comment:
-    types:
-      - created
-      - edited
-
-permissions: read-all
+    types: [created]
+  issues:
+    types: [assigned, unassigned]
 
 jobs:
-  take-issue:
-    name: Take issue
+  handle-issue:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-    timeout-minutes: 10
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+      repository-projects: write
     steps:
-      - name: take an issue
-        uses: bdougie/take-action@1439165ac45a7461c2d89a59952cd7d941964b87 # v1.6.1
+      - name: Process issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea #v6
         with:
-          message: Thank you for looking into this issue! Please let us know if you have any questions or require any help.
-          issueCurrentlyAssignedMessage: Thanks for being interested in this issue. It looks like this ticket is already assigned to a contributor. Please communicate with the assigned contributor to confirm the status of the issue.
-          trigger: .take
-          token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const LABEL = "good first issue";
+            const COLUMNS = {
+              todo: "Contributors Needed",
+              inProgress: "Assigned",
+              done: "Closed"
+            };
+
+            const issue = context.payload.issue;
+
+            async function getProjectId() {
+              try {
+                const projects = await github.rest.projects.listForRepo({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo
+                });
+                const project = projects.data.find(p => p.name === "Good first issues");
+                if (!project) throw new Error("Project not found");
+                return project.id;
+              } catch (err) {
+                console.log("Error fetching project ID:", err);
+                throw err;
+              }
+            }
+
+            async function moveIssue(columnName) {
+              if (!issue.labels?.some(l => l.name.toLowerCase() === LABEL)) {
+                console.log(`Issue #${issue.number} - not a good first issue, skipping`);
+                return;
+              }
+
+              try {
+                const PROJECT_ID = await getProjectId();
+                const columns = await github.rest.projects.listColumns({ project_id: PROJECT_ID });
+                const column = columns.data.find(c => c.name === columnName);
+                if (!column) throw new Error(`Can't find column ${columnName}`);
+
+                const cards = await github.rest.projects.listCards({ column_id: column.id });
+                const existingCard = cards.data.find(c => c.content_url.endsWith(`/issues/${issue.number}`));
+
+                if (existingCard) {
+                  await github.rest.projects.moveCard({
+                    card_id: existingCard.id,
+                    position: "top",
+                    column_id: column.id
+                  });
+                } else {
+                  await github.rest.projects.createCard({
+                    column_id: column.id,
+                    content_id: issue.id,
+                    content_type: "Issue"
+                  });
+                }
+
+                console.log(`Updated issue #${issue.number} to ${columnName}`);
+              } catch (err) {
+                console.log(`Error updating issue #${issue.number}:`, err);
+                throw err;
+              }
+            }
+
+            // Handle comment-based triggers (.take and .release)
+            if (context.payload.comment) {
+              const comment = context.payload.comment.body.trim();
+              const user = context.payload.comment.user.login;
+
+              if (comment === ".take") {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: [user]
+                });
+                // No need to move issue here as the assignment event will trigger that
+              }
+
+              if (comment === ".release") {
+                await github.rest.issues.removeAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: [user]
+                });
+                // No need to move issue here as the unassignment event will trigger that
+              }
+            }
+
+            // Handle assignment/unassignment events
+            if (context.payload.action === "assigned" || context.payload.action === "unassigned") {
+              const hasAssignee = issue.assignees?.length > 0;
+              await moveIssue(hasAssignee ? COLUMNS.inProgress : COLUMNS.todo);
+            }

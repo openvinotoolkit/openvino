@@ -198,14 +198,6 @@ constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Ar
     return {std::forward<Args>(args)...};
 }
 
-#if defined(_WIN32)
-bool may_i_use_dynamic_code();
-#else
-constexpr bool may_i_use_dynamic_code() {
-    return true;
-}
-#endif
-
 /**
  * @brief A custom stream buffer that provides read-only access to a string view.
  *
