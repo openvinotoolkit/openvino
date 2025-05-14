@@ -549,7 +549,7 @@ void Reorder::reorderData(const IMemory& input,
         }
         if (reorder) {
             // std::cout << "[ reorderData ] threadPool: " << threadPool << "\n";
-            dnnl::stream loc_stream = make_stream(engine, threadPool);
+            dnnl::stream loc_stream = make_stream(engine, std::move(threadPool));
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");

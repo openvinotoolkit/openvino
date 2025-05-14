@@ -349,7 +349,7 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
                                          std::shared_ptr<ThreadPool> threadPool,
                                          const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(make_stream(engine, threadPool)),
+    : m_stream(make_stream(engine, std::move(threadPool))),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

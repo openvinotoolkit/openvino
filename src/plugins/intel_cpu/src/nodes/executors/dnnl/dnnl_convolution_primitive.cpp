@@ -998,7 +998,7 @@ DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    std::shared_ptr<ThreadPool> threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(make_stream(engine, threadPool)),
+    : m_stream(make_stream(engine, std::move(threadPool))),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),
