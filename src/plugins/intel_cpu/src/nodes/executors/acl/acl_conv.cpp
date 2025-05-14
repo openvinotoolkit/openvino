@@ -136,6 +136,10 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
     return neConv;
 }
 
+ACLConvolutionExecutor::~ACLConvolutionExecutor() {
+    dstTensor->allocator()->free();
+}
+
 std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,

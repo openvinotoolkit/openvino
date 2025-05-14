@@ -12,6 +12,7 @@ namespace ov::intel_cpu {
 class ACLConvolutionExecutor : public ACLCommonExecutor {
 public:
     ACLConvolutionExecutor(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
+    ~ACLConvolutionExecutor();
 
     static bool supports(const ConvConfig& config);
 
