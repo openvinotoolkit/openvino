@@ -26,9 +26,9 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
@@ -331,8 +331,7 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (is_type<intel_cpu::aarch64::GemmCPU>(op) ||
-        is_type<intel_cpu::aarch64::GemmCopyB>(op)) {
+    if (is_type<intel_cpu::aarch64::GemmCPU>(op) || is_type<intel_cpu::aarch64::GemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
     }
     if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op)) {
