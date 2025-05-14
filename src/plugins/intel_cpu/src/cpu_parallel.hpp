@@ -44,8 +44,10 @@ public:
     }
 
     template <typename T0, typename F>
-    void parallel_for(const T0& D0, const F& func, const ov::intel_cpu::TbbPartitioner& partitioner, const size_t multiplier)
-        const {  // may be a variadical template to handle multidimmentional use cases
+    void parallel_for(const T0& D0,
+                      const F& func,
+                      const ov::intel_cpu::TbbPartitioner& partitioner,
+                      const size_t multiplier) const {
 #if OV_THREAD == OV_THREAD_TBB
         auto work_amount = static_cast<size_t>(D0);
         const int nthr = parallel_get_max_threads();

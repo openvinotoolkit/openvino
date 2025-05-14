@@ -28,7 +28,7 @@ public:
     }
     int get_num_threads() const override {
         int num = m_partitoner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
-                                                                   : parallel_get_max_threads() * m_multiplier;
+                                                                        : parallel_get_max_threads() * m_multiplier;
         return num;
     }
     bool get_in_parallel() const override {
@@ -39,12 +39,6 @@ public:
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
         m_cpu_parallel->parallel_simple(n, fn);
-    }
-    void set_partitioner(ov::intel_cpu::TbbPartitioner partitoner) {
-        m_partitoner = partitoner;
-    }
-    void set_multiplier(size_t multiplier) {
-        m_multiplier = multiplier;
     }
 };
 
