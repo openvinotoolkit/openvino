@@ -403,6 +403,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     }
 
     for (std::size_t j = 0; j != closure_unpack_gather_required.size(); j++) {
+        std::cout << "ALEX QUANT GATHER UNPACK SHOULD BE IN INFER!!!" << std::endl;
         // NB: No need to protect anything here as containers are all
         // preallocated and we only access elements under particular (thread
         // -local) indices.

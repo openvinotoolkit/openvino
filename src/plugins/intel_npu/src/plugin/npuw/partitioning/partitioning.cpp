@@ -1872,12 +1872,18 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.run_on_model(f._model);
 
         // Quantized Gather + Unpack on host in the runtime
-        if (!cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
             ov::pass::GraphRewrite rewr2;
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
-            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
-            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
             rewr2.run_on_model(f._model);
+
+            ov::pass::GraphRewrite rewr3;
+            rewr3.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
+            rewr3.run_on_model(f._model);
+
+            ov::pass::GraphRewrite rewr4;
+            rewr4.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
+            rewr4.run_on_model(f._model);
         }
 
         // Move Gather to host, if required
@@ -1986,6 +1992,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Host-side quantized gather, pt 1. Add new parameters first
         if (ctx.params_to_quant_gather_unpack) {
+            std::cout << "ALEX ADDING VOCAB PARAMS" << std::endl;
             auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
             for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack) {
                 new_params.push_back(param_new_and_unpack.first);
@@ -2056,6 +2063,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Host-side quantized gather, pt. 2: Write the gather mappings to funcall
         if (ctx.params_to_quant_gather_unpack) {
+            std::cout << "ALEX QUANT GATHER PREP FUNCALLS" << std::endl;
             auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
             for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack) {
                 auto gather_dst_id = f._model->get_parameter_index(param_new_and_unpack.first);

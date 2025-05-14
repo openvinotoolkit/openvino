@@ -1354,6 +1354,8 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
+        std::cout << "ALEX HostGatherQuantAsymm MATCHED" << std::endl;
+
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1366,9 +1368,8 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
         const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-                                qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
-                                qweight_type == ov::element::f8e8m0)) {
+        // FIXME: also check sole_reader/convert ?
+        if (out_len >= 2048) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
@@ -1380,6 +1381,8 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+            std::cout << "HostGatherQuantAsymm APPLIED" << std::endl;
+
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
@@ -1388,6 +1391,8 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
                                                              matched_qcoeff,
                                                              ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
+
+            matched_node_cvt->validate_and_infer_types();
 
             return true;  // root has changed
         }
@@ -1420,6 +1425,8 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
+        std::cout << "ALEX HostGatherQuantSymm MATCHED" << std::endl;
+
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1432,9 +1439,9 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-                                qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
-                                qweight_type == ov::element::f8e8m0)) {
+        // FIXME: also check sole_reader/convert ?
+        if (out_len >= 2048) {
+            std::cout << "ALEX HostGatherQuantSymm APPLIED" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1448,6 +1455,8 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
             auto new_wi =
                 ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, matched_qcoeff, ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
+
+            matched_node_cvt->validate_and_infer_types();
 
             return true;  // root has changed
         }
@@ -1466,6 +1475,7 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "ALEX HostGatherQuant MATCHED" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
         auto out_shape = node_to_output.at(qgthrw).get_shape();
         auto& matched_out_qweight = node_to_output.at(qweight);
@@ -1479,9 +1489,9 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
-        if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
-            (matched_out_gather.get_target_inputs().size() > 1 ||
-             ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
+        // FIXME: also check sole_reader/convert ?
+        if (out_shape.back() >= 2048) {
+            std::cout << "ALEX HostGatherQuant APPLIED" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
