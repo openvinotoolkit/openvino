@@ -20,6 +20,7 @@ public:
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
 
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
+    ACLFunction configureFunctionPostOp(const ACLTensors& aclMemoryTensors) override;
 
     arm_compute::TensorShape normalizeDimsTo2D(const arm_compute::TensorShape shape);
 
@@ -28,9 +29,9 @@ protected:
                                                             const arm_compute::DataType& dataType,
                                                             const arm_compute::DataLayout& dataLayout) override;
 private:
-    //arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    //arm_compute::WeightFormat expectedWeightFormat;
-    //MemoryCPtr packedWeights;
+    std::shared_ptr<arm_compute::TensorInfo> dstTensorInfo;
+    std::shared_ptr<arm_compute::Tensor> dstTensor;
+
     arm_compute::PadStrideInfo padStrideInfo;
     arm_compute::WeightsInfo weightsInfo;
     arm_compute::Size2D dilation;

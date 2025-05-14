@@ -55,10 +55,9 @@ static const TypeMapping dnnlConvTypeMapping {
 
 static const TypeMapping aclLowpConvTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
-    //{{_i8, _i8, _i32, _i8},                 pt(bypass(), bypass(), bypass(), bypass())}
-    {{_u8 | _i8, _any, _i32, _any},                 pt(bypass(), use<0>(), bypass(), use<0>())}
-    //{{_u8 | _i8, _i8, _hw_float, _hw_float},                 pt(bypass(), bypass(), bypass(), bypass())} - it's working
-    //{{_u8 | _i8, _i8, _quant | _hw_float | _i32 | _dynamic, _quant | _hw_float | _i32 | _dynamic}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8, _u8 | _i8, _i32 | _dynamic, _u8 | _f32},           pt(bypass(), bypass(), bypass(), bypass())},
+    {{_i8, _i8, _i32 | _dynamic, _i8 | _f32},                 pt(bypass(), bypass(), bypass(), bypass())},
+
 };
 // clang-format on
 struct RequiresFallbackDefault {
@@ -243,6 +242,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                std::cout << "convolution_acl_normal: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
+                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                memoryFormatFilter)) {
                     return false;

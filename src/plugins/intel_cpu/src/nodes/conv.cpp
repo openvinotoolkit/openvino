@@ -383,12 +383,7 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
             continue;
         }
         auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
-        //dirty hack to set bias prec to i32
-        if (srcDescs.size() == BIAS) {
-            srcDescs.push_back(srcDesc->cloneWithNewPrecision(ov::element::i32));
-        } else {
-            srcDescs.push_back(srcDesc);
-        }
+        srcDescs.push_back(srcDesc);
     }
 
     auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstType, getOutputShapeAtPort(0));
@@ -414,7 +409,7 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
         }
     };
 
-    auto dstType = ov::element::i8;//getOriginalOutputPrecisionAtPort(0);
+    auto dstType = getOriginalOutputPrecisionAtPort(0);
 
     // make sure dst type is equal to the output type of the last fused node
     if (!fusedWith.empty()) {
