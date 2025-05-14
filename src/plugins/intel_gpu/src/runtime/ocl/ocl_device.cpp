@@ -253,6 +253,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
+#if CL_HPP_TARGET_OPENCL_VERSION >= 300
+    // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
+    // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
+    // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
+    info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
+#elif CL_HPP_TARGET_OPENCL_VERSION >= 200
+    // OpenCL C2.0: work_group_<ops> are mandetory.
+    info.supports_work_group_collective_functions = true;
+#else
+    info.supports_work_group_collective_functions = false;
+#endif
+
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
     } else {
@@ -322,10 +334,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::HW hw = ngen::HW::Unknown;
-    ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    generator_t<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
-    info.arch = convert_ngen_arch(hw);
+    ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
+    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations
     // as OneDNN code generators are not generic and typically requires some updates for the new architectures
