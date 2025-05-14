@@ -336,13 +336,15 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     bool pass_changed_model = false;
     std::vector<std::shared_ptr<PassBase>> new_pass_list; // for DEBUG only
     for (const auto& pass : m_pass_list) {
-        if (auto graph_rewrite = ov::as_type_ptr<GraphRewrite>(pass)) {
-            auto matchers = graph_rewrite->get_matchers();
-            for (auto& m : matchers) {
-                new_pass_list.push_back(m);
+        if (!get_pass_config()->is_disabled(pass->get_type_info())) {
+            if (auto graph_rewrite = ov::as_type_ptr<GraphRewrite>(pass)) {
+                auto matchers = graph_rewrite->get_matchers();
+                for (auto& m : matchers) {
+                    new_pass_list.push_back(m);
+                }
+            } else {
+                new_pass_list.push_back(pass);
             }
-        } else {
-            new_pass_list.push_back(pass);
         }
     }
 
