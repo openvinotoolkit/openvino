@@ -59,7 +59,6 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             if (port.is_processed()) {
                 const auto& expr = port.get_expr_port()->get_expr();
                 const auto& desc = port.get_expr_port()->get_descriptor_ptr();
-                auto subtensor = desc->get_subtensor();
                 if (port.get_dim_idx() < desc->get_subtensor().size()) {
                     desc->set_subtensor_dim(port.get_dim_idx(), new_dim_value);
                 }
@@ -153,8 +152,12 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // After subtensor propagation, the original shapes must be restored
     for (const auto& elem : original_shapes)
         elem.first->set_shape(elem.second);
-    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++)
-        (*expr_it)->updateShapes();
+    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++) {
+        const auto expr = *expr_it;
+        if (ov::is_type<snippets::op::LoopBase>(expr->get_node()))
+            continue;
+        expr->updateShapes();
+    }
 }
 }  // namespace
 

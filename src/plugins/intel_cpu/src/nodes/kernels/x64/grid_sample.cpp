@@ -676,14 +676,16 @@ void GridSampleKernel<isa>::denormalizeRawCoordinates(const Vmm& vWCoord, const 
 
 template <>
 void GridSampleKernel<x64::avx512_core>::zerosPaddingW(const Vmask& kDst, const Vmm& vCoord) {
-    vcmpps(kDst, vCoord, vSrcWidthF, CMP_LT_PS);     // vCoord < vUpperBound
+    vcmpps(kDst, vCoord, vSrcWidthF, CMP_LT_PS);  // vCoord < vUpperBound
+    // NOLINTNEXTLINE(misc-redundant-expression)
     vcmpps(kDst | kDst, vZeros, vCoord, CMP_LE_PS);  // vCoord >= vZeros
 }
 
 template <>
 void GridSampleKernel<x64::avx512_core>::zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, const Vmask& kMaskW) {
     vcmpps(kDst | kMaskW, vCoord, vSrcHeightF, CMP_LT_PS);  // vCoord < vUpperBound
-    vcmpps(kDst | kDst, vZeros, vCoord, CMP_LE_PS);         // vCoord >= vZeros
+    // NOLINTNEXTLINE(misc-redundant-expression)
+    vcmpps(kDst | kDst, vZeros, vCoord, CMP_LE_PS);  // vCoord >= vZeros
 }
 
 template <>
@@ -1717,6 +1719,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
             if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
                 Xbyak::Opmask maskH = kMaskH;
                 vcmpps(kMaskH, vHCoord, vSrcHeightF, CMP_LT_PS);
+                // NOLINTNEXTLINE(misc-redundant-expression)
                 vcmpps(maskH | maskH, vZeros, vHCoord, CMP_LE_PS);
                 kandw(kAuxMask, kMaskH, wMasks[0]);
                 uni_vmulps(vSrcShift0, vHCoord, vSrcWidthF);

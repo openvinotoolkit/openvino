@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <string>
 
-#include "intel_gpu/primitives/activation.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -116,11 +115,12 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
                 m_strides[i] = JitTerm{to_code_string(strides[channel_index])};
             } else if (format::is_simple_data_format(fmt)) {
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
+                OPENVINO_ASSERT(channel_it != actual_channels_order.end());
+
                 m_strides[i] = JitTerm{"1"};
-                for (channel_it++; channel_it != actual_channels_order.end(); channel_it++) {
-                    auto idx =
-                        std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *channel_it));
-                    auto idx_ext = channels_map[*channel_it];
+                for (auto it = std::next(channel_it); it != actual_channels_order.end(); ++it) {
+                    auto idx = std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *it));
+                    auto idx_ext = channels_map[*it];
                     if (pad._lower_size.at(idx) > 0 || pad._upper_size.at(idx) > 0 || pad._dynamic_dims_mask[idx]) {
                         m_strides[i] = m_strides[i] * (m_dims[idx_ext] + m_pad_lower[idx_ext] + m_pad_upper[idx_ext]);
                     } else {
@@ -422,7 +422,7 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
     JitConstants definitions{
         {name + "_VIEW_OFFSET", to_code_string(0)},  // FIXME
         {name + "_LENGTH", to_code_string(value.is_static() ? value.count() : 0)},
-        {name + "_DIMS", to_code_string(value.get_rank())},
+        {name + "_DIMS", to_code_string(value.get_partial_shape().size())},  // Use actual shape dimension not format dimension
         {name + "_SIMPLE", to_code_string(cldnn::format::is_simple_data_format(value.format))},
         {name + "_GROUPED", to_code_string(cldnn::format::is_grouped(value.format))},
         {name + "_LAYOUT_" + to_code_string(format_string(value.format)), "1"},
@@ -505,230 +505,6 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
     }
 
     return definitions;
-}
-
-JitConstants make_activation_jit_constants(const std::string& suffix,
-                                           activation_func activation_function,
-                                           ov::element::Type_t calc_dt,
-                                           ov::element::Type_t out_dt) {
-    const JitTerm activation_f = concat("ACTIVATION", suffix);
-    const JitTerm activation_impl_f = concat("ACTIVATION_FUNC", suffix);
-    const JitTerm cat_f{"CAT"};
-    JitConstants jit = {};
-    JitTerm type_suffix{out_dt == ov::element::f32 ? "f" : "h"};
-    assert(activation_function != activation_func::none);
-
-    jit.add(make_type_jit_constants(activation_impl_f.str(), calc_dt));
-    if (out_dt != calc_dt) {
-        jit.add(make_type_jit_constants(activation_impl_f.str() + "_OUT", out_dt));
-    }
-
-    const JitTerm one = concat(1.0, type_suffix);
-    const JitTerm zero = concat(0.0, type_suffix);
-    const JitTerm input{"input"};
-
-    JitTerm macro_def = activation_impl_f(input, "m"_jit, "n"_jit);
-
-    jit.add(make_jit_constant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-
-    switch (activation_function) {
-    case activation_func::logistic:
-        jit.add(make_jit_constant(macro_def, one / (one + exp(neg(input)))));
-        break;
-    case activation_func::hyperbolic_tan:
-        jit.add(make_jit_constant(macro_def, tanh(input)));
-        break;
-    case activation_func::relu:
-        jit.add(make_jit_constant(macro_def, max(zero, input)));
-        break;
-    case activation_func::relu_negative_slope: {
-        const JitTerm slope = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)))));
-        break;
-    }
-    case activation_func::elu: {
-        const JitTerm alpha = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, max(input, zero) + (alpha * (exp(min(input, zero)) - one))));
-        break;
-    }
-    case activation_func::clamp: {
-        const JitTerm m = convert_to_type("m"_jit, calc_dt);
-        const JitTerm n = convert_to_type("n"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, max(m, min(n, input))));
-        break;
-    }
-    case activation_func::softrelu:
-        jit.add(make_jit_constant(macro_def, log(one + exp(input))));
-        break;
-    case activation_func::abs:
-        if (out_dt == ov::element::f32 || out_dt == ov::element::f16) {
-            jit.add(make_jit_constant(macro_def, fabs(input)));
-        } else {
-            jit.add(make_jit_constant(macro_def, abs(input)));
-        }
-        break;
-    case activation_func::linear: {
-        const JitTerm m = convert_to_type("m"_jit, calc_dt);
-        const JitTerm n = convert_to_type("n"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, m * input + n));
-        break;
-    }
-    case activation_func::square:
-        jit.add(make_jit_constant(macro_def, input * input));
-        break;
-    case activation_func::sqrt:
-        jit.add(make_jit_constant(macro_def, sqrt(input)));
-        break;
-    case activation_func::sin:
-        jit.add(make_jit_constant(macro_def, sin(input)));
-        break;
-    case activation_func::asin:
-        jit.add(make_jit_constant(macro_def, asin(input)));
-        break;
-    case activation_func::sinh:
-        jit.add(make_jit_constant(macro_def, sinh(input)));
-        break;
-    case activation_func::asinh:
-        jit.add(make_jit_constant(macro_def, asinh(input)));
-        break;
-    case activation_func::cos:
-        jit.add(make_jit_constant(macro_def, cos(input)));
-        break;
-    case activation_func::acos:
-        jit.add(make_jit_constant(macro_def, acos(input)));
-        break;
-    case activation_func::cosh:
-        jit.add(make_jit_constant(macro_def, cosh(input)));
-        break;
-    case activation_func::acosh:
-        jit.add(make_jit_constant(macro_def, acosh(input)));
-        break;
-    case activation_func::log:
-        jit.add(make_jit_constant(macro_def, log(input)));
-        break;
-    case activation_func::log2:
-        jit.add(make_jit_constant(macro_def, log2(input)));
-        break;
-    case activation_func::exp:
-        jit.add(make_jit_constant(macro_def, exp(input)));
-        break;
-    case activation_func::pow: {
-        const JitTerm m = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, pow(input, m)));
-        break;
-    }
-    case activation_func::tan:
-        jit.add(make_jit_constant(macro_def, tan(input)));
-        break;
-    case activation_func::atan:
-        jit.add(make_jit_constant(macro_def, atan(input)));
-        break;
-    case activation_func::atanh:
-        jit.add(make_jit_constant(macro_def, atanh(input)));
-        break;
-    case activation_func::floor:
-        if (out_dt == ov::element::f32 || out_dt == ov::element::f16) {
-            jit.add(make_jit_constant(macro_def, floor(input)));
-        } else {
-            jit.add(make_jit_constant(macro_def, input));
-        }
-        break;
-    case activation_func::ceil:
-        if (out_dt == ov::element::f32 || out_dt == ov::element::f16) {
-            jit.add(make_jit_constant(macro_def, ceil(input)));
-        } else {
-            jit.add(make_jit_constant(macro_def, input));
-        }
-        break;
-    case activation_func::negative:
-        jit.add(make_jit_constant(macro_def, neg(input)));
-        break;
-    case activation_func::erf:
-        jit.add(make_jit_constant(macro_def, erf(input)));
-        break;
-    case activation_func::hard_sigmoid: {
-        const JitTerm alpha = convert_to_type("m"_jit, calc_dt);
-        const JitTerm beta = convert_to_type("n"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, max(zero, min(one, alpha * input + beta))));
-        break;
-    }
-    case activation_func::hsigmoid: {
-        const JitTerm three = concat(3.0, type_suffix);
-        const JitTerm six = concat(6.0, type_suffix);
-        jit.add(make_jit_constant(macro_def, min(max(zero, input + three), six) / six));
-        break;
-    }
-    case activation_func::sign:
-        jit.add(make_jit_constant(macro_def, ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one)))));
-        break;
-    case activation_func::reciprocal:
-        jit.add(make_jit_constant(macro_def, one / input));
-        break;
-    case activation_func::selu: {
-        const JitTerm alpha = convert_to_type("m"_jit, calc_dt);
-        const JitTerm gamma = convert_to_type("n"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, ternary(input.le(zero), gamma * (alpha * exp(input) - alpha), gamma * input)));
-        break;
-    }
-    case activation_func::softplus: {
-        jit.add(make_jit_constant(macro_def, log(exp(input) + one)));
-        break;
-    }
-    case activation_func::softsign: {
-        jit.add(make_jit_constant(macro_def, input / (one + abs(input))));
-        break;
-    }
-    case activation_func::swish: {
-        const JitTerm beta = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, input / (one + exp(neg(beta * input)))));
-        break;
-    }
-    case activation_func::hswish: {
-        const JitTerm three = concat(3.0, type_suffix);
-        const JitTerm six = concat(6.0, type_suffix);
-        jit.add(make_jit_constant(macro_def, input * min(max(zero, input + three), six) / six));
-        break;
-    }
-    case activation_func::mish: {
-        auto bound = calc_dt == ov::element::f32 ? "9.9f"_jit : "4.75h"_jit;
-        const JitTerm two = concat(2.0, type_suffix);
-        const JitTerm n((exp(input) + two) * exp(input));
-        const JitTerm common_mish_formula((input * n) / (n + two));
-
-        jit.add(make_jit_constant(macro_def, ternary(input.ge(bound), input, common_mish_formula)));
-        break;
-    }
-    case activation_func::gelu: {
-        const JitTerm half = concat(0.5, type_suffix);
-        const JitTerm mult = concat(0.7071067811865475, type_suffix);  // (1 / sqrt(2))
-        jit.add(make_jit_constant(macro_def, half * input * (one + erf((input * mult)))));
-        break;
-    }
-    case activation_func::gelu_tanh: {
-        const JitTerm half = concat(0.5, type_suffix);
-        const JitTerm mult = concat(0.044715, type_suffix);
-        const JitTerm sqrt_2_over_pi = concat(0.79788458347320556640625, type_suffix);
-        jit.add(make_jit_constant(macro_def, half * input * (one + tanh(sqrt_2_over_pi * input * (one + mult * input * input)))));
-        break;
-    }
-    case activation_func::negation:
-        jit.add(make_jit_constant(macro_def, ternary(input.eq(zero), one, zero)));  // the workaround for OpenCL's vector type result (!input)
-        break;
-    case activation_func::round_half_to_even:
-        jit.add(make_jit_constant(macro_def, rint(input)));
-        break;
-    case activation_func::round_half_away_from_zero:
-        jit.add(make_jit_constant(macro_def, round(input)));
-        break;
-    case activation_func::none:
-    default:
-        jit.add(make_jit_constant(macro_def, input));
-        break;
-    }
-
-    jit.add(make_jit_constant(activation_f(input, "m"_jit, "n"_jit), activation_impl_f(input, "m"_jit, "n"_jit)));
-
-    return jit;
 }
 
 std::string to_ocl_type(ov::element::Type_t et) {

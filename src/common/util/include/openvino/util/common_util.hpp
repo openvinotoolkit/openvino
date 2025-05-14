@@ -58,7 +58,25 @@ std::string to_lower(const std::string& s);
 
 std::string to_upper(const std::string& s);
 
-size_t hash_combine(const std::vector<size_t>& list);
+inline size_t hash_combine(size_t val, const size_t seed) {
+    return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+inline size_t hash_combine(const std::vector<size_t>& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
+
+inline size_t hash_combine(std::initializer_list<size_t>&& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
 
 /**
  * @brief trim from start (in place)
@@ -150,7 +168,7 @@ bool contains(const R& container, const V& value) {
  * @return result of multiplication
  */
 template <typename T, typename A>
-T product(std::vector<T, A> const& vec) {
+T product(const std::vector<T, A>& vec) {
     return vec.empty() ? T{0} : std::accumulate(vec.begin(), vec.end(), T{1}, std::multiplies<T>());
 }
 
@@ -180,13 +198,55 @@ constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Ar
     return {std::forward<Args>(args)...};
 }
 
-#if defined(_WIN32)
-bool may_i_use_dynamic_code();
-#else
-constexpr bool may_i_use_dynamic_code() {
-    return true;
-}
-#endif
+/**
+ * @brief A custom stream buffer that provides read-only access to a string view.
+ *
+ * This class inherits from `std::streambuf` and is designed to facilitate
+ * input operations directly on a `std::string_view` without copying the
+ * underlying string data. It allows for efficient reading and seeking
+ * operations within the string view.
+ *
+ * @note This stream buffer is intended for input operations only.
+ * @see pyopenvino/utils/utils.hpp for a similar implementation
+ */
+class StringViewStreamBuf : public std::streambuf {
+public:
+    explicit StringViewStreamBuf(std::string_view sv) {
+        char* begin = const_cast<char*>(sv.data());
+        setg(begin, begin, begin + sv.size());
+    }
+
+protected:
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
+        if (which != std::ios_base::in) {
+            return off_type(-1);
+        }
+
+        switch (dir) {
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return off_type(-1);
+        }
+        if (gptr() < eback() || gptr() > egptr())
+            return off_type(-1);
+
+        return gptr() - eback();
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+};
 
 }  // namespace util
 }  // namespace ov

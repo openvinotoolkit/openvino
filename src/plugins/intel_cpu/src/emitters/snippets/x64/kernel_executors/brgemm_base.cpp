@@ -163,8 +163,8 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.ptr_D = dst;
     brgemm_p.ptr_buf = scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = with_comp;
-    brgemm_p.do_apply_comp = with_comp;
+    brgemm_p.do_post_ops = static_cast<size_t>(with_comp);
+    brgemm_p.do_apply_comp = static_cast<size_t>(with_comp);
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");

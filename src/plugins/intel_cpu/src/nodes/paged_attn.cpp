@@ -150,14 +150,14 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
+                                      const ov::element::Type precision,
+                                      const bool isKey) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
-    // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
-    bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
-        byChannel = true;
-    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+    // By default, by-channel should only be enabled when precision is integral
+    bool byChannel = precision.is_integral() && isKey;
+    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
@@ -172,20 +172,23 @@ void PagedAttention::createPrimitive() {
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
     PagedAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
+    auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        bool quantValuebyChannel =
+            isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
                                 cpuConfig.keyCacheGroupSize,
                                 cpuConfig.valueCacheGroupSize,
-                                byChannel);
+                                quantKeybyChannel,
+                                quantValuebyChannel);
 #else
         return nullptr;
 #endif
@@ -199,7 +202,7 @@ void PagedAttention::createPrimitive() {
     m_executor = result.first;
 }
 
-void PagedAttention::execute(const dnnl::stream& strm) {
+void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
@@ -256,7 +259,12 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
+            if (!one_of(kCachePrecision,
+                        ov::element::u4,
+                        ov::element::u8,
+                        ov::element::f16,
+                        ov::element::f32,
+                        ov::element::bf16)) {
                 errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
                                kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
                 return false;
@@ -275,6 +283,14 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+#if defined(OPENVINO_ARCH_ARM64)
+    if (rtPrecision == ov::element::f16) {
+        rtPrecision = ov::element::f16;
+    } else {
+        rtPrecision = ov::element::f32;
+    }
+    return rtPrecision;
+#endif
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;

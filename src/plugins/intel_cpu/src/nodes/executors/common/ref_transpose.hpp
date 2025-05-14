@@ -29,9 +29,9 @@ private:
 
 class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
+                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
         return true;
     }
 
