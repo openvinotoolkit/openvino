@@ -535,7 +535,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     ov::AnyMap npu_plugin_properties = properties;
     ov::Tensor tensor;
     bool tensorFromProperty = false;
-    std::shared_ptr<std::streambuf> buffer;
+
+    std::istream stream{origStream.rdbuf()};
+    ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor, but it is not OV cached blob
 
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
@@ -549,17 +551,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                 tensor,
                 ov::Coordinate{static_cast<size_t>(origStream.tellg())},
                 ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+        } else {
+            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+            stream.rdbuf(&buffer);
         }
-        buffer =
-            std::make_shared<ov::SharedStreamBuffer>(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
         npu_plugin_properties.erase(blob_it);
-    } else {
-        buffer = std::shared_ptr<std::streambuf>(
-            origStream.rdbuf(),
-            [](std::streambuf* /* streamBufPtr */) { /* do not delete original stream's streambuf */ });
     }
-
-    std::istream stream{buffer.get()};
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
