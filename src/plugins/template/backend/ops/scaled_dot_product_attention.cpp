@@ -46,9 +46,9 @@ bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::N
             outputs,                                                       \
             inputs);
 
-#define CASE_BOOL(type)                                                         \
+#define CASE_BOOL(type)                                                    \
     case ov::element::type:                                                \
-        return evaluate<ov::element::type, ov::element::boolean>(             \
+        return evaluate<ov::element::type, ov::element::boolean>(          \
             ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node), \
             outputs,                                                       \
             inputs);
