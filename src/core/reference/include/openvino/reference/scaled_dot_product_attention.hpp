@@ -89,6 +89,7 @@ void scaled_dot_product_attention(const T* query,
                                   const Shape& value_shape,
                                   const Shape& mask_shape,
                                   const Shape& output_shape) {
+    std::cout << "{REF}: scaled_dot_product_attention" << std::endl;
     static_assert(std::is_same<T, TMask>::value || std::is_same<TMask, char>::value,
                   "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
 
@@ -97,13 +98,13 @@ void scaled_dot_product_attention(const T* query,
 
     std::vector<T> attentionMaskData;
     if (mask && !is_causal) {
+        biasShape = mask_shape;
         if (std::is_same<TMask, char>::value) {
             attentionMaskData = helpers::CreateAttentionMaskFromBool<T>(mask, biasShape);
             bias = attentionMaskData.data();
         } else {
             bias = helpers::GetRawPtr<T>(mask);
         }
-        biasShape = mask_shape;
     }
 
     if (is_causal) {

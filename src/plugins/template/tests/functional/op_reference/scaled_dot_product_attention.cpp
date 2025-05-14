@@ -30,17 +30,18 @@ struct SDPAParams {
     reference_tests::Tensor expectedOutputData;
 };
 
-template <typename T>
+template <typename T, typename TMask>
 SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
                                  const PartialShape& kShape,
                                  const PartialShape& vShape,
                                  const PartialShape& attentionMaskShape,
                                  const PartialShape& outputShape,
                                  bool isCausal,
+                                 bool isAttentionMaskBool,
                                  const std::vector<T>& qData,
                                  const std::vector<T>& kData,
                                  const std::vector<T>& vData,
-                                 const std::vector<T>& attentionMaskData,
+                                 const std::vector<TMask>& attentionMaskData,
                                  const std::vector<T>& expectedOutputData,
                                  const std::string& description) {
     SDPAParams ret;
@@ -56,7 +57,8 @@ SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
     ret.qData = reference_tests::Tensor(elementType, qShape.to_shape(), qData);
     ret.kData = reference_tests::Tensor(elementType, kShape.to_shape(), kData);
     ret.vData = reference_tests::Tensor(elementType, vShape.to_shape(), vData);
-    ret.attentionMaskData = reference_tests::Tensor(elementType, attentionMaskShape.to_shape(), attentionMaskData);
+    ret.attentionMaskData =
+        reference_tests::Tensor(element::from<TMask>(), attentionMaskShape.to_shape(), attentionMaskData);
     ret.expectedOutputData = reference_tests::Tensor(elementType, outputShape.to_shape(), expectedOutputData);
     return ret;
 }
@@ -120,30 +122,36 @@ std::vector<SDPAParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<SDPAParams> params;
 
-#define TEST_DATA(q_shape,                                          \
-                  k_shape,                                          \
-                  v_shape,                                          \
-                  attention_mask_shape,                             \
-                  output_shape,                                     \
-                  is_causal,                                        \
-                  q_data,                                           \
-                  k_data,                                           \
-                  v_data,                                           \
-                  attention_mask_data,                              \
-                  expected_output_data,                             \
-                  description)                                      \
-    params.push_back(PrepareTestCaseParams<T>(q_shape,              \
-                                              k_shape,              \
-                                              v_shape,              \
-                                              attention_mask_shape, \
-                                              output_shape,         \
-                                              is_causal,            \
-                                              q_data,               \
-                                              k_data,               \
-                                              v_data,               \
-                                              attention_mask_data,  \
-                                              expected_output_data, \
-                                              description));
+#define TEST_DATA(q_shape,                                                              \
+                  k_shape,                                                              \
+                  v_shape,                                                              \
+                  attention_mask_shape,                                                 \
+                  output_shape,                                                         \
+                  is_causal,                                                            \
+                  is_attention_mask_bool,                                               \
+                  q_data,                                                               \
+                  k_data,                                                               \
+                  v_data,                                                               \
+                  attention_mask_data,                                                  \
+                  expected_output_data,                                                 \
+                  description)                                                          \
+    {                                                                                   \
+        using TMask = typename std::conditional<is_attention_mask_bool, char, T>::type; \
+        std::vector<TMask> attention_mask_data_vec = attention_mask_data;               \
+        params.push_back(PrepareTestCaseParams<T, TMask>(q_shape,                       \
+                                                         k_shape,                       \
+                                                         v_shape,                       \
+                                                         attention_mask_shape,          \
+                                                         output_shape,                  \
+                                                         is_causal,                     \
+                                                         is_attention_mask_bool,        \
+                                                         q_data,                        \
+                                                         k_data,                        \
+                                                         v_data,                        \
+                                                         attention_mask_data_vec,       \
+                                                         expected_output_data,          \
+                                                         description));                 \
+    }
 
 #include "unit_test_utils/tests_data/scaled_dot_product_attention_data.h"
 #undef TEST_DATA
