@@ -31,6 +31,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithNeighborsGraphTransformation,
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::Values("concat1_original"),
+        ::testing::Values("u8")),
     ConcatWithNeighborsGraphTransformation::getTestCaseName);
 }  // namespace
