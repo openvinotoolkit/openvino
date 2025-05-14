@@ -288,6 +288,8 @@ public:
         auto weights_layout = impl_params->get_input_layout(1);
         bool is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
+        auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
+        int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
         int grouped = GROUPED << shift_size;
 
@@ -295,16 +297,19 @@ public:
         if (has_decompression_scale) {
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
-            if (!is_four_bit_weight)
+
+            auto decompression_scale_idx = ++idx;
+            auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
+            if (scale_layout.count() == 1) {
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
+            } else if (!is_four_bit_weight) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
-            else
+            } else {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
+            }
         }
 
         bool has_decompression_zp = prim->decompression_zero_point.is_valid() || prim->decompression_zero_point_scalar.has_value();
-        auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
-        int idx = !arg.bias_term() ? 2 : 3;
-
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
             auto decompression_zp_idx = ++idx;
@@ -383,7 +388,9 @@ public:
                 group_size = ifm / ngroups;
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
                     "group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
-                if (!is_four_bit_weight) {
+                if (scale_layout.count() == 1) {
+                    attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
+                } else if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
