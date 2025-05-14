@@ -92,6 +92,7 @@ void Graph::set_argument_value(uint32_t argi, const void* argv) const {
     }
     if (_handle == nullptr) {
         _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
+        return;
     }
     _zeGraphExt->setGraphArgumentValue(_handle, argi, argv);
 }
