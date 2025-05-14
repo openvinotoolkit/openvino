@@ -22,7 +22,9 @@ JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& pa
     const auto& out_offsets_map = params.out_port_to_shape_info_offset;
 
     for (size_t i = 0; i < params.input_layouts.size(); i++) {
-        jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
+        if (params.input_layouts[i].count() != 0) {
+            jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
+        }
     }
 
     jit_constants.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
