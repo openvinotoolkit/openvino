@@ -10,6 +10,14 @@
 namespace ov {
 namespace pass {
 
+class TRANSFORMATIONS_API CountRope : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("CountRope");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    int rope_counter = 0;
+};
+
+
 class TRANSFORMATIONS_API RoPEFusion;
 class TRANSFORMATIONS_API RoPEFusionGPTNEOX;
 class TRANSFORMATIONS_API RoPEFusionFlux;

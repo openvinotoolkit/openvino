@@ -1143,3 +1143,12 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
+
+bool ov::pass::CountRope::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    for (auto& op : model->get_ordered_ops()) {
+        if (auto rope = ov::as_type_ptr<op::internal::RoPE>(op)) {
+            ++rope_counter;
+        }
+    }
+    return true;
+}

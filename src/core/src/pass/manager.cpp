@@ -23,7 +23,7 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-#include "openvino/pass/constant_folding.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
 #ifdef ENABLE_PROFILING_ITT
 
