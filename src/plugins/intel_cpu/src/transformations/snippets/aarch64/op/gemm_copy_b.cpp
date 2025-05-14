@@ -100,7 +100,8 @@ GemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
 ov::snippets::IShapeInferSnippets::Result GemmCopyB::ShapeInfer::infer(
     const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
-    const auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
+    auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
+    // planar_shape[planar_shape.size() - 2] += 1;
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }

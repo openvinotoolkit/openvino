@@ -42,7 +42,6 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
     auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>(is_not_tpp);
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "start BrgemmToGemmCPU......." << std::endl;
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToGemmCPU")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
@@ -67,9 +66,6 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
-        std::cout << "offset_a:" << offset_a << std::endl;
-        std::cout << "offset_b:" << offset_b << std::endl;
-        std::cout << "offset_c:" << offset_c << std::endl;
 
         auto gemm_repacking =
             std::make_shared<aarch64::GemmCopyB>(brgemm->input_value(1), element_type_a, offset_b, 0, layout_b);
@@ -80,18 +76,9 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
             set_full_port_desc(output);
         }
 
-        // std::shared_ptr<aarch64::GemmCPU> gemm_cpu = std::make_shared<aarch64::GemmCPU>(brgemm->input_value(0),
-        //                                                                                 brgemm->input_value(1),
-        //                                                                                 offset_a,
-        //                                                                                 offset_b,
-        //                                                                                 offset_c,
-        //                                                                                 layout_a,
-        //                                                                                 layout_b,
-        //                                                                                 layout_c);
         std::shared_ptr<aarch64::GemmCPU> gemm_cpu = std::make_shared<aarch64::GemmCPU>(brgemm->input_value(0),
                                                                                         gemm_repacking->output(0),
                                                                                         offset_a,
-                                                                                        // offset_b,
                                                                                         0,
                                                                                         offset_c,
                                                                                         layout_a,
@@ -110,7 +97,6 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
         gemm_repacking->validate_and_infer_types();
         gemm_cpu->validate_and_infer_types();
-        std::cout << "end BrgemmToGemmCPU......." << std::endl;
 
         return true;
     };
