@@ -307,6 +307,14 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
         // update enable flag
         cfg.enable(key, isEnabled);
     });
+
+    // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // if it exists in config = driver supports it
+    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
+    if (cfg.hasOpt(ov::intel_npu::turbo.name())) {
+        cfg.enable(ov::intel_npu::turbo.name(), true);
+    }
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
@@ -525,22 +533,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    ov::SharedStreamBuffer buffer = {nullptr, 0};
+    ov::Tensor tensor;
+    bool tensorFromProperty = false;
+
     std::istream stream{origStream.rdbuf()};
+    ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor, but it is not OV cached blob
+
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                     compiled_blob.get_byte_size(),
-                                                                     compiled_blob);
-        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
-        stream.rdbuf(&buffer);
+        tensor = blob_it->second.as<ov::Tensor>();
+        tensorFromProperty = true;
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
             loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            stream.seekg(origStream.tellg(), std::ios::cur);  // skip OV header in case of cached blob
+            tensor = ov::Tensor(
+                tensor,
+                ov::Coordinate{static_cast<size_t>(origStream.tellg())},
+                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+        } else {
+            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+            stream.rdbuf(&buffer);
         }
         npu_plugin_properties.erase(blob_it);
     }
@@ -569,7 +582,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end(); ++it) {
         if (it->first.find("NPUW") != it->first.npos) {
-            npu_plugin_properties.erase(it);
+            npu_plugin_properties.erase(it->first);
         }
     }
 
@@ -598,35 +611,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            graphSize = storedMeta->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-            graphSize = MetadataBase::getFileSize(stream);
+            blobSize = storedMeta->get_blob_size();
         }
-
-        std::unique_ptr<BlobContainer> blobPtr;
-
-        if (modelBuffer == nullptr) {
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-            if (!stream) {
-                OPENVINO_THROW("Failed to read data from stream!");
-            }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
+            stream.read(tensor.data<char>(), tensor.get_byte_size());
         } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+            tensor = ov::Tensor(tensor,
+                                ov::Coordinate{0},
+                                ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
         }
-
-        auto graph = compiler->parse(std::move(blobPtr), localConfig);
+        auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
