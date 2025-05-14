@@ -16,6 +16,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
