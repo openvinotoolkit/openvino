@@ -792,7 +792,7 @@ struct TURBO final : OptionBase<TURBO, bool> {
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::Both;
     }
 
     static ov::PropertyMutability mutability() {
@@ -1284,6 +1284,10 @@ struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALL
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static OptionMode mode() {

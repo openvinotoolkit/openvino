@@ -47,8 +47,6 @@ class TestTensorListPushBack(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_list_push_back(self, element_shape, max_num_elements, element_dtype, ie_device, precision,
-                                   ir_version, temp_dir,
-                                   use_legacy_frontend):
+                                   ir_version, temp_dir):
         self._test(*self.create_tensor_list_push_back(element_shape, max_num_elements, element_dtype),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -89,6 +89,19 @@ protected:
     AT& m_ref;
 };
 
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<std::string>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<signed char>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned short>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned int>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned char>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<short>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<double>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<float>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<int>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<long>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned long>>;
+extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::set<std::string>>;
+
 template <typename AT, typename VAT>
 class IndirectScalarValueAccessor : public ValueAccessor<VAT> {
 public:
@@ -171,6 +184,7 @@ public:
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
+
     operator AT&() {
         return m_ref;
     }
@@ -221,6 +235,36 @@ public:
 protected:
     AT& m_ref;
 };
+
+namespace op {
+enum class PadMode;
+enum class FillMode;
+enum class PadType;
+enum class RoundingType;
+enum class AutoBroadcastType;
+enum class BroadcastType;
+enum class EpsMode;
+enum class TopKSortType;
+enum class TopKMode;
+enum class PhiloxAlignment;
+enum class RecurrentSequenceDirection;
+}  // namespace op
+namespace element {
+enum class Type_t;
+}
+
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadMode>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::FillMode>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadType>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::RoundingType>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::AutoBroadcastType>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::BroadcastType>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::EpsMode>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::TopKSortType>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::TopKMode>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PhiloxAlignment>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
+extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<element::Type_t>;
 
 /// Adapters will see visitor
 class VisitorAdapter : public ValueAccessor<void> {
