@@ -7,7 +7,7 @@
 #include <regex>
 #include <string_view>
 
-#include "driver_graph.hpp"
+#include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -191,32 +191,35 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<DriverGraph>(_zeGraphExt,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         config,
-                                         nullptr);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   /* blob = */ std::nullopt,
+                                   /* blobAllocatedByPlugin = */ false,
+                                   config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
+                                                     bool blobAllocatedByPlugin,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-    return std::make_shared<DriverGraph>(_zeGraphExt,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         config,
-                                         std::move(blobPtr));
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   std::move(blob),
+                                   blobAllocatedByPlugin,
+                                   config);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -488,6 +491,28 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
+    }
+
+    // Special case for compiler Turbo
+    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers support
+    // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
+    // support it, we remove it
+    if (std::regex_search(content, std::regex("NPU_TURBO"))) {
+        bool is_supported = false;
+        try {
+            is_supported = is_option_supported("NPU_TURBO");
+        } catch (...) {
+            // mute it, not critical
+            is_supported = false;
+        }
+        if (!is_supported) {
+            std::ostringstream turbostr;
+            turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                     << VALUE_DELIMITER;
+            logger.info("NPU_TURBO property is not supported by this compiler. Removing from "
+                        "parameters");
+            content = std::regex_replace(content, std::regex(turbostr.str()), "");
+        }
     }
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility

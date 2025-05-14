@@ -326,7 +326,6 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceMin", {18, 19}, ai_onnx::opset_18::reduce_min);
     ONNX_OP_M("ReduceProd", OPSET_SINCE(18), ai_onnx::opset_18::reduce_prod);
     ONNX_OP_M("ReduceSumSquare", OPSET_SINCE(18), ai_onnx::opset_18::reduce_sum_square);
-    ONNX_OP_M("ReduceL1", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l1);
     return true;
 }
 
