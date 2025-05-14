@@ -464,7 +464,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool store_original_precision_as_rt_attribute = true;
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
-            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::i16, ov::element::u16});
+            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,

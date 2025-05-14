@@ -351,9 +351,19 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
             disable_fp16_compression(zp_convert);
         }
 
+        if (pt_map.count(zp_reshape_pattern)) {
+            auto zp_reshape = pt_map.at(zp_reshape_pattern).get_node_shared_ptr();
+            disable_fp16_compression(zp_reshape);
+        }
+
         if (pt_map.count(scale_convert_pattern)) {
             auto scale_convert = pt_map.at(scale_convert_pattern).get_node_shared_ptr();
             disable_fp16_compression(scale_convert);
+        }
+
+        if (pt_map.count(scale_reshape_pattern)) {
+            auto scale_reshape = pt_map.at(scale_reshape_pattern).get_node_shared_ptr();
+            disable_fp16_compression(scale_reshape);
         }
 
         return false;
