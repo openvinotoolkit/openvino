@@ -518,7 +518,7 @@ private:
             mov(reg_src_h, reg_src);
             // index_h * IW * dataSize done when built to avoid redundent compute
             mov(reg_index_offset, dword[reg_index_h]);
-            add(reg_src_h, reg_index_offset);  // reg_src_h now point to begin of row
+            add(reg_src_h, Xbyak::Reg64(reg_index_offset.getIdx()));  // reg_src_h now point to begin of row
 
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
@@ -556,7 +556,7 @@ private:
 
                 mov(reg_src_aux, reg_src_h);
                 mov(reg_index_offset, dword[reg_index]);
-                add(reg_src_aux, reg_index_offset);
+                add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
                 load(reg_src_aux, vmm_val, scalar_step);
                 if (attr_.post_ops_.len() != 0) {
@@ -591,7 +591,7 @@ private:
 
             mov(reg_src_aux, reg_src);
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux, reg_index_offset);
+            add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
             load(reg_src_aux, vmm_val, vector_step);
             if (attr_.post_ops_.len() != 0) {
@@ -652,7 +652,8 @@ private:
             mov(reg_src_aux, reg_src);
             // index*C*dataSize done when built to avoid redundent compute
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux, reg_index_offset);
+            // opRR need same bit length input
+            add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
             mov(reg_work_amount, reg_work_amount_bk);
             if (attr_.post_ops_.len() != 0) {
@@ -986,12 +987,12 @@ private:
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux1, reg_index_offset);
+            add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
             load(reg_src_aux1, vmm_valTL, scalar_step);
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index + index_stride]);
-            add(reg_src_aux1, reg_index_offset);
+            add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
             load(reg_src_aux1, vmm_valTR, scalar_step);
 
             load_weights(reg_src_aux, vmm_weightL, scalar_step, 0);
@@ -1003,12 +1004,12 @@ private:
             if (jcp_.spatial_dim_size > 1) {
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 2 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 3 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 load_weights(reg_src_aux, vmm_weightT, scalar_step, 2 * weight_stride);
@@ -1022,22 +1023,22 @@ private:
                 // for end depth
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 4 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valTL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 5 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valTR, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 6 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 7 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 linear_onnx_worker_2d();
@@ -1215,7 +1216,7 @@ private:
     inline void cubic_c_gathered_pixel(int i, Vmm vmm_weight, bool is_scalar) {
         mov(reg_src_aux, reg_src);
         mov(reg_index_offset, dword[reg_index + i * jcp_.indices_size]);
-        add(reg_src_aux, reg_index_offset);
+        add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
         int step = is_scalar ? 1 : vlen / sizeof(float);
         load(reg_src_aux, vmm_src, step);
         uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weight);

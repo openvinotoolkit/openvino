@@ -1058,7 +1058,7 @@ void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
     jge(lKmov);
     Xbyak::Reg8 rShift(Xbyak::Operand::CL);
     mov(rShift, idxElPerVec);
-    sub(rShift, rWorkRest);
+    sub(Xbyak::Reg64(rShift.getIdx()), rWorkRest);
     shr(rOnes, rShift);
     L(lKmov);
     kmovw(kDstMask, rOnes);
