@@ -356,6 +356,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
+            m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
@@ -530,6 +531,15 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_gather.src_idx);
     write(stream, host_gather.idx_idx);
 
+    write(stream, quant_unpack_gather.dst_idx);
+    write(stream, quant_unpack_gather.dst_w_idx);
+    write(stream, quant_unpack_gather.dst_z_idx);
+    write(stream, quant_unpack_gather.dst_s_idx);
+    write(stream, quant_unpack_gather.src_w_idx);
+    write(stream, quant_unpack_gather.src_z_idx);
+    write(stream, quant_unpack_gather.src_s_idx);
+    write(stream, quant_unpack_gather.idx_idx);
+
     write(stream, spatial);
 
     write(stream, is_remote);
@@ -597,6 +607,15 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_gather.dst_idx);
     read(stream, host_gather.src_idx);
     read(stream, host_gather.idx_idx);
+
+    read(stream, quant_unpack_gather.dst_idx);
+    read(stream, quant_unpack_gather.dst_w_idx);
+    read(stream, quant_unpack_gather.dst_z_idx);
+    read(stream, quant_unpack_gather.dst_s_idx);
+    read(stream, quant_unpack_gather.src_w_idx);
+    read(stream, quant_unpack_gather.src_z_idx);
+    read(stream, quant_unpack_gather.src_s_idx);
+    read(stream, quant_unpack_gather.idx_idx);
 
     read(stream, spatial);
 
@@ -1523,6 +1542,20 @@ bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std
     return false;
 }
 
+bool ov::npuw::CompiledModel::is_quant_unpack_gather_closure(const std::size_t idx, const std::size_t cidx) const {
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+    if (func_desc.quant_unpack_gather.dst_idx != -1 &&
+        static_cast<uint64_t>(func_desc.quant_unpack_gather.dst_idx) == closure_param_id) {
+        return true;
+    }
+    return false;
+}
+
 void ov::npuw::CompiledModel::log_device_dist() const {
     std::unordered_map<std::string, execution_stats> stats_for_devices;
     execution_stats stats_for_optimized_out{0.f, 0ul};
@@ -1677,6 +1710,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
+                          BIND(npuw::partitioning::gather_quant, NPUW_GATHER_QUANT),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

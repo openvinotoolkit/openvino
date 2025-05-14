@@ -330,6 +330,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     // First, do easy things & delay heavy stuff
     std::vector<std::size_t> closure_unpack_required;
     std::vector<std::size_t> closure_copy_required;
+    std::vector<std::size_t> closure_unpack_gather_required;
 
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
         auto& closure = comp_model_desc.closure[cidx];
@@ -346,6 +347,9 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         if (m_npuw_model->unpack_required(idx, cidx)) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
+        } else if (m_npuw_model->is_quant_unpack_gather_closure(idx, cidx)) {
+            // Remember where the unpack + gather is required
+            closure_unpack_gather_required.push_back(cidx);
         } else {
             if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
@@ -395,6 +399,85 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         } else {
             // Unpacking this weight doesn't require scaling
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
+        }
+    }
+
+    for (std::size_t j = 0; j != closure_unpack_gather_required.size(); j++) {
+        // NB: No need to protect anything here as containers are all
+        // preallocated and we only access elements under particular (thread
+        // -local) indices.
+        auto cidx = closure_unpack_gather_required[j];
+
+        const auto closure_param_id = comp_model_desc.param_base + cidx;
+        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+        auto clparam = request->get_tensor(iport);
+
+        if (comp_model_desc.quant_unpack_gather.src_w_idx != -1 &&
+            comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
+            comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
+            // FIXME: not sure on the alignment below
+            const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
+            const auto lookup = request->get_tensor(lport);
+
+            const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_w_idx];
+            const auto gatherw = request->get_tensor(wport);
+            const auto& vocabw =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_w_idx - comp_model_desc.param_base];
+
+            const auto& zport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_z_idx];
+            const auto gatherz = request->get_tensor(zport);
+            const auto& vocabz =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_z_idx - comp_model_desc.param_base];
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_s_idx];
+            const auto gathers = request->get_tensor(sport);
+            const auto& vocabs =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_s_idx - comp_model_desc.param_base];
+
+            // Gather first
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabw), lookup, gatherw);
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabz), lookup, gatherz);
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabs), lookup, gathers);
+
+            // Unpacking this weight requires scaling with zero points...
+            ov::npuw::util::unpack(gatherw, gatherz, gathers, clparam);
+        } else if (comp_model_desc.quant_unpack_gather.src_w_idx != -1 &&
+                   comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
+            // FIXME: not sure on the alignment below
+            const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
+            const auto lookup = request->get_tensor(lport);
+
+            const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_w_idx];
+            const auto gatherw = request->get_tensor(wport);
+            const auto& vocabw =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_w_idx - comp_model_desc.param_base];
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_s_idx];
+            const auto gathers = request->get_tensor(sport);
+            const auto& vocabs =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_s_idx - comp_model_desc.param_base];
+
+            // Gather first
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabw), lookup, gatherw);
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabs), lookup, gathers);
+
+            // Unpacking this weight requires scaling
+            ov::npuw::util::unpack(gatherw, gathers, clparam);
+        } else {
+            // FIXME: not sure on the alignment below
+            const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
+            const auto lookup = request->get_tensor(lport);
+
+            const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_w_idx];
+            const auto gatherw = request->get_tensor(wport);
+            const auto& vocabw =
+                comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_w_idx - comp_model_desc.param_base];
+
+            // Gather first
+            ov::npuw::util::gather(ov::get_tensor_impl(vocabw), lookup, gatherw);
+
+            // Unpacking this weight doesn't require scaling
+            ov::npuw::util::unpack(gatherw, clparam);
         }
     }
 }

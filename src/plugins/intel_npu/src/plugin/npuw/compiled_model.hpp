@@ -93,6 +93,7 @@ private:
 
     std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
+    bool is_quant_unpack_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
@@ -152,6 +153,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure

@@ -209,6 +209,48 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     }
 
     fbody._model->validate_nodes_and_infer_types();
+
+    struct QuantUnpackGatherParams {
+        PPtr pidx;  // Parameter @ function body - input_ids
+
+        PPtr psrcw;  // Parameter @ function body - vocab tensor
+        PPtr psrcz;  // Parameter @ function body - vocab tensor zeropoint
+        PPtr psrcs;  // Parameter @ function body - vocab tensor scale
+
+        PPtr pdstw;  // Parameter @ function body - gathered w ids
+        PPtr pdstz;  // Parameter @ function body - gathered w ids
+        PPtr pdsts;  // Parameter @ function body - gathered w ids
+
+        PPtr pdst;  // Parameter @ function body - gathered and unpacked ids
+    };
+    QuantUnpackGatherParams quant_unpack_gather_params;
+
+    if (fsg._quant_unpack_gather.dst_w_idx != -1) {
+        quant_unpack_gather_params = QuantUnpackGatherParams{params[fsg._quant_unpack_gather.idx_idx],
+                                                             params[fsg._quant_unpack_gather.src_w_idx],
+                                                             params[fsg._quant_unpack_gather.src_z_idx],
+                                                             params[fsg._quant_unpack_gather.src_s_idx],
+                                                             params[fsg._quant_unpack_gather.dst_w_idx],
+                                                             params[fsg._quant_unpack_gather.dst_z_idx],
+                                                             params[fsg._quant_unpack_gather.dst_s_idx],
+                                                             params[fsg._quant_unpack_gather.dst_idx]};
+    }
+
+    // Update indices for gather
+    if (fsg._quant_unpack_gather.dst_w_idx != -1) {
+        fsg._quant_unpack_gather.idx_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pidx);
+
+        fsg._quant_unpack_gather.src_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcw);
+        fsg._quant_unpack_gather.src_z_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcz);
+        fsg._quant_unpack_gather.src_s_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcs);
+
+        fsg._quant_unpack_gather.dst_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdstw);
+        fsg._quant_unpack_gather.dst_z_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdstz);
+        fsg._quant_unpack_gather.dst_s_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdsts);
+
+        fsg._quant_unpack_gather.dst_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdst);
+    }
+
     LOG_DEBUG("DONE");
 }
 

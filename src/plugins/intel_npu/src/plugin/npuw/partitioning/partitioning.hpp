@@ -59,6 +59,24 @@ struct Subgraph {
     };
     Gather _host_gather;
 
+    // in the runtime we get a particular param we need to identify
+    // and then do up to 3 gathers for w,z,s and then do runtime unpack from gathers to the particular parameter
+    // in the graph
+    struct QuantUnpackGather {
+        int64_t dst_idx = -1;
+
+        int64_t dst_w_idx = -1;
+        int64_t dst_z_idx = -1;
+        int64_t dst_s_idx = -1;
+
+        int64_t src_w_idx = -1;
+        int64_t src_z_idx = -1;
+        int64_t src_s_idx = -1;
+
+        int64_t idx_idx = -1;
+    };
+    QuantUnpackGather _quant_unpack_gather;
+
     using Ref = std::reference_wrapper<Subgraph>;
 };
 
