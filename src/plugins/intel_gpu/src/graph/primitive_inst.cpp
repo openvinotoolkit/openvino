@@ -293,11 +293,6 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
-        if (get_node().is_type<read_value>()) {
-            auto impl_params = *(_deps[i].first->_impl_params);
-            // update new_shape for read_value variable memory
-            new_shape = _deps[i].first->get_node().type()->get_fake_aligned_params(impl_params).output_layouts[0];
-        }
         if (_impl_params->get_input_layout(i) != new_shape) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
