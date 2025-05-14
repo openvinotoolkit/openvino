@@ -37,6 +37,7 @@ enum class KernelType {
     COUNT_NONZERO,
     GATHER_NONZERO,
     GROUP_NORMALIZATION,
+    GRU_SEQ_CELL,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
@@ -105,6 +106,7 @@ enum class KernelType {
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
     STFT,
+    ISTFT,
     COL2IM
 };
 

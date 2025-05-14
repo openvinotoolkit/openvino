@@ -207,7 +207,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             op.set_output_shape(output_partial_shape.to_shape());
             input_shapes.push_back(ov::Shape{output_partial_shape.size()});
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        } else if ((desc->output_shape_id != "" || desc->output_partial_shape.size() > 0) && memory_deps.count(2)) {
+        } else if ((desc->output_shape_id.is_valid() || desc->output_partial_shape.size() > 0) && memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
             auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
@@ -292,7 +292,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-    if (argument->bias.size() != 0) {
+    if (argument->bias.is_valid()) {
         auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                                 "Bias batch[0]",
