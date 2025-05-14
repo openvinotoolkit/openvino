@@ -9,7 +9,7 @@ namespace ov::intel_cpu {
 dnnl::stream make_stream(const dnnl::engine& engine, std::shared_ptr<ThreadPool> thread_pool) {
     dnnl::stream stream;
 #if OV_THREAD == OV_THREAD_TBB
-    static auto g_cpu_parallel = std::make_shared<CpuParallel>(ov::hint::TbbPartitioner::STATIC, 32);
+    static auto g_cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC, 32);
     static auto g_thread_pool = std::make_shared<ThreadPool>(g_cpu_parallel);
     auto& cur_thread_pool = thread_pool;
     if (!thread_pool) {

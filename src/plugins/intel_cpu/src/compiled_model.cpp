@@ -277,13 +277,13 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
-            RO_property(ov::hint::tbb_partitioner.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -339,10 +339,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
     }
-    if (name == ov::hint::tbb_partitioner) {
-        const auto tbb_partitioner = config.tbbPartitioner;
-        return tbb_partitioner;
-    }
     if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = config.modelDistributionPolicy;
         return distribution_policy;
@@ -367,6 +363,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::tbb_partitioner) {
+        const auto tbb_partitioner = config.tbbPartitioner;
+        return tbb_partitioner;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

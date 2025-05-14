@@ -17,7 +17,7 @@ namespace ov::intel_cpu {
 class ThreadPool : public dnnl::threadpool_interop::threadpool_iface {
 private:
     std::shared_ptr<CpuParallel> m_cpu_parallel = nullptr;
-    ov::hint::TbbPartitioner m_partitoner = ov::hint::TbbPartitioner::STATIC;
+    ov::intel_cpu::TbbPartitioner m_partitoner = ov::intel_cpu::TbbPartitioner::STATIC;
     size_t m_multiplier = 32;
 
 public:
@@ -27,7 +27,7 @@ public:
         m_multiplier = m_cpu_parallel->get_multiplier();
     }
     int get_num_threads() const override {
-        int num = m_partitoner == ov::hint::TbbPartitioner::STATIC ? parallel_get_max_threads()
+        int num = m_partitoner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
                                                                    : parallel_get_max_threads() * m_multiplier;
         return num;
     }
@@ -40,7 +40,7 @@ public:
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
         m_cpu_parallel->parallel_simple(n, fn);
     }
-    void set_partitioner(ov::hint::TbbPartitioner partitoner) {
+    void set_partitioner(ov::intel_cpu::TbbPartitioner partitoner) {
         m_partitoner = partitoner;
     }
     void set_multiplier(size_t multiplier) {

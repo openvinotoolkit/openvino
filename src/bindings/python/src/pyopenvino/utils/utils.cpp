@@ -18,6 +18,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -244,6 +245,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
         return py::cast(any.as<ov::log::Level>());
+    } else if (any.is<ov::intel_cpu::TbbPartitioner>()) {
+        return py::cast(any.as<ov::intel_cpu::TbbPartitioner>());
     } else if (any.is<ov::device::Type>()) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
@@ -544,6 +547,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::intel_cpu::TbbPartitioner>(py_obj)) {
+        return py::cast<ov::intel_cpu::TbbPartitioner>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
