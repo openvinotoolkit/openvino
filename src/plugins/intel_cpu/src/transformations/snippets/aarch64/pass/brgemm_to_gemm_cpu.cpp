@@ -17,7 +17,7 @@
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
-#include "openvino/pass/manager.hpp"
+// #include "openvino/pass/manager.hpp"
 
 namespace ov::intel_cpu {
 
@@ -69,9 +69,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
 
         auto gemm_repacking =
             std::make_shared<aarch64::GemmCopyB>(brgemm->input_value(1), element_type_a, offset_b, 0, layout_b);
-        PortDescriptorUtils::set_port_descriptor(gemm_repacking->input(0),
-                                                 brgemm_in1_desc->get_subtensor(),
-                                                 layout_b);
+        PortDescriptorUtils::set_port_descriptor(gemm_repacking->input(0), brgemm_in1_desc->get_subtensor(), layout_b);
         for (const auto& output : gemm_repacking->outputs()) {
             set_full_port_desc(output);
         }

@@ -27,11 +27,10 @@ bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                     if (loop_port.get_dim_idx() == 0) {
                         // N blocking loop
                         const auto& in_0_shape = brg->get_input_shape(0);
-                        int64_t K = in_0_shape.back(); // K dimension(K is not blocked)
+                        int64_t K = in_0_shape.back();  // K dimension(K is not blocked)
                         // NK repacked and padded to to N(K+1)
                         // ptr_increment is 1, inc is 64. inc=inc*ptr_increment=64*(K+1)
-                        loop_desc.ptr_increment =
-                            snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (K + 1));
+                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (K + 1));
                         loop_desc.finalization_offset =
                             snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, (K + 1));
                     } else {
@@ -57,18 +56,19 @@ bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::Lin
             continue;
         }
         const auto& brgemm_loop_ids = expr->get_loop_ids();
+        if (brgemm_loop_ids.empty()) {
+            continue;
+        }
         const auto& loop_manager = linear_ir.get_loop_manager();
         // only adjust inner most loop(N loop)
-        for (auto i = brgemm_loop_ids.size() - 1; i < brgemm_loop_ids.size(); i++) {
-            const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
-            auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-            if (!uni_loop) {
-                uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-            }
-            if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-                m_affected_loops.insert(uni_loop);
-                modified = true;
-            }
+        const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids.back());
+        auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
+        if (!uni_loop) {
+            uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
+        }
+        if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
+            m_affected_loops.insert(uni_loop);
+            modified = true;
         }
     }
 
