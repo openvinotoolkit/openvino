@@ -15,7 +15,7 @@ using namespace Xbyak_riscv;
 void jit_generator::preamble() {
     const int frame_size = rnd_up((num_abi_save_gpr_regs + 1) * xlen + num_abi_save_fp_gpr_regs * flen, sp_aligment);
     addi(sp, sp, -frame_size);
-    int imm = 0;
+    const int imm = 0;
     for (const auto& gpr : abi_save_gpr_regs) {
         sd(gpr, sp, imm);
         imm += xlen;
@@ -29,7 +29,7 @@ void jit_generator::preamble() {
 
 void jit_generator::postamble() {
     const int frame_size = rnd_up((num_abi_save_gpr_regs + 1) * xlen + num_abi_save_fp_gpr_regs * flen, sp_aligment);
-    int imm = 0;
+    const int imm = 0;
     for (const auto& gpr : abi_save_gpr_regs) {
         ld(gpr, sp, imm);
         imm += xlen;

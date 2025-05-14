@@ -79,7 +79,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
         // here we can safely cast to DnnlMemoryDesc
         auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
         auto desc = dnnl_desc->getDnnlDesc();
-        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+        const dnnl::impl::memory_desc_wrapper wrapper(desc.get());
         offset = wrapper.offset0();
         if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
             return;
@@ -115,7 +115,7 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
+    const bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -161,7 +161,7 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        size_t memSize = getDesc().getCurrentMemSize();
+        const size_t memSize = getDesc().getCurrentMemSize();
         OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
                         "Invalid memory size detected during nullify operation.");
         memset(dataPtr, 0, memSize);
@@ -195,12 +195,12 @@ void Memory::DnnlMemPrimHandle::resetDnnlPrim() {
 }
 
 bool Memory::DnnlMemPrimHandle::isInit() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    const std::lock_guard<std::mutex> guard(m_primCachingLock);
     return m_prim.get(true) != nullptr;
 }
 
 dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    const std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
         if (!m_memObjPtr->getDesc().isDefined()) {
             OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
@@ -213,7 +213,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
-        auto data = m_memObjPtr->getDataNoThrow();
+        auto* data = m_memObjPtr->getDataNoThrow();
         if (data != nullptr) {
             m_prim.set_data_handle(data);
         }
@@ -299,7 +299,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
-        auto not_const_data = const_cast<void*>(data);
+        auto* not_const_data = const_cast<void*>(data);
         m_memoryBlock->setExtBuff(reinterpret_cast<OvString*>(not_const_data), string_size);
     } else {
         m_memoryBlock->resize(string_size);
@@ -332,7 +332,7 @@ void StringMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 void StringMemory::nullify() {
-    auto data_ptr = m_memoryBlock->getStringPtr();
+    auto* data_ptr = m_memoryBlock->getStringPtr();
     if (data_ptr != nullptr) {
         std::fill(data_ptr, data_ptr + m_memoryBlock->getStrLen(), OvString());
     }
@@ -371,7 +371,7 @@ bool StringMemory::StringMemoryBlock::resize(size_t size) {
             OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
         }
         auto ptr_size = static_cast<ptrdiff_t>(size);  // WA for warning alloc-size-larger-than
-        auto ptr = new OvString[ptr_size];
+        auto* ptr = new OvString[ptr_size];
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -411,7 +411,7 @@ void DnnlMemoryBlock::setExtBuff(void* ptr, size_t size) {
 }
 
 bool DnnlMemoryBlock::resize(size_t size) {
-    bool sizeChanged = m_pMemBlock->resize(size);
+    const bool sizeChanged = m_pMemBlock->resize(size);
     if (sizeChanged) {
         notifyUpdate();
     }
@@ -435,7 +435,7 @@ void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
 }
 
 void DnnlMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
+    for (const auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }
@@ -588,7 +588,7 @@ static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask,
 
 #if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
-    int realNode = ov::get_org_numa_id(targetNode);
+    const int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
     auto* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
@@ -648,7 +648,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         dim += dims.size();
     }
     auto split_parts = [](int len, int n) {
-        int average = len / n;
+        const int average = len / n;
         std::vector<int> parts(n, average);
         parts.back() = len - average * (n - 1);
         return parts;
@@ -688,7 +688,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         return ptr;
     }
 
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
     if (prec == ov::element::u4 || prec == ov::element::i4) {
         stride /= 2;
     }
@@ -711,7 +711,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         dim += dims.size();
     }
     auto split_parts = [](int len, int n) {
-        int average = len / n;
+        const int average = len / n;
         std::vector<int> parts(n, average);
         parts.back() = len - average * (n - 1);
         return parts;
@@ -743,8 +743,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         return ptr;
     }
     // copy
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
-    auto dstPtr = static_cast<uint8_t*>(ptr->getData());
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
+    auto* dstPtr = static_cast<uint8_t*>(ptr->getData());
     // selected dim bytes
     auto channel_size = dims[dim] * element_size;
     // total bytes
@@ -759,8 +759,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         copySize /= 2;
     }
     parallel_for(step, [&](int i) {
-        int dst_offset = i * copySize;
-        int src_offset = i * splited_size + w_rank * strideSize;
+        const int dst_offset = i * copySize;
+        const int src_offset = i * splited_size + w_rank * strideSize;
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
     });
     return ptr;

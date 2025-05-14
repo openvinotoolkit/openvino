@@ -102,7 +102,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const auto& dstMem = getDstMemoryAtPort(0);
 
     const auto* blockShapesPtr = getSrcDataAtPortAs<int>(1);
-    size_t dataRank = srcMem->getShape().getRank();
+    const size_t dataRank = srcMem->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));

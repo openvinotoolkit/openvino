@@ -136,12 +136,12 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const T* bottom_rois,
                                 const bool aligned,
                                 T* top_data) {
-    int roi_cols = 4;
+    const int roi_cols = 4;
 
-    int n_rois = nthreads / channels / pooled_width / pooled_height;
+    const int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     parallel_for(n_rois, [&](size_t n) {
-        int index_n = n * channels * pooled_width * pooled_height;
+        const int index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -165,10 +165,10 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
         // We use roi_bin_grid to sample the grid and mimic integral
-        int roi_bin_grid_h = (sampling_ratio > 0)
-                                 ? sampling_ratio
-                                 : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
-        int roi_bin_grid_w =
+        const int roi_bin_grid_h = (sampling_ratio > 0)
+                                       ? sampling_ratio
+                                       : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+        const int roi_bin_grid_w =
             (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(std::ceil(roi_width / pooled_width));
 
         // We do average (integral) pooling inside a bin
@@ -192,18 +192,18 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                           pre_calc);
 
         for (int c = 0; c < channels; c++) {
-            int index_n_c = index_n + c * pooled_width * pooled_height;
+            const int index_n_c = index_n + c * pooled_width * pooled_height;
             const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
             int pre_calc_index = 0;
 
             for (int ph = 0; ph < pooled_height; ph++) {
                 for (int pw = 0; pw < pooled_width; pw++) {
-                    int index = index_n_c + ph * pooled_width + pw;
+                    const int index = index_n_c + ph * pooled_width + pw;
 
                     T output_val = 0.;
                     for (int iy = 0; iy < roi_bin_grid_h; iy++) {
                         for (int ix = 0; ix < roi_bin_grid_w; ix++) {
-                            PreCalc<T> pc = pre_calc[pre_calc_index];
+                            const PreCalc<T> pc = pre_calc[pre_calc_index];
                             output_val += pc.w1 * offset_bottom_data[pc.pos1] + pc.w2 * offset_bottom_data[pc.pos2] +
                                           pc.w3 * offset_bottom_data[pc.pos3] + pc.w4 * offset_bottom_data[pc.pos4];
 
@@ -257,7 +257,7 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
 void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (int id : ids) {
+    for (const int id : ids) {
         rois_per_level[id]++;
     }
     for (int i = 1; i < levels_num; ++i) {
@@ -323,7 +323,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
-    auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
+    const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     auto* output_rois_features = getDstDataAtPortAs<float>(OUTPUT_ROI_FEATURES);
     float* output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
@@ -345,7 +345,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
         const int level_rois_offset = rois_per_level[i];
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
-            auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
+            const auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
             const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
             const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,

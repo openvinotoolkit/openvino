@@ -123,7 +123,7 @@ Node::AttrPtr SoftMax::initPrimitiveAttr() {
 }
 
 void SoftMax::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
@@ -148,7 +148,7 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
 void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    const DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
     auto attr = initPrimitiveAttr();
@@ -177,7 +177,7 @@ void SoftMax::prepareParams() {
 
     auto attr = initPrimitiveAttr();
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
+    const SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
@@ -194,7 +194,7 @@ void SoftMax::prepareParams() {
 
         auto itpd_first = itpd;
         while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+            const impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
                 // At least for oneDNN v2.4 the softmax primitive is optimized for the cases where the dimension of the
                 // softmax axis is physically dense. There could be situations where it is not possible to detect the
@@ -226,7 +226,7 @@ void SoftMax::prepareParams() {
     primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
     primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
