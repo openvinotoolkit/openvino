@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,6 @@ public:
     };
 
 private:
-    static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(
-        snippets::lowered::LinearIR& linear_ir,
-        const snippets::lowered::LinearIR::constExprIt& brgemm_it);
-
     snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount,
                                                                      size_t block_size) const override;
 

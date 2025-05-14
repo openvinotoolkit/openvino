@@ -9,7 +9,6 @@
 #include "snippets/utils/utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/pass/manager.hpp"
 
 #include <memory>
 
