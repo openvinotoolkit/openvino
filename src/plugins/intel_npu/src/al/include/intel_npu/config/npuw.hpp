@@ -74,6 +74,7 @@ DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, CompileTim
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, CompileTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, CompileTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, CompileTime);
+DEFINE_OPT(NPUW_LLM_PREFILL_KV_CACHE_OPT, bool, false, npuw::llm::prefill_kv_cache_opt, CompileTime);
 
 namespace npuw {
 namespace llm {

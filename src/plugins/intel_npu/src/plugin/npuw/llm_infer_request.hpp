@@ -60,8 +60,9 @@ private:
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
-    // copying kv-cache values happened in parallel with prefill inference
-    bool m_copy_cache_inline = false;
+
+    // copying kv-cache values happened in during with prefill inference
+    bool m_copy_cache_inline = true;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;

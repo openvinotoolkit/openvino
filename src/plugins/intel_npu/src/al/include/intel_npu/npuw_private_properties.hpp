@@ -475,6 +475,17 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+
+/**
+ * @brief
+ * Type: boolean
+ * copying prefill kv-cache tensors into generate model happened during with prefill inference
+ * number of simultaneous infer-request created for prefill model limited to optimal number
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> prefill_kv_cache_opt{"NPUW_LLM_PREFILL_KV_CACHE_OPT"};
+
 }  // namespace llm
 
 }  // namespace npuw

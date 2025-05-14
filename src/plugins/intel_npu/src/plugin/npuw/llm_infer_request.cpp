@@ -124,6 +124,9 @@ constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
+    
+    m_copy_cache_inline = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>();
+    
     for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
         init_tensor(input_port);
     }
@@ -177,6 +180,8 @@ void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequ
     }
 }
 void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> /*request*/, std::size_t idx)  {
+    bool bcopy_inline = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>();
+    
     if (!m_copy_cache_inline) {
         return;
     }
@@ -263,12 +268,14 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 }
 
 void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outputs) {
-    // Start measuring time
-    LOG_DEBUG("Copying kv-cache from prefill to generate model.");
+    if (!copy_only_outputs.empty()) {
+        LOG_DEBUG("Copying KV-cache tensors from prefill to generate model with patern: " << copy_only_outputs <<"* "); 
+    } else {
+        LOG_DEBUG("Copying KV-cache tensors from prefill to generate");
+    }
+
     const auto pattern = std::regex("present");
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-
-    auto start = std::chrono::high_resolution_clock::now();
 
     const std::size_t kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
@@ -307,18 +314,6 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outpu
             prefill_out_slice->copy_to(kvcache_in_slice._ptr);
         }
     }
-    // Stop measuring time
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Calculate the duration
-    std::chrono::duration<double, std::milli> duration_ms = end - start;
-
-    if (!copy_only_outputs.empty()) {
-        LOG_ERROR("KV-cache copy completed for patern: " << copy_only_outputs <<"* in: " << duration_ms.count() << " ms");                                                
-    } else {
-        LOG_ERROR("KV-cache copy completed in: " << duration_ms.count() << " ms");                                                
-    }
-
 }
 
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
