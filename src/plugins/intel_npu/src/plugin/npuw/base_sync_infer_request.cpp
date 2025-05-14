@@ -417,28 +417,61 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
             comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
             // FIXME: not sure on the alignment below
+            std::cout << "here 1" << std::endl;
             const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
             const auto lookup = request->get_tensor(lport);
 
+            std::cout << comp_model_desc.quant_unpack_gather.idx_idx << ' ' << comp_model_desc.compiled_model->inputs().size() << std::endl;
+
+            std::cout << "here 2" << std::endl;
+
             const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_w_idx];
+            std::cout << comp_model_desc.quant_unpack_gather.dst_w_idx << ' ' << comp_model_desc.compiled_model->inputs().size() << std::endl;
             const auto gatherw = request->get_tensor(wport);
             const auto& vocabw =
                 comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_w_idx - comp_model_desc.param_base];
+                std::cout << comp_model_desc.quant_unpack_gather.src_w_idx << ' ' << comp_model_desc.param_base << ' ' << comp_model_desc.closure.size() << std::endl;
+
+                std::cout << "here 3" << std::endl;
 
             const auto& zport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_z_idx];
+            std::cout << comp_model_desc.quant_unpack_gather.dst_z_idx << ' ' << comp_model_desc.compiled_model->inputs().size() << std::endl;
             const auto gatherz = request->get_tensor(zport);
             const auto& vocabz =
                 comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_z_idx - comp_model_desc.param_base];
+                std::cout << comp_model_desc.quant_unpack_gather.src_z_idx << ' ' << comp_model_desc.param_base << ' ' << comp_model_desc.closure.size() << std::endl;
+
+                std::cout << "here 4" << std::endl;
 
             const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_s_idx];
+            std::cout << comp_model_desc.quant_unpack_gather.dst_s_idx << ' ' << comp_model_desc.compiled_model->inputs().size() << std::endl;
             const auto gathers = request->get_tensor(sport);
             const auto& vocabs =
                 comp_model_desc.closure[comp_model_desc.quant_unpack_gather.src_s_idx - comp_model_desc.param_base];
+                std::cout << comp_model_desc.quant_unpack_gather.src_s_idx << ' ' << comp_model_desc.param_base << ' ' << comp_model_desc.closure.size() << std::endl;
+
+                std::cout << "here 5" << std::endl;
+
+                std::cout << ov::get_tensor_impl(vocabw)->get_element_type() << ' ' << ov::get_tensor_impl(vocabz)->get_element_type() << ' ' << ov::get_tensor_impl(vocabs)->get_element_type() << std::endl;
+                std::cout << ov::get_tensor_impl(vocabw)->get_shape() << ' ' << ov::get_tensor_impl(vocabz)->get_shape() << ' ' << ov::get_tensor_impl(vocabs)->get_shape() << std::endl;
+
+                std::cout << lookup->get_element_type() << ' ' << lookup->get_shape() << std::endl;
+
+                std::cout << gatherw->get_element_type() << ' ' << gatherz->get_element_type() << ' ' << gathers->get_element_type() << std::endl;
+                std::cout << gatherw->get_shape() << ' ' << gatherz->get_shape() << ' ' << gathers->get_shape() << std::endl;
 
             // Gather first
+            std::cout << "check 1" << std::endl;
             ov::npuw::util::gather(ov::get_tensor_impl(vocabw), lookup, gatherw);
+            std::cout << "check 2" << std::endl;
             ov::npuw::util::gather(ov::get_tensor_impl(vocabz), lookup, gatherz);
             ov::npuw::util::gather(ov::get_tensor_impl(vocabs), lookup, gathers);
+
+            std::cout << "here 6" << std::endl;
+
+            std::cout << gatherw->get_element_type() << ' ' << gatherz->get_element_type() << ' ' << gathers->get_element_type() << std::endl;
+            std::cout << gatherw->get_shape() << ' ' << gatherz->get_shape() << ' ' << gathers->get_shape() << std::endl;
+            std::cout << clparam->get_element_type() << ' ' << clparam->get_shape() << std::endl;
 
             // Unpacking this weight requires scaling with zero points...
             ov::npuw::util::unpack(gatherw, gatherz, gathers, clparam);
@@ -550,6 +583,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
+
+        std::cout << ov::get_tensor_impl(vocab)->get_element_type() << ' ' << ov::get_tensor_impl(vocab)->get_shape() << std::endl;
+        std::cout << lookup->get_element_type() << ' ' << lookup->get_shape() << std::endl;
+        std::cout << gather->get_element_type() << ' ' << gather->get_shape() << std::endl;
+
         ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
     }
 
