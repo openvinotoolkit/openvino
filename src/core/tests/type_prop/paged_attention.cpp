@@ -150,6 +150,7 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto sliding_window = std::make_shared<v0::Parameter>(element::dynamic, dyn);
     const auto alibi_slopes = std::make_shared<v0::Parameter>(element::dynamic, dyn);
     const auto max_context_len = std::make_shared<v0::Parameter>(element::dynamic, dyn);
+    const auto score_aggregation_window = std::make_shared<v0::Parameter>(element::dynamic, dyn);
 
     ov::OutputVector args = {query,
                              key,
@@ -163,7 +164,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              scale,
                              sliding_window,
                              alibi_slopes,
-                             max_context_len};
+                             max_context_len,
+                             score_aggregation_window};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
