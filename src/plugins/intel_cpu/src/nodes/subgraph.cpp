@@ -581,11 +581,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-// #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
-//     using PassPosition = ov::snippets::pass::PassPosition;
-//     using Place = PassPosition::Place;
-// #endif
-
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 
@@ -695,9 +690,7 @@ void Subgraph::optimizeIR() {
 
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
-    std::cout << "before control_flow_transformations......." << std::endl;
     subgraph->data_flow_transformations(in_blocked_shapes, precisions.first, precisions.second, getDataFlowPasses());
-    std::cout << "after data_flow_transformations......." << std::endl;
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
     OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
@@ -715,16 +708,15 @@ void Subgraph::optimizeIR() {
         in_shapes.emplace_back(s.first);
     }
     subgraph->shape_infer(in_shapes);
-    std::cout << "after shape_infer......." << std::endl;
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    // control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
-    // subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
+    subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
 #endif
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
@@ -735,7 +727,6 @@ void Subgraph::optimizeIR() {
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                            control_flow_config,
                                            control_flow_passes);
-    std::cout << "after control_flow_transformations......." << std::endl;
 }
 
 void Subgraph::prepareWeights() {
