@@ -284,3 +284,12 @@ bool ov::pass::constant_folding_is_disabled(const Node* const node) {
     OPENVINO_ASSERT(node, "node is nullptr");
     return node->get_rt_info().count(DisableConstantFolding::get_type_info_static());
 }
+
+bool ov::pass::CountRope::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    for (auto& op : model->get_ordered_ops()) {
+        if (auto rope = ov::as_type_ptr<op::internal::RoPE>(op)) {
+            ++rope_counter;
+        }
+    }
+    return true;
+}

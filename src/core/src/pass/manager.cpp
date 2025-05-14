@@ -23,6 +23,8 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
+#include "openvino/pass/constant_folding.hpp"
+
 #ifdef ENABLE_PROFILING_ITT
 
 namespace ov {
@@ -211,7 +213,7 @@ public:
         }
     }
 
-    void stop_timer(const std::string& name, bool applied) {
+    void stop_timer(const std::string& name, bool applied, std::shared_ptr<ov::pass::PassBase> pass = nullptr) {
         if (m_profile_pass.is_enabled()) {
             auto& stopwatch = stopwatches.at(name);
             stopwatch.stop();
@@ -234,8 +236,13 @@ public:
                     m_file << "m_start;" << name << ";" << stopwatch.get_start_time().count() << std::endl;
                     m_file << "m_end;" << name << ";" << stopwatch.get_end_time().count() << std::endl;
                 } else {
-                    m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
-                           << (applied ? "1" : "0") << std::endl;
+                    if (pass && pass->get_name() == "ov::pass::CountRope") {
+                        m_file << "t;" << name << ";" << m_manager_name << ";" << ov::as_type_ptr<ov::pass::CountRope>(pass)->rope_counter << ";"
+                            << (applied ? "1" : "0") << std::endl;
+                    } else {
+                        m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
+                            << (applied ? "1" : "0") << std::endl;
+                    }
                 }
             } else {
                 OPENVINO_THROW("The output file for logging transformation statistics is closed. "
@@ -341,7 +348,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
         profiler.start_timer(pass_name);
         pass_changed_model = run_pass(pass, model, pass_changed_model);
-        profiler.stop_timer(pass_name, pass_changed_model);
+        profiler.stop_timer(pass_name, pass_changed_model, pass);
 
         model_changed = model_changed || pass_changed_model;
 

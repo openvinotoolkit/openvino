@@ -1120,6 +1120,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.run_passes(func);
+        pass::Manager count_manager("count_manager");
+        count_manager.register_pass<ov::pass::CountRope>();
+        count_manager.run_passes(func);
     }
 
     {

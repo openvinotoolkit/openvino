@@ -341,6 +341,8 @@ void Transformations::UpToLpt() {
     if (useLpt) {
         Lpt(defaultPrecisions);
     }
+
+    
 }
 
 void Transformations::CpuSpecificOpSet() {
@@ -1064,6 +1066,10 @@ void Transformations::PostLpt() {
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
     postLPTPassManager.run_passes(model);
+
+    pass::Manager count_manager("count_manager");
+    count_manager.register_pass<ov::pass::CountRope>();
+    count_manager.run_passes(model);
 }
 
 void Transformations::MainSnippets() {
