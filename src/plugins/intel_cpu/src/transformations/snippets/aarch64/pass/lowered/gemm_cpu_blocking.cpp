@@ -32,24 +32,6 @@ std::shared_ptr<snippets::lowered::pass::PassBase> GemmCPUBlocking::DummyPass::m
     return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
 }
 
-LinearIR::constExprIt GemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
-                                                              const LinearIR::constExprIt& brgemm_it) {
-    const auto& brgemm_expr = brgemm_it->get();
-    const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
-    const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
-    OPENVINO_ASSERT(wsp_buffer && wsp_buffer->is_independent_memory(), "Incorrect Scratchpad buffer for Brgemm AMX");
-    // If scratchpad with temp memory is not explicitly before Brgemm, need to move to there.
-    if (wsp_expr != *std::prev(brgemm_it)) {
-        const auto wsp_it = linear_ir.find(wsp_expr);
-        linear_ir.move(wsp_it, brgemm_it);
-    }
-    return std::prev(brgemm_it);
-}
-
-// size_t GemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
-//     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
-// }
-
 std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(brgemm_expr->get_node());
@@ -57,17 +39,6 @@ std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    std::cout << "m_blk:" << m_blk << std::endl;
-    std::cout << "n_blk:" << n_blk << std::endl;
-    std::cout << "k_blk:" << k_blk << std::endl;
-    // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
-    //         the low precision cases (ticket: 156014)
-    //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
-    // const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
-    // if (with_repacking(brgemm->get_type()) && precision != element::f32) {
-    //     n_blk = get_full_dim_value();
-    //     k_blk = get_full_dim_value();
-    // }
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
 

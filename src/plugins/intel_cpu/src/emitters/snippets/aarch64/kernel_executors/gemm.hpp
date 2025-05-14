@@ -43,13 +43,9 @@ public:
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);
-    void* get_packed_mem() const {
-        return rhsPackedMem.data();
-    }
     void* get_bias_mem() const {
         return biasMem.data();
     }
-    mutable size_t rhsPackedSize = 0;
     mutable size_t biasSize = 0;
 
 private:
@@ -57,7 +53,6 @@ private:
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        GemmKernelKaiConfig& config) const override;
 
-    mutable std::vector<uint8_t> rhsPackedMem;
     mutable std::vector<uint8_t> biasMem;
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel{

@@ -439,7 +439,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
                                             const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
                                             const std::vector<lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
-    std::cout << "s control_flow_transformations......." << std::endl;
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     OV_ITT_TASK_CHAIN(CONTROL_FLOW, ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations", "::convert_body_to_linear_ir")
@@ -520,7 +519,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
-    std::cout << "e control_flow_transformations......." << std::endl;
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
