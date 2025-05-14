@@ -39,7 +39,12 @@ private:
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
-
+    struct KVCacheCopyTask {
+        size_t index;
+        std::future<void> future;
+    };                       
+    std::list<KVCacheCopyTask> tasks_in_progress;
+    void copy_kv_cache(const std::string & node_names = "");
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
@@ -56,7 +61,7 @@ private:
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
     // copying kv-cache values happened in parallel with prefill inference
-    bool m_copy_cache_inline = true;
+    bool m_copy_cache_inline = false;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;

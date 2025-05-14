@@ -169,69 +169,26 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 }
 
 void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed) {
-    LOG_ERROR("Prefill::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+    LOG_DEBUG("Prefill::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+    // lets rely on only 2 inferrequests are existed, so at the moment we have to start third one - lets wait for the first one to complete
+    if (!tasks_in_progress.empty() && tasks_in_progress.size() >= 2) {
+        tasks_in_progress.front().future.wait();
+        tasks_in_progress.pop_front();
+    }
 }
 void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> /*request*/, std::size_t idx)  {
     if (!m_copy_cache_inline) {
         return;
     }
-    
 
-    auto start = std::chrono::high_resolution_clock::now();
-    LOG_DEBUG("Copying " << idx << " kv-cache from prefill to generate model.");
+    KVCacheCopyTask t;
+    t.index = idx;
+    t.future = std::async(std::launch::async, [idx, this]() {
+        auto cache_node_name = std::string("present.") + std::to_string(idx);
+        copy_kv_cache(cache_node_name);
+    });
 
-
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-
-    auto cache_node_pattern = std::regex("present");
-    auto cache_node_name = std::string("present.") + std::to_string(idx);
-
-    const std::size_t kStartOutputKVCacheLayers = 1u;
-    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
-        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-
-        // orthers tensors might be not ready or already copied
-        if (output_name.find(cache_node_name) == std::string::npos) {
-            continue;
-        }
-
-        const auto& input_name = std::regex_replace(output_name, cache_node_pattern, "past_key_values");
-
-        // or we can use newly created request received here???
-        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
-        //        taking into account kvcache dimension.
-        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                ? 3u
-                                : kvcache_desc.dim;
-
-        auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                   kv_dim,
-                                                   kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                   kvcache_desc.max_prompt_size);
-
-        auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-        if (kv_dim == 3u) {
-            copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
-        } else if (kv_dim == 2u) {
-            copy_by_planes(prefill_out_slice, kvcache_in_slice);
-        } else {
-            prefill_out_slice->copy_to(kvcache_in_slice._ptr);
-        }
-    }
-    // Stop measuring time
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Calculate the duration
-    std::chrono::duration<double, std::milli> duration_ms = end - start;
-
-    LOG_ERROR("KV-cache" << idx << " copy completed in: " << duration_ms.count() << " ms");
+    tasks_in_progress.push_back(std::move(t));
 }
 
 void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
@@ -305,6 +262,65 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outputs) {
+    // Start measuring time
+    LOG_DEBUG("Copying kv-cache from prefill to generate model.");
+    const auto pattern = std::regex("present");
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    const std::size_t kStartOutputKVCacheLayers = 1u;
+    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
+        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+        // orthers tensors might be not ready or already copied
+        if (!copy_only_outputs.empty() && output_name.find(copy_only_outputs) == std::string::npos) {
+            continue;
+        }        
+        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+
+        const auto& input_name = std::regex_replace(output_name, pattern, "past_key_values");
+        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+
+        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
+        //        taking into account kvcache dimension.
+        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                ? 3u
+                                : kvcache_desc.dim;
+
+        auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                                                kv_dim,
+                                                kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                kvcache_desc.max_prompt_size);
+
+        auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+
+
+        if (kv_dim == 3u) {
+            copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+        } else if (kv_dim == 2u) {
+            copy_by_planes(prefill_out_slice, kvcache_in_slice);
+        } else {
+            prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+        }
+    }
+    // Stop measuring time
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    std::chrono::duration<double, std::milli> duration_ms = end - start;
+
+    if (!copy_only_outputs.empty()) {
+        LOG_ERROR("KV-cache copy completed for patern: " << copy_only_outputs <<"* in: " << duration_ms.count() << " ms");                                                
+    } else {
+        LOG_ERROR("KV-cache copy completed in: " << duration_ms.count() << " ms");                                                
+    }
+
+}
+
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids) {
@@ -317,59 +333,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         OPENVINO_THROW("KV-Cache is full.");
     }
 
-
-
     if (m_need_copy_kvcache) {
         if (!m_copy_cache_inline) {
-            // Start measuring time
-            auto start = std::chrono::high_resolution_clock::now();
-            LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-            const std::size_t kStartOutputKVCacheLayers = 1u;
-            const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-            for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
-                const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-                auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-
-                const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-                auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-                // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
-                //        taking into account kvcache dimension.
-                fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-
-                const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                        ? 3u
-                                        : kvcache_desc.dim;
-
-                auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                        kv_dim,
-                                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                        kvcache_desc.max_prompt_size);
-
-                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-                LOG_ERROR("Copying kv_dim=" << kv_dim);
-                LOG_ERROR("kvcache_desc.max_prompt_size: "<< kvcache_desc.max_prompt_size);
-                LOG_ERROR("kvcache_desc.max_prompt_size: "<< kvcache_desc.num_stored_tokens);
-                
-                LOG_ERROR("Prefill_tensor: " << prefill_out_tensor->get_shape());
-                LOG_ERROR("kvcache_tensor: " << kvcache_in_tensor->get_shape());
-
-                if (kv_dim == 3u) {
-                    copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
-                } else if (kv_dim == 2u) {
-                    copy_by_planes(prefill_out_slice, kvcache_in_slice);
-                } else {
-                    prefill_out_slice->copy_to(kvcache_in_slice._ptr);
-                }
+            copy_kv_cache();
+        } else {
+            for (auto &t : tasks_in_progress) {
+                t.future.wait();
             }
-            // Stop measuring time
-            auto end = std::chrono::high_resolution_clock::now();
-
-            // Calculate the duration
-            std::chrono::duration<double, std::milli> duration_ms = end - start;
-        
-            LOG_ERROR("KV-cache copy completed in: " << duration_ms.count() << " ms");
+            tasks_in_progress.clear();
         }
 
         LOG_ERROR("Prepare attention mask pattern.");
@@ -379,8 +350,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
         m_need_copy_kvcache = false;
     }
-
-
   
 
     // FIXME: these tensors should be shared between the parent & child models
