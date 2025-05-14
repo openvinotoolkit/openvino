@@ -140,6 +140,10 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     }
     return false;
 }
+
+primitive_id tag_port_number(const primitive_id& in, size_t port = 0) {
+    return in + ".port" + std::to_string(port);
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -1833,7 +1837,11 @@ void primitive_inst::reset_flags() {
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
     const auto& primitive_id = id();
-    OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
+    if (!_has_valid_input) {
+        // For unfused network with dynamic_quantization, we may have empty/unused input
+        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have valid input. do nothing" << std::endl;
+        return;
+    }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
@@ -2001,10 +2009,11 @@ void primitive_inst::execute() {
     }
 
     if (_unfused_subgraph != nullptr) {
+        GPU_DEBUG_TRACE << "Now execute unfused subgraph  " << _node->id() << std::endl;
         for (auto& d : _deps) {
             if (!d.first->get_node().is_type<data>()) {
-                auto allocated_mem = d.first->output_memory_ptr();
-                auto actual_input_layout = d.first->get_output_layout();
+                auto allocated_mem = d.first->output_memory_ptr(d.second);
+                auto actual_input_layout = d.first->get_output_layout(d.second);
                 auto& engine = get_network().get_engine();
                 cldnn::memory_ptr actual_mem = nullptr;
                 // Need to use actual layout, not the fake aligned memory layout
@@ -2013,7 +2022,10 @@ void primitive_inst::execute() {
                 } else {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
-                _unfused_subgraph->set_input_data(d.first->id(), std::move(actual_mem));
+                auto port_id = tag_port_number(d.first->id(), d.second);
+                GPU_DEBUG_TRACE_DETAIL << "set_input_data " << port_id << "  " << actual_mem << std::endl;
+                if (actual_mem)
+                    _unfused_subgraph->set_input_data(port_id, std::move(actual_mem));
             }
         }
         GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
@@ -2555,55 +2567,78 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {
+        const auto has_primitive_id = [](std::vector<primitive_id> arr, const auto& target_pid) {
+            return std::any_of(arr.cbegin(), arr.cend(), [&](const auto& pid) {
+                return pid == target_pid;
+            });
+        };
+
         topology t;
 
-        std::vector<primitive_id> outer_dep_ids;
+        std::vector<primitive_id> added_prim_ids;
+        std::vector<primitive_id> outer_dep_ids_with_port;  // added_prim_ids that is updated with port number. This contains original name without port
         // Add input primitives: constants are moved as is
-        // Any other primitive types are replaced with input_layout
-        auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
+        //   Any other primitive types are replaced with input_layout
+        //   Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
+        auto prim_of_fused_node = _impl_params->desc->clone();
         size_t dep_idx = 0;
         for (auto& dep : get_node().get_dependencies()) {
             cldnn::primitive_id dep_id = dep.first->id();
 
+            // Update name to have port number as postfix
+            auto port_dep_id = tag_port_number(dep_id, dep.second);
+
+            // Update input primitive name of prim_of_fused_node
+            if (dep_idx < prim_of_fused_node->dependencies().size())
+                prim_of_fused_node->get_dependency(dep_idx) = {port_dep_id, 0};
+
+            GPU_DEBUG_TRACE_DETAIL << "  add primitive for outer_dep: " << port_dep_id << "\n";
+
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
                 // need to rename primitive ids of dependent data of the current fused nodes with those in the original primitive
-                if (dep_idx >= prim_of_fused_node->input_size() && dep_idx < prim_of_fused_node->dependencies().size())
-                    dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
                 // mem field of original primitive can be nullified during transfer_memory_to_device pass, thus use mem from program_node
-                data data_prim(dep_id, data_node.get_attached_memory_ptr());
+                data data_prim(port_dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
-                input_layout in_prim(dep_id, dep.first->get_output_layout());
+                input_layout in_prim(port_dep_id, dep.first->get_output_layout());
                 t.add(in_prim);
             }
-            outer_dep_ids.push_back(dep_id);
+            added_prim_ids.push_back(dep_id);
+            outer_dep_ids_with_port.push_back(dep_id);
             dep_idx += 1;
         }
 
         // Create the primitive itself
-        t.add_primitive(std::const_pointer_cast<primitive>(get_node().get_primitive()));
-        outer_dep_ids.push_back(get_node().id());
+        GPU_DEBUG_TRACE_DETAIL << "  add main primitive  " << prim_of_fused_node->id << "\n";
+        for (auto& in : prim_of_fused_node->dependencies()) {
+            GPU_DEBUG_TRACE_DETAIL << "    input" << in.idx << " - " << in.pid << "\n";
+        }
+        t.add_primitive(prim_of_fused_node);
+        added_prim_ids.push_back(get_node().id());
 
+        GPU_DEBUG_TRACE_DETAIL << "  Add fused primitives of " << get_node().id() << "\n";
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
-            auto prim = std::const_pointer_cast<primitive>(fd.desc);
+            auto prim = fd.desc->clone();
             for (size_t i = 0; i < prim->input.size(); i++) {
                 auto& in = prim->input[i];
                 // If dependency name is not found in current topology, we need to remap it
                 // It may happen if dependency primitive has been fused into some previous primitive, e.g:
                 // prim1 -> eltwise1 -> eltwise2
+                //                        /
                 //          prim2 -------/
-                //  fused_prim1=prim1 + eltwise1
-                //  fused_prim2=prim2 + eltwise2
-                // from the names perspective fused graph will looka as follows:
-                // prim1 -> prim2
+                //
+                //   fused_prim1 = prim1 + eltwise1
+                //   fused_prim2 = prim2 + eltwise2
+                //
+                // from the names perspective fused graph will look as follows:
+                //   prim1 -> prim2
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
-                        return pid == in.pid;
-                    }) == outer_dep_ids.end()) {
+                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
+                if (!has_primitive_id(added_prim_ids, in.pid)) {
                     if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
                         auto outer_dep_id = get_node().get_dependency(dep_id).id();
@@ -2619,20 +2654,17 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                         in = get_node().id();
                     }
                 }
+
+                if (has_primitive_id(outer_dep_ids_with_port, in.pid))
+                    in = tag_port_number(in.pid, in.idx);
+
+                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
             }
+            GPU_DEBUG_TRACE_DETAIL << "  add fused_primitive " << prim->id << "\n";
             t.add_primitive(prim);
-            outer_dep_ids.push_back(prim->id);
+            added_prim_ids.push_back(prim->id);
         }
-        // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
-        for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
-            auto& in = prim_of_fused_node->input[i];
-            if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(),
-                             [&](const primitive_id& pid) {
-                                 return pid == in.pid;
-                             }) == outer_dep_ids.end()) {
-                in = get_node().get_dependency(i).id();
-            }
-        }
+
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
@@ -2652,6 +2684,11 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     return _unfused_subgraph;
 }
 
+#define LOG_AND_RETURN_FALSE(node) do {                                         \
+    GPU_DEBUG_TRACE_DETAIL << (node)->id() << " : it is an invalid fusion" << std::endl;  \
+    return false;                                                               \
+} while (0)
+
 bool primitive_inst::is_valid_fusion() const {
     if (!is_dynamic())
         return true;
@@ -2669,12 +2706,12 @@ bool primitive_inst::is_valid_fusion() const {
             if (fd.is_type<swiglu>()) {
                 OPENVINO_ASSERT(get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl);
                 if (!get_node().get_selected_impl())
-                    return false;
+                    LOG_AND_RETURN_FALSE(_node);
                 // TODO : support ref kernel too
                 if (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
                     return true;
                 else
-                    return false;
+                    LOG_AND_RETURN_FALSE(_node);
             }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
@@ -2687,18 +2724,18 @@ bool primitive_inst::is_valid_fusion() const {
     if (get_node().is_type<fully_connected>() || get_node().is_type<gemm>() || get_node().is_type<convolution>()) {
         if (_impl_params->input_layouts[0].count() == 0 ||
             _impl_params->input_layouts[1].count() == 0) {
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         }
     }
 
     if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl) {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!get_node().get_selected_impl())
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         }
     }
 
@@ -2737,14 +2774,14 @@ bool primitive_inst::is_valid_fusion() const {
                                                          false);
 
             if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
-                return false;
+                LOG_AND_RETURN_FALSE(_node);
         }
 #endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape
         if (!can_broadcast || merged_shape != out_pshape)
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
     }
 
     return true;
