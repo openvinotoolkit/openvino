@@ -334,9 +334,20 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
     bool model_changed = false;
     bool pass_changed_model = false;
+    std::vector<std::shared_ptr<PassBase>> new_pass_list; // for DEBUG only
+    for (const auto& pass : m_pass_list) {
+        if (auto graph_rewrite = ov::as_type_ptr<GraphRewrite>(pass)) {
+            auto matchers = graph_rewrite->get_matchers();
+            for (auto& m : matchers) {
+                new_pass_list.push_back(m);
+            }
+        } else {
+            new_pass_list.push_back(pass);
+        }
+    }
 
     profiler.start_timer(m_name);
-    for (const auto& pass : m_pass_list) {
+    for (const auto& pass : new_pass_list) {
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
