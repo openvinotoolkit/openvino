@@ -10,7 +10,6 @@
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -144,8 +143,8 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  NetworkMetadata mainMetadata,
                                  std::unique_ptr<BlobContainer> mainBlobPtr,
                                  const std::vector<ze_graph_handle_t>& initGraphHandles,
-                                 const std::vector<NetworkMetadata>& initMetadata,
-                                 const std::vector<std::unique_ptr<BlobContainer>>& initBlobPtrs,
+                                 std::vector<NetworkMetadata> initMetadata,
+                                 std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
                                  const std::shared_ptr<ov::Model>& model,
                                  const Config& config,
                                  const ov::SoPtr<ICompiler>& compiler)
@@ -157,8 +156,8 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             config,
             compiler),
       _initHandles(initGraphHandles),
-      _initMetadata(initMetadata),
-      _initBlobPtrs(initBlobPtrs),
+      _initBlobPtrs(std::move(initBlobPtrs)),
+      _initMetadata(std::move(initMetadata)),
       _model(model) {}
 
 std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ostream& stream) const {
@@ -277,7 +276,7 @@ void WeightlessGraph::initialize(const Config& config) {
                                                           command_queue_options);
 
         if (config.has<WORKLOAD_TYPE>()) {
-            set_workload_type(config.get<WORKLOAD_TYPE>(), initCommandQueue);
+            IGraph::set_workload_type(config.get<WORKLOAD_TYPE>(), initCommandQueue);
         }
         _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
         _logger.debug("Graph initialize finish, init schedule ", initIndex);
@@ -299,6 +298,12 @@ void WeightlessGraph::initialize(const Config& config) {
               << "[ms]" << std::endl;
 
     set_weights_inputs();
+}
+
+void WeightlessGraph::set_workload_type(const ov::WorkloadType workloadType) const {
+    for (const std::shared_ptr<CommandQueue>& commandQueue : _initsCommandQueues) {
+        IGraph::set_workload_type(workloadType, commandQueue);
+    }
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
@@ -323,7 +328,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
-    const ov::SoPtr<ov::ITensor> initInputsTensor = {
+    const ov::SoPtr<ZeroHostTensor> initInputsTensor = {
         std::make_shared<ZeroHostTensor>(nullptr,
                                          _zeroInitStruct,
                                          ov::element::Type_t::u8,
@@ -338,7 +343,8 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initMetadata.at(initIndex).inputs) {
         const size_t id = std::stoi(descriptor.nameFromCompiler);
-        auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
+        auto currentInputBufferLocation =
+            static_cast<unsigned char*>(const_cast<void*>(initInputsTensor->data(ov::element::Type_t::u8))) + offset;
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
@@ -392,7 +398,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
-    const ov::SoPtr<ov::ITensor> initOutputsTensor = {
+    const ov::SoPtr<ZeroHostTensor> initOutputsTensor = {
         std::make_shared<ZeroHostTensor>(nullptr,
                                          _zeroInitStruct,
                                          ov::element::Type_t::u8,
@@ -406,7 +412,8 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initMetadata.at(initIndex).outputs) {
-        const auto currentOutputBufferLocation = static_cast<unsigned char*>(initOutputsTensor->data()) + offset;
+        const auto currentOutputBufferLocation =
+            static_cast<unsigned char*>(const_cast<void*>(initOutputsTensor->data(ov::element::Type_t::u8))) + offset;
 
         const ov::SoPtr<ov::ITensor> hostTensor =
             ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
@@ -469,8 +476,8 @@ void WeightlessGraph::run_init_multi_threaded() {
         run_init_single_threaded();
     }
 
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> weightsInputs;
-    std::vector<ov::SoPtr<ov::ITensor>> initTensors;
+    std::unordered_map<std::string, std::shared_ptr<ZeroHostTensor>> weightsInputs;
+    std::vector<ov::SoPtr<ZeroHostTensor>> initTensors;
 
     // the pipeline:
     // allocate I/O -> create Pipeline -> run Pipeline
@@ -537,21 +544,14 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     size_t io_index = 0;
     for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
-        auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(inputTensors.at(io_index));
-        void* data = remote_tensor->get_original_memory();
-
+        void* data = inputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
-
-        ++io_index;
     }
 
     io_index = 0;
     for (const auto& desc : _initsOutputDescriptors.at(initIndex)) {
-        auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(outputTensors.at(io_index));
-        void* data = remote_tensor->get_original_memory();
-
+        void* data = outputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
-        ++io_index;
     }
 
     _initsCommandLists.at(initIndex)->appendGraphExecute(static_cast<ze_graph_handle_t>(_initHandles.at(initIndex)),
@@ -605,6 +605,21 @@ void WeightlessGraph::set_weights_inputs() {
     //                     weightName,
     //                     " weights name");
     // }
+
+    for (const auto& desc : _input_descriptors) {
+        if (!isMainInputWeightsName(desc.info.name)) {
+            continue;
+        }
+
+        const std::string weightsInputName = std::string(desc.info.name).substr(MAIN_INPUT_WEIGHTS_PREFIX.size());
+        OPENVINO_ASSERT(_weightsInputs.count(weightsInputName),
+                        "Mismatch between main inputs and init outputs. The input of the main schedule \"",
+                        weightsInputName,
+                        "\" has no correspondent within the init outputs.");
+
+        std::shared_ptr<ov::ITensor> weightsTensor = _weightsInputs.at(weightsInputName);
+        set_argument_value(desc.idx, static_cast<unsigned char*>(weightsTensor->data()));
+    }
 }
 
 }  // namespace intel_npu

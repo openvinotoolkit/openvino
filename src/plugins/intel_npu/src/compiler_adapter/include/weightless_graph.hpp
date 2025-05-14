@@ -7,6 +7,7 @@
 #pragma once
 
 #include "graph.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
@@ -20,8 +21,8 @@ public:
                     NetworkMetadata mainMetadata,
                     std::unique_ptr<BlobContainer> mainBlobPtr,
                     const std::vector<ze_graph_handle_t>& initGraphHandles,
-                    const std::vector<NetworkMetadata>& initMetadata,
-                    const std::vector<std::unique_ptr<BlobContainer>>& initBlobPtrs,
+                    std::vector<NetworkMetadata> initMetadata,
+                    std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
                     const std::shared_ptr<ov::Model>& model,
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
@@ -30,19 +31,21 @@ public:
 
     void initialize(const Config& config) override;
 
+    void set_workload_type(const ov::WorkloadType workloadType) const override;
+
     // TODO: public for multi-threaded execution
     struct InputData {
         // TODO: is it necessary to keep both fields alive? it doesn't seem like
         // hostTensor field is ever used.
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ov::ITensor> hostTensor;
+        ov::SoPtr<ZeroHostTensor> hostTensor;
     };
 
     struct OutputData {
         // TODO: is it necessary to keep both fields alive? it doesn't seem like
         // hostTensor field is ever used.
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ov::ITensor> hostTensor;
+        ov::SoPtr<ZeroHostTensor> hostTensor;
         std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
     };
 
@@ -70,8 +73,9 @@ private:
     void free_init_resourcese(const size_t initIndex);
 
     std::vector<ze_graph_handle_t> _initHandles;
-    std::vector<NetworkMetadata> _initMetadata;
     std::vector<std::unique_ptr<BlobContainer>> _initBlobPtrs;
+    std::vector<NetworkMetadata> _initMetadata;
+    std::shared_ptr<ov::Model> _model;
 
     std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
     std::vector<std::vector<ArgumentDescriptor>> _initsOutputDescriptors;
@@ -81,13 +85,11 @@ private:
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
 
-    std::shared_ptr<ov::Model> _model;
-
     /**
      * @brief TODO
      */
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
-    mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
+    mutable std::vector<ov::SoPtr<ZeroHostTensor>> _initOutputsTensors;
 };
 
 }  // namespace intel_npu

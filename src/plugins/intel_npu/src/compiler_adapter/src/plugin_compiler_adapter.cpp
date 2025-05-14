@@ -335,7 +335,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
                                              std::move(mainBlobPtr),
                                              initGraphHandles,
                                              std::move(initMetadata),
-                                             initBlobPtrs,
+                                             std::move(initBlobPtrs),
                                              model,
                                              config,
                                              _compiler);

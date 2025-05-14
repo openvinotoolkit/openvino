@@ -140,7 +140,7 @@ void Graph::initialize(const Config& config) {
                                                     command_queue_options);
 
     if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>(), _command_queue);
+        IGraph::set_workload_type(config.get<WORKLOAD_TYPE>(), _command_queue);
     }
 
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
@@ -160,6 +160,10 @@ void Graph::initialize(const Config& config) {
 
         _last_submitted_event.resize(number_of_command_lists);
     }
+}
+
+void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
+    IGraph::set_workload_type(workloadType, _command_queue);
 }
 
 bool Graph::release_blob(const Config& config,

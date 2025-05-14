@@ -716,13 +716,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model,
-                                                        shared_from_this(),
-                                                        device,
-                                                        graph,
-                                                        localConfig,
-                                                        initGraphs,
-                                                        initModel);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -909,7 +903,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             runOVPasses(originalModel);
         }
 
-        auto graph = compiler->parse(std::move(mainBlobPtr), initBlobPtrs, localConfig, originalModel);
+        auto graph = compiler->parse(std::move(mainBlobPtr), std::move(initBlobPtrs), localConfig, originalModel);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

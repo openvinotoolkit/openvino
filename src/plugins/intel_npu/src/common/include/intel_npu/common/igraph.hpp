@@ -44,8 +44,7 @@ public:
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
     uint32_t get_command_queue_group_ordinal() const;
 
-    void set_workload_type(const ov::WorkloadType workloadType,
-                           const std::shared_ptr<CommandQueue>& commandQueue) const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType) const = 0;
 
     std::mutex& get_mutex();
 
@@ -77,6 +76,9 @@ protected:
      * the plugin.
      */
     std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
+
+    void set_workload_type(const ov::WorkloadType workloadType,
+                           const std::shared_ptr<CommandQueue>& commandQueue) const;
 
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;

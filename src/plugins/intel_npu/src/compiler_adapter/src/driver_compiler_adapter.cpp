@@ -194,51 +194,6 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
-/**
- * @brief Just for the PoC purpose
- *
- * @param stream
- * @return size_t
- */
-size_t getFileSize(std::istream& stream) {
-    if (!stream) {
-        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
-    }
-
-    const size_t streamStart = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const size_t streamEnd = stream.tellg();
-    stream.seekg(streamStart, std::ios_base::beg);
-
-    if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (",
-                       streamEnd,
-                       ") is not larger than streamStart (",
-                       streamStart,
-                       ")!");
-    }
-
-    return streamEnd - streamStart;
-}
-
-std::vector<uint8_t> readCompiledModel(std::string_view path) {
-    std::ifstream inputStream(path.data());
-    if (!inputStream) {
-        OPENVINO_THROW("Could not open the file");
-    }
-
-    auto graphSize = getFileSize(inputStream);
-
-    std::vector<uint8_t> blob(graphSize);
-    inputStream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-    if (!inputStream) {
-        OPENVINO_THROW("Failed to read data from stream!");
-    }
-    inputStream.close();
-
-    return blob;
-}
-
 bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
     if (networkMetadata.inputs.size() == 0) {
         return false;
@@ -541,8 +496,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContain
                                              std::move(networkMeta),
                                              std::move(mainBlobPtr),
                                              initGraphHandles,
-                                             initMetadata,
-                                             initBlobPtrs,
+                                             std::move(initMetadata),
+                                             std::move(initBlobPtrs),
                                              model,
                                              config);
 }

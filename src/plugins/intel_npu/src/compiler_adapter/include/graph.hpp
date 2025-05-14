@@ -35,6 +35,8 @@ public:
 
     virtual void initialize(const Config& config) override;
 
+    virtual void set_workload_type(const ov::WorkloadType workloadType) const override;
+
     ~Graph() override;
 
 protected:
@@ -44,14 +46,13 @@ protected:
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
+    const ov::SoPtr<ICompiler> _compiler;
+
     Logger _logger;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-
-private:
-    const ov::SoPtr<ICompiler> _compiler;
 };
 
 }  // namespace intel_npu
