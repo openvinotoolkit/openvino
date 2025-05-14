@@ -140,10 +140,10 @@ void OperatorsBridge::unregister_operator(const std::string& name, int64_t versi
                      " was not registered before");
         return;
     }
-    m_map[domain][name].erase(version_it);
-    if (m_map[domain][name].empty()) {
-        m_map[domain].erase(name);
-        if (m_map[domain].empty()) {
+    name_it->second.erase(version_it);
+    if (name_it->second.empty()) {
+        domain_it->second.erase(name);
+        if (domain_it->second.empty()) {
             m_map.erase(domain);
         }
     }
