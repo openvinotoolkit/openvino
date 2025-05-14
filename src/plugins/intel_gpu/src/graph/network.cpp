@@ -294,7 +294,7 @@ void network::preallocate_shape_info_buffers() {
             continue;
 
         auto new_mem = engine.create_subbuffer(*_shape_info_ptr, layout{{shape_elements}, data_types::i32, format::bfyx}, offset);
-        prim->set_shape_info_memory_subbuffer(new_mem);
+        prim->set_shape_info_memory(new_mem);
 
         offset += align_to(shape_elements, alignment) * sizeof(int32_t);
     }
