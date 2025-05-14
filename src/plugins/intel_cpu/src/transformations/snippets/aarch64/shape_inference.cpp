@@ -11,9 +11,9 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::snippets {

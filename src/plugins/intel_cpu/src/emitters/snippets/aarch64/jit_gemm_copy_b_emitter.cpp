@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "jit_gemm_copy_b_emitter.hpp"
 
 #include "snippets/utils/utils.hpp"
@@ -22,8 +20,8 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
                                                  const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto brgemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm_repack, "expects GemmCopyB node");
+    const auto gemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(gemm_repack, "expects GemmCopyB node");
 
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
@@ -31,8 +29,7 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     int64_t K = *++in0_shape.rbegin();
     int64_t n_blk_size = N > 64 ? 64 : N;
     GemmCopyBKernelKaiConfig kernel_config(N, K, n_blk_size);
-    m_kernel_executor =
-        kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, kernel_config);
+    m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, kernel_config);
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(

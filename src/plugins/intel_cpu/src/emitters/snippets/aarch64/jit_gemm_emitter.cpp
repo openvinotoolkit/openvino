@@ -22,7 +22,6 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
                                    const snippets::KernelExecutorTablePtr& kernel_table,
                                    const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_emitter(h, isa) {
-    // get backend type
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
     m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);

@@ -647,8 +647,8 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                           ov::snippets::lowered::pass::MarkLoops,
                                           ov::intel_cpu::pass::GemmCPUBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
-                                           ov::snippets::lowered::pass::InitLoops,
-                                           ov::intel_cpu::pass::aarch64::AdjustBrgemmCopyBLoopPorts);
+                                          ov::snippets::lowered::pass::InitLoops,
+                                          ov::intel_cpu::pass::aarch64::AdjustBrgemmCopyBLoopPorts);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -704,6 +704,7 @@ void Subgraph::optimizeIR() {
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
     subgraph->data_flow_transformations(in_blocked_shapes, precisions.first, precisions.second, getDataFlowPasses());
+
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
     OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||

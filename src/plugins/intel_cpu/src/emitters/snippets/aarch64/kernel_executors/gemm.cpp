@@ -25,8 +25,7 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
-    const auto LDB =
-        snippets::utils::get_dim_stride(expr->get_input_port(1));
+    const auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
     config.update(M, N, K, LDA, LDB, LDC, beta);
 
     // allocate
@@ -57,8 +56,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
             K);  // result is n_start*k. should be K, as packed mem as 8*K blocks. If k blocked, then lda.
         const size_t dst_offset =
             ukernel.get_dst_offset(0, n_start, dst_stride_row);  // m_idx is 0 as dst already point current block
-        // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and end
-        // emitters(adjust copyb loop info after repack outside block loops).
+        // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and
+        // end emitters(adjust copyb loop info after repack outside block loops).
         float* rhs_ptr = static_cast<float*>(in1) + rhs_packed_offset / sizeof(float);
         float* dst_ptr = (static_cast<float*>(out0) + dst_offset / (sizeof(float)));
         ukernel.run_matmul(M,

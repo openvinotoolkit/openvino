@@ -21,7 +21,6 @@ using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 
-// move to common and reused for x64 and arm. ifdefine to use gemm_cpu or brgemm_cpu
 bool GemmCPUBlocking::DummyPass::run([[maybe_unused]] LinearIR& linear_ir,
                                      [[maybe_unused]] LinearIR::constExprIt begin,
                                      [[maybe_unused]] LinearIR::constExprIt end) {

@@ -3,6 +3,7 @@
 //
 
 #include "gemm_copy_b.hpp"
+
 #include "openvino/core/parallel.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
