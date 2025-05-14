@@ -78,7 +78,8 @@ struct TransposedDimensionAccessHelperJit : DimensionAccessHelperJit, Transposed
 };
 
 struct sdpa_configuration {
-    int64_t head_size = -1;
+    int64_t k_head_size = -1;
+    int64_t v_head_size = -1;
     int64_t heads_num = -1;
     int64_t kv_heads_num = -1;
 
@@ -101,6 +102,8 @@ struct sdpa_configuration {
     int64_t paged_attention_max_len = 0;
     bool has_const_scale_val = false;
     float scale_val = 0.f;
+    bool has_const_attn_mask_val = false;
+    float attn_mask_val = 0.f;
     bool has_rotated_blocks = false;
 };
 
@@ -124,6 +127,7 @@ struct sdpa_params : public base_params {
 
     sdpa_configuration conf;
     bool should_use_sdpa_opt = false;
+    bool could_use_flashattn_v2 = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -22,6 +22,7 @@
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;

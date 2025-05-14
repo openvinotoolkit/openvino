@@ -5,13 +5,14 @@
 #include "gather_nd.h"
 
 #include <cmath>
-#include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -143,7 +144,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
     }
 }
 
-void GatherND::execute(const dnnl::stream& strm) {
+void GatherND::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }

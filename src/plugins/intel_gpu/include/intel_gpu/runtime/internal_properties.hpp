@@ -161,12 +161,13 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
+static constexpr Property<bool, ov::PropertyMutability::RW> apply_dynamic_quantization_b1{"GPU_APPLY_DYNAMIC_QUANTIZATION_B1"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_USM_POLICY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> start_after_processes{"GPU_START_AFTER_PROCESSES"};
-
+static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

@@ -30,19 +30,19 @@ public:
         return get_dependency(1);
     }
 
-    bool has_num_select_per_class() const { return !get_primitive()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const { return get_primitive()->num_select_per_class.is_valid(); }
     program_node& num_select_per_class_node() const {
         return get_dependency(2);
     }
 
-    bool has_iou_threshold() const { return !get_primitive()->iou_threshold.empty(); }
+    bool has_iou_threshold() const { return get_primitive()->iou_threshold.is_valid(); }
     program_node& iou_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
         return get_dependency(offset);
     }
 
-    bool has_score_threshold() const { return !get_primitive()->score_threshold.empty(); }
+    bool has_score_threshold() const { return get_primitive()->score_threshold.is_valid(); }
     program_node& score_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -50,7 +50,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_soft_nms_sigma() const { return !get_primitive()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const { return get_primitive()->soft_nms_sigma.is_valid(); }
     program_node& soft_nms_sigma_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -59,7 +59,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
+    bool has_second_output() const { return get_primitive()->second_output.is_valid(); }
     program_node& second_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -69,7 +69,7 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_third_output() const { return !get_primitive()->third_output.empty(); }
+    bool has_third_output() const { return get_primitive()->third_output.is_valid(); }
     program_node& third_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -130,7 +130,7 @@ public:
         return dep_memory_ptr(1);
     }
 
-    bool has_num_select_per_class() const { return !get_typed_desc<non_max_suppression>()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const { return get_typed_desc<non_max_suppression>()->num_select_per_class.is_valid(); }
     memory::ptr num_select_per_class_mem() const {
         return dep_memory_ptr(2);
     }
@@ -138,7 +138,7 @@ public:
         return dependencies().at(2).first;
     }
 
-    bool has_iou_threshold() const { return !get_typed_desc<non_max_suppression>()->iou_threshold.empty(); }
+    bool has_iou_threshold() const { return get_typed_desc<non_max_suppression>()->iou_threshold.is_valid(); }
     memory::ptr iou_threshold_mem() const {
         return dep_memory_ptr(get_iou_threshold_offset());
     }
@@ -146,7 +146,7 @@ public:
         return dependencies().at(get_iou_threshold_offset()).first;
     }
 
-    bool has_score_threshold() const { return !get_typed_desc<non_max_suppression>()->score_threshold.empty(); }
+    bool has_score_threshold() const { return get_typed_desc<non_max_suppression>()->score_threshold.is_valid(); }
     memory::ptr score_threshold_mem() const {
         return dep_memory_ptr(get_score_threshold_offset());
     }
@@ -154,7 +154,7 @@ public:
         return dependencies().at(get_score_threshold_offset()).first;
     }
 
-    bool has_soft_nms_sigma() const { return !get_typed_desc<non_max_suppression>()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const { return get_typed_desc<non_max_suppression>()->soft_nms_sigma.is_valid(); }
     memory::ptr soft_nms_sigma_mem() const {
         return dep_memory_ptr(get_soft_nms_sigma_offset());
     }
@@ -162,7 +162,7 @@ public:
         return dependencies().at(get_soft_nms_sigma_offset()).first;
     }
 
-    bool has_second_output() const { return !get_typed_desc<non_max_suppression>()->second_output.empty(); }
+    bool has_second_output() const { return get_typed_desc<non_max_suppression>()->second_output.is_valid(); }
     memory::ptr second_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -172,7 +172,7 @@ public:
         return dep_memory_ptr(offset);
     }
 
-    bool has_third_output() const { return !get_typed_desc<non_max_suppression>()->third_output.empty(); }
+    bool has_third_output() const { return get_typed_desc<non_max_suppression>()->third_output.is_valid(); }
     memory::ptr third_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();

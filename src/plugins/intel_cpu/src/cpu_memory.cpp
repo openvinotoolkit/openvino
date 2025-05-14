@@ -115,7 +115,7 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr();
+    bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -161,7 +161,10 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        memset(dataPtr, 0, getDesc().getCurrentMemSize());
+        size_t memSize = getDesc().getCurrentMemSize();
+        OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
+                        "Invalid memory size detected during nullify operation.");
+        memset(dataPtr, 0, memSize);
     }
 }
 
@@ -303,7 +306,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
+void StringMemory::load(const IMemory& src, [[maybe_unused]] bool ftz, [[maybe_unused]] bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
@@ -439,7 +442,7 @@ void DnnlMemoryBlock::notifyUpdate() {
     }
 }
 
-StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
+StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, [[maybe_unused]] bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
@@ -501,7 +504,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
     return getShape().getStaticDims();
 }
 
-void StaticMemory::redefineDesc(MemoryDescPtr desc) {
+void StaticMemory::redefineDesc([[maybe_unused]] MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
@@ -518,10 +521,7 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    if (!m_prim && !getDesc().empty()) {  // for an empty memory m_prim is expected to be empty
-        OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
-    }
-
+    OPENVINO_ASSERT(m_prim || getDesc().empty(), "Could not get dnnl::memory object ", dnnlErrorCtx);
     return m_prim;
 }
 
@@ -544,7 +544,7 @@ void* StaticMemory::StaticMemoryBlock::getRawPtr() const noexcept {
     return memBlockImpl.getRawPtr();
 }
 
-void StaticMemory::StaticMemoryBlock::setExtBuff(void* ptr, size_t size) {
+void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryBlock may not be modified");
 }
 

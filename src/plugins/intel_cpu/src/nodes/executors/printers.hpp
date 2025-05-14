@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "nodes/executors/convolution_config.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 
@@ -17,9 +18,10 @@ struct Config;
 }
 
 struct FCAttrs;
+struct ConvAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
-std::ostream& operator<<(std::ostream& os, const PostOps& postOps);
+std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
 
 template <typename Attrs>
 std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config) {
@@ -29,7 +31,6 @@ std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config
         os << "[" << id << "]" << *descPtr << ";";
     }
 
-    os << config.postOps;
     os << config.attrs;
 
     return os;
