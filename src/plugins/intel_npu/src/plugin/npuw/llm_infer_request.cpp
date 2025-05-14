@@ -141,6 +141,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
+    if (compiled_model->m_tail_mm_compiled_opt.has_value()) {
+        OPENVINO_ASSERT(compiled_model->m_tail_mm_compiled_opt.value());
+        m_tail_mm_request_opt = compiled_model->m_tail_mm_compiled_opt.value()->create_infer_request();
+    }
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
@@ -219,7 +223,11 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
     m_need_copy_kvcache = true;
 
-    m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
+    if (m_tail_mm_request_opt.has_value()) {
+        infer_tail_mm(m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+    } else {
+        m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
+    }
 
     LOG_DEBUG("Done");
 }
@@ -299,7 +307,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
 
     m_kvcache_request->infer();
-    m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
+    if (m_tail_mm_request_opt.has_value()) {
+        infer_tail_mm(m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+    } else {
+        m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
+    }
     kvcache_desc.num_stored_tokens += 1;
 
     if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
@@ -335,6 +347,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
         }
     }
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::LLMInferRequest::infer_tail_mm(ov::SoPtr<ov::ITensor> output_embed) {
+    LOG_DEBUG("Calling inference for tail model...");
+    LOG_BLOCK();
+    OPENVINO_ASSERT(m_tail_mm_request_opt.has_value() && m_tail_mm_request_opt.value());
+    auto& tail_mm_infer_req =  m_tail_mm_request_opt.value();
+    const auto& embed_port = tail_mm_infer_req->get_inputs()[0];
+    tail_mm_infer_req->set_tensor(embed_port, output_embed);
+    tail_mm_infer_req->infer();
+    m_logits = tail_mm_infer_req->get_tensor(tail_mm_infer_req->get_outputs()[0]);
     LOG_DEBUG("Done");
 }
 

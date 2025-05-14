@@ -68,6 +68,7 @@ private:
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    std::optional<std::shared_ptr<ov::npuw::CompiledModel>> m_tail_mm_compiled_opt;
 };
 
 }  // namespace npuw
