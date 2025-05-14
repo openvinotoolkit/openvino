@@ -144,6 +144,7 @@ jobs:
           target_arch: ${{ env.ARCH }}
           build_type: ${{ env.CMAKE_BUILD_TYPE }}
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: Create docker build cache
         run: |

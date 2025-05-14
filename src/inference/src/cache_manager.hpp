@@ -102,15 +102,14 @@ public:
  */
 class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
+
+    ov::util::Path getBlobFile(const std::string& blobHash) const {
 #if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    std::wstring getBlobFile(const std::string& blobHash) const {
         return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
-    }
 #else
-    std::string getBlobFile(const std::string& blobHash) const {
         return ov::util::make_path(m_cachePath, blobHash + ".blob");
-    }
 #endif
+    }
 
 public:
     /**
@@ -137,7 +136,7 @@ private:
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_file_name = getBlobFile(id);
-        if (ov::util::file_exists(blob_file_name)) {
+        if (std::filesystem::exists(blob_file_name)) {
             auto compiled_blob =
                 read_tensor_data(blob_file_name, element::u8, PartialShape::dynamic(1), 0, enable_mmap);
             SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
@@ -149,12 +148,8 @@ private:
     void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
 
-        if (ov::util::file_exists(blobFileName)) {
-#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-            _wremove(blobFileName.c_str());
-#else
-            std::remove(blobFileName.c_str());
-#endif
+        if (std::filesystem::exists(blobFileName)) {
+            std::ignore = std::filesystem::remove(blobFileName);
         }
     }
 };

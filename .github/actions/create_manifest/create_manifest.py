@@ -52,7 +52,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
     is_trigger_repo = repo_url == trigger_repo_url
 
-    branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
+    branch = os.getenv('TRIGGER_REPO_BRANCH') or os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
     revision = os.getenv('TRIGGER_REPO_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
