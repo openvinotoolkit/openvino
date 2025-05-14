@@ -196,6 +196,8 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::RecurrentSequenceDir
     return s << as_string(direction);
 }
 
+template ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
+
 AttributeAdapter<op::PadMode>::~AttributeAdapter() = default;
 AttributeAdapter<op::FillMode>::~AttributeAdapter() = default;
 AttributeAdapter<op::PadType>::~AttributeAdapter() = default;
