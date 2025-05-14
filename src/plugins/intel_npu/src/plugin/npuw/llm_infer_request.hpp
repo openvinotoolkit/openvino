@@ -42,8 +42,11 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
+    void infer_tail_mm(ov::SoPtr<ov::ITensor> output_embed);
+
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    std::optional<std::shared_ptr<ov::IAsyncInferRequest>> m_tail_mm_request_opt;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
