@@ -8,6 +8,7 @@ import os
 import sys
 import numpy as np
 import base64
+import re
 
 from sys import platform
 from pathlib import Path
@@ -306,6 +307,11 @@ def generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype):
 def create_filename_for_test(test_name):
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
     filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    # remove illegal characters
+    if os.name == "nt":
+        filename = re.sub(r"[\\/:*?\"<>|]", "", filename)
+    elif os.name == "posix":
+        filename = re.sub(r"[/]", "", filename)
     filename = filename + "_" + python_version
     return filename
 
