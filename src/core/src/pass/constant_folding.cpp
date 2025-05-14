@@ -16,7 +16,6 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -284,13 +283,4 @@ bool ov::pass::constant_folding_is_disabled(const std::shared_ptr<Node>& node) {
 bool ov::pass::constant_folding_is_disabled(const Node* const node) {
     OPENVINO_ASSERT(node, "node is nullptr");
     return node->get_rt_info().count(DisableConstantFolding::get_type_info_static());
-}
-
-bool ov::pass::CountRope::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    for (auto& op : model->get_ordered_ops()) {
-        if (auto rope = ov::as_type_ptr<op::internal::RoPE>(op)) {
-            ++rope_counter;
-        }
-    }
-    return true;
 }
