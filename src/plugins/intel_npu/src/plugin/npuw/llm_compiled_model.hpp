@@ -54,7 +54,8 @@ private:
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
-                                                         const ov::npuw::s11n::EncryptContext& ctx);
+                                                         const ov::npuw::s11n::EncryptContext& ctx,
+                                                         const bool contains_3_models);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
@@ -65,6 +66,7 @@ private:
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    std::optional<std::shared_ptr<ov::npuw::CompiledModel>> m_tail_mm_compiled_opt;
 };
 
 }  // namespace npuw
