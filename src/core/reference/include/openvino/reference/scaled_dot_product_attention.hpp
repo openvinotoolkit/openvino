@@ -11,26 +11,6 @@
 #include "openvino/reference/softmax.hpp"
 #include "openvino/reference/transpose.hpp"
 
-// def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None,
-// *, causal):
-//     L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
-//     if scale is None:
-//         scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
-//     attn_bias = Broadcast(ConvertLike(0, query), [L, S])
-//     if causal:
-//         attn_bias = numpy.triu(Broadcast(ConvertLike(-inf, query), [L, S]),
-//         k=1)
-//     elif attn_mask is not None:
-//         if attn_mask.element_type == boolean:
-//             attn_bias = Select(LogicalNot(attn_mask), ConvertLike(-inf,
-//             query), ConvertLike(0, query))
-//         else:
-//             attn_bias += attn_mask
-//     attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale
-//     attn_weight += attn_bias
-//     attn_weight = Softmax(attn_weight, axis=-1)
-//     return MatMul(attn_weight, value)
-
 namespace helpers {
 template <typename T>
 std::vector<T> CreateAttentionMask(const ov::Shape& shape) {
@@ -47,17 +27,20 @@ std::vector<T> CreateAttentionMask(const ov::Shape& shape) {
     return maskData;
 }
 
+// --------------------------------------------------------
+// This overloads are intentionally not implemented! If the linker ever complains about them,
+// it means that something went wrong in scaled_dot_product_attention().
+template <typename T>
+const T* GetRawPtr(const char* maskBool);
+
+template <typename T>
+std::vector<T> CreateAttentionMaskFromBool(const T* maskBool, const ov::Shape& shape);
+// --------------------------------------------------------
+
 template <typename T>
 typename std::enable_if<!std::is_same<T, char>::value, const T*>::type GetRawPtr(const T* maskBool) {
     return maskBool;
 }
-
-template <typename T>
-const T* GetRawPtr(const char* maskBool);
-
-// This function will be never called, only bool version is needed.
-template <typename T>
-std::vector<T> CreateAttentionMaskFromBool(const T* maskBool, const ov::Shape& shape);
 
 template <typename T>
 std::vector<T> CreateAttentionMaskFromBool(const char* maskBool, const ov::Shape& shape) {
