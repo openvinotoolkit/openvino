@@ -13,13 +13,10 @@ constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
 
 namespace intel_npu {
 
-IGraph::IGraph(ze_graph_handle_t handle,
-               NetworkMetadata metadata,
-               const Config& config,
-               std::unique_ptr<BlobContainer> blobPtr)
+IGraph::IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob)
     : _handle(handle),
       _metadata(std::move(metadata)),
-      _blobPtr(std::move(blobPtr)),
+      _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
