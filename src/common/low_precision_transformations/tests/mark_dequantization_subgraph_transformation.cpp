@@ -778,12 +778,9 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
-TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationMarkup) {
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
     // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
     // are marked with the 'disable_fp16_compression' attribute
-
-    std::shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
 
     auto quantization_dt = element::u16;
     auto dequantization_dt = element::f32;
@@ -799,10 +796,9 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationMarkup) {
         auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
         auto add = std::make_shared<opset10::Add>(parameter, multiply);
         model = std::make_shared<ov::Model>(ov::OutputVector{add});
-
-        manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
-        manager.run_passes(model);
     }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
@@ -821,13 +817,16 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationMarkup) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
     }
 
-    auto func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
-    auto result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
 TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
+    // This test uses the legacy TransformationTests class because ConvertPrecision pass
+    // internally inserts additional nodes for data type consistency, which causes the
+    // check_unique_names() function to fail with a "Tensor name: N is missing in ..." error.
+    // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
+
     // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
     // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
     // during Constant Folding (called from ConvertPrecision pass), using f32 data type for constants.

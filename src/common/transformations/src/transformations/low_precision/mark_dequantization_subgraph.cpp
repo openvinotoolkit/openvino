@@ -313,57 +313,42 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
 ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
 
-    auto input_pattern = pattern::any_input(pattern::type_matches_any(precisions));
+    auto input_pattern = any_input(pattern::type_matches_any(precisions));
     auto convert_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
 
     // zero points:
-    auto zp_pattern = pattern::any_input();
+    auto zp_pattern = any_input();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    auto scale_pattern = pattern::any_input();
+    auto scale_pattern = any_input();
     auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern =
-        pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
+    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pt_map = m.get_pattern_value_map();
-        auto convert = pt_map.at(convert_pattern).get_node_shared_ptr();
         auto multiply = m.get_match_root();
 
         if (transformation_callback(multiply)) {
             return false;
         }
 
-        disable_fp16_compression(convert);
-        disable_fp16_compression(multiply);
+        auto nodes_to_mark = { convert_pattern,
+                               multiply_pattern,
+                               subtract_pattern,
+                               zp_convert_pattern,
+                               zp_reshape_pattern,
+                               scale_convert_pattern,
+                               scale_reshape_pattern };
 
-        if (pt_map.count(subtract_pattern)) {
-            auto subtract = pt_map.at(subtract_pattern).get_node_shared_ptr();
-            disable_fp16_compression(subtract);
-        }
-
-        if (pt_map.count(zp_convert_pattern)) {
-            auto zp_convert = pt_map.at(zp_convert_pattern).get_node_shared_ptr();
-            disable_fp16_compression(zp_convert);
-        }
-
-        if (pt_map.count(zp_reshape_pattern)) {
-            auto zp_reshape = pt_map.at(zp_reshape_pattern).get_node_shared_ptr();
-            disable_fp16_compression(zp_reshape);
-        }
-
-        if (pt_map.count(scale_convert_pattern)) {
-            auto scale_convert = pt_map.at(scale_convert_pattern).get_node_shared_ptr();
-            disable_fp16_compression(scale_convert);
-        }
-
-        if (pt_map.count(scale_reshape_pattern)) {
-            auto scale_reshape = pt_map.at(scale_reshape_pattern).get_node_shared_ptr();
-            disable_fp16_compression(scale_reshape);
+        for (const auto& node_to_mark : nodes_to_mark) {
+            if (pt_map.count(node_to_mark)) {
+                auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
+                disable_fp16_compression(node_ptr);
+            }
         }
 
         return false;
