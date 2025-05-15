@@ -91,16 +91,14 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
             } else {
                 // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
-                const auto in_max = dim_axis.get_max_length();
+                const auto in_max =
+                    dim_axis.get_max_length() < 0 ? std::numeric_limits<TDimValue>::max() : dim_axis.get_max_length();
 
                 const auto k_min = k.get_min_length();
-                const auto k_max = k.get_max_length();
+                const auto k_max = k.get_max_length() < 0 ? std::numeric_limits<TDimValue>::max() : k.get_max_length();
 
                 const auto lower = std::min<TDimValue>(in_min, k_min);
-                const auto upper =
-                    in_max < 0
-                        ? Dimension::dynamic().get_max_length()
-                        : std::min<TDimValue>(in_max, (k_max < 0 ? std::numeric_limits<TDimValue>::max() : k_max));
+                const auto upper = std::min<TDimValue>(in_max, k_max);
                 dim_axis = TDim(lower, upper);
             }
         } else {
