@@ -1577,12 +1577,14 @@ KERNEL(sdpa_opt)(
                     VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
 #endif
 #endif
+                    // separate value read out of the loop for reducing register pressure
+                    #ifdef V_HEAD_SIZE_LEFTOVER && !defined(BEAM_TABLE_TYPE)
+                    const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, value_offset) : head_size_idx < V_HEAD_SIZE ? value_input[value_offset] : INPUT2_VAL_ZERO;
+                    #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                         #ifdef V_HEAD_SIZE_LEFTOVER
                             #ifdef BEAM_TABLE_TYPE
                         const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i)) : head_size_idx < V_HEAD_SIZE ? value_input[sub_group_broadcast(value_offset, i)] : INPUT2_VAL_ZERO;
-                            #else
-                        const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, value_offset) : head_size_idx < V_HEAD_SIZE ? value_input[value_offset] : INPUT2_VAL_ZERO;
                             #endif
                         #else // !defined(V_HEAD_SIZE_LEFTOVER)
                             #ifdef BEAM_TABLE_TYPE
