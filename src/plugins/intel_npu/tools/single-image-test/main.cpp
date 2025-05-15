@@ -733,7 +733,7 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
  *
  * @throws               Throws an assertion if duplicate or incomplete input specifications are found.
  */
-std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string& inputFiles) {
+std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputInfo, const std::string& inputFiles) {
     // Parse input string into key-value pairs
     std::map<std::string, std::string> inputFileMap = parseArgMap(inputFiles);
 
@@ -2057,35 +2057,6 @@ static int runSingleImageTest() {
 
             const ov::OutputVector inputInfo = model->inputs();
 
-            // Parse input files string (matching of node names - if given)
-            std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
-            std::cout << "--- Parsed input files: " << fileMatch << std::endl;
-
-            inputFilesPerCase = splitStringList(fileMatch, ';');
-            for (const auto& images : inputFilesPerCase) {
-                std::vector<std::string> filesPerModel = splitStringList(images, ',');
-                FilesForModelInputs entireModelFiles;
-                entireModelFiles.reserve(filesPerModel.size());
-                for (auto &&filesPerInput : filesPerModel) {
-                    // from now on each input of a model support multiple image files as content of a batched input
-                    entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
-                }
-                inputFilesForOneInfer.push_back(std::move(entireModelFiles));
-            }
-            // Log what is in inputFilesForOneInfer
-            std::cout << "[Debug] Parsed input files for model: " << std::endl;
-            for (size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
-                std::cout << "Input " << i << ": ";
-                for (const auto& files : inputFilesForOneInfer[i]) {
-                    std::cout << "[";
-                    for (const auto& file : files) {
-                        std::cout << file << " ";
-                    }
-                    std::cout << "]";
-                }
-                std::cout << std::endl;
-            }
-
             // Input precision
             if (!FLAGS_ip.empty()) {
                 ov::element::Type prc_in = ov::element::u8;
@@ -2223,6 +2194,45 @@ static int runSingleImageTest() {
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
             compiledModel = core.import_model(file, FLAGS_device);
+        }
+
+        // Debug
+        std::cout << "[Debug] Compiled model:" << std::endl;
+        auto modelInputs = compiledModel.inputs();
+        std::cout << "[Debug] Model inputs:" << std::endl;
+        for (const auto& input : modelInputs) {
+            std::cout << " - " << input.get_any_name() << ": " << input.get_element_type() << " " << input.get_shape() << std::endl;
+        }
+
+        auto inputInfo = compiledModel.inputs();
+
+        // Parse input files string (matching of node names - if given)
+        std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
+        std::cout << "--- Parsed input files: " << fileMatch << std::endl;
+
+        inputFilesPerCase = splitStringList(fileMatch, ';');
+        for (const auto& images : inputFilesPerCase) {
+            std::vector<std::string> filesPerModel = splitStringList(images, ',');
+            FilesForModelInputs entireModelFiles;
+            entireModelFiles.reserve(filesPerModel.size());
+            for (auto &&filesPerInput : filesPerModel) {
+                // from now on each input of a model support multiple image files as content of a batched input
+                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
+            }
+            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
+        }
+        // Log what is in inputFilesForOneInfer
+        std::cout << "[Debug] Parsed input files for model: " << std::endl;
+        for (size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
+            std::cout << "Input " << i << ": ";
+            for (const auto& files : inputFilesForOneInfer[i]) {
+                std::cout << "[";
+                for (const auto& file : files) {
+                    std::cout << file << " ";
+                }
+                std::cout << "]";
+            }
+            std::cout << std::endl;
         }
 
         std::vector<std::string> inputBinPrecisionStrPerCase;
