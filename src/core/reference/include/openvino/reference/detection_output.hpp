@@ -366,25 +366,12 @@ private:
     void mxNetNms(const LabelBBox& decodeBboxesImage,
                   const std::map<int, std::vector<dataType>>& confScores,
                   std::map<int, std::vector<int>>& indices) {
-        const auto is_background_label = [this](int c) {
-            return attrs.background_label_id > -1 && c == attrs.background_label_id;
-        };
         std::vector<std::pair<dataType, std::pair<int, int>>> scoreIndexPairs;
         for (size_t p = 0; p < numPriors; p++) {
             dataType conf = -1;
             int id = 0;
-            int c = 1;
-            if constexpr (std::is_unsigned_v<dataType>) {
-                for (; c < numClasses; ++c) {
-                    if (is_background_label(c))
-                        continue;
-                    conf = confScores.at(c)[p];
-                    id = c++;
-                    break;
-                }
-            }
-            for (; c < numClasses; ++c) {
-                if (is_background_label(c))
+            for (int c = 1; c < numClasses; c++) {
+                if (attrs.background_label_id > -1 && c == attrs.background_label_id)
                     continue;
                 dataType temp = confScores.at(c)[p];
                 if (temp > conf) {
