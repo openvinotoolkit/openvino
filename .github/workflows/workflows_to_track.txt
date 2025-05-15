@@ -37,6 +37,8 @@ name: Android ARM64 with vcpkg
 name: Code Style
 ==> ./manylinux_2014.yml <==
 name: Manylinux 2014
+==> ./manylinux_2_28.yml <==
+name: Manylinux 2_28
 ==> ./linux_arm64.yml <==
 name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
 ==> ./dev_cpu_linux_snippets_libxsmm.yml <==
