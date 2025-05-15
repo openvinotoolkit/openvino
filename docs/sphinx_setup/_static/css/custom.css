@@ -356,7 +356,7 @@ details.sd-dropdown .sd-summary-title {
 }
 
 .bd-sidebar-primary .sidebar-header-items .sidebar-header-items__end {
-    align-items: righ !important;
+    align-items: right !important;
     display: flex;
     gap: .5rem;
     margin-bottom: 15px;
