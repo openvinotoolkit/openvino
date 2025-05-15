@@ -16,4 +16,5 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
-ENV PATH="$SCCACHE_HOME:$PATH"
+# To make python3 and pip binaries accessible
+ENV PATH="/opt/python/cp311-cp311/bin:$SCCACHE_HOME:$PATH"
