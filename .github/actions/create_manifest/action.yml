@@ -33,7 +33,7 @@ runs:
     - name: Install Python dependencies
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        pip install -r ${{ env.ACTION_PATH }}/requirements.txt
+        python3 -m pip install -r ${{ env.ACTION_PATH }}/requirements.txt
       env:
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
 
