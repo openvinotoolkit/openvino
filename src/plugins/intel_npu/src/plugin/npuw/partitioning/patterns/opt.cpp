@@ -818,8 +818,10 @@ DQEinsum::DQEinsum(Context::Ref ctx) {
         auto weight_shape = matched_qweight->output(0).get_shape();
         auto einsum_out_shape = matched_einsum->output(0).get_shape();
 
+        // FIXME: we could also match (weight_shape[0] == weight_shape[1])
+        // but it leads to accuracy issues at the moment
         if (weight_shape.size() == 2 &&
-            (/*(weight_shape[0] == weight_shape[1]) ||*/ (einsum_out_shape.back() != weight_shape.front()))) {
+            (einsum_out_shape.back() != weight_shape.front())) {
             // FIXME: not supporting actual NPUW DQ here, only FULL:NO
             if (!ctx.get().mm_dq_full) {
                 // Transpose the weight
