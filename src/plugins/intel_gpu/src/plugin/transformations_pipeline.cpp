@@ -837,8 +837,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
             [&](const_node_ptr &node) -> bool {
-            // Convert to NMSIEInternal when model is static
-            return !func->is_dynamic() ? false : true;
+            // Convert to NMSIEInternal when input shape is static
+            // Otherwise keep NMS op
+            return !node->get_input_partial_shape(0).is_dynamic() ? false : true;
         });
 
         // List of enabled/disabled transformations
@@ -1197,6 +1198,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
+            auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
@@ -1236,7 +1238,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
+            if (dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
+                GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
+                               << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
+            } else {
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
+            }
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.

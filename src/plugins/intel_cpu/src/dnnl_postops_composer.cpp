@@ -47,7 +47,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       outDataType(outDataType),
       useLegacyPostOps(useLegacyPostOps),
       useLegacyZeroPoints(useLegacyZeroPoints) {
-    OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    OPENVINO_ASSERT(idxOC < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
