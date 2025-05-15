@@ -1083,9 +1083,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (tail_mm_model) {
         auto& tail_mm_config = get_default_tail_mm_config(npudesc);
         merge_config_with(tail_mm_config, other_props);
-        m_tail_mm_compiled_opt = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));
-        NPUW_ASSERT(m_tail_mm_compiled_opt.has_value() && m_tail_mm_compiled_opt.value());
+        NPUW_ASSERT(m_tail_mm_compiled);
     }
     implement_properties();
     LOG_DEBUG("Done");
@@ -1196,9 +1196,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
-        write(model_stream, m_tail_mm_compiled_opt.has_value()); 
-        if (m_tail_mm_compiled_opt.has_value()) {
-            m_tail_mm_compiled_opt.value()->serialize(model_stream, enc_ctx);
+        bool is_tail_mm_present = m_tail_mm_compiled != nullptr;
+        write(model_stream, is_tail_mm_present); 
+        if (is_tail_mm_present) {
+            m_tail_mm_compiled->serialize(model_stream, enc_ctx);
         }
     };
 
@@ -1389,7 +1390,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         bool is_tail_mm_present = false;
         read(model_stream, is_tail_mm_present);
         if (is_tail_mm_present) {
-            compiled->m_tail_mm_compiled_opt = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            compiled->m_tail_mm_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
         return compiled;
     };

@@ -179,12 +179,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
-    if (compiled_model->m_tail_mm_compiled_opt.has_value()) {
-        OPENVINO_ASSERT(compiled_model->m_tail_mm_compiled_opt.value());
-        m_tail_mm_request_opt = compiled_model->m_tail_mm_compiled_opt.value()->create_infer_request();
-        OPENVINO_ASSERT(m_tail_mm_request_opt.has_value() && m_tail_mm_request_opt.value());
-        m_tail_embed_port = m_tail_mm_request_opt.value()->get_inputs()[0];
-        m_tail_logits_port = m_tail_mm_request_opt.value()->get_outputs()[0];
+    if (compiled_model->m_tail_mm_compiled) {
+        m_tail_mm_request = compiled_model->m_tail_mm_compiled->create_infer_request();
+        OPENVINO_ASSERT(m_tail_mm_request);
+        m_tail_embed_port = m_tail_mm_request->get_inputs()[0];
+        m_tail_logits_port = m_tail_mm_request->get_outputs()[0];
     }
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
@@ -265,8 +264,10 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_prefill_request->infer();
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
 
-    if (m_tail_mm_request_opt.has_value()) {
-        tail_mm_start_async(m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+    if (m_tail_mm_request) {
+        LOG_DEBUG("Calling inference for tail model asynchronously...");
+        m_tail_mm_request->set_tensor(m_tail_embed_port, m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+        m_tail_mm_request->start_async();
     }
 
     LOG_DEBUG("Copying kv-cache from prefill to generate model.");
@@ -308,9 +309,10 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         }
     }
 
-    if (m_tail_mm_request_opt.has_value()) {
-        tail_mm_wait();
-        m_logits = m_tail_mm_request_opt.value()->get_tensor(m_tail_logits_port);
+    if (m_tail_mm_request) {
+        m_tail_mm_request->wait();
+        LOG_DEBUG("Inference for tail model is finished");
+        m_logits = m_tail_mm_request->get_tensor(m_tail_logits_port);
     } else {
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
     }
@@ -349,8 +351,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_kvcache_request->infer();
     kvcache_desc.num_stored_tokens += 1;
 
-    if (m_tail_mm_request_opt.has_value()) {
-        tail_mm_start_async(m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+    if (m_tail_mm_request) {
+        LOG_DEBUG("Calling inference for tail model asynchronously...");
+        m_tail_mm_request->set_tensor(m_tail_embed_port, m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+        m_tail_mm_request->start_async();
     }
     
     if (kvcache_desc.num_stored_tokens != kvcache_desc.total_size) {
@@ -384,30 +388,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     }
 
-    if (m_tail_mm_request_opt.has_value()) {
-        tail_mm_wait();
-        m_logits = m_tail_mm_request_opt.value()->get_tensor(m_tail_logits_port);
+    if (m_tail_mm_request) {
+        m_tail_mm_request->wait();
+        LOG_DEBUG("Inference for tail model is finished");
+        m_logits = m_tail_mm_request->get_tensor(m_tail_logits_port);
     } else {
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     }
 
     LOG_DEBUG("Done");
-}
-
-void ov::npuw::LLMInferRequest::tail_mm_start_async(ov::SoPtr<ov::ITensor> output_embed) {
-    LOG_DEBUG("Calling inference for tail model asynchronously...");
-    LOG_BLOCK();
-    OPENVINO_ASSERT(m_tail_mm_request_opt.value());
-    auto& tail_mm_infer_req =  m_tail_mm_request_opt.value();
-    tail_mm_infer_req->set_tensor(m_tail_embed_port, output_embed);
-    tail_mm_infer_req->start_async();
-}
-
-void ov::npuw::LLMInferRequest::tail_mm_wait() {
-    LOG_BLOCK();
-    OPENVINO_ASSERT(m_tail_mm_request_opt.value());
-    m_tail_mm_request_opt.value()->wait();
-    LOG_DEBUG("Inference for tail model is finished");
 }
 
 void ov::npuw::LLMInferRequest::infer() {
