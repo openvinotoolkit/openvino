@@ -1577,7 +1577,7 @@ KERNEL(sdpa_opt)(
 #endif
                     #ifdef V_HEAD_SIZE_LEFTOVER
                     // splitting to two cases for supressing reg spill : block_read & eltwise read 
-                    if (head_size_idx < V_HEAD_SIZE && sgid < SUBGROUPS_PER_WG - 1) {
+                    if (sgid < SUBGROUPS_PER_WG - 1) {
                     // block_read values
                     #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
@@ -1600,33 +1600,33 @@ KERNEL(sdpa_opt)(
                         #ifndef BEAM_TABLE_TYPE
                         value_offset += value_pitch;
                         #endif
-                    }
-                #ifdef V_HEAD_SIZE_LEFTOVER
+                    } // unroll_for
+                    #ifdef V_HEAD_SIZE_LEFTOVER
                     } else if (head_size_idx < V_HEAD_SIZE) {
                     // read values element by element
-                    unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                    #ifdef BEAM_TABLE_TYPE
-                        const INPUT2_TYPE value_packed = value_input[sub_Group_broadcast(value_offset, i)];
-                    #else
-                        const INPUT2_TYPE value_packed = value_input[value_offset];
-                    #endif
-                    #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
-                        VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
-                    #elif IS_KV_COMPRESSED
-                        VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
-                    #else
-                        INPUT2_TYPE value_val = value_packed;
-                    #endif
-                        unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                        unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                        #ifdef BEAM_TABLE_TYPE
+                            const INPUT2_TYPE value_packed = value_input[sub_group_broadcast(value_offset, i)];
+                        #else
+                            const INPUT2_TYPE value_packed = value_input[value_offset];
+                        #endif
+                        #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        #elif IS_KV_COMPRESSED
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
+                        #else
+                            INPUT2_TYPE value_val = value_packed;
+                        #endif
+                            unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                            }
+                        #ifndef BEAM_TABLE_TYPE
+                            value_offset += value_pitch;
+                        #endif
                         }
-                    #ifndef BEAM_TABLE_TYPE
-                        value_offset += value_pitch;
-                    #endif
-                    }
-                #endif // V_HEAD_SIZE_LEFTOVER
-                    }
-                }
+                    } // head_size_idx < V_HEAD_SIZE && sgid < SUBGROUPS_PER_WG - 1
+                    #endif // V_HEAD_SIZE_LEFTOVER
+                } // for seq_len
             } else { // partition_seq_len is less than SEQ_LEN_PARTITION_SIZE
                 const uint seq_len_start = (sgid / (SUBGROUPS_PER_WG / SG_SCALE_FACTOR)) * (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR);
                 uint seq_len_end = 0;
@@ -1672,7 +1672,7 @@ KERNEL(sdpa_opt)(
                     }
                 #ifdef V_HEAD_SIZE_LEFTOVER
                     // splitting to two cases for supressing reg spill : block_read & eltwise read 
-                    if (head_size_idx < V_HEAD_SIZE && sgid < SUBGROUPS_PER_WG - 1) {
+                    if (sgid < SUBGROUPS_PER_WG - 1) {
                     // block_read values
                 #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
@@ -1695,33 +1695,33 @@ KERNEL(sdpa_opt)(
                 #ifndef BEAM_TABLE_TYPE
                         value_offset += value_pitch;
                 #endif
-                    }
+                    } // unroll_for
                 #ifdef V_HEAD_SIZE_LEFTOVER
                     } else if (head_size_idx < V_HEAD_SIZE) {
                     // read values element by element
-                    unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                    #ifdef BEAM_TABLE_TYPE
-                        const INPUT2_TYPE value_packed = value_input[sub_group_broadcast(value_offset, i)];
-                    #else
-                        const INPUT2_TYPE value_packed = value_input[value_offset];
-                    #endif
-                    #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
-                        VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
-                    #elif IS_KV_COMPRESSED
-                        VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
-                    #else
-                        INPUT2_TYPE value_val = value_packed;
-                    #endif
-                        unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                        unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                        #ifdef BEAM_TABLE_TYPE
+                            const INPUT2_TYPE value_packed = value_input[sub_group_broadcast(value_offset, i)];
+                        #else
+                            const INPUT2_TYPE value_packed = value_input[value_offset];
+                        #endif
+                        #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        #elif IS_KV_COMPRESSED
+                            VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
+                        #else
+                            INPUT2_TYPE value_val = value_packed;
+                        #endif
+                            unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                            }
+                        #ifndef BEAM_TABLE_TYPE
+                            value_offset += value_pitch;
+                        #endif
                         }
-                    #ifndef BEAM_TABLE_TYPE
-                        value_offset += value_pitch;
-                    #endif
-                    }
                     }
                 #endif // V_HEAD_SIZE_LEFTOVER
-                }
+                } // for seq_len
 
                 // QK*V leftovers processing
                 const uint seq_len_leftovers_start = ((seq_len_end / SUBGROUP_SIZE) * SUBGROUP_SIZE);
