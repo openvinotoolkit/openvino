@@ -1082,6 +1082,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
+        {"scalar_tensor.default", op::translate_scalar_tensor_fx},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.roi_align.default", op::translate_roi_align},
         {"quantized_decomposed.quantize_per_tensor.default", op::translate_quantize_per_tensor_fx},
