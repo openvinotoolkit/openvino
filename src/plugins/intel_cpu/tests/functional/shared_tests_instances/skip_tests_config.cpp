@@ -575,7 +575,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
     // Issue 167685
-    retVector.emplace_back(R"(.*importExportModelWithTypeRelaxedExtension.*)");
+    retVector.emplace_back(R"(.*importExportModelWithTypeRelaxedExt.*)");
 #endif
 #if defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(.*ActivationLayerTest.*Inference.*)");
