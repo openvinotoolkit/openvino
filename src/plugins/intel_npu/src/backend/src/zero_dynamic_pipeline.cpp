@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4146 4267 4244 4996)
+#endif
 
 #include "zero_dynamic_pipeline.hpp"
 
@@ -238,9 +242,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     sharedLibs.push_back("libmlir_c_runner_utils.so");
     sharedLibs.push_back("liblevel_zero_wrapper.so");
     #else
-    sharedLibs.push_back("libmlir_runner_utils.dll");
-    sharedLibs.push_back("libmlir_c_runner_utils.dll");
-    sharedLibs.push_back("liblevel_zero_wrapper.dll");
+    sharedLibs.push_back("mlir_runner_utils.dll");
+    sharedLibs.push_back("mlir_c_runner_utils.dll");
+    sharedLibs.push_back("level_zero_wrapper.dll");
     #endif
     engineOptions.sharedLibPaths = sharedLibs;
     engineOptions.enableObjectDump = true;
@@ -415,3 +419,8 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
 }
 
 }  // namespace intel_npu
+
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
