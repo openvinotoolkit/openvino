@@ -12,7 +12,6 @@
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
-#include "group_normalization_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -741,29 +740,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
-    const auto reorder_input_group_normalization = [&p, &rf](typed_program_node<group_normalization>& group_normalization_node) {
-        // Change scale and bias formats of group_normalization node from fsv16 to bfyx
-        auto scale_dep = group_normalization_node.get_dependency_with_port(1);
-        auto bias_dep = group_normalization_node.get_dependency_with_port(2);
-        const auto& scale = scale_dep.first;
-        const auto& bias = bias_dep.first;
-        auto scale_layout = scale->get_output_layout();
-        auto bias_layout = bias->get_output_layout();
-        if (scale_layout.format == format::b_fs_yx_fsv16) {
-            auto new_scale_layout = scale_layout;
-            auto new_bias_layout = bias_layout;
-            new_scale_layout.format = format::bfyx;
-            new_bias_layout.format = format::bfyx;
-            auto scale_input = rf.get_reorder(scale->id(), scale_dep.second, scale_layout, new_scale_layout);
-            auto bias_input = rf.get_reorder(bias->id(), bias_dep.second, bias_layout, new_bias_layout);
-            if (scale_input.first && bias_input.first) {
-                p.add_intermediate(scale_input.first, group_normalization_node, 1);
-                p.add_intermediate(bias_input.first, group_normalization_node, 2);
-                group_normalization_node.recalc_output_layouts();
-            }
-        }
-    };
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -799,14 +775,13 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, group_normalization>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling,
-            reorder_input_group_normalization);
+            reorder_input_pooling);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
