@@ -62,6 +62,15 @@ if(APPLE)
         string(REGEX MATCH "1[0-9]_[0-9]+" _macos_target_version ${PLATFORM_TAG})
     endif()
 
+    # try to make in compatile with macos 15.4+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_fixup_chains")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_weak_imports")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-bind_at_load")
+
+    list(APPEND setup_py_env "LDFLAGS=-Wl,-headerpad_max_install_names -Wl,-no_fixup_chains -Wl,-no_weak_imports -Wl,-bind_at_load")
+    list(APPEND setup_py_env "ARCHFLAGS=-arch ${_arch}")
+
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
     if(_arch AND _macos_target_version)
         set(PLATFORM_TAG "macosx_${_macos_target_version}_${_arch}")
