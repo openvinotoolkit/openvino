@@ -442,7 +442,8 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
 
-            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
                 errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }
