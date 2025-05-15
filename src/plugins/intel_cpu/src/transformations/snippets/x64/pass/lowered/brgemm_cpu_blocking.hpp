@@ -41,6 +41,20 @@ private:
         const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 
     /**
+     * @brief Updates the loop information for the specified loop IDs with new ports.
+     *
+     * @param loop_manager The loop manager
+     * @param loop_ids A vector of loop IDs whose information needs to be updated.
+     * @param block_to_new_ports A vector of pairs where each pair consists of:
+     *        - block size (e.g., m_block, n_block, or k_block).
+     *        - vector of new LoopPort objects to be added to the loop.
+     */
+    static void update_loop_infos(
+        const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+        const std::vector<size_t>& loop_ids,
+        const std::vector<std::pair<size_t, std::vector<ov::snippets::lowered::LoopPort>>>& block_to_new_ports);
+
+    /**
      * @brief Create new ports for not processed postops.
      * @note Postop ports are supported by blocking pass only as not processed
      */
