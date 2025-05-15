@@ -37,8 +37,8 @@ void SparseFillEmptyRows::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    ov::element::Type valuesPrecision = getOriginalInputPrecisionAtPort(0);
-    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(2);
+    const auto& valuesPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto& indicesPrecision = getOriginalInputPrecisionAtPort(2);
     addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},        // values
                           {LayoutType::ncsp, indicesPrecision},       // dense_shape
                           {LayoutType::ncsp, indicesPrecision},       // indices
@@ -66,12 +66,11 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
-    int64_t numRows = 0;
 
     const auto* denseShapePtr = getSrcDataAtPortAs<const int32_t>(1);
-    numRows = static_cast<int64_t>(denseShapePtr[0]);
+    const auto numRows = static_cast<size_t>(denseShapePtr[0]);
 
-    std::unordered_set<int64_t> existingRows;
+    std::unordered_set<int32_t> existingRows;
     size_t indicesCount = indicesShape.getElementsCount() / 2;  // Divide by 2 because indices is [M, 2]
 
     const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
