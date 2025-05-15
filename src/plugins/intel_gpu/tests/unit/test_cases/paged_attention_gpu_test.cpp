@@ -1047,8 +1047,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    // check this.  if using 128, 256 will have issue
-    paged_attention_test_params{ {{96, 0}, {128, 0}}, 2, 48, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 48, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{1, 10}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 10}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
