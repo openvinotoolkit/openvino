@@ -25,3 +25,6 @@ RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
+
+ENV PIP_VERSION="24.0"
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION}
