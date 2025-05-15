@@ -123,7 +123,7 @@ static void find_minmax(const T* src, size_t n, float& min, float& max) {
     min = _mm256_cvtss_f32(v0_min);
 #endif
     for (; i < n; i++) {
-        float tmp = src[i];
+        const float tmp = src[i];
         max = std::max(max, tmp);
         min = std::min(min, tmp);
     }
@@ -185,7 +185,7 @@ static void find_params_by_channel(const T* src,
                                    float* zp,
                                    size_t bits) {
     size_t j = 0;
-    float integer_range = static_cast<float>((1 << bits) - 1);
+    const float integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_max = _mm512_set1_ps(-std::numeric_limits<float>::max());
@@ -230,7 +230,7 @@ static void find_params_by_channel(const T* src,
         float max = -std::numeric_limits<float>::max();
         float min = std::numeric_limits<float>::max();
         for (size_t i = 0; i < seq_dim; i++) {
-            float tmp = src[i * src_stride + j];
+            const float tmp = src[i * src_stride + j];
             max = std::max(max, tmp);
             min = std::min(min, tmp);
         }
@@ -238,7 +238,7 @@ static void find_params_by_channel(const T* src,
         if (temp_scale == 0) {
             temp_scale = 0.0001f;
         }
-        float temp_zp = -min / temp_scale;
+        const float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
         zp[j] = temp_zp;
     }
@@ -388,7 +388,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     float max = -FLT_MAX;
     float min = FLT_MAX;
     find_minmax(src, n, min, max);
-    auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+    auto* dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
     if (scale == 0) {
         scale = 0.0001f;
@@ -436,7 +436,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     }
 #endif
     for (; i < n; i++) {
-        float tmp = src[i];
+        const float tmp = src[i];
         uint8_t src_val = std::min(static_cast<uint8_t>(15), static_cast<uint8_t>(std::round(tmp / scale + zp)));
         src_val = std::max(static_cast<uint8_t>(0), static_cast<uint8_t>(std::round(tmp / scale + zp)));
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
@@ -469,12 +469,12 @@ static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
     // base pointer points to the base address of next group.
     // base +  2 * sizeof(float) aims to skip the scale/zp within the group.
     constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
-    size_t S = src.m_dims[3];
+    const size_t S = src.m_dims[3];
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
          src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
         auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, block_offset, 0);
         base += dst_offset;
-        auto p = reinterpret_cast<float*>(base);
+        auto* p = reinterpret_cast<float*>(base);
         uint8_t* ptr = base + sizeof(float) * 2;
         quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, groupe_size, p);
     }
@@ -509,10 +509,10 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
             auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
                                  ? (q_len - block_count * block_size)
                                  : block_size;
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
+            const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
-            auto p_scales = reinterpret_cast<float*>(base);
-            auto p_zps = p_scales + S;
+            auto* p_scales = reinterpret_cast<float*>(base);
+            auto* p_zps = p_scales + S;
             auto p_data = base + params_offset;
             quantize_by_channel<T, DST_PREC>(src.ptr<T>(b_in_tokens, h, m),
                                              p_data,
@@ -528,14 +528,14 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         size_t block_offset = block_number_start + past_len / block_size;
         auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
         parallel_for(total_blocks, [&](size_t block_id) {
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id;
+            const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id;
             auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
-            auto p_scales = reinterpret_cast<float*>(base);
-            auto p_zps = p_scales + S;
+            auto* p_scales = reinterpret_cast<float*>(base);
+            auto* p_zps = p_scales + S;
             auto p_data = base + params_offset;
             size_t valid_length = 0;
-            bool is_first_block = block_id == 0;
+            const bool is_first_block = block_id == 0;
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             if (is_first_block) {
                 valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
@@ -604,7 +604,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                     k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
             });
         } else {
-            size_t group_id = L0 / key_group_size;
+            const size_t group_id = L0 / key_group_size;
             size_t prev_nums = L0 % key_group_size;
             parallel_for2d(B, H, [&](size_t b, size_t h) {
                 auto thread_id = parallel_get_thread_num();
@@ -639,7 +639,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 }
 
                 if (L1 > remaining_group_size) {
-                    size_t new_seq = L1 - remaining_group_size;
+                    const size_t new_seq = L1 - remaining_group_size;
                     for (size_t new_group_id = prev_nums ? group_id + 1 : group_id, src_offset = 0;
                          new_group_id < ov::intel_cpu::div_up(L0 + L1, key_group_size);
                          new_group_id++, src_offset += key_group_size) {
@@ -658,7 +658,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         }
     } else {
         parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-            auto p_k = k_scale_zp.ptr<float>(L0 + m, b, h);
+            auto* p_k = k_scale_zp.ptr<float>(L0 + m, b, h);
             for (size_t group_id = 0; group_id < S / key_group_size; group_id++) {
                 quant_u8(k_src.ptr<T>(b, h, m, group_id * key_group_size),
                          k_dst.ptr<T2>(b, h, L0 + m, group_id * key_group_size),
@@ -669,7 +669,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         });
     }
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-        auto p_v = v_scale_zp.ptr<float>(L0 + m, b, h);
+        auto* p_v = v_scale_zp.ptr<float>(L0 + m, b, h);
         for (size_t group_id = 0; group_id < SV / value_group_size; group_id++) {
             quant_u8(v_src.ptr<T>(b, h, m, group_id * value_group_size),
                      v_dst.ptr<T2>(b, h, L0 + m, group_id * value_group_size),

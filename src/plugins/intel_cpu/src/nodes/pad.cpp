@@ -24,7 +24,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
-        auto pad = ov::as_type<const op::util::PadBase>(op.get());
+        const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (!one_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
@@ -55,7 +55,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
     }
 
-    auto pad = ov::as_type<const op::util::PadBase>(op.get());
+    const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
         THROW_CPU_NODE_ERR("couldn't be casted to op of opset1");
     }
@@ -128,7 +128,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
         config.inConfs[0].setMemDesc(
             creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
@@ -233,8 +233,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
                                             const std::vector<MemoryCPtr>& srcMemory,
                                             const std::vector<MemoryCPtr>& dstMemory) {
     params.attrs = attrs;
-    auto& srcMemPtr = srcMemory[DATA_ID];
-    auto& dstMemPtr = dstMemory[DATA_ID];
+    const auto& srcMemPtr = srcMemory[DATA_ID];
+    const auto& dstMemPtr = dstMemory[DATA_ID];
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
         OPENVINO_THROW("Pad executor has undefined source memory.");
     }
@@ -328,7 +328,7 @@ void Pad::PadExecutor::workPartition() {
         return;
     }
 
-    size_t nDims = params.srcDims.size();
+    const size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
     params.dstStrides.resize(nDims, 1);
     for (int i = nDims - 2; i >= 0; i--) {
@@ -369,7 +369,7 @@ void Pad::PadExecutor::workPartition() {
 
     params.srcDimsForReflectOrSymmetric.clear();
     if (params.attrs.padMode == REFLECT || params.attrs.padMode == SYMMETRIC) {
-        int shift = params.attrs.padMode == SYMMETRIC ? 1 : 0;
+        const int shift = params.attrs.padMode == SYMMETRIC ? 1 : 0;
         for (size_t i = 0; i < params.srcDims.size(); ++i) {
             params.srcDimsForReflectOrSymmetric.push_back(params.srcDims[i] + params.srcODims[i] - 2 + shift);
         }
@@ -574,11 +574,11 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift = (indexes[idx] < params.attrs.padsBegin[idx])
-                                   ? 0
-                                   : ((static_cast<size_t>(indexes[idx]) >= params.srcODims[idx])
-                                          ? (params.srcDims[idx] - 1)
-                                          : (indexes[idx] - params.attrs.padsBegin[idx]));
+                const size_t shift = (indexes[idx] < params.attrs.padsBegin[idx])
+                                         ? 0
+                                         : ((static_cast<size_t>(indexes[idx]) >= params.srcODims[idx])
+                                                ? (params.srcDims[idx] - 1)
+                                                : (indexes[idx] - params.attrs.padsBegin[idx]));
                 srcIdx += shift * params.srcStrides[idx];
             }
             srcIdx *= params.dataSize;
@@ -625,11 +625,11 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx = (indexes[i] < params.attrs.padsBegin[i])
-                                 ? (params.attrs.padsBegin[i] - indexes[i] - shift)
-                                 : ((static_cast<size_t>(indexes[i]) >= params.srcODims[i])
-                                        ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
-                                        : (indexes[i] - params.attrs.padsBegin[i]));
+                const size_t idx = (indexes[i] < params.attrs.padsBegin[i])
+                                       ? (params.attrs.padsBegin[i] - indexes[i] - shift)
+                                       : ((static_cast<size_t>(indexes[i]) >= params.srcODims[i])
+                                              ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
+                                              : (indexes[i] - params.attrs.padsBegin[i]));
                 srcIdx += idx * params.srcStrides[i];
             }
             srcIdx *= params.dataSize;

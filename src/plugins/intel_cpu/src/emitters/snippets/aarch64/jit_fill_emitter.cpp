@@ -68,7 +68,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
         return;
     }
 
-    AdrImm src = table_val("value");
+    const AdrImm src = table_val("value");
     h->uni_ld1rw(dst.s, src.getXn(), src.getImm());
 }
 

@@ -43,8 +43,8 @@ VectorDims acl_fc_executor::makeDummyOutputDims(const VectorDims& inShape,
     // set Co
     outputShape.back() = wShape[0];
     // set batch dims
-    size_t batchRank = activationRank - channelRank;
-    size_t startIdx = out_rank - batchRank - 1;
+    const size_t batchRank = activationRank - channelRank;
+    const size_t startIdx = out_rank - batchRank - 1;
     for (size_t i = 0; i < batchRank; i++) {
         outputShape[i + startIdx] = inShape[i];
     }

@@ -88,7 +88,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return true;
         }
         std::vector<bool> norm(dataRank, false);
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
                 errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                 return false;
@@ -116,7 +116,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
         auto axes =
             ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-        bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
+        const bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
@@ -183,7 +183,7 @@ void Lrn::prepareParams() {
     dnnl::primitive_attr attr;
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
+    const LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> executorPtr {
@@ -220,7 +220,7 @@ void Lrn::prepareParams() {
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
@@ -232,7 +232,7 @@ bool Lrn::created() const {
 void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                            [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    const DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
     auto desc = dnnl::lrn_forward::primitive_desc(getEngine(),

@@ -220,7 +220,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::j
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_regs,
                                                    const std::vector<XReg>& data_ptr_regs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
-    XReg reg_runtime_params = arg_regs[0];
+    const XReg reg_runtime_params = arg_regs[0];
     XReg reg_indexes = arg_regs[1];
 
     auto reg_tmp = XReg(h->X_TMP_0);
@@ -273,7 +273,7 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64:
 void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<XReg>& arg_regs,
                                                     const std::vector<XReg>& data_ptr_regs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
-    XReg reg_runtime_params = arg_regs[0];
+    const XReg reg_runtime_params = arg_regs[0];
 
     const auto num_params = num_inputs + num_outputs;
     for (size_t i = 0; i < num_unique_buffers; ++i) {

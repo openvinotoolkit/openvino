@@ -93,7 +93,7 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     EmitABIRegSpills spill(h);
     spill.preamble(get_regs_to_spill());
 
-    int aux_xmm_count = 0;
+    const int aux_xmm_count = 0;
     for (auto reg_idx : in)
         h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
     for (auto reg_idx : out)

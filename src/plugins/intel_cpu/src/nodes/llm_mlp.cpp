@@ -41,7 +41,7 @@ public:
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     void setup(void* p_weight, int stride, int N, int K, const LLMMLPNode::Config& config) {
-        bool is_quantized = config.down_quantized;
+        const bool is_quantized = config.down_quantized;
 
         auto reg_blk_K_size = is_quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
         auto cache_blk_k_size = CACHE_BLK_K_SIZE;
@@ -196,7 +196,7 @@ public:
             OPENVINO_THROW("unsupported act in GateUpCombine");
         }
 
-        bool quantized_int8 = config.gate_up_quantized;
+        const bool quantized_int8 = config.gate_up_quantized;
 
         auto reg_blk_K_size = quantized_int8 ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
         auto cache_blk_k_size = CACHE_BLK_K_SIZE;
@@ -342,9 +342,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
           m_config(config),
           m_scrachPad(std::move(scrachPad)),
           m_rt_prec_f16(std::is_same<T, ov::float16>::value) {
-        PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
-        PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
-        PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
+        const PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
+        const PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
+        const PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
 
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
@@ -433,14 +433,14 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int strideA = srcStrides[srcStrides.size() - 2];
-        int strideA_in_bytes = strideA * sizeof(T);
-        int M = shape_size(ishape) / ishape[ishape.size() - 1];
+        const int strideA = srcStrides[srcStrides.size() - 2];
+        const int strideA_in_bytes = strideA * sizeof(T);
+        const int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
         auto output = m_pnode->getDstMemoryAtPort(0);
         auto* dstC = output->getDataAs<T>();
         const auto& dstStrides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
-        int strideC = dstStrides[dstStrides.size() - 2] * sizeof(T);
+        const int strideC = dstStrides[dstStrides.size() - 2] * sizeof(T);
 
         float* p_w_scale_down = nullptr;
         if (m_config.down_quantized) {
@@ -448,7 +448,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         }
 
         for (int m = 0; m < M;) {
-            int BM = std::min(M - m, CACHE_BLK_M_SIZE);
+            const int BM = std::min(M - m, CACHE_BLK_M_SIZE);
             setM(BM);
 
             uint8_t* psrc = pA;
@@ -612,7 +612,7 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
 
-            auto& config = node_mlp->get_config();
+            const auto& config = node_mlp->get_config();
             if (config.gate_up_quantized &&
                 (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.hidden_size))) {
                 errorMessage = "LLMMLPNode gate-up-proj only support per-token dynamic quantization";

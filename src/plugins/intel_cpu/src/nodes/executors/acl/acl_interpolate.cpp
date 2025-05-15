@@ -113,10 +113,10 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     static const size_t index_w = 3;
     float scale_h = static_cast<float>(out_shape[index_h]) / inp_shape[index_h];
     float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
-    bool is_upsample = scale_h > 1 && scale_w > 1;
+    const bool is_upsample = scale_h > 1 && scale_w > 1;
 
-    auto& coord_mode = interpolateAttrs.coordTransMode;
-    auto& nearest_mode = interpolateAttrs.nearestMode;
+    const auto& coord_mode = interpolateAttrs.coordTransMode;
+    const auto& nearest_mode = interpolateAttrs.nearestMode;
 
     if (coord_mode == InterpolateCoordTransMode::align_corners &&
         nearest_mode == InterpolateNearestMode::round_prefer_ceil) {
@@ -138,7 +138,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     }
 
     if (is_upsample) {
-        bool int_factor = scale_h == static_cast<int>(scale_h) && scale_w == static_cast<int>(scale_w);
+        const bool int_factor = scale_h == static_cast<int>(scale_h) && scale_w == static_cast<int>(scale_w);
         if (int_factor && coord_mode != InterpolateCoordTransMode::asymmetric &&
             (nearest_mode == InterpolateNearestMode::round_prefer_ceil ||
              nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
@@ -149,7 +149,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     } else if (scale_h < 1 && scale_w < 1) {
         float down_scale_h = static_cast<float>(inp_shape[index_h]) / out_shape[index_h];
         float down_scale_w = static_cast<float>(inp_shape[index_w]) / out_shape[index_w];
-        bool int_factor =
+        const bool int_factor =
             down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&

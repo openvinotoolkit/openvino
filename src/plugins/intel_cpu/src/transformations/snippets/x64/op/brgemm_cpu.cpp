@@ -146,7 +146,7 @@ void BrgemmCPU::validate_inputs() const {
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    std::shared_ptr<BrgemmCPU> brgemm;
+    const std::shared_ptr<BrgemmCPU> brgemm;
     if (!with_scratchpad(m_type)) {
         return std::make_shared<BrgemmCPU>(
             new_args.at(0),

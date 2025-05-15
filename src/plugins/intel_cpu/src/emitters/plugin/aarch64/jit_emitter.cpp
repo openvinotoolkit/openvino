@@ -170,7 +170,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     const uint32_t end_gpr_idx = Xbyak_aarch64::Operand::X30;
     for (size_t gpr_idx = 0; gpr_idx <= end_gpr_idx; ++gpr_idx) {
-        size_t _idx = end_gpr_idx - gpr_idx;  // we allocate from the end
+        const size_t _idx = end_gpr_idx - gpr_idx;  // we allocate from the end
 
         if (aux_gpr_idxs.size() >= get_aux_gprs_count()) {
             break;

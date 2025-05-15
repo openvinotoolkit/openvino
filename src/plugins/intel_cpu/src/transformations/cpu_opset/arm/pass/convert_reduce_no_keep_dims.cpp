@@ -21,7 +21,8 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_re
 
         reduce->set_keep_dims(true);
         const auto reduce_new = reduce->clone_with_new_inputs({reduce->input_value(0), reduce->input_value(1)});
-        std::shared_ptr<ov::Node> squeeze = std::make_shared<ov::op::v0::Squeeze>(reduce_new, reduce->input_value(1));
+        const std::shared_ptr<ov::Node> squeeze =
+            std::make_shared<ov::op::v0::Squeeze>(reduce_new, reduce->input_value(1));
         squeeze->set_friendly_name(reduce_new->get_friendly_name());
         ov::copy_runtime_info(reduce, {reduce_new, squeeze});
         ov::replace_node(reduce, squeeze);

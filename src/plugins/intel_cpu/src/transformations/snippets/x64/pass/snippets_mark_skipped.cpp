@@ -18,7 +18,7 @@ namespace ov::intel_cpu {
 namespace {
 static const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
-    auto& rt = node->get_rt_info();
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end()) {
         return NodeFusingType::NotSet;
@@ -162,7 +162,7 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) 
 int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     int channelAxis = DEFAULT_AXIS;
     if (!keep_dims) {
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis == 1) {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
@@ -260,7 +260,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
         node->get_input_element_type(0) == ov::element::u8 && zp_weights_is_suitable;
 
     const auto conv_weights = child->get_input_node_shared_ptr(1);
-    bool second_conv_input_is_suitable =
+    const bool second_conv_input_is_suitable =
         ov::is_type<ov::op::v0::Constant>(conv_weights) && conv_weights->get_output_element_type(0) == ov::element::i8;
     return first_conv_input_is_suitable && second_conv_input_is_suitable;
 }

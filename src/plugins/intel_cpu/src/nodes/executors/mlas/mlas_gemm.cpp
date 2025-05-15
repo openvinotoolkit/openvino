@@ -41,7 +41,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
 
     auto create = [&]() {
         auto* weightPtr = weightsMemory->getDataAs<float>();
-        size_t ldb = weightsTransposed ? K : N;
+        const size_t ldb = weightsTransposed ? K : N;
 
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
                                                   intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
@@ -53,7 +53,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
 
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
+        const std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
@@ -113,10 +113,10 @@ bool MlasGemmExecutor::update(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::execute(const MemoryArgs& memory) {
-    const auto srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
-    const auto weiRawMemPtr = packedWeights->getDataAs<float>();
-    const auto dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
-    const auto biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
+    auto* const srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
+    auto* const weiRawMemPtr = packedWeights->getDataAs<float>();
+    auto* const dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
+    auto* const biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
 
     const auto lda = K;
     const auto ldb = K;

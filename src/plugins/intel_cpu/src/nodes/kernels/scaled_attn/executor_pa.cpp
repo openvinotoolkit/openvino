@@ -363,7 +363,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v + src_offset);
             for (size_t i = 0; i < group_size; i++) {
                 out[dst_offset + i] += weight[j] * (v[i + src_offset + params_offset] - v0[1]) * v0[0];
             }
@@ -390,7 +390,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
@@ -454,9 +454,9 @@ static void attn_acc_value_block_by_dim(float* out,
             }
 #    endif
             for (; i < group_size; i += 2) {
-                uint8_t data = v_ptr[i / 2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-                float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
+                const uint8_t data = v_ptr[i / 2 + src_offset + params_offset];
+                const float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+                const float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
                 out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
             }
@@ -473,10 +473,10 @@ static void attn_acc_value_block_by_channel(float* out,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
-    size_t src_stride = S;
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    const size_t src_stride = S;
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         size_t i = 0;
@@ -565,10 +565,10 @@ static void attn_acc_value_block_by_channel(float* out,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
-    size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    const size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         size_t i = 0;
@@ -686,30 +686,30 @@ static void attn_acc_value_block_by_channel(float* out,
         }
 #    endif
         for (; i < S; i += 2) {
-            uint8_t data0 = v_data_ptr[i / 2 + j * src_stride];
-            float tmp00 = extract_half_byte(data0, static_cast<bool>(i % 2));
-            float tmp01 = extract_half_byte(data0, static_cast<bool>((i + 1) % 2));
+            const uint8_t data0 = v_data_ptr[i / 2 + j * src_stride];
+            const float tmp00 = extract_half_byte(data0, static_cast<bool>(i % 2));
+            const float tmp01 = extract_half_byte(data0, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j] * (tmp00 - p_zps[i]) * p_scales[i];
             out[i + 1] += weight[j] * (tmp01 - p_zps[i + 1]) * p_scales[i + 1];
 
-            uint8_t data1 = v_data_ptr[i / 2 + (j + 1) * src_stride];
-            float tmp10 = extract_half_byte(data1, static_cast<bool>(i % 2));
-            float tmp11 = extract_half_byte(data1, static_cast<bool>((i + 1) % 2));
+            const uint8_t data1 = v_data_ptr[i / 2 + (j + 1) * src_stride];
+            const float tmp10 = extract_half_byte(data1, static_cast<bool>(i % 2));
+            const float tmp11 = extract_half_byte(data1, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 1] * (tmp10 - p_zps[i]) * p_scales[i];
             out[i + 1] += weight[j + 1] * (tmp11 - p_zps[i + 1]) * p_scales[i + 1];
 
-            uint8_t data2 = v_data_ptr[i / 2 + (j + 2) * src_stride];
-            float tmp20 = extract_half_byte(data2, static_cast<bool>(i % 2));
-            float tmp21 = extract_half_byte(data2, static_cast<bool>((i + 1) % 2));
+            const uint8_t data2 = v_data_ptr[i / 2 + (j + 2) * src_stride];
+            const float tmp20 = extract_half_byte(data2, static_cast<bool>(i % 2));
+            const float tmp21 = extract_half_byte(data2, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 2] * (tmp20 - p_zps[i]) * p_scales[i];
             out[i + 1] += weight[j + 2] * (tmp21 - p_zps[i + 1]) * p_scales[i + 1];
 
-            uint8_t data3 = v_data_ptr[i / 2 + (j + 3) * src_stride];
-            float tmp30 = extract_half_byte(data3, static_cast<bool>(i % 2));
-            float tmp31 = extract_half_byte(data3, static_cast<bool>((i + 1) % 2));
+            const uint8_t data3 = v_data_ptr[i / 2 + (j + 3) * src_stride];
+            const float tmp30 = extract_half_byte(data3, static_cast<bool>(i % 2));
+            const float tmp31 = extract_half_byte(data3, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 3] * (tmp30 - p_zps[i]) * p_scales[i];
             out[i + 1] += weight[j + 3] * (tmp31 - p_zps[i + 1]) * p_scales[i + 1];
@@ -717,9 +717,9 @@ static void attn_acc_value_block_by_channel(float* out,
     }
     for (; j < block_size; j++) {
         for (size_t i = 0; i < S; i += 2) {
-            uint8_t data = v_data_ptr[i / 2 + j * src_stride];
-            float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-            float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
+            const uint8_t data = v_data_ptr[i / 2 + j * src_stride];
+            const float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+            const float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
             out[i] += weight[j] * (tmp0 - p_zps[i]) * p_scales[i];
             out[i + 1] += weight[j] * (tmp1 - p_zps[i + 1]) * p_scales[i + 1];
         }
@@ -871,8 +871,8 @@ static void dot_product_block_quantized_by_channel(TA* a,
                                                    const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0.0f;
         size_t i = 0;
@@ -1089,8 +1089,8 @@ static void dot_product_block_quantized_by_channel(TA* a,
     const size_t params_offset = sizeof(float) * 2 * n;
     // src_stride must / 2 because of u4
     const size_t src_stride = n / sub_byte_multiplier;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0.0f;
         size_t i = 0;
@@ -1149,9 +1149,9 @@ static void dot_product_block_quantized_by_channel(TA* a,
         sum += _mm256_cvtss_f32(vsum0);
 #    endif
         for (; i < n; i += 2) {
-            uint8_t data = b[i / 2 + params_offset];
-            float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-            float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
+            const uint8_t data = b[i / 2 + params_offset];
+            const float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+            const float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
             sum += a[i] * (tmp0 - p_zps[i]) * p_scales[i];
             sum += a[i + 1] * (tmp1 - p_zps[i + 1]) * p_scales[i + 1];
         }
@@ -1419,7 +1419,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
             float group_sum = 0.0f;
             for (size_t i = 0; i < group_size; i++) {
                 group_sum += a[dst_offset + i] * (b[src_offset + params_offset + i] - b0[1]);
@@ -1661,12 +1661,12 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
             float group_sum = 0.0f;
             for (size_t i = 0; i < group_size; i += 2) {
-                uint8_t data = b[i / 2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-                float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
+                const uint8_t data = b[i / 2 + src_offset + params_offset];
+                const float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+                const float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 group_sum += a[dst_offset + i] * (tmp0 - b0[1]);
                 group_sum += a[dst_offset + i + 1] * (tmp1 - b0[1]);
             }
@@ -1809,13 +1809,13 @@ void transpose_16NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     if (quant_key_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST,
                                        SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
@@ -1824,7 +1824,7 @@ void transpose_16NxK(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * 2,
                                                     t + dst_offset,
                                                     group_size,
@@ -1883,12 +1883,12 @@ void dequant(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
     } else {
@@ -1896,7 +1896,7 @@ void dequant(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
                                                     dst + dst_offset,
                                                     group_size,
@@ -2094,8 +2094,8 @@ void fill_rotation_coefficients_from_lut(T* rotation_coefficients_block_data,
                                          size_t embedding_size) {
     size_t dst_offset = 0;
     for (size_t tok_idx = 0; tok_idx < block_size; tok_idx++) {
-        size_t gather_idx = *(rotation_deltas_block_data + rotation_deltas_token_stride * tok_idx);
-        size_t src_offset = gather_idx * embedding_size;
+        const size_t gather_idx = *(rotation_deltas_block_data + rotation_deltas_token_stride * tok_idx);
+        const size_t src_offset = gather_idx * embedding_size;
         std::memcpy(rotation_coefficients_block_data + dst_offset,
                     rotation_trig_lut + src_offset,
                     embedding_size * sizeof(T));
@@ -2109,26 +2109,26 @@ void rotate_kv_cache(PlainTensor& key_cache,
                      const PlainTensor& rotation_deltas,
                      const PlainTensor& rotation_trig_lut,
                      PlainTensor& rotation_coefficients_scratch) {
-    size_t num_blocks_in_total = key_cache.size(0);
-    size_t num_heads = key_cache.size(1);  // H;
-    size_t block_size = key_cache.size(2);
-    size_t embedding_size = key_cache.size(3);  // S;
+    const size_t num_blocks_in_total = key_cache.size(0);
+    const size_t num_heads = key_cache.size(1);  // H;
+    const size_t block_size = key_cache.size(2);
+    const size_t embedding_size = key_cache.size(3);  // S;
 
-    size_t num_rotated_blocks = rotated_block_indices.size(0);
+    const size_t num_rotated_blocks = rotated_block_indices.size(0);
     auto* rotated_block_indices_data = rotated_block_indices.ptr<int32_t>();
     auto* rotation_trig_lut_data = rotation_trig_lut.ptr<float>();
 
     size_t rotation_deltas_token_stride = 0;
     size_t rotation_deltas_block_stride = 1;
 
-    bool is_per_token = (rotation_deltas.shape()[1] == block_size);
+    const bool is_per_token = (rotation_deltas.shape()[1] == block_size);
     if (is_per_token) {
         rotation_deltas_token_stride = 1;
         rotation_deltas_block_stride = block_size;
     }
 
     for (size_t i = 0; i < num_rotated_blocks; i++) {
-        size_t rotated_block_index = *(rotated_block_indices_data + i);
+        const size_t rotated_block_index = *(rotated_block_indices_data + i);
         OPENVINO_ASSERT(rotated_block_index < num_blocks_in_total);
 
         int32_t* rotation_deltas_block_data = rotation_deltas.ptr<int32_t>() + i * rotation_deltas_block_stride;
@@ -2430,7 +2430,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -2922,7 +2922,7 @@ struct MHAHelper {
                                        alibi_slope);
         };
 
-        size_t h_dims = loop_hk ? Hk : H;
+        const size_t h_dims = loop_hk ? Hk : H;
         if (prefer_static_loop) {
             parallel_for3d(B, kv_len_in_blocks, h_dims, loop_qk);
             parallel_for3d(B, H, q_len, loop_softmax);
@@ -2935,7 +2935,7 @@ struct MHAHelper {
             parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
                 auto* src = _weight_bhl.ptr<float>(b, 0, pq);
-                size_t src_stride = _weight_bhl.stride(2);
+                const size_t src_stride = _weight_bhl.stride(2);
                 auto* dst = output_score.ptr<float>() + _score_offsets.ptr<int32_t>()[b];
                 attn_reduce(dst, src, H, cur_kv_len, src_stride);
             });
@@ -2993,7 +2993,7 @@ struct MHAHelper {
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
-            size_t temp_stride = _output_bhl.stride(0);
+            const size_t temp_stride = _output_bhl.stride(0);
             auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * SV);
             attn_reduce(dst, temp, _nthr, SV, temp_stride);
         });
@@ -3220,7 +3220,7 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = parallel_get_thread_num();
+            const size_t ithr = parallel_get_thread_num();
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
@@ -3328,7 +3328,7 @@ struct MHA {
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
                 auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
                 auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper.H;
-                size_t src_stride = rnd_up(cur_kv_len, 16);
+                const size_t src_stride = rnd_up(cur_kv_len, 16);
                 auto dst_offset = _helper._score_offsets.template ptr<int32_t>()[b];
                 auto* dst = output_score.ptr<float>() + dst_offset;
                 attn_reduce(dst, src, _helper.H, cur_kv_len, src_stride);
@@ -3437,7 +3437,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
 
-        size_t inputs_size = inputs.size();
+        const size_t inputs_size = inputs.size();
         if (inputs_size > ID_ROTATED_BLOCK_INDICES) {
             OPENVINO_ASSERT(inputs_size >= ID_ROTATION_TRIG_LUT);
             if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
@@ -3480,9 +3480,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         const size_t param_size =
             one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
         const size_t value_params_size = param_size * value_sub_byte_multiplier;
-        size_t key_group_num =
+        const size_t key_group_num =
             _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
-        size_t value_group_num =
+        const size_t value_group_num =
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
 
         // check by_hidden_dims parameter of value cache

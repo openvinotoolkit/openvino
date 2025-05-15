@@ -21,7 +21,7 @@ using LoopPort = snippets::lowered::LoopPort;
 //  to their shape and layout
 bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::lowered::LoopManagerPtr& loop_mngr) {
     auto accepted_loops = [&loop_mngr, &port](const std::vector<size_t>& orig, const std::vector<size_t>& connect) {
-        size_t connect_idx = 0;
+        const size_t connect_idx = 0;
         auto pred = [&port](const LoopPort& loop_port) {
             return *loop_port.get_expr_port() == port;
         };
@@ -43,7 +43,7 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
         }
         return true;
     };
-    bool has_buffer = false;
+    const bool has_buffer = false;
     const auto& orig_loop_ids = port.get_expr()->get_loop_ids();
     for (const auto& p : port.get_connected_ports()) {
         const auto& connected_expr = p.get_expr();

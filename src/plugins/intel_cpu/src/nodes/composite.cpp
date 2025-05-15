@@ -49,7 +49,8 @@ void Composite::selectOptimalPrimitiveDescriptor() {
         graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), isInPlace});
     }
 
-    std::vector<Input::OutputConfig> graphOutputConfig(outputShapes.size(), node::Input::OutputConfig{true, isInPlace});
+    const std::vector<Input::OutputConfig> graphOutputConfig(outputShapes.size(),
+                                                             node::Input::OutputConfig{true, isInPlace});
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -115,11 +116,11 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     // since the shape inference is not performed for the composite node
     // a memory of the extra child edges, attached to the output ports
     // has to be updated after an inference of the inner graph finished
-    auto& childEdges = getChildEdges();
+    const auto& childEdges = getChildEdges();
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         const auto mem = getDstMemoryAtPort(i);
         for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
-            auto& childEdge = childEdges[j];
+            const auto& childEdge = childEdges[j];
             auto childEdgePtr = childEdge.lock();
             assert(childEdgePtr);
 

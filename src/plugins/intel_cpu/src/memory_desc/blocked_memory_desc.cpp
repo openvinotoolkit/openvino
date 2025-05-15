@@ -29,8 +29,8 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc& rhs, CmpMa
         return false;
     }
 
-    auto& thisStrides = this->getStrides();
-    auto& rhsStrides = rhs.getStrides();
+    const auto& thisStrides = this->getStrides();
+    const auto& rhsStrides = rhs.getStrides();
 
     if (thisStrides.size() != rhsStrides.size()) {
         return false;
@@ -55,7 +55,7 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc& rhs, CmpMa
 
 std::string BlockedMemoryDesc::serializeFormat() const {
     std::stringstream result;
-    char startLetter = 'a';
+    const char startLetter = 'a';
     std::unordered_set<size_t> blockedAxis;
     const auto& order = getOrder();
     const auto& shape = getShape();

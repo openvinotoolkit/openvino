@@ -88,13 +88,13 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
-    Key dnnlFCKey{srcDesc,
-                  weiDesc,
-                  biaDesc,
-                  dstDesc,
-                  shapeAgnosticData->m_primAttrs.attr,
-                  attrs.sparseWeights,
-                  attrs.modelType};
+    const Key dnnlFCKey{srcDesc,
+                        weiDesc,
+                        biaDesc,
+                        dstDesc,
+                        shapeAgnosticData->m_primAttrs.attr,
+                        attrs.sparseWeights,
+                        attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
         return std::make_shared<DnnlFCPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
@@ -117,7 +117,7 @@ DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemo
 
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
-    dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
+    const dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
 
     const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
 
@@ -161,7 +161,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    MemoryCPtr zpPtr =
+    const MemoryCPtr zpPtr =
         memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
@@ -179,8 +179,9 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-    int ic = weightsDesc->getShape().getStaticDims()[1];
+    const MemoryCPtr scalesPtr =
+        memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    const int ic = weightsDesc->getShape().getStaticDims()[1];
 
     if (ic < static_cast<int>(simdWidth)) {
         return false;
@@ -189,7 +190,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
         auto scalesDims = scalesPtr->getShape().getStaticDims();
         auto groupsNum = scalesDims[1];
-        size_t groupSize = ic / groupsNum;
+        const size_t groupSize = ic / groupsNum;
         if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
@@ -197,8 +198,8 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     if (zpPtr && zpPtr->getShape().getRank() != 1) {
         auto zpDims = zpPtr->getShape().getStaticDims();
-        int groupsNum = zpDims[1];
-        size_t groupSize = ic / groupsNum;
+        const int groupsNum = zpDims[1];
+        const size_t groupSize = ic / groupsNum;
         if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
@@ -250,12 +251,12 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (useDynamicQuantization) {
         auto wei_precision = weiDesc->getPrecision();
-        bool is_symmetric_weights = (wei_precision == ov::element::i8) || (wei_precision == ov::element::i4);
+        const bool is_symmetric_weights = (wei_precision == ov::element::i8) || (wei_precision == ov::element::i4);
         if (is_symmetric_weights) {
             // dynamic Quantization needs unsigned quantized weights, conversion from i8/i4 to u8/u4 by adding 128/8
             // introduces 128/8 as zero-points.
             uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
-            DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
+            const DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
             auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
             dnnlpoc.appendDecompressionZeroPointsLegacy(decompressionSubtractPtr,
                                                         !attrs.weightsNonTransposed,
@@ -366,8 +367,8 @@ static VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape) 
 }
 
 static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank) {
-    size_t activationRank = inShape.size();
-    size_t channelRank = wShape.size() - 1;
+    const size_t activationRank = inShape.size();
+    const size_t channelRank = wShape.size() - 1;
     // activation   weight    output_shape
     // NCHW         CoCHW     NCo
     // TNC          CoC       TNCo
@@ -376,8 +377,8 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
     // set Co
     outputShape.back() = wShape[0];
     // set batch dims
-    size_t batchRank = activationRank - channelRank;
-    size_t startIdx = out_rank - batchRank - 1;
+    const size_t batchRank = activationRank - channelRank;
+    const size_t startIdx = out_rank - batchRank - 1;
     for (size_t i = 0; i < batchRank; i++) {
         outputShape[i + startIdx] = inShape[i];
     }

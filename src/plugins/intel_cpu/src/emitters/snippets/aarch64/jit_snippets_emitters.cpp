@@ -91,7 +91,7 @@ void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in
                                   const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
-    AdrImm src = table_val("scalar");
+    const AdrImm src = table_val("scalar");
 
     h->uni_ld1rw(dst.s, src.getXn(), src.getImm());
 }

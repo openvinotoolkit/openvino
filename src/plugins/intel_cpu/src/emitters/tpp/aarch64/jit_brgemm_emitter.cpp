@@ -55,12 +55,12 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);
 
-    Xbyak_aarch64::XReg func_reg(9);
+    const Xbyak_aarch64::XReg func_reg(9);
     h->mov(func_reg, get_execute_function_ptr());
-    Xbyak_aarch64::XReg x0(0);
-    Xbyak_aarch64::XReg x1(1);
-    Xbyak_aarch64::XReg x2(2);
-    Xbyak_aarch64::XReg x3(3);
+    const Xbyak_aarch64::XReg x0(0);
+    const Xbyak_aarch64::XReg x1(1);
+    const Xbyak_aarch64::XReg x2(2);
+    const Xbyak_aarch64::XReg x3(3);
 
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     h->mov(x0, compiled_kernel);

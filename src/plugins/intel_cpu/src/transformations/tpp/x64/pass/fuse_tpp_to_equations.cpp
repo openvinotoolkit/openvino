@@ -101,7 +101,7 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
 
 bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::FuseTPPToEquations")
-    bool modified = false;
+    const bool modified = false;
     const auto& results = m->get_results();
 
     NodeVector to_visit(results.begin(), results.end());

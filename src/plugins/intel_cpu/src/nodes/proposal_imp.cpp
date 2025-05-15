@@ -285,7 +285,7 @@ static void retrieve_rois_cpu(const int num_rois,
     const float* src_probs = proposals + 4 * num_proposals;
 
     parallel_for(num_rois, [&](size_t roi) {
-        int index = roi_indices[roi];
+        const int index = roi_indices[roi];
 
         float x0 = src_x0[index];
         float y0 = src_y0[index];
@@ -386,7 +386,7 @@ void proposal_exec(const float* input0,
     std::vector<int> is_dead(pre_nms_topn);
 
     // Execute
-    int nn = dims0[0];
+    const int nn = dims0[0];
     for (int n = 0; n < nn; ++n) {
         enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
                                 p_d_anchor_item + n * num_proposals * 4,

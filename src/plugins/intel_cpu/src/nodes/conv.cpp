@@ -105,7 +105,7 @@ public:
         addEdge(*parentItr, out, 0, 0);
         outputs.push_back(out);
 
-        std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
+        const std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
         _graph->Init(nodes, edges, context, "fused_subgraph");
     }
@@ -153,7 +153,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
-        size_t ndims = op->get_input_partial_shape(0).rank().get_length();
+        const size_t ndims = op->get_input_partial_shape(0).rank().get_length();
         if ((ndims < 3) || (ndims > 5)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(ndims);
             return false;
@@ -204,10 +204,10 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         groupIC = IC;
         groupOC = weightDims[0];
 
-        for (size_t i : convolutionOp->get_strides()) {
+        for (const size_t i : convolutionOp->get_strides()) {
             m_attrs.stride.push_back(i);
         }
-        for (size_t i : convolutionOp->get_dilations()) {
+        for (const size_t i : convolutionOp->get_dilations()) {
             m_attrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         m_attrs.paddingL = convolutionOp->get_pads_begin();
@@ -229,10 +229,10 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         IC = groupIC * groupNum;
         groupOC = weightDims[1];
 
-        for (size_t i : groupConvolutionOp->get_strides()) {
+        for (const size_t i : groupConvolutionOp->get_strides()) {
             m_attrs.stride.push_back(i);
         }
-        for (size_t i : groupConvolutionOp->get_dilations()) {
+        for (const size_t i : groupConvolutionOp->get_dilations()) {
             m_attrs.dilation.push_back(i - 1);
         }
         m_attrs.paddingL = groupConvolutionOp->get_pads_begin();
@@ -364,7 +364,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
         }
     }
 
-    auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
+    auto* blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
     return std::make_shared<CpuBlockedMemoryDesc>(sumPrecision,
                                                   Shape(minDims, maxDims),
@@ -401,7 +401,7 @@ ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDes
 
 std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecision() {
     auto getSumDataType = [](const std::shared_ptr<node::Eltwise>& eltwise) {
-        int fusingPort = eltwise->getFusingPort();
+        const int fusingPort = eltwise->getFusingPort();
         switch (fusingPort) {
         case 0:
             return eltwise->getOriginalInputPrecisionAtPort(1);
@@ -433,7 +433,7 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
                 continue;
             }
 
-            ov::element::Type eltwisePrecision = getSumDataType(eltwiseNode);
+            const ov::element::Type eltwisePrecision = getSumDataType(eltwiseNode);
             if (canBeExecutedInInt8() && dstType.size() != eltwisePrecision.size()) {
                 return {ov::element::f32, ov::element::f32};
             }
@@ -471,7 +471,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
-    MemoryDescArgs descs{
+    const MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
         {ARG_WEI, srcDescs[WEIGHTS]},
         {ARG_BIAS, m_attrs.withBias ? srcDescs[BIAS] : MemoryDescUtils::makeEmptyDesc()},
@@ -544,7 +544,7 @@ bool Convolution::created() const {
 template <typename T>
 static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engine& engine) {
     const auto type = ov::element::from<T>();
-    DnnlBlockedMemoryDesc memoryDesc(type, {vec.size()});
+    const DnnlBlockedMemoryDesc memoryDesc(type, {vec.size()});
     return std::make_shared<Memory>(engine, memoryDesc, vec.data());
 }
 
@@ -559,7 +559,7 @@ bool Convolution::canFuse(const NodePtr& node) const {
 ov::element::Type Convolution::getRuntimePrecision() const {
     std::vector<ov::element::Type> inputPrecisions;
     // Don't take bias precision into account
-    size_t inputsNumLimit = 2;
+    const size_t inputsNumLimit = 2;
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
@@ -656,7 +656,7 @@ ExecutorPtr Convolution::createFallbackExecutor() {
 
     auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
-    MemoryDescArgs descs{
+    const MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
         {ARG_WEI, srcDescs[WEIGHTS]},
         {ARG_BIAS, m_attrs.withBias ? srcDescs[BIAS] : MemoryDescUtils::makeEmptyDesc()},
@@ -754,11 +754,11 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         auto convolutionNode = std::dynamic_pointer_cast<Convolution>(fusingNode);
         CPU_NODE_ASSERT(convolutionNode, "Unexpected dynamic node type");
         withDWConv = true;
-        auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
+        const auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
         dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
         dw_conv_iw = inActivationDims[convolutionNode->inputShapes[0].getRank() - 1];
 
-        auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
+        const auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
         dw_conv_oc = outDims[1];
 
         const auto& dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();
@@ -780,13 +780,13 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         const auto& weightDims = getInputShapeAtPort(1).getStaticDims();
         // @todo padding should be updated by the graph optimizer / transformation
         for (size_t j = 0; j < m_attrs.paddingR.size(); j++) {
-            int with_group = m_attrs.isGrouped ? 1 : 0;
+            const int with_group = m_attrs.isGrouped ? 1 : 0;
             int krn = weightDims[with_group + 2 + j];
-            int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
-            int dst = fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j];
+            const int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
+            const int dst = fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j];
 
             krn = (krn - 1) * (m_attrs.dilation[j] + 1) + 1;
-            int calc_dst = (src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1;
+            const int calc_dst = (src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1;
             m_attrs.paddingR[j] = (dst - calc_dst) * m_attrs.stride[j];
         }
     }

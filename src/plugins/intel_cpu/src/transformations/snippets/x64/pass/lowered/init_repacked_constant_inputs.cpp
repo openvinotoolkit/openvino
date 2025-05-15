@@ -13,7 +13,7 @@ namespace ov::intel_cpu::pass {
 bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitRepackedConstantInputs")
 
-    bool modified = false;
+    const bool modified = false;
 
     const auto& params = linear_ir.get_parameters();
     for (const auto& [idx, _] : m_repacked_const_inputs_config) {

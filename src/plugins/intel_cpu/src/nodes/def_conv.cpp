@@ -200,32 +200,33 @@ private:
     }
 
     void apply_filter(int ow_step, int oc_blocks_step, int oc_step, int ic_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        const int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
 
         for (int kh = 0; kh < jcp_.kh; kh++) {
             for (int kw = 0; kw < jcp_.kw; kw++) {
                 for (int ic = 0; ic < ic_step; ic++) {
                     for (int ow = 0; ow < ow_step; ow++) {
-                        Vmm vmm_src = get_vmm_src(ow);
-                        size_t inp_off = static_cast<size_t>(ow) * jcp_.kh * jcp_.kw * jcp_.ic +
-                                         kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
+                        const Vmm vmm_src = get_vmm_src(ow);
+                        const size_t inp_off = static_cast<size_t>(ow) * jcp_.kh * jcp_.kw * jcp_.ic +
+                                               kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
 
                         uni_vbroadcastss(vmm_src, ptr[aux2_reg_input_buffer + inp_off * jcp_.typesize_in]);
                     }
 
                     for (int r = 0; r < repeats; r++) {
                         for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
-                            Vmm vmm_ker = get_vmm_ker(0);
-                            size_t ker_off = static_cast<size_t>(ocb) * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block *
-                                                 jcp_.oc_block +
-                                             kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
-                                             kw * jcp_.ic_block * jcp_.oc_block + ic * jcp_.oc_block +
-                                             r * jcp_.oc_block / 2;
+                            const Vmm vmm_ker = get_vmm_ker(0);
+                            const size_t ker_off = static_cast<size_t>(ocb) * jcp_.nb_ic * jcp_.kh * jcp_.kw *
+                                                       jcp_.ic_block * jcp_.oc_block +
+                                                   kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
+                                                   kw * jcp_.ic_block * jcp_.oc_block + ic * jcp_.oc_block +
+                                                   r * jcp_.oc_block / 2;
 
                             uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
                             for (int ow = 0; ow < ow_step; ow++) {
-                                Vmm vmm_src = get_vmm_src(ow);
-                                Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
+                                const Vmm vmm_src = get_vmm_src(ow);
+                                const Vmm vmm_acc =
+                                    get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
 
                                 if (isa == cpu::x64::sse41 && ow > 0) {
                                     uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
@@ -240,11 +241,11 @@ private:
     }
 
     void init_accums(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        const int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
         for (int r = 0; r < repeats; r++) {
             for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                 for (int ow = 0; ow < ow_step; ow++) {
-                    Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
+                    const Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
                     uni_vpxor(vmm_acc, vmm_acc, vmm_acc);
                 }
             }
@@ -254,7 +255,7 @@ private:
     void ic_loop(int ow_step, int oc_blocks_step, int oc_step) {
         Label ic_main_loop;
         Label ic_tail;
-        Label exit;
+        const Label exit;
 
         push(reg_oc_work);
         push(aux_reg_bias);
@@ -363,11 +364,11 @@ private:
                         auto vmm_v4 = Vmm(xmm_v4.getIdx());
 
                         // offsets computation
-                        size_t ind_off_hh = sampledPointsPerPixel *
-                                            ((static_cast<size_t>(kh) * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
-                        size_t ind_off_hl = ind_off_hh + 1;
-                        size_t ind_off_lh = ind_off_hl + 1;
-                        size_t ind_off_ll = ind_off_lh + 1;
+                        const size_t ind_off_hh = sampledPointsPerPixel *
+                                                  ((static_cast<size_t>(kh) * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
+                        const size_t ind_off_hl = ind_off_hh + 1;
+                        const size_t ind_off_lh = ind_off_hl + 1;
+                        const size_t ind_off_ll = ind_off_lh + 1;
 
                         uni_vmovd(xmm_v1_off, dword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
                         uni_vmovd(xmm_v2_off, dword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
@@ -380,7 +381,7 @@ private:
                         uni_vbroadcastss(vmm_w3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
                         uni_vbroadcastss(vmm_w4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
-                        int simd_w = vlen / jcp_.typesize_in;
+                        const int simd_w = vlen / jcp_.typesize_in;
                         mov(reg_ic_iter, ic_per_def_group);
 
                         L(ic_loop_main);
@@ -398,7 +399,7 @@ private:
                             uni_vbroadcastss(xmm_v4,
                                              dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
-                            size_t input_buffer_off = static_cast<size_t>(kh) * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            const size_t input_buffer_off = static_cast<size_t>(kh) * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
@@ -474,7 +475,7 @@ private:
                             uni_vbroadcastss(xmm_v4,
                                              dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
-                            size_t input_buffer_off = static_cast<size_t>(kh) * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            const size_t input_buffer_off = static_cast<size_t>(kh) * jcp_.kw * jcp_.ic + kw * jcp_.ic;
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
@@ -554,16 +555,16 @@ private:
     }
 
     void store_output(int ow_step, int oc_blocks_step, int oc_step) {
-        int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        const int repeats = isa == cpu::x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
 
         if (jcp_.with_bias) {
             for (int r = 0; r < repeats; r++) {
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
-                    size_t bias_off = static_cast<size_t>(ocb) * jcp_.oc_block + r * jcp_.oc_block / 2;
+                    const size_t bias_off = static_cast<size_t>(ocb) * jcp_.oc_block + r * jcp_.oc_block / 2;
                     uni_vmovups(Vmm(0), ptr[aux_reg_bias + bias_off * jcp_.typesize_bia]);
 
                     for (int ow = 0; ow < ow_step; ow++) {
-                        Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
+                        const Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
                         uni_vaddps(vmm_acc, vmm_acc, Vmm(0));
                     }
                 }
@@ -571,26 +572,27 @@ private:
         }
 
         if (isa == avx512_core && oc_step != jcp_.oc_block) {
-            int mask = (1 << oc_step) - 1;
+            const int mask = (1 << oc_step) - 1;
             mov(reg_tmp_32, mask);
             kmovw(ktail_mask, reg_tmp_32);
         }
 
         for (int r = 0; r < repeats; r++) {
-            int tail_size =
+            const int tail_size =
                 isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-            bool is_scalar_store = isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
+            const bool is_scalar_store =
+                isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
             if (is_scalar_store) {
                 for (int ow = 0; ow < ow_step; ow++) {
-                    Vmm vmm_dst = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
+                    const Vmm vmm_dst = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
                     Xmm xmm_dst = get_xmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
 
                     if (isa == avx512_core) {
-                        size_t out_off = static_cast<size_t>(ow) * jcp_.oc;
+                        const size_t out_off = static_cast<size_t>(ow) * jcp_.oc;
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                     } else {
                         for (int oc = 0; oc < tail_size; oc++) {
-                            size_t out_off = static_cast<size_t>(ow) * jcp_.oc + oc + r * (jcp_.oc_block / 2);
+                            const size_t out_off = static_cast<size_t>(ow) * jcp_.oc + oc + r * (jcp_.oc_block / 2);
                             uni_vmovq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
 
@@ -610,9 +612,9 @@ private:
             } else {
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                     for (int ow = 0; ow < ow_step; ow++) {
-                        Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
-                        size_t out_off = static_cast<size_t>(ow) * jcp_.oc * jcp_.ngroups + ocb * jcp_.oc_block +
-                                         r * (jcp_.oc_block / 2);
+                        const Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
+                        const size_t out_off = static_cast<size_t>(ow) * jcp_.oc * jcp_.ngroups + ocb * jcp_.oc_block +
+                                               r * (jcp_.oc_block / 2);
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_acc);
                     }
                 }
@@ -782,13 +784,13 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
-    auto& strides = defConvNodeBase->get_strides();
+    const auto& strides = defConvNodeBase->get_strides();
     for (uint64_t stride : strides) {
         defConvAttr.stride.push_back(stride);
     }
 
-    auto& dilations = defConvNodeBase->get_dilations();
-    for (uint64_t dilation : dilations) {
+    const auto& dilations = defConvNodeBase->get_dilations();
+    for (const uint64_t dilation : dilations) {
         defConvAttr.dilation.push_back(dilation - 1);
     }
 
@@ -833,7 +835,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    size_t inputsNumber = getOriginalInputsNumber();
+    const size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
     config.inConfs.resize(inputsNumber);
     config.inConfs[0].constant(false);
@@ -854,7 +856,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type = impl_desc_type::ref;
     const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
-    auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
+    const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
         // 1. strict fallback, until devising of multigroup handling in common case
         defConvAttr.group != 1 ||
@@ -967,8 +969,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                                                    oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
-                float map_h = h_in + kh * (KDH + 1) + offset_h;
-                float map_w = w_in + kw * (KDW + 1) + offset_w;
+                const float map_h = h_in + kh * (KDH + 1) + offset_h;
+                const float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
                 if (with_bi_pad) {
                     skip_compute = !(static_cast<int>(map_w) > -1 && static_cast<int>(map_w) < IW &&
@@ -981,28 +983,30 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     float modulation_scalar = 1.0f;
 
                     if (modulation_offset_ptr != nullptr) {
-                        size_t modulation_index =
+                        const size_t modulation_index =
                             (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
                         modulation_scalar = modulation_offset_ptr[modulation_index];
                     }
                     // interpolation precomp.
                     const int cur_h_end = IH;
                     const int cur_w_end = IW;
-                    int h_low =
+                    const int h_low =
                         with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
-                    int w_low =
+                    const int w_low =
                         with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
-                    int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
-                    int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
+                    const int h_high =
+                        with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
+                    const int w_high =
+                        with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
                     float lh = map_h - h_low;
                     float lw = map_w - w_low;
                     float hh = 1 - lh, hw = 1 - lw;
 
-                    int h_ind_low = std::max(h_low, 0);
-                    int h_ind_high = std::min(h_high, cur_h_end - 1);
-                    int w_ind_low = std::max(w_low, 0);
-                    int w_ind_high = std::min(w_high, cur_w_end - 1);
+                    const int h_ind_low = std::max(h_low, 0);
+                    const int h_ind_high = std::min(h_high, cur_h_end - 1);
+                    const int w_ind_low = std::max(w_low, 0);
+                    const int w_ind_high = std::min(w_high, cur_w_end - 1);
 
                     hh = (h_low >= 0 ? hh : 0);
                     hw = (w_low >= 0 ? hw : 0);
@@ -1048,10 +1052,10 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     if (descVector.size() != 4 && descVector.size() != 5) {
         OPENVINO_THROW("Deformable Convolution executor got incorrect desc's count (", descVector.size(), ")");
     }
-    bool withModulation = descVector.size() == 5;
+    const bool withModulation = descVector.size() == 5;
 
-    auto& srcDesc = descVector[DATA_ID];
-    auto& dstDesc = descVector[descVector.size() - 1];
+    const auto& srcDesc = descVector[DATA_ID];
+    const auto& dstDesc = descVector[descVector.size() - 1];
     srcStrides = std::vector<size_t>(srcDesc->getStrides().size());
     offStrides = descVector[OFF_ID]->getStrides();
     weiStrides = descVector[WEI_ID]->getStrides();
@@ -1178,7 +1182,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             int sampledCoordIndex =
                 (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
-            size_t weiIndex = static_cast<size_t>(g) * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
+            const size_t weiIndex = static_cast<size_t>(g) * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
             for (size_t kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (size_t kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
@@ -1189,10 +1193,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
 
                         float val = 0;
-                        float w11 = pInterpWeightsVector[sampledCoordIndex++];
-                        float w12 = pInterpWeightsVector[sampledCoordIndex++];
-                        float w21 = pInterpWeightsVector[sampledCoordIndex++];
-                        float w22 = pInterpWeightsVector[sampledCoordIndex++];
+                        const float w11 = pInterpWeightsVector[sampledCoordIndex++];
+                        const float w12 = pInterpWeightsVector[sampledCoordIndex++];
+                        const float w21 = pInterpWeightsVector[sampledCoordIndex++];
+                        const float w22 = pInterpWeightsVector[sampledCoordIndex++];
 
                         // Prevent access to invalid memory in the case, when
                         // data_im_ptr[v_i1_i2] is out of the input memory.
@@ -1247,13 +1251,13 @@ void DeformableConvolution::prepareParams() {
         }
     }
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    bool withModulation = getParentEdges().size() > 3;
+    const bool withModulation = getParentEdges().size() > 3;
 
     updatePadding();
 
@@ -1267,7 +1271,7 @@ void DeformableConvolution::prepareParams() {
     }
     descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
-    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
+    const DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
@@ -1312,7 +1316,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
     prepareSamplingWeights(offsets, modulation, false);
-    size_t buffer_size = static_cast<size_t>(jcp.nthr) * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
+    const size_t buffer_size = static_cast<size_t>(jcp.nthr) * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
 
@@ -1342,10 +1346,10 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
 void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     const auto* src = srcMemory0.getDataAs<const float>();
     const auto* offsets = srcMemory1.getDataAs<const float>();
@@ -1357,7 +1361,7 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* dst = dstMemory.getDataAs<float>();
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }

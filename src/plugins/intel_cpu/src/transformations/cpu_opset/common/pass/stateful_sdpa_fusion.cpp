@@ -123,7 +123,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto sdp = sdp0 | sdp1 | sdp2 | sdp_trans0 | sdp_trans1 | sdp_trans2;
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -133,9 +133,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            for (auto& to : present_to) {
-                auto to_node = to.get_node();
-                if (auto convert = ov::as_type<opset1::Convert>(to_node)) {
+            for (const auto& to : present_to) {
+                auto* to_node = to.get_node();
+                if (auto* convert = ov::as_type<opset1::Convert>(to_node)) {
                     auto cvt_targets = convert->get_output_target_inputs(0);
                     if (cvt_targets.size() == 1) {
                         to_node = cvt_targets.begin()->get_node();
@@ -151,8 +151,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto check_valid_children_type = [](const ov::Output<ov::Node>& out) {
             auto children = out.get_target_inputs();
-            for (auto& child : children) {
-                auto node = child.get_node();
+            for (const auto& child : children) {
+                auto* node = child.get_node();
                 if (!one_of(node->get_type_info(),
                             ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
                             ov::op::v0::ShapeOf::get_type_info_static(),
@@ -281,7 +281,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        auto& old_node = sdp_node;
+        const auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         copy_runtime_info(old_node, new_node);

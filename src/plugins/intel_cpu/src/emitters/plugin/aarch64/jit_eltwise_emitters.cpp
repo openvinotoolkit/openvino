@@ -2042,22 +2042,22 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     TReg mul0(in_vec_idxs[0]);
     if (dst.getIdx() == in_vec_idxs[0]) {
-        TReg aux(aux_vec_idxs[0]);
-        TReg src0(in_vec_idxs[0]);
+        const TReg aux(aux_vec_idxs[0]);
+        const TReg src0(in_vec_idxs[0]);
         h->mov(aux.b16, src0.b16);
         mul0 = aux;
     }
 
     TReg mul1(in_vec_idxs[1]);
     if (dst.getIdx() == in_vec_idxs[1]) {
-        TReg aux(aux_vec_idxs[0]);
-        TReg src1(in_vec_idxs[1]);
+        const TReg aux(aux_vec_idxs[0]);
+        const TReg src1(in_vec_idxs[1]);
         h->mov(aux.b16, src1.b16);
         mul1 = aux;
     }
 
     if (dst.getIdx() != in_vec_idxs[2]) {
-        TReg src2(in_vec_idxs[2]);
+        const TReg src2(in_vec_idxs[2]);
         h->mov(dst.b16, src2.b16);
     }
 
@@ -2231,10 +2231,10 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     } else {
         auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
 
-        Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
+        const Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
 
-        Xbyak_aarch64::SReg s0(0);
-        Xbyak_aarch64::SReg s1(1);
+        const Xbyak_aarch64::SReg s0(0);
+        const Xbyak_aarch64::SReg s1(1);
 
         const std::unordered_set<size_t> exclude = {src().getIdx(), dst.getIdx()};
         store_context(exclude);
@@ -2303,10 +2303,10 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
 
-    Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
+    const Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
 
-    Xbyak_aarch64::SReg s0(0);
-    Xbyak_aarch64::SReg s1(1);
+    const Xbyak_aarch64::SReg s0(0);
+    const Xbyak_aarch64::SReg s1(1);
 
     const std::unordered_set<size_t> exclude = {src0.getIdx(), src1.getIdx(), dst.getIdx()};
     store_context(exclude);
@@ -3018,9 +3018,9 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    const TReg src0 = TReg(in_vec_idxs[0]);
+    const TReg src1 = TReg(in_vec_idxs[1]);
+    const TReg dst = TReg(out_vec_idxs[0]);
 
     h->fsub(dst.s, src0.s, src1.s);
     h->fmul(dst.s, dst.s, dst.s);
