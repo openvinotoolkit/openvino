@@ -46,7 +46,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-        RO_property(ov::intel_cpu::is_test.name()),
+        RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
         RO_property(ov::key_cache_precision.name()),
@@ -526,7 +526,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
     std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
     ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
-                         {ov::intel_cpu::is_test.name(), true},
+                         {ov::intel_cpu::enable_tensor_parallel.name(), true},
                          {ov::num_streams.name(), 1},
                          {ov::inference_num_threads.name(), 1}};
 
@@ -534,55 +534,11 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
-    bool is_test = false;
+    bool enable_tensor_parallel = false;
     OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
-    OV_ASSERT_NO_THROW(is_test = compiledModel.get_property(ov::intel_cpu::is_test));
+    OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
     ASSERT_EQ(model_distribution_policy_value, setModels);
-    ASSERT_EQ(is_test, true);
-}
-
-TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallelAccurcay) {
-    ov::Core core;
-    std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
-    std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
-    ov::AnyMap config_model = {{ov::hint::model_distribution_policy.name(), setModels},
-                               {ov::intel_cpu::is_test.name(), true},
-                               {ov::num_streams.name(), 1},
-                               {ov::inference_num_threads.name(), 1}};
-
-    core.set_property(deviceName, config_model);
-
-    std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
-    for (const auto& input : model->inputs()) {
-        auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
-                                                                                  input.get_shape(),
-                                                                                  0.0f,
-                                                                                  0.2f,
-                                                                                  7235346);
-        inputs.insert({input, tensor});
-    }
-
-    auto getOutputBlob = [&](ov::Core& core) {
-        auto compiled_model = core.compile_model(model, deviceName);
-        auto req = compiled_model.create_infer_request();
-        for (const auto& input : inputs) {
-            req.set_tensor(input.first, input.second);
-        }
-        auto output_tensor = ov::Tensor(model->output().get_element_type(), model->output().get_shape());
-        req.set_output_tensor(output_tensor);
-        req.infer();
-        return output_tensor;
-    };
-
-    auto outputActual = getOutputBlob(core);
-
-    {
-        ov::Core coreRef;
-        ov::AnyMap config = {{ov::num_streams.name(), 1}, {ov::inference_num_threads.name(), 1}};
-        coreRef.set_property(deviceName, config);
-        auto outputRef = getOutputBlob(coreRef);
-        ov::test::utils::compare(outputActual, outputRef);
-    }
+    ASSERT_EQ(enable_tensor_parallel, true);
 }
 
 }  // namespace

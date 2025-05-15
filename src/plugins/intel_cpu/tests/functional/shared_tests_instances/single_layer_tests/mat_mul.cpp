@@ -101,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul_BothTranspose, MatMulLayerTest,
 
 std::map<std::string, std::string> model_distribution_config = {
     {ov::hint::model_distribution_policy.name(), "TENSOR_PARALLEL"},
-    {ov::intel_cpu::is_test.name(), "true"},
+    {ov::intel_cpu::enable_tensor_parallel.name(), "true"},
     {ov::num_streams.name(), "1"},
     {ov::inference_num_threads.name(), "1"}};
 

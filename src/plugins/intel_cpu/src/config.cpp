@@ -398,14 +398,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::key_cache_quant_mode.name(),
                                ". Expected only unsinged integer numbers");
             }
-        } else if (key == ov::intel_cpu::is_test.name()) {
+        } else if (key == ov::intel_cpu::enable_tensor_parallel.name()) {
             try {
-                isTest = val.as<bool>();
+                enableTensorParallel = val.as<bool>();
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
-                               ov::intel_cpu::is_test.name(),
+                               ov::intel_cpu::enable_tensor_parallel.name(),
                                ". Expected only true/false.");
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {

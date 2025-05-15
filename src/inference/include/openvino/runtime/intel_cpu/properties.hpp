@@ -64,16 +64,16 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @brief This property used to enable some property in functional tests. For example: testing accurcay of setting
-   model_distribution_policy to TENSOR_PARALLEL.
+ * @brief This property used to test accurcay of setting model_distribution_policy to TENSOR_PARALLEL in functional
+ * tests.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
  * @code
- * core.set_property(ov::is_test(true));
- * core.set_property(ov::is_test(false));
+ * core.set_property(ov::enable_tensor_parallel(true));
+ * core.set_property(ov::enable_tensor_parallel(false));
  * @endcode
  */
-static constexpr Property<bool> is_test{"IS_TEST"};
+static constexpr Property<bool> enable_tensor_parallel{"ENABLE_TENSOR_PARALLEL"};
 
 }  // namespace intel_cpu
 }  // namespace ov
