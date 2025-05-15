@@ -571,7 +571,7 @@ void Partitioner::identifySubgraphs() {
                           return false;
                       }
                       // Sanity check
-                      // NPUW_ASSERT(p1.first.get_node_shared_ptr()->get_friendly_name() != p2.first.get_node_shared_ptr()->get_friendly_name());
+                      NPUW_ASSERT(p1.first != p2.first);
                       return p1.first.get_node_shared_ptr()->get_friendly_name() < p2.first.get_node_shared_ptr()->get_friendly_name();
                   });
 
