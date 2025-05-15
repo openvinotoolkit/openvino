@@ -75,14 +75,14 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
 
     const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
     for (size_t i = 0; i < indicesCount; i++) {
-        existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2]));
+        existingRows.insert(indicesPtr[i * 2]);
     }
 
     size_t emptyRowsCount = numRows - existingRows.size();
     size_t valuesCount = valuesShape.getElementsCount();
     ov::Shape outputIndicesShape{valuesCount + emptyRowsCount, 2};
     ov::Shape outputValuesShape{valuesCount + emptyRowsCount};
-    ov::Shape emptyRowIndicatorShape{static_cast<size_t>(numRows)};
+    ov::Shape emptyRowIndicatorShape{numRows};
 
     redefineOutputMemory({outputIndicesShape, outputValuesShape, emptyRowIndicatorShape});
     execute(strm);
