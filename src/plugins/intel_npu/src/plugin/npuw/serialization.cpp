@@ -71,7 +71,9 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     }
     NPUW_ASSERT(tensor);
     size_t blob_size = var.get_byte_size();
-    OPENVINO_ASSERT(static_cast<std::streamsize>(blob_size) > 0);
+    OPENVINO_ASSERT(
+        static_cast<std::streamsize>(blob_size) > 0,
+        "Blob size is too large! It will be narrowed to negative value when write to stream will be called!");
     stream.write(reinterpret_cast<const char*>(var.data()), static_cast<std::streamsize>(blob_size));
 }
 

@@ -50,7 +50,9 @@ size_t Graph::export_blob(std::ostream& stream) const {
         blobSize = this->_blob->get_byte_size();
     }
 
-    OPENVINO_ASSERT(static_cast<std::streamsize>(blobSize) > 0);
+    OPENVINO_ASSERT(
+        static_cast<std::streamsize>(blobSize) > 0,
+        "Blob size is too large! It will be narrowed to negative value when write to stream will be called!");
     stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
