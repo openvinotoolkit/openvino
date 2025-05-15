@@ -28,7 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithNeighborsGraphTransformation,
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::Values("concat1_original"),
+        ::testing::Values("convolution_addition_original"),
         ::testing::Values("u8")),
     ConcatWithNeighborsGraphTransformation::getTestCaseName);
 }  // namespace

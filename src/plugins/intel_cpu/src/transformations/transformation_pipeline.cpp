@@ -801,9 +801,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     ov::pass::Manager lptManager("CPU:LPT");
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
-        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
-         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::MatMul>({{{0, 1}, {ov::element::i8}}}),
     });
@@ -817,6 +815,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         input0LowPrecisionList = {ov::element::u8};
     }
 
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
+         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({
             {{0}, input0LowPrecisionList},
@@ -840,7 +841,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
         PrecisionsRestriction::create<ov::opset6::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
 #endif
     CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,

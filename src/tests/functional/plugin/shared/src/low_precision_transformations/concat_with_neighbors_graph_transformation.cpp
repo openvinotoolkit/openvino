@@ -42,7 +42,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} },
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} },
         "concat",
-        "");
+        "convolution");
 }
 
 void ConcatWithNeighborsGraphTransformation::run() {
