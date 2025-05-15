@@ -40,9 +40,7 @@ namespace {
 template <typename Op>
 class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
 public:
-    TypeRelaxedExtension()
-        : m_version{std::string(ov::op::TypeRelaxedBase::version_prefix) + Op::get_type_info_static().version_id},
-          m_ext_type(Op::get_type_info_static().name, m_version.data()) {}
+    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, version()) {}
 
     ~TypeRelaxedExtension() override = default;
 
@@ -59,7 +57,12 @@ public:
     }
 
 private:
-    std::string m_version;
+    static const char* version() {
+        static const auto version =
+            std::string(ov::op::TypeRelaxedBase::version_prefix) + Op::get_type_info_static().version_id;
+        return version.data();
+    }
+
     ov::DiscreteTypeInfo m_ext_type;
 };
 
