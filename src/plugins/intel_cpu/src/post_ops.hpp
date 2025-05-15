@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <any>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
-#include <any>
 
 #include "cpu_types.h"
 #include "node.h"

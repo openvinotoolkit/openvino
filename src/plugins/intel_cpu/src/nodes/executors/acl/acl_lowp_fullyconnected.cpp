@@ -42,11 +42,10 @@ static void initFCAttrs(const FCAttrs& attrs,
 
     if (!attrs.postOps.empty()) {
         const auto& activation = std::any_cast<const ActivationPostOp&>(attrs.postOps[0]);
-        fullyConnectedLayerInfo.set_activation_info(
-            getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
-                                   activation.alpha(),
-                                   activation.beta(),
-                                   activation.gamma()));
+        fullyConnectedLayerInfo.set_activation_info(getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
+                                                                           activation.alpha(),
+                                                                           activation.beta(),
+                                                                           activation.gamma()));
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
