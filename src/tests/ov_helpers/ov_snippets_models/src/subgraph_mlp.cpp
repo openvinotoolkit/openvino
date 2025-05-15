@@ -93,16 +93,50 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
     if (precisions[0] != ov::element::u8) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
     }
-    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
-                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122});
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
+    // the first iteration (non-hidden)
+    {
+        auto b_shape = ov::Shape{hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()),
+                                 };
+        auto b_row = ov::Shape{hidden_matmul_size};
+        current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(B, element::f32).get(),
+            false,
+            true);
+
+        auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122});
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(add, element::f32).get());
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                b_row,
+                                                                std::vector<float>{0.1122f});
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
+        current = std::make_shared<ov::op::v0::Relu>(current);
+    }
+
+    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
+        auto b_shape = ov::Shape{hidden_matmul_size, hidden_matmul_size};
+        auto b_row = ov::Shape{hidden_matmul_size};
+
+        auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122});
         current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f + mm_count});
 
@@ -119,16 +153,47 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
             std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(add, element::f32).get());
-        for (size_t i = 0; i < num_hidden_layers; ++i) {
-            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   b_row,
-                                                                   std::vector<float>{0.1122f + i});
-            current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
-                std::vector<element::Type>{element::f32, element::f32},
-                std::vector<element::Type>{element::f32},
-                ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
-        }
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                b_row,
+                                                                std::vector<float>{0.1122f + mm_count});
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
+        current = std::make_shared<ov::op::v0::Relu>(current);
+    }
+
+    // the last iteration (non-hidden)
+    {
+        auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size};
+        auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
+        current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(B, element::f32).get(),
+            false,
+            true);
+
+        auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122});
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(add, element::f32).get());
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                b_row,
+                                                                std::vector<float>{0.1122f});
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
         current = std::make_shared<ov::op::v0::Relu>(current);
     }
     ov::builder::subgraph::FakeQuantizeOnData onData2 =
@@ -153,75 +218,11 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
                              static_cast<unsigned long>(input_shapes[0][1].get_length())};
     auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
 
-    std::vector<std::shared_ptr<ov::Node>> constants;
-    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        constants.push_back(std::make_shared<ov::op::v0::Constant>(
-            ov::element::i8, b_shape, std::vector<float>{0.1122f + mm_count}));
-    }
-
-    std::vector<std::shared_ptr<ov::Node>> transposes;
-    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        transposes.push_back(
-            std::make_shared<ov::op::v1::Transpose>(
-                constants[mm_count],
-                ov::op::v0::Constant::create(ov::element::i32, {b_shape.size()}, std::vector<int64_t>{1, 0})));
-    }
-
-    auto zeros_matrix = std::make_shared<ov::op::v0::Constant>(
-        ov::element::f32,
-        b_row,
-        std::vector<float>{0.1122});
-
-    std::vector<std::shared_ptr<ov::Node>> zero_vectors;
-    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        zero_vectors.push_back(
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.0f + mm_count}));
-    }
-    std::vector<std::shared_ptr<ov::Node>> hidden_vectors;
-    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        hidden_vectors.push_back(
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122f + mm_count}));
-    }
-
     // Create subgraph parameters (must be preserved even if similar constants exist).
     auto sub_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
-    auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
-    auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
-    std::vector<std::shared_ptr<ov::op::v0::Parameter>> sub_zeros64_vec;
-    for (size_t i = 0; i < num_hidden_layers; ++i) {
-        sub_zeros64_vec.push_back(std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32,
-            b_shape));
-    }
-    std::vector<std::shared_ptr<ov::op::v0::Parameter>> sub_hidden_vec;
-    for (size_t i = 0; i < num_hidden_layers; ++i) {
-        sub_hidden_vec.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row));
-    }
-    auto sub_trans_zeros1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
+    ov::ParameterVector subgraph_params = {sub_A};
 
-    ov::ParameterVector subgraph_params = {sub_A, sub_trans_zeros0, sub_zeros2};
-    for (const auto& param : sub_zeros64_vec) {
-        subgraph_params.push_back(param);
-    }
-    subgraph_params.push_back(sub_trans_zeros1);
-    subgraph_params.push_back(sub_zeros2);
-    for (const auto& param : sub_hidden_vec) {
-        subgraph_params.push_back(param);
-    }
-
-    ov::NodeVector subgraph_nodes = {A, transposes[0], zeros_matrix};
-    for (const auto& param : zero_vectors) {
-        subgraph_nodes.push_back(param);
-    }
-    if (transposes.size() > 1) {
-        subgraph_nodes.push_back(transposes[1]);
-    } else {
-        subgraph_nodes.push_back(transposes[0]);
-    }
-    subgraph_nodes.push_back(zeros_matrix);
-    for (const auto& param : hidden_vectors) {
-        subgraph_nodes.push_back(param);
-    }
+    ov::NodeVector subgraph_nodes = {A};
 
     ov::builder::subgraph::FakeQuantizeOnData onData = {
         256, {1, 1}, {0.0f}, {2.55f}, {0.f}, {255.f}, ov::element::u8
@@ -230,9 +231,9 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     auto decomposed_fq = [](const ov::Output<ov::Node>& input,
                             const ov::element::Type& out_precision,
                             float il, float ih, float scale) -> std::shared_ptr<ov::Node> {
-        auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {il});
-        auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {ih});
-        auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {scale});
+        auto input_low = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {il});
+        auto input_high = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {ih});
+        auto output_scale = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {scale});
         auto max_node = std::make_shared<ov::op::v1::Maximum>(input, input_low);
         auto min_node = std::make_shared<ov::op::v1::Minimum>(max_node, input_high);
         return std::make_shared<ov::op::v1::Multiply>(min_node, output_scale);
@@ -240,7 +241,32 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
 
     std::shared_ptr<ov::Node> current = sub_A;
     current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::f32);
-    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
+    // the first iteration (non-hidden)
+    {
+        auto b_shape = ov::Shape{hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()),
+                                 };
+        auto b_row = ov::Shape{hidden_matmul_size};
+
+        auto add = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto add_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                   b_row,
+                                                                   std::vector<float>{0.1122f});
+        subgraph_params.push_back(add);
+        subgraph_nodes.push_back(add_const);
+        auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto sub_zeros2_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                        b_row,
+                                                        std::vector<float>{0.0f});
+        subgraph_params.push_back(sub_zeros2);
+        subgraph_nodes.push_back(sub_zeros2_const);
+        auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, b_shape);
+        auto sub_trans_zeros0_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8,
+                                                        b_shape,
+                                                        std::vector<float>{0.0f});
+        subgraph_params.push_back(sub_trans_zeros0);
+        subgraph_nodes.push_back(sub_trans_zeros0_const);
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
+
         current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
         current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
 
@@ -257,14 +283,108 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
             std::vector<ov::element::Type>{ov::element::f32},
             ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(sub_zeros2, ov::element::f32).get());
-        for (size_t i = 0; i < num_hidden_layers; ++i) {
-            current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
-                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                std::vector<ov::element::Type>{ov::element::f32},
-                ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(
-                    sub_hidden_vec[i], ov::element::f32).get());
-        }
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
+                add, ov::element::f32).get());
+        current = std::make_shared<ov::op::v0::Relu>(current);
+    }
+    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
+        auto b_shape = ov::Shape{hidden_matmul_size, hidden_matmul_size};
+        auto b_row = ov::Shape{hidden_matmul_size};
+        auto add = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto add_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                   b_row,
+                                                                   std::vector<float>{0.1122f + mm_count});
+        subgraph_params.push_back(add);
+        subgraph_nodes.push_back(add_const);
+        auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto sub_zeros2_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                        b_row,
+                                                        std::vector<float>{0.0f + mm_count});
+        subgraph_params.push_back(sub_zeros2);
+        subgraph_nodes.push_back(sub_zeros2_const);
+        auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, b_shape);
+        auto sub_trans_zeros0_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8,
+                                                        b_shape,
+                                                        std::vector<float>{0.0f + mm_count});
+        subgraph_params.push_back(sub_trans_zeros0);
+        subgraph_nodes.push_back(sub_trans_zeros0_const);
+
+        current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+        current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_trans_zeros0, ov::element::f32).get(),
+            false,
+            true);
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_zeros2, ov::element::f32).get());
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
+                add, ov::element::f32).get());
+        current = std::make_shared<ov::op::v0::Relu>(current);
+    }
+    // the last iteration (non-hidden)
+    {
+        auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size};
+        auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
+
+        auto add = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto add_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                                   b_row,
+                                                                   std::vector<float>{0.1122f + num_hidden_layers});
+        subgraph_params.push_back(add);
+        subgraph_nodes.push_back(add_const);
+        auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
+        auto sub_zeros2_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                        b_row,
+                                                        std::vector<float>{0.0f + num_hidden_layers});
+        subgraph_params.push_back(sub_zeros2);
+        subgraph_nodes.push_back(sub_zeros2_const);
+        auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, b_shape);
+        auto sub_trans_zeros0_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8,
+                                                        b_shape,
+                                                        std::vector<float>{0.0f + num_hidden_layers});
+        subgraph_params.push_back(sub_trans_zeros0);
+        subgraph_nodes.push_back(sub_trans_zeros0_const);
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
+
+        current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+        current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_trans_zeros0, ov::element::f32).get(),
+            false,
+            true);
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_zeros2, ov::element::f32).get());
+
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
+                add, ov::element::f32).get());
         current = std::make_shared<ov::op::v0::Relu>(current);
     }
 
