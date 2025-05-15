@@ -25,13 +25,14 @@ void segment_max(const T* data,
     const auto inner_dim_size = shape_size(data_shape.begin() + 1, data_shape.end());
     const size_t total_output_size = num_segments * inner_dim_size;
 
-    T min_val = std::numeric_limits<T>::lowest();
+    const auto min_val = std::numeric_limits<T>::lowest();
     std::fill(out, out + total_output_size, min_val);
     std::vector<bool> has_element(total_output_size, false);
     for (size_t i = 0; i < data_shape[0]; ++i) {
         const T_idx segment_id = segment_ids[i];
-        if (segment_id >= num_segments)
+        if (segment_id >= num_segments) {
             continue;
+        }
         for (size_t j = 0; j < inner_dim_size; ++j) {
             const size_t out_index = segment_id * inner_dim_size + j;
             const T value = data[i * inner_dim_size + j];
