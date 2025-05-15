@@ -1562,7 +1562,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 SliceLastMatmul::SliceLastMatmul() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-    auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
+    auto convert = opp::optional<ov::op::v0::Convert>({matmul->output(0)});
+    auto res = opp::wrap_type<ov::op::v0::Result>({convert});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
