@@ -421,7 +421,7 @@ If LPT input model operation output has ``fp16`` precision then dequantization c
 Customization
 #############
 
-Low Precision Transformations can be customizable. Build-in customization options:
+Low Precision Transformations can be customizable. Built-in customization options:
 
 * operation precision restrictions,
 * operation per tensor quantization restrictions,

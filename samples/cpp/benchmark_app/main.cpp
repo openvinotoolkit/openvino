@@ -159,7 +159,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
     if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
         throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
-                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "should explicitly set -hint option to none. This is not OpenVINO limitation "
                                "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
@@ -295,7 +295,7 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
                          return ov::layout::has_batch(info.second.layout);
                      })) {
         slog::warn
-            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << "No batch dimension was found, assuming batch to be 1. Beware: this might affect FPS calculation."
             << slog::endl;
     }
 }
@@ -456,7 +456,7 @@ int main(int argc, char* argv[]) {
         // Remove the hardware devices if AUTO/MULTI/HETERO appears in the devices list.
         if (is_virtual) {
             devices.clear();
-            // Parse out the currect virtual device as the target device.
+            // Parse out the current virtual device as the target device.
             std::string virtual_device = split(device_name, ':').at(0);
             auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
             hardware_devices.erase(iter_virtual);

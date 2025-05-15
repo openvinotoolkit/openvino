@@ -19,7 +19,7 @@ and scalability of applications across various platforms and models.
   scheduler only uses the number of inference threads to ensure that there is at least
   one thread per stream.
 - ``ov::hint::scheduling_core_type`` specifies the type of CPU cores for CPU inference when
-  the user runs inference on a hybird platform that includes both Performance-cores (P-cores)
+  the user runs inference on a hybrid platform that includes both Performance-cores (P-cores)
   and Efficient-cores (E-cores). If the user platform only has one type of CPU core, this
   property has no effect, and CPU inference always uses this unique core type.
 - ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU

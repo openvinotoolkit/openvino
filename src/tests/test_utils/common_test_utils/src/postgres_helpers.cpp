@@ -51,7 +51,7 @@ PGresultHolder PostgreSQLConnection::common_query(const char* query) {
     // free a machine. Otherwise we will lose all results.
     if (result.get() == nullptr) {
         try_reconnect();
-        // If reconnection attempt was successfull - let's try to set new query
+        // If reconnection attempt was successful - let's try to set new query
         if (m_is_connected) {
             result.reset(PQexec(this->m_active_connection, query));
         }
@@ -153,7 +153,7 @@ PostgreSQLConnection::~PostgreSQLConnection(void) {
 
 /// \brief Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
 /// \returns Returns false in case of failure or absence of ENV-variable.
-///          Returns true in case of connection has been succesfully established.
+///          Returns true in case of connection has been successfully established.
 bool PostgreSQLConnection::initialize(void) {
     if (this->m_active_connection != nullptr) {
         std::cerr << PG_WRN << "PostgreSQL connection is already established.\n";
@@ -542,7 +542,7 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
 
     std::string paramName;
 
-    // Looking for '/' as a delimeter between group name and parameters
+    // Looking for '/' as a delimiter between group name and parameters
     const char *ptr = line, *grpNameEnd = nullptr;
     while (*ptr != 0 && *ptr != '/')
         ++ptr;
@@ -559,19 +559,19 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
 
     while (*ptr != 0) {  // Do until line ends
         while (*ptr != 0 && *ptr != '=')
-            ++ptr;  // find key=value delimeter or EOL
+            ++ptr;  // find key=value delimiter or EOL
         if (paramNameStart == ptr)
             break;                                                      // break if nothing found
         paramName = std::string(paramNameStart, ptr - paramNameStart);  // store parameter name
-        if (*ptr == '=') {                                              // if we found a key=value delimeter (not EOL)
+        if (*ptr == '=') {                                              // if we found a key=value delimiter (not EOL)
             paramValueStart = ++ptr;                                    // start looking for value after '=' char
             while (*ptr != 0) {                                         // try to find a value  end
-                if (*ptr == '(')  // braket found - ignores key=value delimeter until string end or all closing braket
+                if (*ptr == '(')  // bracket found - ignores key=value delimiter until string end or all closing bracket
                                   // will be found
                     ++bkt;
-                else if (*ptr == ')')  // closing braket found - decrease breaket counter
+                else if (*ptr == ')')  // closing bracket found - decrease bracket counter
                     --bkt;
-                else if (*ptr == '=' && bkt == 0)  // stop on key=value delimeter only outside of brakets
+                else if (*ptr == '=' && bkt == 0)  // stop on key=value delimiter only outside of brackets
                     break;
                 ++ptr;
             }
@@ -580,9 +580,9 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
                 while (ptr > paramValueStart && (*(ptr - 1) == '_' || *(ptr - 1) < 0x20))
                     --ptr;
                 add_pair(keyValues, std::string(paramName), std::string(paramValueStart, ptr - paramValueStart));
-            } else if (*ptr == '=') {  // if we stopped by item's delimeter (paramN=valueN_paramN+1=valueN+1)
+            } else if (*ptr == '=') {  // if we stopped by item's delimiter (paramN=valueN_paramN+1=valueN+1)
                 // Because we have params which contains underscore, this algorithm may interpret '_' wrong. Best way -
-                // prohibit usage of '_' in param names, or change item's delimeter '_' to another one. In such case
+                // prohibit usage of '_' in param names, or change item's delimiter '_' to another one. In such case
                 // this part of code should be removed
                 auto excCheckLambda = [ptr, paramValueStart](const std::string& exc) {
                     size_t len = exc.length();

@@ -42,11 +42,11 @@ class Automation:
         if git_hash_short == "0":
             git_hash_short = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip(
                 "\n")
-        verson = "{0}.{1}.{2}.{3}".format(major_version, minor_version, build_number, git_hash_short)
+        version = "{0}.{1}.{2}.{3}".format(major_version, minor_version, build_number, git_hash_short)
         timestamp = datetime.now().strftime("%I:%M%p %B %d, %Y")
         with open(os.path.join(dst_path, "version.txt"), 'w') as f:
             f.write(timestamp + '\n')
-            f.write(verson + '\n')
+            f.write(version + '\n')
             f.write(git_hash + '\n')
         return verson
 

@@ -207,7 +207,7 @@ class TaskManager:
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(
-                "Skip worker initialiazation. Command list lenght <= worker index"
+                "Skip worker initialiazation. Command list length <= worker index"
             )
             return
         if self._device_cnt == 0:
@@ -313,7 +313,7 @@ class TaskManager:
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     logger.info(
-                        f"Compeleting processes: Active process counter: {len(self._process_list)}..."
+                        f"Completing processes: Active process counter: {len(self._process_list)}..."
                     )
                     break
                 except TimeoutExpired:
@@ -432,7 +432,7 @@ class TestParallelRunner:
             try:
                 os.remove(test_list_file_name)
             except Exception as err:
-                logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
+                logger.warning(f"Impossible to remove {test_list_file_name}. Error: {err}")
         command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
@@ -723,7 +723,7 @@ class TestParallelRunner:
 
     def postprocess_logs(self):
         test_results = {}
-        logger.info("Log analize is started")
+        logger.info("Log analyze is started")
         saved_tests = []
         interapted_tests = set()
         INTERAPTED_DIR = "interapted"
