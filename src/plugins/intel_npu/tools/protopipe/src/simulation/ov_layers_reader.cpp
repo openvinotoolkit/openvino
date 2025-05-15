@@ -137,9 +137,12 @@ static void cfgReshape(const std::shared_ptr<ov::Model>& model,
     model->reshape(partial_shapes);
 }
 
-static std::vector<std::string> extractLayerNames(const std::vector<ov::Output<ov::Node>>& nodes) {
+static std::vector<std::string> extractLayerNames(std::vector<ov::Output<ov::Node>>& nodes) {
     std::vector<std::string> names;
-    std::transform(nodes.begin(), nodes.end(), std::back_inserter(names), [](const auto& node) {
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(names), [](auto& node) {
+        if (node.get_names().empty()) {
+            node.set_names({node.get_node()->get_friendly_name()});
+        }
         return node.get_any_name();
     });
     return names;
@@ -151,7 +154,8 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
     {
         ov::preprocess::PrePostProcessor ppp(model);
 
-        const auto& input_names = extractLayerNames(model->inputs());
+        auto inputs = model->inputs();
+        const auto& input_names = extractLayerNames(inputs);
         const auto ip_map = unpackLayerAttr(params.input_precision, input_names, "input precision");
         const auto il_map = unpackLayerAttr(params.input_layout, input_names, "input layout");
         const auto iml_map = unpackLayerAttr(params.input_model_layout, input_names, "input model layout");
@@ -160,7 +164,8 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         const auto reshape_map = unpackLayerAttr(params.reshape, input_names, "reshape");
         cfgReshape(model, reshape_map);
 
-        const auto& output_names = extractLayerNames(model->outputs());
+        auto outputs = model->outputs();
+        const auto& output_names = extractLayerNames(outputs);
         const auto op_map = unpackLayerAttr(params.output_precision, output_names, "output precision");
         const auto ol_map = unpackLayerAttr(params.output_layout, output_names, "output layout");
         const auto oml_map = unpackLayerAttr(params.output_model_layout, output_names, "output model layout");
