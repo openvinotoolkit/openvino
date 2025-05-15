@@ -18,7 +18,8 @@ namespace ov::intel_gpu::ocl {
 
 struct GroupNormalizationFsv16Opt : public GroupNormalizationBase {
     OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::fsv16_opt")
-    explicit GroupNormalizationFsv16Opt(shape_types shape_type, ValidateFunc vf = nullptr) : GroupNormalizationBase(shape_type, std::move(vf)) {}
+    explicit GroupNormalizationFsv16Opt(shape_types shape_type, ValidateFunc vf = nullptr)
+        : GroupNormalizationBase(shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {
