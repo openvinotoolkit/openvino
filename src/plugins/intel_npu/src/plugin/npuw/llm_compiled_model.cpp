@@ -456,7 +456,6 @@ public:
             new_param->output(0).add_names({"output_embed"});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-
             tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(
                 ov::OutputVector{new_result->output(0)},
                 ov::ParameterVector{new_param},
@@ -518,14 +517,14 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
 
 void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model,
                                    const uint32_t& batch_dim) {
-    // We have only one input: output of Slice operation, and this output should be sliced
-    // to have 1 in 1st dim.
-    const auto& tmm_input = tail_mm_model->input(0);
-    const auto& partial_shape = tmm_input.get_partial_shape();
+    // We have only one input: output of Slice operation, and this output should
+    // have "1" in 1st dimension.
+    // Batch size should be also equal "1" for NPU.
+    const auto& input = tail_mm_model->input(0);
+    const auto& partial_shape = input.get_partial_shape();
     NPUW_ASSERT(partial_shape.size() == 3);
 
-    ov::PartialShape new_shape;
-    new_shape = partial_shape;
+    ov::PartialShape new_shape = partial_shape;
     new_shape[batch_dim] = 1;
     new_shape[1] = 1;
 
@@ -602,7 +601,7 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
@@ -616,7 +615,7 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, co
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
                                       const std::optional<NPUDesc>& npudesc,
                                       const ::intel_npu::npuw::llm::PrefillHint hint) {
-    auto config = get_default_common_config(model, npudesc);
+    auto config = get_default_common_config(npudesc);
     if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
         if (is_cw_compressed(model)) {
             // NB: These two ifs are not combined into one with && deliberately
@@ -638,10 +637,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
     return config;
 }
 
-ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
-                                       const std::optional<NPUDesc>& npudesc,
+ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
                                        const ::intel_npu::npuw::llm::GenerateHint hint) {
-    auto config = get_default_common_config(model, npudesc);
+    auto config = get_default_common_config(npudesc);
     if (hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
@@ -650,6 +648,20 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
+    }
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+    }
+    return config;
+}
+
+ov::AnyMap get_default_tail_mm_config(const std::optional<NPUDesc>& npudesc) {
+    auto config = get_default_common_config(npudesc);
+    config.erase("NPUW_SLICE_OUT");
+    config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+    if (npudesc.has_value() && npudesc->arch == "4000") {
+        config.emplace("NPU_DPU_GROUPS", 4);
     }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
@@ -789,7 +801,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+        generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint))
             .as<ov::AnyMap>();
 
     const auto& prefill_config_addition_value =
@@ -811,12 +823,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (tail_mm_model) {
+        auto& tail_mm_config = get_default_tail_mm_config(npudesc);
+        merge_config_with(tail_mm_config, other_props);
         m_tail_mm_compiled_opt = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(tail_mm_model, plugin,
-                ov::AnyMap{ov::intel_npu::npuw::partitioning::online::pipeline("NONE")}));
-        NPUW_ASSERT(m_tail_mm_compiled_opt.has_value() && m_tail_mm_compiled_opt.value() &&
-                    "Can't create ov::npuw::CompiledModel for found tail vocabulary matmul "
-                    "model.");
+            ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));
+        NPUW_ASSERT(m_tail_mm_compiled_opt.has_value() && m_tail_mm_compiled_opt.value());
     }
     implement_properties();
     LOG_DEBUG("Done");
@@ -1117,9 +1128,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         EncryptContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-        bool is_tail_mm_serialized = false;
-        read(model_stream, is_tail_mm_serialized);
-        if (is_tail_mm_serialized) {
+        bool is_tail_mm_present = false;
+        read(model_stream, is_tail_mm_present);
+        if (is_tail_mm_present) {
             compiled->m_tail_mm_compiled_opt = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
         return compiled;
