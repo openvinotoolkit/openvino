@@ -59,9 +59,6 @@ struct Subgraph {
     };
     Gather _host_gather;
 
-    // in the runtime we get a particular param we need to identify
-    // and then do up to 3 gathers for w,z,s and then do runtime unpack from gathers to the particular parameter
-    // in the graph
     struct QuantUnpackGather {
         int64_t dst_idx = -1;
 

@@ -1542,20 +1542,6 @@ bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std
     return false;
 }
 
-bool ov::npuw::CompiledModel::is_quant_unpack_gather_closure(const std::size_t idx, const std::size_t cidx) const {
-    auto& comp_model_desc = m_compiled_submodels.at(idx);
-    const auto real_idx = comp_model_desc.replaced_by.value();
-    auto& func_desc = m_compiled_submodels.at(real_idx);
-
-    const auto closure_param_id = comp_model_desc.param_base + cidx;
-
-    if (func_desc.quant_unpack_gather.dst_idx != -1 &&
-        static_cast<uint64_t>(func_desc.quant_unpack_gather.dst_idx) == closure_param_id) {
-        return true;
-    }
-    return false;
-}
-
 void ov::npuw::CompiledModel::log_device_dist() const {
     std::unordered_map<std::string, execution_stats> stats_for_devices;
     execution_stats stats_for_optimized_out{0.f, 0ul};

@@ -127,6 +127,7 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
                                                 ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& s_shape = s->get_shape();
+    const auto& z_shape = z->get_shape();
     const auto& ids_shape = ids->get_shape();
 
     NPUW_ASSERT(ids_shape.size() == 2);
@@ -145,14 +146,18 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack[new_param] = {w, z, s};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
+        {w, z, s},
+        {std::make_shared<ov::op::v0::Parameter>(
+             w->get_element_type(),
+             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
+         std::make_shared<ov::op::v0::Parameter>(
+             z->get_element_type(),
+             ov::Shape{1, ids_shape[1], z_shape.size() == 3 ? z_shape[1] * z_shape[2] : z_shape[1]}),
+         std::make_shared<ov::op::v0::Parameter>(
+             s->get_element_type(),
+             ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]})}};
     params_to_quant_gather_unpack->pids = ids;
-    params_to_quant_gather_unpack->gathered_w =
-        std::make_shared<ov::op::v0::Parameter>(w->get_element_type(), ov::Shape{1, ids_shape[1], w_shape[1]});
-    params_to_quant_gather_unpack->gathered_z =
-        std::make_shared<ov::op::v0::Parameter>(z->get_element_type(), ov::Shape{1, ids_shape[1], z->get_shape()[1]});
-    params_to_quant_gather_unpack->gathered_s =
-        std::make_shared<ov::op::v0::Parameter>(s->get_element_type(), ov::Shape{1, ids_shape[1], s->get_shape()[1]});
     return new_param;
 }
 
@@ -180,13 +185,16 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack[new_param] = {w, {}, s};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
+        {w, {}, s},
+        {std::make_shared<ov::op::v0::Parameter>(
+             w->get_element_type(),
+             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
+         {},
+         std::make_shared<ov::op::v0::Parameter>(
+             s->get_element_type(),
+             ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]})}};
     params_to_quant_gather_unpack->pids = ids;
-    params_to_quant_gather_unpack->gathered_w =
-        std::make_shared<ov::op::v0::Parameter>(w->get_element_type(), ov::Shape{1, ids_shape[1], w_shape[1]});
-    params_to_quant_gather_unpack->gathered_z = {};
-    params_to_quant_gather_unpack->gathered_s =
-        std::make_shared<ov::op::v0::Parameter>(s->get_element_type(), ov::Shape{1, ids_shape[1], s->get_shape()[1]});
     return new_param;
 }
 
@@ -210,12 +218,14 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids, Context::PPtr
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack[new_param] = {w, {}, {}};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
+        {w, {}, {}},
+        {std::make_shared<ov::op::v0::Parameter>(
+             w->get_element_type(),
+             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
+         {},
+         {}}};
     params_to_quant_gather_unpack->pids = ids;
-    params_to_quant_gather_unpack->gathered_w =
-        std::make_shared<ov::op::v0::Parameter>(w->get_element_type(), ov::Shape{1, ids_shape[1], w_shape[1]});
-    params_to_quant_gather_unpack->gathered_z = {};
-    params_to_quant_gather_unpack->gathered_s = {};
     return new_param;
 }
 
@@ -1354,8 +1364,6 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
-        std::cout << "ALEX HostGatherQuantAsymm MATCHED" << std::endl;
-
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1365,10 +1373,7 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        const auto& matched_out_qweight = node_to_output.at(qweight);
-        auto qweight_type = matched_out_qweight.get_element_type();
-
-        // FIXME: also check sole_reader/convert ?
+        // FIXME: also check sole_reader/convert
         if (out_len >= 2048) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
@@ -1380,8 +1385,6 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
             auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
-
-            std::cout << "HostGatherQuantAsymm APPLIED" << std::endl;
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
@@ -1425,8 +1428,6 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
-        std::cout << "ALEX HostGatherQuantSymm MATCHED" << std::endl;
-
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1439,9 +1440,8 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        // FIXME: also check sole_reader/convert ?
+        // FIXME: also check sole_reader/convert
         if (out_len >= 2048) {
-            std::cout << "ALEX HostGatherQuantSymm APPLIED" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1475,7 +1475,6 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "ALEX HostGatherQuant MATCHED" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
         auto out_shape = node_to_output.at(qgthrw).get_shape();
         auto& matched_out_qweight = node_to_output.at(qweight);
@@ -1483,15 +1482,8 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
 
         const auto& matched_out_gather = node_to_output.at(qgthrw);
 
-        auto sole_reader = [](ov::Output<ov::Node> out) {
-            const auto readers = out.get_target_inputs();
-            NPUW_ASSERT(readers.size() >= 1);
-            return readers.begin()->get_node();
-        };
-
-        // FIXME: also check sole_reader/convert ?
+        // FIXME: also check sole_reader/convert
         if (out_shape.back() >= 2048) {
-            std::cout << "ALEX HostGatherQuant APPLIED" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
@@ -1502,8 +1494,6 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
                 ctx.get().to_f16(matched_qweight);
             }
 
-            // FIXME: remember runtime gather here
-            // auto new_param = ctx.get().host_gather(matched_qweight, matched_ids);
             auto new_param = ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, ov::element::f16);
             std::shared_ptr<ov::Node> new_cvt;
             if (qweight_type == ov::element::f16) {

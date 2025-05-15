@@ -347,6 +347,9 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
         } else {
+            std::cout << from_shape << std::endl;
+            std::cout << scale_shape << std::endl;
+            std::cout << zerop_shape << std::endl;
             NPUW_ASSERT(false);
         }
     }
@@ -355,14 +358,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
                             const ov::SoPtr<ov::ITensor>& idx,
                             const ov::SoPtr<ov::ITensor>& dst) {
-    std::cout << "src: " << src->get_element_type() << ' ' << src->get_shape() << std::endl;
-    std::cout << "dst: " << dst->get_element_type() << ' ' << dst->get_shape() << std::endl;
-    std::cout << "idx: " << idx->get_element_type() << ' ' << idx->get_shape() << std::endl;
-
     const auto src_type = src->get_element_type();
     const auto dst_type = dst->get_element_type();
     NPUW_ASSERT(idx->get_element_type() == ov::element::i64);
-    //NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32);
+    NPUW_ASSERT(src_type != ov::element::u4 && src_type != ov::element::i4);
     NPUW_ASSERT(src_type == dst_type);
 
     const auto& idx_shape = idx->get_shape();
@@ -376,26 +375,16 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     NPUW_ASSERT(dst_shape.size() == 3);
     NPUW_ASSERT(src_shape[1] == dst_shape[2]);
 
-    std::cout << "gather 1" << std::endl;
-
     const int64_t* pIdx = idx->data<int64_t>();
     const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
     uint8_t* pDst = static_cast<uint8_t*>(dst->data());
 
-    std::cout << "gather 2" << std::endl;
-
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
         auto srcRowIdx = pIdx[r];
-        std::cout << "c1 " << srcRowIdx << std::endl;
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
-        std::cout << "c2 " << src_shape[1] * srcRowIdx * src_type.size() << std::endl;
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
-        std::cout << "c3" << std::endl;
         pDst += dst_shape[2] * dst_type.size();
-        std::cout << "c4" << std::endl;
     }
-
-    std::cout << "gather 3" << std::endl;
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,

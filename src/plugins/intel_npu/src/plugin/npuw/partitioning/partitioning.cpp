@@ -1873,17 +1873,24 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Quantized Gather + Unpack on host in the runtime
         if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
-            ov::pass::GraphRewrite rewr2;
-            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
-            rewr2.run_on_model(f._model);
-
-            ov::pass::GraphRewrite rewr3;
-            rewr3.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
-            rewr3.run_on_model(f._model);
-
-            ov::pass::GraphRewrite rewr4;
-            rewr4.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
-            rewr4.run_on_model(f._model);
+            // FIXME: run 1 by 1 in the order below,
+            // otherwise smaller pattern might be matched first
+            // FIXME: update patterns to match properly (sole_reader, convert, etc)
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
         }
 
         // Move Gather to host, if required
@@ -1992,18 +1999,10 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Host-side quantized gather, pt 1. Add new parameters first
         if (ctx.params_to_quant_gather_unpack) {
-            std::cout << "ALEX ADDING VOCAB PARAMS" << std::endl;
             auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
-            for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack) {
+            for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack_gather) {
+                // New input in the graph
                 new_params.push_back(param_new_and_unpack.first);
-                // Temporary parameters for gathered weight,zeropoint and scale
-                new_params.push_back(params_to_quant_gather_unpack.gathered_w);
-                if (params_to_quant_gather_unpack.gathered_z) {
-                    new_params.push_back(params_to_quant_gather_unpack.gathered_z);
-                }
-                if (params_to_quant_gather_unpack.gathered_s) {
-                    new_params.push_back(params_to_quant_gather_unpack.gathered_s);
-                }
                 // Note: don't remove w, z and s params here to keep them shared with the quant vocab in tail
                 for (auto&& funcall : func_group.refs) {
                     auto new_elem_type = param_new_and_unpack.first->get_element_type();
@@ -2018,6 +2017,39 @@ void Partitioner::optimize(const std::string& func_name) {
                     funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                     funcall.get()._lazy_closure.push_back(LazyTensor());
                     funcall.get()._is_lazy_unpack.push_back(false);
+                }
+
+                // Temporary inputs to gather into
+                new_params.push_back(param_new_and_unpack.second.second.w);
+                for (auto&& funcall : func_group.refs) {
+                    auto new_elem_type = param_new_and_unpack.second.second.w->get_element_type();
+                    const auto& new_shape = param_new_and_unpack.second.second.w->get_shape();
+                    // Same thing for any new parameters
+                    funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                    funcall.get()._lazy_closure.push_back(LazyTensor());
+                    funcall.get()._is_lazy_unpack.push_back(false);
+                }
+                if (param_new_and_unpack.second.second.z) {
+                    new_params.push_back(param_new_and_unpack.second.second.z);
+                    for (auto&& funcall : func_group.refs) {
+                        auto new_elem_type = param_new_and_unpack.second.second.z->get_element_type();
+                        const auto& new_shape = param_new_and_unpack.second.second.z->get_shape();
+                        // Same thing for any new parameters
+                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                        funcall.get()._lazy_closure.push_back(LazyTensor());
+                        funcall.get()._is_lazy_unpack.push_back(false);
+                    }
+                }
+                if (param_new_and_unpack.second.second.s) {
+                    new_params.push_back(param_new_and_unpack.second.second.s);
+                    for (auto&& funcall : func_group.refs) {
+                        auto new_elem_type = param_new_and_unpack.second.second.s->get_element_type();
+                        const auto& new_shape = param_new_and_unpack.second.second.s->get_shape();
+                        // Same thing for any new parameters
+                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                        funcall.get()._lazy_closure.push_back(LazyTensor());
+                        funcall.get()._is_lazy_unpack.push_back(false);
+                    }
                 }
             }
         }
@@ -2063,16 +2095,20 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Host-side quantized gather, pt. 2: Write the gather mappings to funcall
         if (ctx.params_to_quant_gather_unpack) {
-            std::cout << "ALEX QUANT GATHER PREP FUNCALLS" << std::endl;
             auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
-            for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack) {
-                auto gather_dst_id = f._model->get_parameter_index(param_new_and_unpack.first);
-                auto gather_dst_w_id = f._model->get_parameter_index(params_to_quant_gather_unpack.gathered_w);
-                auto gather_dst_z_id = f._model->get_parameter_index(params_to_quant_gather_unpack.gathered_z);
-                auto gather_dst_s_id = f._model->get_parameter_index(params_to_quant_gather_unpack.gathered_s);
-                auto gather_w_id = f._model->get_parameter_index(param_new_and_unpack.second.w);
-                auto gather_z_id = f._model->get_parameter_index(param_new_and_unpack.second.z);
-                auto gather_s_id = f._model->get_parameter_index(param_new_and_unpack.second.s);
+            for (const auto& param_new_and_unpack_gather :
+                 params_to_quant_gather_unpack.params_to_runtime_unpack_gather) {
+                // New param in the graph
+                auto gather_dst_id = f._model->get_parameter_index(param_new_and_unpack_gather.first);
+                // Tmp params to gather into in runtime
+                auto gather_dst_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.w);
+                auto gather_dst_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.z);
+                auto gather_dst_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.s);
+                // Orig params to gather from
+                auto gather_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.w);
+                auto gather_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.z);
+                auto gather_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.s);
+                // Original pids
                 auto gather_idx_id = f._model->get_parameter_index(params_to_quant_gather_unpack.pids);
                 for (auto&& funcall : func_group.refs) {
                     funcall.get()._quant_unpack_gather = ov::npuw::Subgraph::QuantUnpackGather{gather_dst_id,

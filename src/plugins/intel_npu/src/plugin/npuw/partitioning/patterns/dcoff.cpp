@@ -225,7 +225,7 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     };
     QuantUnpackGatherParams quant_unpack_gather_params;
 
-    if (fsg._quant_unpack_gather.dst_w_idx != -1) {
+    if (fsg._quant_unpack_gather.dst_idx != -1) {
         quant_unpack_gather_params = QuantUnpackGatherParams{params[fsg._quant_unpack_gather.idx_idx],
                                                              params[fsg._quant_unpack_gather.src_w_idx],
                                                              params[fsg._quant_unpack_gather.src_z_idx],
@@ -237,7 +237,7 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     }
 
     // Update indices for gather
-    if (fsg._quant_unpack_gather.dst_w_idx != -1) {
+    if (fsg._quant_unpack_gather.dst_idx != -1) {
         fsg._quant_unpack_gather.idx_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pidx);
 
         fsg._quant_unpack_gather.src_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcw);

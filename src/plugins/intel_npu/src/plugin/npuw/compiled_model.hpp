@@ -93,7 +93,6 @@ private:
 
     std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
-    bool is_quant_unpack_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
