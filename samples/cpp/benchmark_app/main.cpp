@@ -294,9 +294,8 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
                      [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
                          return ov::layout::has_batch(info.second.layout);
                      })) {
-        slog::warn
-            << "No batch dimension was found, assuming batch to be 1. Beware: this might affect FPS calculation."
-            << slog::endl;
+        slog::warn << "No batch dimension was found, assuming batch to be 1. Beware: this might affect FPS calculation."
+                   << slog::endl;
     }
 }
 
