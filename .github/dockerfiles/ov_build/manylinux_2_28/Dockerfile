@@ -1,5 +1,5 @@
 ARG REGISTRY="quay.io"
-FROM ${REGISTRY}/quayio/pypa/manylinux_2_28
+FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux_2_28
 
 USER root
 
