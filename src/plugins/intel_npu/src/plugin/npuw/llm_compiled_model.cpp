@@ -402,7 +402,7 @@ class CutTailAfterSlice : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutTailAfterSlice");
     CutTailAfterSlice::CutTailAfterSlice(
-        std::shared_ptr<std::pair<ov::OutputVector, ov::ParameterVector>> separated_tail_protocol) {
+        std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
         auto slice = opp::wrap_type<ov::op::v8::Slice>({opp::any_input(), opp::any_input(),
                                                         opp::any_input(), opp::any_input(),
                                                         opp::any_input()});
@@ -447,14 +447,20 @@ public:
 
             // Cut original model after Slice Op:
             matched_result->input(0).replace_source_output(matched_slice);
+            matched_result->output(0).set_names({"output_embed"});
+            matched_result->validate_and_infer_types();
 
             // Create an additional model after Slice Op:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_slice->output(0).get_element_type(),
                                                                      matched_slice->output(0).get_partial_shape());
+            new_param->output(0).add_names({"output_embed"});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            separated_tail_protocol->first = ov::OutputVector{new_result->output(0)};
-            separated_tail_protocol->second = ov::ParameterVector{new_param};
+
+            tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(
+                ov::OutputVector{new_result->output(0)},
+                ov::ParameterVector{new_param},
+                "TailVocabMatmul");
            
             return true;
         };
@@ -463,30 +469,17 @@ public:
     }
 };
 
+namespace {
 std::shared_ptr<ov::Model> cut_tail_after_slice(std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
-    std::shared_ptr<std::pair<ov::OutputVector, ov::ParameterVector>> tail_protocol =
-        std::make_shared<std::pair<ov::OutputVector, ov::ParameterVector>>();
-    rewr.add_matcher<CutTailAfterSlice>(tail_protocol);
+    std::shared_ptr<ov::Model> tail_vocab_mm = nullptr;
+    std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref(tail_vocab_mm);
+    rewr.add_matcher<CutTailAfterSlice>(tail_vocab_mm_ref);
     rewr.run_on_model(model);
 
-    std::shared_ptr<ov::Model> tail_vocab_mm = nullptr;
-    if (!tail_protocol->first.empty() && !tail_protocol->second.empty()) {
-        tail_vocab_mm = std::make_shared<ov::Model>(tail_protocol->first,
-                                                    tail_protocol->second,
-                                                    "TailVocabMatmul");
-        tail_vocab_mm->validate_nodes_and_infer_types();
-        tail_vocab_mm->input(0).add_names({"output_embed"});
-        for (auto&& o : model->outputs()) {
-            if (o.get_any_name() == "logits") {
-                o.set_names({"output_embed"});
-            }
-        }
-    }
     return tail_vocab_mm;
 }
 
-namespace {
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
@@ -521,6 +514,22 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         new_shapes.emplace(input_name, new_shape);
     }
     model->reshape(new_shapes);
+}
+
+void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model,
+                                   const uint32_t& batch_dim) {
+    // We have only one input: output of Slice operation, and this output should be sliced
+    // to have 1 in 1st dim.
+    const auto& tmm_input = tail_mm_model->input(0);
+    const auto& partial_shape = tmm_input.get_partial_shape();
+    NPUW_ASSERT(partial_shape.size() == 3);
+
+    ov::PartialShape new_shape;
+    new_shape = partial_shape;
+    new_shape[batch_dim] = 1;
+    new_shape[1] = 1;
+
+    tail_mm_model->reshape(new_shape);
 }
 
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
@@ -707,26 +716,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    int step_msg = 0;
-    LOG_DEBUG(++step_msg << ". Creating kvcache model as clone of passed one.");
+    LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
-    LOG_DEBUG(++step_msg << ". Transform kvcache model from stateful to stateless.");
+    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     // Add Slice before last MatMul for the prefill model
     // Use the same function as GenAI
-    LOG_DEBUG(++step_msg << ". Trying to separate Vocabulary matrix multiplication after Slice op into "
-        "additional model...");
+    LOG_DEBUG("Trying to separate Vocabulary matrix multiplication after Slice op into additional "
+        "model...");
     auto tail_mm_model = cut_tail_after_slice(kvcache_model);
     if (tail_mm_model) {
-        LOG_INFO("3-model pipeline will be created.");
-        ov::save_model(tail_mm_model, tail_mm_model->get_friendly_name() + ".xml");
-        ov::save_model(kvcache_model, kvcache_model->get_friendly_name() + ".xml");
+        LOG_INFO("Three-model pipeline will be created.");
     } else {
-        LOG_INFO("2-model pipeline will be created");
+        LOG_INFO("Two-model pipeline will be created");
     }
-    LOG_DEBUG(++step_msg << ". Creating prefill model as clone of transformed kvcache one.");
+    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
@@ -737,27 +743,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
-    LOG_DEBUG(++step_msg << ". Make prefill model with static shapes");
+    LOG_DEBUG("Make prefill model with static shapes");
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
-    LOG_DEBUG(++step_msg << ". Make kvcache model with static shapes");
+    LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
     if (tail_mm_model) {
-        LOG_DEBUG(++step_msg << ". Make tail matmul model with static shapes");
-        // We have only one input: output of Slice operation, and this output should be sliced
-        // to have 1 in 1st dim.
-        const auto& tmm_input = tail_mm_model->input(0);
-        ov::PartialShape new_shape;
-        const auto& partial_shape = tmm_input.get_partial_shape();
-        NPUW_ASSERT(partial_shape.size() == 3);
-        new_shape = partial_shape;
-        new_shape[axes.batch] = 1;
-        new_shape[1] = 1;
-        tail_mm_model->reshape(new_shape);
+        LOG_DEBUG("Make tail matmul model with static shapes");
+        reshape_sliced_tail_to_static(tail_mm_model, axes.batch);
     }
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
-        LOG_DEBUG(++step_msg << ". Check and apply opt layout");
+        LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
             NPUW_ASSERT(optimize_value_tensors(prefill_model));
@@ -766,14 +763,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_DEBUG("vtensors optimisation not applied");
         }
     } else {
-        LOG_DEBUG(++step_msg << ". Check and apply opt layout --- SKIPPED");
+        LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
     NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    LOG_DEBUG(++step_msg << ". Optimize kvcache model to output key/values for new token.");
+    LOG_DEBUG("Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    LOG_DEBUG(++step_msg << ". Converting KV-cache in kvcache model to FP16.");
+    LOG_DEBUG("Converting KV-cache in kvcache model to FP16.");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
-    LOG_DEBUG(++step_msg << ". Converting KV-cache in prefill model to FP16.");
+    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
@@ -872,9 +869,6 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, encryption_required);
     // Write flow identifier
     write(stream, is_weightless);
-    // Write num-models pipeline identified
-    bool contains_3_models = m_tail_mm_compiled_opt.has_value(); 
-    write(stream, contains_3_models);
 
     if (!encryption_required) {
         EncryptContext ctx(false, nullptr, nullptr);
@@ -933,6 +927,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         EncryptContext enc_ctx(false, nullptr, nullptr);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
+        write(model_stream, m_tail_mm_compiled_opt.has_value()); 
         if (m_tail_mm_compiled_opt.has_value()) {
             m_tail_mm_compiled_opt.value()->serialize(model_stream, enc_ctx);
         }
@@ -1016,8 +1011,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     read(stream, encrypted);
     bool is_weightless = true;
     read(stream, is_weightless);
-    bool contains_3_models = false;
-    read(stream, contains_3_models);
 
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
@@ -1047,7 +1040,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     if (!encrypted) {
         EncryptContext ctx(false, nullptr, nullptr);
-        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx, contains_3_models);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
         LOG_INFO("Done.");
@@ -1070,10 +1063,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
         EncryptContext ctx(false, nullptr, nullptr);
-        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx, contains_3_models);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
         EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
-        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx, contains_3_models);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
@@ -1088,8 +1081,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::EncryptContext& ctx,
-    const bool contains_3_models) {
+    const ov::npuw::s11n::EncryptContext& ctx) {
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
@@ -1125,7 +1117,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         EncryptContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-        if (contains_3_models) {
+        bool is_tail_mm_serialized = false;
+        read(model_stream, is_tail_mm_serialized);
+        if (is_tail_mm_serialized) {
             compiled->m_tail_mm_compiled_opt = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
         return compiled;

@@ -54,8 +54,7 @@ private:
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
-                                                         const ov::npuw::s11n::EncryptContext& ctx,
-                                                         const bool contains_3_models);
+                                                         const ov::npuw::s11n::EncryptContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
