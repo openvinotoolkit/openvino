@@ -652,8 +652,8 @@ void ov::hetero::fix_model_with_paged_attention(std::shared_ptr<ov::Model>& mode
     for (auto& node : vector_visited_transpose) {
         std::map<int, NodePtr> org_users;
         auto output_shape = node->get_output_partial_shape(0);
-        int num_key_value_heads = output_shape[2].get_length();
-        int head_dim = output_shape[3].get_length();
+        int num_key_value_heads = static_cast<int>(output_shape[2].get_length());
+        int head_dim = static_cast<int>(output_shape[3].get_length());
         if (output_shape[1].is_dynamic()) {
             for (auto u : node->get_users()) {
                 for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
