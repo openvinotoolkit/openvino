@@ -52,7 +52,7 @@ struct input_info {
     }
 
     primitive_id pid;
-    int32_t idx;
+    int32_t idx;    // output port index of primitive
     struct cmp {
         bool operator() (const input_info a, const input_info b) {
             if (a.pid < b.pid) {
@@ -239,6 +239,8 @@ public:
     size_t num_outputs;
 
     virtual const std::string& get_type_info() const = 0;
+    virtual std::shared_ptr<primitive> clone() const = 0;
+
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -311,7 +313,7 @@ public:
                         std::to_string(idx),
                         " exceeds total dependencies count (",
                         std::to_string(input.size() + dependencies_map.size()),
-                        ") for",
+                        ") for ",
                         id,
                         " primitive");
 
@@ -351,7 +353,8 @@ protected:
 template <class PType>
 class primitive_base : public primitive {
 public:
-    std::shared_ptr<PType> clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+    std::shared_ptr<PType> typed_clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+    std::shared_ptr<primitive> clone() const override { return typed_clone(); };
 
 protected:
     explicit primitive_base(const primitive_id& id,
