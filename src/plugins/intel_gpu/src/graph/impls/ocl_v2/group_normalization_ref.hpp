@@ -18,7 +18,8 @@ namespace ov::intel_gpu::ocl {
 
 struct GroupNormalizationRef : public GroupNormalizationBase {
     OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::ref")
-    explicit GroupNormalizationRef(shape_types shape_type, ValidateFunc vf = nullptr) : GroupNormalizationBase(shape_type, std::move(vf)) {}
+    explicit GroupNormalizationRef(shape_types shape_type, ValidateFunc vf = nullptr)
+        : GroupNormalizationBase(shape_type, std::move(vf)) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx, format::b_fs_yx_fsv16};
