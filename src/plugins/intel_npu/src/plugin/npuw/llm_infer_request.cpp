@@ -260,6 +260,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_tail_mm_request_opt.has_value()) {
         infer_tail_mm(m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+        m_logits = m_tail_mm_request_opt.value()->get_tensor(m_tail_mm_request_opt.value()->get_outputs()[0]);
     } else {
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
     }
@@ -344,6 +345,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_kvcache_request->infer();
     if (m_tail_mm_request_opt.has_value()) {
         infer_tail_mm(m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+        m_logits = m_tail_mm_request_opt.value()->get_tensor(m_tail_mm_request_opt.value()->get_outputs()[0]);
     } else {
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     }
@@ -393,7 +395,6 @@ void ov::npuw::LLMInferRequest::infer_tail_mm(ov::SoPtr<ov::ITensor> output_embe
     const auto& embed_port = tail_mm_infer_req->get_inputs()[0];
     tail_mm_infer_req->set_tensor(embed_port, output_embed);
     tail_mm_infer_req->infer();
-    m_logits = tail_mm_infer_req->get_tensor(tail_mm_infer_req->get_outputs()[0]);
     LOG_DEBUG("Done");
 }
 
