@@ -723,7 +723,7 @@ class TestParallelRunner:
 
     def postprocess_logs(self):
         test_results = {}
-        logger.info("Log analyze is started")
+        logger.info("Log analysis is started")
         saved_tests = []
         interapted_tests = set()
         INTERAPTED_DIR = "interapted"
