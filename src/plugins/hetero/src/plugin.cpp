@@ -37,9 +37,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     auto config = Configuration{properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model->clone(), shared_from_this(), config);
     execution_devices = compiled_model->get_property("EXECUTION_DEVICES").as<std::vector<std::string>>();
-    for (auto device : execution_devices) {
-        std::cout << "device: " << device << std::endl;
-    }
     return compiled_model;
 }
 
