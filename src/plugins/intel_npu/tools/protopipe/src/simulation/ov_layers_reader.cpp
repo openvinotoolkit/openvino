@@ -137,11 +137,19 @@ static void cfgReshape(const std::shared_ptr<ov::Model>& model,
     model->reshape(partial_shapes);
 }
 
+static std::string make_default_tensor_name(const ov::Output<const ov::Node>& output) {
+    auto default_name = output.get_node()->get_friendly_name();
+    if (output.get_node()->get_output_size() > 1) {
+        default_name += ':' + std::to_string(output.get_index());
+    }
+    return default_name;
+}
+
 static std::vector<std::string> extractLayerNames(ov::OutputVector& ouputs) {
     std::vector<std::string> names;
-    std::transform(nodes.begin(), nodes.end(), std::back_inserter(names), [](auto& node) {
+    std::transform(ouputs.begin(), ouputs.end(), std::back_inserter(names), [](auto& node) {
         if (node.get_names().empty()) {
-            node.set_names({node.get_node()->get_friendly_name()});
+            node.set_names({make_default_tensor_name(node)});
         }
         return node.get_any_name();
     });
