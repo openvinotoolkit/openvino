@@ -66,6 +66,8 @@ class TestProd(PytorchLayerTest):
     @pytest.mark.parametrize("has_dim,keepdims", [(False, None), (True, True), (True, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_prod(self, ie_device, precision, ir_version, shape, dtype, in_dtype, has_dim, keepdims):
         if dtype is not None:
             if has_dim:

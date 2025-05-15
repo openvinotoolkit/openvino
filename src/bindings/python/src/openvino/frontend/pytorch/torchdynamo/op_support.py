@@ -197,6 +197,8 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.pow.Scalar": None,
             "torch.ops.aten.pow.Tensor_Scalar": None,
             "torch.ops.aten.pow.Tensor_Tensor": None,
+            "torch.ops.aten.prod.default": None,
+            "torch.ops.aten.prod.dim_int": None,
             "torch.ops.aten.rand.default": None,
             "torch.ops.aten.reflection_pad2d.default": None,
             "torch.ops.aten.reciprocal.default": None,

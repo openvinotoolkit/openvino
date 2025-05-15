@@ -1003,6 +1003,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pow.Tensor_Tensor", op::translate_pow},
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
+        {"aten.prod.default", op::translate_prod},
+        {"aten.prod.dim_int", op::translate_prod},
         {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
