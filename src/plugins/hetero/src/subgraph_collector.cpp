@@ -12,9 +12,12 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
-
 namespace {
 
 template <typename Set>
@@ -606,6 +609,69 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     return subgraph_collector.run();
 }
 
+void ov::hetero::fix_model_with_paged_attention(std::shared_ptr<ov::Model>& model) {
+    using NodePtr = std::shared_ptr<ov::Node>;
+    std::unordered_set<NodePtr> has_visited_transpose;
+    std::vector<NodePtr> vector_visited_transpose;
+
+    std::function<NodePtr(NodePtr)> find_first_transpose_before_pa = [&](NodePtr root_node) -> NodePtr {
+        auto get_output_node = [](const ov::Output<ov::Node>& output) -> NodePtr {
+            return output.get_node_shared_ptr();
+        };
+        auto get_input_node = [&get_output_node](const ov::Input<ov::Node>& input) -> NodePtr {
+            return get_output_node(input.get_source_output());
+        };
+        auto cur_node = get_input_node(root_node->inputs()[0]);
+        if (ov::is_type<ov::op::v1::Transpose>(cur_node)) {
+            return cur_node;
+        }
+        return find_first_transpose_before_pa(cur_node);
+    };
+
+    auto find_transpose_ops = [&](NodePtr node) {
+        for (size_t i = 0; i < 3; i++) {
+            auto first_transpose_before_pa = find_first_transpose_before_pa(node->get_input_node_shared_ptr(i));
+            if (has_visited_transpose.insert(first_transpose_before_pa).second) {
+                vector_visited_transpose.push_back(first_transpose_before_pa);
+            }
+        }
+    };
+
+    for (auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+            find_transpose_ops(op);
+        } else if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
+            for (auto& node : subgraph->get_function()->get_ordered_ops()) {
+                if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+                    find_transpose_ops(node);
+                }
+            }
+        }
+    }
+
+    for (auto& node : vector_visited_transpose) {
+        std::map<int, NodePtr> org_users;
+        auto output_shape = node->get_output_partial_shape(0);
+        int num_key_value_heads = output_shape[2].get_length();
+        int head_dim = output_shape[3].get_length();
+        if (output_shape[1].is_dynamic()) {
+            for (auto u : node->get_users()) {
+                for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                    if (u->get_input_node_shared_ptr(idx) == node) {
+                        org_users.insert({idx, u});
+                    }
+                }
+            }
+            auto new_shape = ov::op::v0::Constant::create(element::Type_t::u64, {4}, {-1, 1, num_key_value_heads, head_dim});
+            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(node, new_shape, false);
+            for (auto& iter : org_users) {
+                iter.second->input(iter.first).replace_source_output(new_reshape->output(0));
+            }
+            node->clear_control_dependencies();
+        }
+    }
+}
+
 ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& model,
                                                                          ov::SupportedOpsMap& supported_ops,
                                                                          const bool dump_dot_files,
@@ -691,7 +757,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
     merge_submodels(submodels, mapping_info._submodels_input_to_prev_output);
 
     model = submodels[0];
-
+    fix_model_with_paged_attention(model);
     // Finally update mapping information according to the new operation order
     std::map<size_t, size_t> subgraph_id_map;
     std::map<size_t, std::map<size_t, size_t>> input_id_map;
