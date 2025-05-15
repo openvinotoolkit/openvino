@@ -47,10 +47,11 @@ size_t Graph::export_blob(std::ostream& stream) const {
         _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
-        blobSize = _blob->get_byte_size();
+        blobSize = this->_blob->get_byte_size();
     }
 
-    stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
+    OPENVINO_ASSERT(static_cast<std::streamsize>(blobSize) > 0);
+    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");

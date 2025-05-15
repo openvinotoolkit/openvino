@@ -622,7 +622,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
-            stream.read(tensor.data<char>(), tensor.get_byte_size());
+            OPENVINO_ASSERT(static_cast<std::streamsize>(blobSize) > 0);
+            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
         } else {
             tensor = ov::Tensor(tensor,
                                 ov::Coordinate{0},

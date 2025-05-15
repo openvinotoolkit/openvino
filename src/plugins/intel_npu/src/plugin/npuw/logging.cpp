@@ -78,7 +78,9 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::strin
     const auto bin_path = base_path + ".bin";
     {
         std::ofstream bin_file(bin_path, std::ios_base::out | std::ios_base::binary);
-        bin_file.write(static_cast<const char*>(tensor->data()), static_cast<std::streamsize>(tensor->get_byte_size()));
+        size_t blob_size = tensor->get_byte_size();
+        OPENVINO_ASSERT(static_cast<std::streamsize>(blob_size) > 0);
+        bin_file.write(static_cast<const char*>(tensor->data()), static_cast<std::streamsize>(blob_size));
         LOG_INFO("Wrote file " << bin_path << "...");
     }
     const auto meta_path = base_path + ".txt";
