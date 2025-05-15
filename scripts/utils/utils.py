@@ -48,7 +48,7 @@ class Automation:
             f.write(timestamp + '\n')
             f.write(version + '\n')
             f.write(git_hash + '\n')
-        return verson
+        return version
 
     @staticmethod
     def make_tarfile(out_file_name, source_dir):
