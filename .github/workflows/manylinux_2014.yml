@@ -154,6 +154,8 @@ jobs:
           /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+        env:
+          CXXFLAGS: "-Wno-dangling-reference"
             
       - name: Build Python API (Python 3.9-3.13)
         run: |
