@@ -50,6 +50,12 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
 }
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& name) const {
+    // sanity check. are we off-device?
+    // return empty device for off-device compilation case
+    if (_devices.empty()) {
+        _logger.debug("ZeroEngineBackend - getDevice() returning empty list");
+        return {};
+    }
     // sanity check - if string is empty, call the default function
     // which will pick the first available  and valid npu device
     if (name.length() == 0) {
