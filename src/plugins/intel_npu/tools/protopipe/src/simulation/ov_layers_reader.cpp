@@ -137,7 +137,7 @@ static void cfgReshape(const std::shared_ptr<ov::Model>& model,
     model->reshape(partial_shapes);
 }
 
-static std::vector<std::string> extractLayerNames(std::vector<ov::Output<ov::Node>>& nodes) {
+static std::vector<std::string> extractLayerNames(ov::OutputVector& ouputs) {
     std::vector<std::string> names;
     std::transform(nodes.begin(), nodes.end(), std::back_inserter(names), [](auto& node) {
         if (node.get_names().empty()) {
