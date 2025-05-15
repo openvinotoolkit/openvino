@@ -28,9 +28,12 @@ const ov::AnyMap empty_property = {};
 
 using ov::op::v0::Parameter, ov::op::v0::Result;
 
-using smoke_serialization_OVCompiledGraphImportExportTest = OVCompiledNetworkTestBase;
+INSTANTIATE_TEST_SUITE_P(smoke_serialization,
+                         OVClassCompiledModelImportExportTestP,
+                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                         ::testing::PrintToStringParamName());
 
-TEST_F(smoke_serialization_OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
+TEST_P(OVClassCompiledModelImportExportTestP, importExportModelWithTypeRelaxedExtension) {
     // Create model with interpolate which v0 and v4 are supported by TypeRelaxedExtension
     constexpr auto elementType = ov::element::f32;
     auto core = ov::test::utils::PluginCache::get().core();
@@ -62,11 +65,11 @@ TEST_F(smoke_serialization_OVCompiledGraphImportExportTest, importExportModelWit
         ov::util::set_tensors_names(ov::AUTO, *model);
     }
 
-    auto execNet = core->compile_model(model, ov::test::utils::DEVICE_CPU);
+    auto execNet = core->compile_model(model, target_device);
     std::stringstream strm;
     execNet.export_model(strm);
 
-    auto importedCompiledModel = core->import_model(strm, ov::test::utils::DEVICE_CPU);
+    auto importedCompiledModel = core->import_model(strm, target_device);
     EXPECT_EQ(model->inputs().size(), 3);
     EXPECT_EQ(model->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
