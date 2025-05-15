@@ -42,7 +42,8 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
-    void infer_tail_mm(ov::SoPtr<ov::ITensor> output_embed);
+    void tail_mm_start_async(ov::SoPtr<ov::ITensor> output_embed);
+    void tail_mm_wait();
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
@@ -55,6 +56,8 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    ov::Output<const ov::Node> m_tail_embed_port;
+    ov::Output<const ov::Node> m_tail_logits_port;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
