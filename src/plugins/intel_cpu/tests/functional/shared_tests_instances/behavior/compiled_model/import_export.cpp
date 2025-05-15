@@ -83,56 +83,6 @@ TEST_F(smoke_serialization_OVCompiledGraphImportExportTest, importExportModelWit
     EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
 }
 
-// TEST_P(OVCompiledGraphImportExportTest, importExportModelWithTypeRelaxedExtension) {
-//     // Create model with interpolate which v0 and v4 are supported by TypeRelaxedExtension
-//     {
-//         using ov::op::v4::Interpolate;
-
-//         ov::ParameterVector inputs;
-//         auto data = std::make_shared<Parameter>(elementType, ov::PartialShape{1, 3, 64, 64});
-//         data->set_friendly_name("data");
-//         auto output_shape = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{2});
-//         output_shape->set_friendly_name("output_shape");
-//         auto scales = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{2});
-//         scales->set_friendly_name("scales");
-
-//         Interpolate::InterpolateAttrs attrs{};
-//         attrs.antialias = false;
-//         attrs.pads_begin = {0, 0, 0, 0};
-//         attrs.pads_end = {0, 0, 0, 0};
-//         attrs.cube_coeff = -0.75;
-//         auto interpolate = std::make_shared<ov::op::TypeRelaxed<Interpolate>>(data, output_shape, scales, attrs);
-
-//         auto result = std::make_shared<Result>(interpolate);
-//         result->set_friendly_name("result");
-//         function = std::make_shared<ov::Model>(ov::ResultVector{result},
-//                                                ov::ParameterVector{data, output_shape, scales},
-//                                                "Interpolate");
-//         ov::util::set_tensors_names(ov::AUTO, *function);
-//     }
-
-//     auto execNet = core->compile_model(function, target_device, configuration);
-//     std::stringstream strm;
-//     execNet.export_model(strm);
-
-//     ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-//     EXPECT_EQ(function->inputs().size(), 3);
-//     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-//     EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
-//     EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
-
-//     EXPECT_EQ(function->outputs().size(), 1);
-//     EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-//     EXPECT_NO_THROW(importedCompiledModel.output());
-//     EXPECT_EQ(function->output(0).get_tensor().get_names(),
-//     importedCompiledModel.output(0).get_tensor().get_names());
-//     EXPECT_NO_THROW(importedCompiledModel.output("result").get_node());
-//     EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
-
-//     EXPECT_EQ(elementType, importedCompiledModel.input("data").get_element_type());
-//     EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
-// };
-
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
