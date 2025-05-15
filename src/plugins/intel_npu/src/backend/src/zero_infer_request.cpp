@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4146 4267 4244 4996)
+#endif
 
 #include "zero_infer_request.hpp"
 
@@ -789,3 +793,7 @@ std::shared_ptr<ov::ITensor>& ZeroInferRequest::get_level_zero_input(size_t inde
 std::vector<std::shared_ptr<ov::ITensor>>& ZeroInferRequest::get_level_zero_inputs(size_t index) const {
     return _levelZeroInputTensors.at(index);
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

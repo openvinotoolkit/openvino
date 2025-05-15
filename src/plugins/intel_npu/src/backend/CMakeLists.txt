@@ -49,6 +49,9 @@ if(ENABLE_LLVM_BACKEND)
 
     set(TEST_SOURCE_DIR ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools)
     set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    if(WIN32)
+        set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config})
+    endif()
 
     add_custom_command(TARGET ${TARGET_NAME}
         POST_BUILD
