@@ -344,12 +344,27 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                                 ov::get_tensor_impl(wraped_scale),
                                                 to,
                                                 unpack_options);
+        } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
+            // Special case for broadcasting vocab by 2 dimensions
+            // FIXME: all this logic probably should be in some specific unpack or another util function
+            ov::Tensor wraped_from(from->get_element_type(),
+                                    ov::Shape{from_shape[1], from_shape[2]},
+                                    from->data());
+            ov::Tensor wraped_zerop(zerop->get_element_type(),
+                                    ov::Shape{zerop_shape[1], zerop_shape[2]},
+                                    zerop->data());
+            ov::Tensor wraped_scale(scale->get_element_type(),
+                                    ov::Shape{scale_shape[1], scale_shape[2]},
+                                    scale->data());
+
+            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                ov::get_tensor_impl(wraped_zerop),
+                                                ov::get_tensor_impl(wraped_scale),
+                                                to,
+                                                unpack_options);
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
         } else {
-            std::cout << from_shape << std::endl;
-            std::cout << scale_shape << std::endl;
-            std::cout << zerop_shape << std::endl;
             NPUW_ASSERT(false);
         }
     }
