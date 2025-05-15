@@ -35,11 +35,72 @@ struct scatter_nd_update_basic_test_params
     format input_result_format;
     format indices_result_format;
     format updates_result_format;
-    tensor input_size;
-    tensor indices_size;
-    tensor updates_size;
+    ov::Shape input_shape;
+    ov::Shape indices_shape;
+    ov::Shape updates_shape;
     int indices_rank;
 };
+
+template <typename T>
+static void print_vector(const std::string& name, std::vector<T> shape)
+{
+    std::cout << name << " shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i] << (i + 1 < shape.size() ? ", " : "");
+    }
+    std::cout << "]\n";
+}
+
+template <typename T>
+static std::vector<float> convert_to_float(const std::vector<T>& vec) {
+    std::vector<float> converted_vec(vec.size());
+    for (size_t i = 0; i < vec.size(); ++i)
+        converted_vec[i] = static_cast<float>(vec[i]);
+
+    return converted_vec;
+}
+
+static bool check_params(const scatter_nd_update_basic_test_params& params) {
+    auto last_indices_dim = params.indices_shape[-1];
+    auto data_rank = params.input_shape.size();
+    if (last_indices_dim == data_rank) {
+        std::cout << "[" << __func__ << ":" << __LINE__ << "] update elements" << std::endl;
+    } else if (last_indices_dim > 0 && last_indices_dim < data_rank) {
+        std::cout << "[" << __func__ << ":" << __LINE__ << "] update slices" << std::endl;
+    } else {
+        std::cout << "[" << __func__ << ":" << __LINE__ << "] abnormal last_indices_dim: " << last_indices_dim << std::endl;
+        return false;
+    }
+    std::cout << "check_params::last indices dim: " << last_indices_dim << std::endl;
+    std::cout << "check_params::input[0]::input_tensor: " << params.input_shape.to_string() << std::endl;
+    std::cout << "check_params::input[1]::indices_shape: " << params.indices_shape.to_string() << std::endl;
+    std::cout << "check_params::input[2]::updates_shape: " << params.updates_shape.to_string() << std::endl;
+
+    ov::Shape expected_update_shape;
+    if (!params.indices_shape.empty()) {
+        for (size_t i = 0; i < params.indices_shape.size() - 1; ++i) {
+            expected_update_shape.push_back(params.indices_shape[i]);
+        }
+    }
+    if (!params.input_shape.empty()) {
+        for (size_t i = last_indices_dim; i < params.input_shape.size(); ++i) {
+            expected_update_shape.push_back(params.input_shape[i]);
+        }
+    }
+    if (params.input_shape.size() < expected_update_shape.size()) {
+        std::cout << "expected_update_shape is bigger than data_shape. data_shape: " << params.input_shape.to_string() << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
+        return false;
+    }
+    if (params.updates_shape.size() != expected_update_shape.size()) {
+        std::cout << "Diff updates shape's rank::updates_shape: " << params.updates_shape.to_string() << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
+        return false;
+    }
+    if (ov::shape_size(params.updates_shape) != ov::shape_size(expected_update_shape)) {
+        std::cout << "Diff updates shape element num::updates_shape: " << params.updates_shape.to_string() << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
+        return false;
+    }
+    return true;
+}
 
 struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
 {
@@ -60,28 +121,40 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             return cldnn::format::bfwzyx;
     }
 
-    template <typename T>
-    std::vector<T> generate_unique_indices(const scatter_nd_update_basic_test_params& p) {
-        std::set<std::vector<T>> unique_indices;
-        std::vector<T> result;
-        auto indices_shape = p.indices_size.sizes(get_default_format(p.indices_rank));
-        auto data_shape = p.input_size.sizes(p.input_format);
-        size_t last_indices_dim = indices_shape.at(p.indices_rank - 1);
+    std::vector<int32_t> generate_unique_indices(const scatter_nd_update_basic_test_params& p) {
+        std::set<std::vector<int32_t>> unique_indices;
+        std::vector<int32_t> result;
+        size_t last_indices_dim = p.indices_shape.back();
 
-        auto count = p.indices_size.count() / last_indices_dim;
+        size_t count = std::accumulate(p.indices_shape.begin(),
+                                       p.indices_shape.end(),
+                                       static_cast<size_t>(1),
+                                       std::multiplies<size_t>()) / last_indices_dim;
 
         while (unique_indices.size() != count) {
-            std::vector<T> indices;
+            std::vector<int32_t> indices;
             for (size_t i = 0; i < last_indices_dim; i++) {
-                indices.push_back(static_cast<T>(rg.generate_random_val<int>(0, data_shape[i] - 1)));
+                const int32_t min = 0;
+                const int32_t max = static_cast<int32_t>(p.input_shape[i]) - 1;
+                // std::cout << "min: " << min << ", max: " << max << std::endl;
+                // print_vector<int32_t>("indices", indices);
+                indices.push_back(rg.generate_random_val<int32_t>(min, max));
             }
 
             unique_indices.insert(indices);
+            // std::cout << "unique_indices.size(): " << unique_indices.size() << ", count : " << count << std::endl;
+            // std::for_each(unique_indices.begin(),
+            //           unique_indices.end(),
+            //           [&](const std::vector<int32_t>& indices) {
+            //               print_vector<int32_t>("unique_indices", indices);
+            //           });
         }
+        print_vector("generate_unique_indices::input_shape", p.input_shape);
 
         std::for_each(unique_indices.begin(),
                       unique_indices.end(),
-                      [&](const std::vector<T>& indices) {
+                      [&](const std::vector<int32_t>& indices) {
+                        //   print_vector("generate_unique_indices::unique_indices", indices);
                           result.insert(result.end(), indices.begin(), indices.end());
                       });
 
@@ -93,42 +166,16 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
     {
         auto& engine = get_test_engine();
 
-        auto input1 = engine.allocate_memory({ params.input_type, params.input_format, params.input_size });
-        auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
-        auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
+        auto input1 = engine.allocate_memory({ ov::PartialShape(params.input_shape), params.input_type, params.input_format });
+        auto input2 = engine.allocate_memory({ ov::PartialShape(params.indices_shape), params.indices_type, params.indices_format });
+        auto input3 = engine.allocate_memory({ ov::PartialShape(params.updates_shape), params.updates_type, params.updates_format });
 
-        std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
-        for (size_t i = 0; i < input_vec.size(); ++i)
-            input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
-        std::reverse(input_vec.begin() + 2, input_vec.end());
-
-        std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
-        for (size_t i = 0; i < updates_vec.size(); ++i)
-            updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
-        std::reverse(updates_vec.begin() + 2, updates_vec.end());
-
-        std::vector<int> indices_vec(static_cast<int>(cldnn::format::dimension(params.indices_format)));
-        for (size_t i = 0; i < indices_vec.size(); ++i)
-            indices_vec[i] = static_cast<int>(params.indices_size.sizes()[i]);
-        std::reverse(indices_vec.begin() + 2, indices_vec.end());
-        indices_vec.resize(params.indices_rank);
-
-        auto input_data_fp16 = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
-        auto indices_data_fp16 = generate_unique_indices<T>(params);
-        auto updates_data_fp16 = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
-
-        std::vector<float> input_data(params.input_size.count());
-        for (size_t i = 0; i < params.input_size.count(); ++i)
-            input_data[i] = static_cast<float>(input_data_fp16[i]);
-        std::vector<float> indices_data(params.indices_size.count());
-        for (size_t i = 0; i < params.indices_size.count(); ++i)
-            indices_data[i] = static_cast<float>(indices_data_fp16[i]);
-        std::vector<float> updates_data(params.updates_size.count());
-        for (size_t i = 0; i < params.updates_size.count(); ++i)
-            updates_data[i] = static_cast<float>(updates_data_fp16[i]);
+        auto input_data_fp16 = rg.generate_random_1d<T>(ov::shape_size(params.input_shape), -127, 127);
+        auto indices_data = generate_unique_indices(params);
+        auto updates_data_fp16 = rg.generate_random_1d<T>(ov::shape_size(params.updates_shape), -127, 127);
 
         set_values(input1, input_data_fp16);
-        set_values(input2, indices_data_fp16);
+        set_values(input2, indices_data);
         set_values(input3, updates_data_fp16);
 
         // execute scatter_nd_update
@@ -153,14 +200,18 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
 
-        auto outputs_ref = std::vector<float>(params.input_size.count());
-        ov::reference::scatterNdUpdate<float, float>(input_data.data(),
+        // run reference
+        std::vector<float> input_data = convert_to_float<T>(input_data_fp16);
+        std::vector<float> updates_data = convert_to_float<T>(updates_data_fp16);
+
+        auto outputs_ref = std::vector<float>(ov::shape_size(params.input_shape));
+        ov::reference::scatterNdUpdate<float, int32_t>(input_data.data(),
                                                      indices_data.data(),
                                                      updates_data.data(),
                                                      outputs_ref.data(),
-                                                     ov::Shape(input_vec.begin(), input_vec.end()),
-                                                     ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                     ov::Shape(updates_vec.begin(), updates_vec.end()));
+                                                     params.input_shape,
+                                                     params.indices_shape,
+                                                     params.updates_shape);
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
             ASSERT_EQ(outputs_ref[i], half_to_float(outputs_ptr[i]));
@@ -173,33 +224,23 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         // create input, indices, updates using params
         auto& engine = get_test_engine();
 
-        auto input1 = engine.allocate_memory({ params.input_type, params.input_format, params.input_size });
-        auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
-        auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
+        auto input1 = engine.allocate_memory({ ov::PartialShape(params.input_shape), params.input_type, params.input_format });
+        auto input2 = engine.allocate_memory({ ov::PartialShape(params.indices_shape), params.indices_type, params.indices_format });
+        auto input3 = engine.allocate_memory({ ov::PartialShape(params.updates_shape), params.updates_type, params.updates_format });
 
-        std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
-        for (size_t i = 0; i < input_vec.size(); ++i)
-            input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
-        std::reverse(input_vec.begin() + 2, input_vec.end());
-
-        std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
-        for (size_t i = 0; i < updates_vec.size(); ++i)
-            updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
-        std::reverse(updates_vec.begin() + 2, updates_vec.end());
-
-        std::vector<int> indices_vec(static_cast<int>(cldnn::format::dimension(params.indices_format)));
-        for (size_t i = 0; i < indices_vec.size(); ++i)
-            indices_vec[i] = static_cast<int>(params.indices_size.sizes()[i]);
-        std::reverse(indices_vec.begin() + 2, indices_vec.end());
-        indices_vec.resize(params.indices_rank);
-
-        auto input_data = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
-        auto indices_data = generate_unique_indices<T>(params);
-        auto updates_data = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
+        size_t input_count = std::accumulate(params.input_shape.begin(), params.input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        size_t update_count = std::accumulate(params.updates_shape.begin(), params.updates_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        auto input_data = rg.generate_random_1d<T>(input_count, 1, 127);
+        auto indices_data = generate_unique_indices(params);
+        auto updates_data = rg.generate_random_1d<T>(update_count, -127, -1);
 
         set_values(input1, input_data);
         set_values(input2, indices_data);
         set_values(input3, updates_data);
+
+        std::cout << "input1: " << input1->get_layout().to_short_string() << std::endl;
+        std::cout << "input2: " << input2->get_layout().to_short_string() << std::endl;
+        std::cout << "input3: " << input3->get_layout().to_short_string() << std::endl;
 
         // execute scatter_nd_update
         topology topology(
@@ -223,24 +264,45 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<T> outputs_ptr(output, get_test_stream());
 
-        auto outputs_ref = std::vector<T>(params.input_size.count());
-        ov::reference::scatterNdUpdate<T, T>(input_data.data(),
+        auto outputs_ref = std::vector<T>(ov::shape_size(params.input_shape));
+        ov::reference::scatterNdUpdate<T, int32_t>(input_data.data(),
                                              indices_data.data(),
                                              updates_data.data(),
                                              outputs_ref.data(),
-                                             ov::Shape(input_vec.begin(), input_vec.end()),
-                                             ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                             ov::Shape(updates_vec.begin(), updates_vec.end()));
+                                             params.input_shape,
+                                             params.indices_shape,
+                                             params.updates_shape);
 
+        // for (size_t i = 0; i < input_data.size(); ++i) {
+        //     std::cout << "input[" << i << "]: " << input_data[i] << std::endl;
+        // }
+        // for (size_t i = 0; i < indices_data.size(); ++i) {
+        //     std::cout << "indices[" << i << "]: " << indices_data[i] << std::endl;
+        // }
+        // for (size_t i = 0; i < updates_data.size(); ++i) {
+        //     std::cout << "update[" << i << "]: " << updates_data[i] << std::endl;
+        // }
+
+        size_t diff_num = 0;
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
+            if (outputs_ref[i] != outputs_ptr[i]) {
+                std::cout << "diff::ref[" << i << "]: " << outputs_ref[i] << ", gpu: " << outputs_ptr[i] << std::endl;
+                diff_num++;
+            }
+            // else
+            //     std::cout << "same::ref[" << i << "]: " << outputs_ref[i] << ", gpu: " << outputs_ptr[i] << std::endl;
             ASSERT_EQ(outputs_ref[i], outputs_ptr[i]);
         }
+        std::cout << "diff count: " << diff_num << std::endl;
     }
 };
 
 TEST_P(scatter_nd_update_random_test, random)
 {
     auto param = GetParam();
+    // ASSERT_TRUE(check_params(param));
+    check_params(param);
+
     if (param.input_type == data_types::u8)
         this->execute<uint8_t>(param, false);
     else if (param.input_type == data_types::i8)
@@ -257,25 +319,189 @@ TEST_P(scatter_nd_update_random_test, random)
         OPENVINO_THROW("unidentified data type");
 }
 
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_01,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                            std::vector<scatter_nd_update_basic_test_params>{
+                            { data_types::f32, data_types::i32, data_types::f32,
+                                format::bfyx, format::bfyx, format::bfyx,
+                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 4, 2, 3 }, { 3, 3 }, { 3 },
+                                2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_02,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                            std::vector<scatter_nd_update_basic_test_params>{
+                            { data_types::f32, data_types::i32, data_types::f32,
+                                format::bfyx, format::bfyx, format::bfyx,
+                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 4, 2, 3 }, { 3, 2 }, { 3, 3 },
+                                2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_03,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                            std::vector<scatter_nd_update_basic_test_params>{
+                            { data_types::f32, data_types::i32, data_types::f32,
+                                format::bfyx, format::bfyx, format::bfyx,
+                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 4, 2, 3 }, { 3, 1 }, { 3, 2, 3 },
+                                2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_04,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                            std::vector<scatter_nd_update_basic_test_params>{
+                            { data_types::f32, data_types::i32, data_types::f32,
+                                format::bfyx, format::bfyx, format::bfyx,
+                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 4, 4, 4 }, { 2, 1 }, { 2, 4, 4 },
+                                2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_05,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                            std::vector<scatter_nd_update_basic_test_params>{
+                                { data_types::f32, data_types::i32, data_types::f32,
+                                    format::bfyx, format::bfyx, format::bfyx,
+                                    format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                    { 1000, 256, 10 }, { 25, 125, 3 }, { 25, 125 },
+                                    3 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_06,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10, 15 }, { 25, 4 }, { 25 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_07,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10, 15 }, { 25, 3 }, { 25, 15 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_08,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10, 15 }, { 25, 2 }, { 25, 10, 15 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_09,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10, 15 }, { 25, 1 }, { 25, 256, 10, 15 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_10,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10 }, { 25, 125, 3 }, { 25, 125 },
+                               3 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_11,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10 }, { 25, 125, 2 }, { 25, 125, 10 },
+                               3 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_12,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                                { 1000, 256, 10 }, { 250, 1 }, { 250, 256, 10 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_13,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               { 1, 480, 640, 3 }, { 1 }, { 1, 480, 640, 3 },
+                            //    { 1, 2, 3, 3 }, { 1 }, { 1, 2, 3, 3 },
+                               1 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_SE_14,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::i32, data_types::f32,
+                               format::bfzyx, format::bfyx, format::bfyx,
+                               format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               { 6, 7, 3, 3, 10 }, { 5, 2 }, { 5, 3, 3, 10 },
+                               2 }
+                         }));
+
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_1,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
-                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
-                               1 }
+                            //    { 1, 2, 2, 6 }, { 1, 1, 2, 2 }, { 1, 1, 2, 2, 6 },
+                            //    { 6 }, { 3, 1 }, { 3 },
+                            //    { 1, 480, 640, 3 }, { 1 }, { 1, 480, 640, 3 },
+                               { 1, 4800, 640, 3 }, { 1, 1 }, { 1, 4800, 640, 3 },
+                               2 }
                          }));
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
-                               { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                            //   { 6 }, { 3, 1 }, { 3 },
+                              { 8, 4, 2, 2 }, { 3, 2 }, { 3, 2, 1, 2 },
+                            //    { 48, 24, 3, 3 }, { 3, 2, 1 }, { 3, 2, 24, 3, 3 },
+                            //    { 48, 24, 3, 3 }, { 3, 1 }, { 3, 24, 3, 3 },
+                            //    { 4, 2, 3, 3 }, { 3, 2, 1 }, { 3, 2, 2, 3, 3 },
+                            //    { 4, 2, 3 }, { 3, 3 }, { 3 },
                                2 }
                          }));
 
@@ -283,18 +509,18 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_4d_rank_1,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
-                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
-                               1 }
+                               { 6 }, { 3, 1 }, { 3 },
+                               2 }
                          }));
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
                                { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -305,7 +531,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 3, 3, 10 }, { 5, 2, 1, 1 }, { 5, 10, 1, 3, 3 },
@@ -316,7 +542,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_3,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 2, 1, 2 }, { 5, 2, 8, 9, 10 },
@@ -327,7 +553,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_4,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32,
+                             { data_types::f32, data_types::i32, data_types::f32,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 2, 4, 3 }, { 5, 2, 1, 8, 3 },
@@ -338,7 +564,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_4d_rank_1,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
                                { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
@@ -349,7 +575,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
                                { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -360,7 +586,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_1,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 1, 1, 1 }, { 5, 7, 8, 9, 10 },
@@ -371,7 +597,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 4, 1, 1 }, { 5, 8, 1, 1, 1 },
@@ -382,18 +608,20 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_3,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
-                               { 6, 7, 8, 9, 10 }, { 5, 2, 1, 3 }, { 5, 2, 1, 8, 9 },
-                               3 }
+                               { 4, 4, 4, 1 }, { 2, 1, 1, 1 }, { 2, 4, 4, 1 },
+                               2 }
+                            //    { 6, 7, 8, 9, 10 }, { 5, 2, 1, 3 }, { 5, 2, 1, 8, 9 },
+                            //    3 }
                          }));
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_4,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 2, 4, 3 }, { 5, 2, 1, 8, 3 },
@@ -404,7 +632,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_bsv32_fsv16_4d_r
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
                                { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
@@ -415,7 +643,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_bsv32_fsv16_4d_r
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16,
+                             { data_types::f16, data_types::i32, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
                                { 48, 24, 3, 3 },  {3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -426,7 +654,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_bsv32_fsv16_4d_ran
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
                                { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -437,7 +665,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_bsv32_fsv32_4d_ran
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32,
                                { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
@@ -448,7 +676,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv32_4d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32,
                                { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -459,7 +687,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv32_5d_rank_3,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv32, format::b_fs_yx_fsv32, format::b_fs_zyx_fsv32,
                                { 6, 7, 8, 9, 10 }, { 5, 2, 1, 2 }, { 5, 2, 8, 9, 10 },
@@ -470,7 +698,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
                                { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
@@ -481,7 +709,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv16_5d_rank_4,
                          scatter_nd_update_random_test,
                          testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8,
+                             { data_types::i8, data_types::i32, data_types::i8,
                                format::bfzyx, format::bfyx, format::bfzyx,
                                format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
                                { 6, 7, 8, 9, 10 }, { 5, 2, 3, 3 }, { 5, 2, 8, 9, 3 },
@@ -493,7 +721,7 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 1, 2, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx,  { 1, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 4, 3, 2 } }); // updates
 
     set_values(input1, {
@@ -517,8 +745,8 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     });
 
     set_values(input2, {
-        ov::float16(1.0f),
-        ov::float16(0.0f),
+        1,
+        0,
     });
 
     set_values(input3, {
@@ -588,7 +816,7 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data 2x2x3x4x2 (bfzyx)
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 3, 3, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx,  { 3, 3, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 4, 1, 1, 2 } }); // updates
 
     set_values(input1, {
@@ -612,9 +840,9 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
         });
 
     set_values(input2, {
-        ov::float16(1.0f), ov::float16(1.0f), ov::float16(2.0f),
-        ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f),
-        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f),
+        1, 1, 2,
+        1, 1, 0,
+        0, 1, 1,
         });
 
     set_values(input3, {
@@ -672,7 +900,7 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // data 2x3x2x4 (bfyx)
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 3, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
 
     set_values(input1, {
@@ -686,9 +914,9 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
         });
 
     set_values(input2, {
-        ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f),
-        ov::float16(1.0f), ov::float16(2.0f), ov::float16(1.0f),
-        ov::float16(0.0f), ov::float16(2.0f), ov::float16(1.0f),
+        1, 1, 0,
+        1, 2, 1,
+        0, 2, 1,
         });
 
     set_values(input3, {
@@ -736,7 +964,7 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 1, 4 } }); // data 3x3x4 (bfy)
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 3, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 3, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // updates
 
     set_values(input1, {
@@ -754,10 +982,10 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
         });
 
     set_values(input2, {
-        ov::float16(2.0f), ov::float16(0.0f), ov::float16(0.0f),
-        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
-        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f),
-        ov::float16(0.0f), ov::float16(1.0f), ov::float16(0.0f),
+        2, 0, 0,
+        1, 2, 3,
+        1, 1, 1,
+        0, 1, 0,
         });
 
     set_values(input3, {
@@ -807,7 +1035,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 3, 4, 2 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
@@ -850,7 +1078,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
         });
 
     set_values(input2, {
-        ov::float16(1.0f),
+        1,
         });
 
     set_values(input3, {
@@ -937,7 +1165,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
@@ -961,7 +1189,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
         });
 
     set_values(input2, {
-        ov::float16(1.0f), ov::float16(0.0f),
+        1, 0,
         });
 
     set_values(input3, {
@@ -1033,7 +1261,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 4, 2 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 2 } }); // updates
 
     set_values(input1, {
@@ -1052,7 +1280,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
         });
 
     set_values(input2, {
-        ov::float16(2.0f), ov::float16(0.0f),
+        2, 0,
         });
 
     set_values(input3, {
@@ -1111,7 +1339,7 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 4, 3, 2 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,   { 2, 2, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx,   { 2, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 2, 4, 3 } }); // updates
 
     set_values(input1, {
@@ -1135,8 +1363,8 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
         });
 
     set_values(input2, {
-        ov::float16(0.0f), ov::float16(1.0f),
-        ov::float16(0.0f), ov::float16(0.0f)
+        0, 1,
+        0, 0
         });
 
     set_values(input3, {
@@ -1209,7 +1437,7 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 3, 4, 2 } }); // data
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 2, 2, 1, 1 } }); // indices
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx,  { 2, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx,  { 2, 2, 1, 3, 4 } }); // updates
 
 
@@ -1224,8 +1452,8 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
         });
 
     set_values(input2, {
-        ov::float16(0.0f), ov::float16(1.0f),
-        ov::float16(0.0f), ov::float16(0.0f)
+        0, 1,
+        0, 0
         });
 
     set_values(input3, {
@@ -4632,26 +4860,6 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     }
 }
 
-#ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST_P(scatter_nd_update_random_test, random_cached)
-{
-    auto param = GetParam();
-    if (param.input_type == data_types::u8)
-        this->execute<uint8_t>(param, true);
-    else if (param.input_type == data_types::i8)
-        this->execute<int8_t>(param, true);
-    else if (param.input_type == data_types::i32)
-        this->execute<int32_t>(param, true);
-    else if (param.input_type == data_types::i64)
-        this->execute<int64_t>(param, true);
-    else if (param.input_type == data_types::f16)
-        this->execute_fp16<ov::float16, uint16_t>(param, true);
-    else if (param.input_type == data_types::f32)
-        this->execute<float>(param, true);
-    else
-        OPENVINO_THROW("unidentified data type");
-}
-#endif
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111_cached) {
     test_d222222_i211111<ov::float16>(true);
 }
