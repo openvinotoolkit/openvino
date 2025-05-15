@@ -52,16 +52,10 @@ public:
             initialize(regPool, requestedIdx);
         }
         ~Reg() {
-            try {
-                release();
-            } catch (const ov::Exception&) {
-            }
+            release();
         }
         Reg& operator=(Reg&& other) noexcept {
-            try {
-                release();
-            } catch (const ov::Exception&) {
-            }
+            release();
             reg = other.reg;
             regPool = std::move(other.regPool);
             return *this;
@@ -127,10 +121,7 @@ public:
     };
 
     virtual ~RegistersPool() {
-        try {
-            checkUniqueAndUpdate(false);
-        } catch (const ov::Exception&) {
-        }
+        checkUniqueAndUpdate(false);
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
