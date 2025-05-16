@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "compiled_model.hpp"
+#include "context.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -35,6 +36,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
 
     auto config = Configuration{properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model->clone(), shared_from_this(), config);
+    execution_devices = compiled_model->get_property("EXECUTION_DEVICES").as<std::vector<std::string>>();
     return compiled_model;
 }
 
@@ -329,5 +331,10 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMa
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_for_tp;
+    OPENVINO_ASSERT(execution_devices.size() >= 1, "There is no execution devices in HETERO.");
+    for (auto device : execution_devices) {
+        contexts_for_tp.insert({device, get_core()->get_default_context(device)});
+    }
+    return std::make_shared<ov::hetero::HeteroContext>(contexts_for_tp);
 }
