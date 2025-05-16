@@ -22,9 +22,11 @@ using namespace ov::op;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
+                                                     bool allow_score_aggregation,
                                                      bool allow_cache_rotation)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
+      m_allow_score_aggregation(use_score_outputs),
       m_allow_cache_rotation(allow_cache_rotation) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
@@ -42,15 +44,23 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
+    std::map<std::string, std::shared_ptr<v0::Parameter>> optional_model_wide_params;
+
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    ParameterVector model_remaining_params{
+    ParameterVector model_wide_params{
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
     if (!m_use_per_layer_block_indices_inputs) {
         auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
-        model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
+        model_wide_params.insert(model_wide_params.begin() + 2, block_indices);
+    }
+
+    if (m_allow_score_aggregation) {
+        auto score_aggregation_window =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
+        optional_model_wide_params["score_aggregation_window"] = score_aggregation_window;
     }
 
     std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
@@ -130,7 +140,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
-                                                  model_remaining_params,
+                                                  model_wide_params,
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
@@ -139,9 +149,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   m_use_per_layer_block_indices_inputs,
                                                   m_use_score_outputs,
                                                   m_allow_cache_rotation,
+                                                  m_allow_score_aggregation,
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
-                                                  model_rotation_trig_lut);
+                                                  model_rotation_trig_lut,
+                                                  optional_model_wide_params);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -199,6 +211,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_results(score_results);
     }
 
+    if (m_allow_score_aggregation) {
+        model->add_parameters({optional_model_wide_params["score_aggregation_window"]});
+    }
+
     if (m_allow_cache_rotation) {
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
         model->add_parameters(rotation_deltas_inputs_for_each_layer);
@@ -206,7 +222,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     model->add_parameters(kv_parameters);
-    model->add_parameters(model_remaining_params);
+    model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
     return true;
