@@ -658,23 +658,23 @@ int get_model_prefer_threads(const int num_streams,
                     config.modelPreferThreads =
                         proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                     if (config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::DEFAULT) {
-                        config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::AUTO;
+                        config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::AUTO;
                         if (networkToleranceForLowCache.max_mem_tolerance == 0) {
-                            config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::STATIC;
+                            config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                         } else {
                             if (networkToleranceForLowCache.ratio_mem_limited_gemms > 0) {
                                 if (networkToleranceForLowCache.ratio_compute_convs == 0) {
-                                    config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::STATIC;
-                                } else {
-                                    if (networkToleranceForLowCache.ratio_mem_limited_deconvs == 0 &&
-                                        networkToleranceForLowCache.ratio_compute_convs < 1) {
-                                        if (networkToleranceForLowCache.total_gemms > 10) {
-                                            config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::STATIC;
-                                        } else {
-                                            if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
-                                                networkToleranceForLowCache.total_convs > 0) {
-                                                config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::STATIC;
-                                            }
+                                    config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                                }
+                            } else {
+                                if (networkToleranceForLowCache.ratio_mem_limited_deconvs == 0 &&
+                                    networkToleranceForLowCache.ratio_compute_convs < 1) {
+                                    if (networkToleranceForLowCache.total_gemms > 10) {
+                                        config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                                    } else {
+                                        if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
+                                            networkToleranceForLowCache.total_convs > 0) {
+                                            config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                                         }
                                     }
                                 }
