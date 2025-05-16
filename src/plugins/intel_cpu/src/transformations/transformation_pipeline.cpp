@@ -169,6 +169,7 @@
 #include "snippets/pass/fc_tokenization.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1158,14 +1159,14 @@ void Transformations::MainSnippets() {
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
-    const auto is_infer_prc_supported_by_MHA =
+    const auto is_infer_prc_supported_by_brgemm =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
          one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
          one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
          one_of(config.inferencePrecision, ov::element::f16));
-    const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_MHA;
+    const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
 #endif
@@ -1173,6 +1174,16 @@ void Transformations::MainSnippets() {
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
+    }
+
+#if defined(OPENVINO_ARCH_X86_64)
+    const bool isMlpSeqSupported = is_infer_prc_supported_by_brgemm;
+#else
+    const bool isMlpSeqSupported = false;
+#endif
+
+    if (!isMlpSeqSupported) {
+        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSeqSnippets);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1361,6 +1372,30 @@ void Transformations::MainSnippets() {
                 return is_unsupported_parallel_work_amount(n, pshape);
             },
             snippets::pass::TokenizeMHASnippets);
+        CPU_SET_CALLBACK_X64(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (!is_supported_matmul(n))
+                    return true;
+                if (is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0)))
+                    return true;
+
+                // We've only tested MLP sequence tokenization on small model shapes
+                // So we limit tokenization to sequences with small shapes to avoid unexpected behavior
+                // TODO: release these conditions after testing on larger models
+                const auto& input_shape = n->get_input_partial_shape(0);
+                if (input_shape.rank().is_dynamic() || input_shape.size() != 2)
+                    return true;
+                if (input_shape.is_dynamic() || input_shape[0].get_length() > 8 || input_shape[1].get_length() > 256)
+                    return true;
+                const auto& output_shape = n->get_output_partial_shape(0);
+                if (output_shape.rank().get_length() != 2)
+                    return true;
+                if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
+                    return true;
+                return false;
+            },
+            snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {

@@ -13,6 +13,7 @@
 #include "snippets/pass/fc_tokenization.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_seq_tokenization.hpp"
 
 namespace ov {
 namespace snippets {
@@ -86,6 +87,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 1. It has higher priority than other tokenization passes
     // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
+    manager.register_pass<TokenizeMLPSeqSnippets>(m_config);
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
