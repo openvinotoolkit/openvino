@@ -514,6 +514,7 @@ private:
     void do_runtime_in_place_kv_cache();
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
+    void do_runtime_skip_lora();
 };
 
 /*
