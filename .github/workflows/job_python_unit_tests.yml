@@ -128,7 +128,7 @@ jobs:
              runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -vv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
+          python3 -m pytest -vvv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
