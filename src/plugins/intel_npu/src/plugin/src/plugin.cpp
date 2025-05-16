@@ -614,7 +614,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
+            auto storedMeta = read_metadata_from(tensor);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
