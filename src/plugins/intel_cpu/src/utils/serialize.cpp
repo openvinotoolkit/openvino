@@ -4,11 +4,23 @@
 
 #include "serialize.hpp"
 
+#include <cstddef>
+#include <cstring>
+#include <istream>
+#include <memory>
+#include <ostream>
+#include <string>
 #include <utility>
 
-#include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/core/parallel.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "utils/codec_xor.hpp"
 
 namespace ov::intel_cpu {
 

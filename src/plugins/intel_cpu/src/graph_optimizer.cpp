@@ -4,8 +4,31 @@
 
 #include "graph_optimizer.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <list>
+#include <memory>
+#include <numeric>
+#include <optional>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/bin_conv.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/conv.h"
@@ -16,13 +39,22 @@
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
+#include "nodes/memory_state_base.h"
 #include "nodes/reorder.h"
 #include "nodes/reshape.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
 #include "onednn/dnnl.h"
-#include "openvino/opsets/opset1_decl.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "selective_build.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -36,19 +68,6 @@
 #        define _WINSOCK2API_
 #    endif
 #endif
-#include <algorithm>
-#include <list>
-#include <memory>
-#include <optional>
-#include <set>
-#include <string>
-
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "itt.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace dnnl;
 using namespace ov::intel_cpu::node;
@@ -463,12 +482,12 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
                     const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
                     // Construct Ngraph Reshape node and CPU Reshape node.
                     auto reshapeConstInput =
-                        std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
+                        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
                     auto reshapeDummyInput =
-                        std::make_shared<ov::opset1::Parameter>(biasNode->getOriginalOutputPrecisionAtPort(0),
+                        std::make_shared<ov::op::v0::Parameter>(biasNode->getOriginalOutputPrecisionAtPort(0),
                                                                 biasOutputShape.toPartialShape());
                     const auto reshape =
-                        std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
+                        std::make_shared<ov::op::v1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
                     const auto cpuReshapeNode =
                         std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
@@ -3094,9 +3113,9 @@ void GraphOptimizer::reshapeRnnSeq(Graph& graph) {
             auto childNode = edge->getChild();
 
             const auto secondInput =
-                std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
-            const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
-                std::make_shared<ov::opset1::Parameter>(parentNode->getOriginalOutputPrecisionAtPort(0),
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+            const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
+                std::make_shared<ov::op::v0::Parameter>(parentNode->getOriginalOutputPrecisionAtPort(0),
                                                         parentNode->getOutputShapeAtPort(0).toPartialShape()),
                 secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));

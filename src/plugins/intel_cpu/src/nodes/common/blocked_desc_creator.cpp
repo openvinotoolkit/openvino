@@ -4,7 +4,18 @@
 
 #include "blocked_desc_creator.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <numeric>
+#include <utility>
+#include <vector>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 namespace {

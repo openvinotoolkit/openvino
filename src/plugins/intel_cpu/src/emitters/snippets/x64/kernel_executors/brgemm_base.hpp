@@ -4,10 +4,19 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu::x64 {
 

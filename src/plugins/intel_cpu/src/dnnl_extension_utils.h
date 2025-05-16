@@ -8,8 +8,15 @@
  */
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "common/c_types_map.hpp"
 #include "cpu_types.h"

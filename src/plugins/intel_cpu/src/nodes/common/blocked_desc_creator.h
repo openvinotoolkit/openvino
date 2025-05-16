@@ -4,10 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
 #include <functional>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

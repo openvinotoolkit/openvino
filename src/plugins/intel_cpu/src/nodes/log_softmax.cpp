@@ -4,19 +4,34 @@
 
 #include "log_softmax.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/log_softmax.hpp"
-#include "openvino/opsets/opset5_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
+        const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
         if (!logSoftMax) {
-            errorMessage = "Only opset5 LogSoftmax operation is supported";
+            errorMessage = "Only v5 LogSoftmax operation is supported";
             return false;
         }
     } catch (...) {
@@ -32,9 +47,9 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
+    const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
     if (logSoftMax == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of LogSoftmax from opset5.");
+        THROW_CPU_NODE_ERR("is not an instance of v5 LogSoftmax.");
     }
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {

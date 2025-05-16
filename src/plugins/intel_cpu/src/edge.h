@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <new>
+#include <ostream>
+#include <string>
 #include <vector>
 
-#include "cpu_shape.h"
-#include "internal_properties.hpp"
+#include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"

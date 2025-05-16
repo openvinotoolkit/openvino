@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <string>
+#include <libxsmm_typedefs.h>
 
 #include "emitters/utils.hpp"
-#include "libxsmm.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::tpp::utils {
 

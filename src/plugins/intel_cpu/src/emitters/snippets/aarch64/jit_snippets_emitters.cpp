@@ -4,9 +4,19 @@
 
 #include "jit_snippets_emitters.hpp"
 
+#include <common/utils.hpp>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "cpu/aarch64/jit_generator.hpp"
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak_aarch64;
 

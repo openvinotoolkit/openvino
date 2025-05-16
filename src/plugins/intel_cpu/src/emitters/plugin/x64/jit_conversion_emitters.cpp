@@ -4,9 +4,22 @@
 
 #include "jit_conversion_emitters.hpp"
 
-#include <memory>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "utils/bfloat16.hpp"
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;

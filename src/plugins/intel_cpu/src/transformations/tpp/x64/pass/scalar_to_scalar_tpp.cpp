@@ -4,9 +4,17 @@
 
 #include "scalar_to_scalar_tpp.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/scalar.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"

@@ -3,11 +3,7 @@
 //
 #pragma once
 
-#include <array>
 #include <cstddef>
-#include <cstdint>
-#include <openvino/core/type/element_type.hpp>
-#include <vector>
 
 #include "utils/plain_tensor.hpp"
 

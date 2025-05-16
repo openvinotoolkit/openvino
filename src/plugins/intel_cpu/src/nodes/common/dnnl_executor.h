@@ -4,8 +4,12 @@
 
 #pragma once
 
-#include <cpu_memory.h>
+#include <oneapi/dnnl/dnnl_types.h>
 #include <onednn/iml_type_mapper.h>
+
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
 
 #include "memory_desc/dnnl_memory_desc.h"
 

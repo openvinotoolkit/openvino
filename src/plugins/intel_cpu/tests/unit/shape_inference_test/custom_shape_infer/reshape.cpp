@@ -8,6 +8,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 namespace ov {
 namespace intel_cpu {

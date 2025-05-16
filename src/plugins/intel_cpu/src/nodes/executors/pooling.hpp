@@ -4,9 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
+#include <vector>
+
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov::intel_cpu {
 

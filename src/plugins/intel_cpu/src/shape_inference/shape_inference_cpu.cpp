@@ -4,6 +4,11 @@
 
 #include "shape_inference/shape_inference_cpu.hpp"
 
+#include <memory>
+#include <utility>
+
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference.hpp"
 
 namespace ov::intel_cpu {

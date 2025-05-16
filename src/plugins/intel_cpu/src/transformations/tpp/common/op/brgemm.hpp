@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
 #include "modifiers.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::op {

@@ -4,8 +4,10 @@
 
 #include "cpu_map_scheduling.hpp"
 
-#include "cpu_streams_calculation.hpp"
-#include "openvino/core/parallel.hpp"
+#include <string>
+#include <vector>
+
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
