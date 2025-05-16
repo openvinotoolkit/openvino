@@ -80,12 +80,17 @@ pass::FuseConvert::FuseConvert() {
         // Ticket 165567: In case of AMX, brgemm may require two kernels: main and tail.
         // Intermediate results must be stored in the output buffer for accumulation with tail kernel results.
         // Forcing an output precision with a smaller bit width for output buffer causes out-of-bounds memory writes
-        // during intermediate results storage, so the convert fusion is skipped in this case.
+        // during intermediate results storage, so the convert fusion is skipped in the case when internal blocking is needed.
         if (brgemm_utils::with_amx(brgemm->get_type())) {
             const auto& cur_out_precision = brgemm->get_output_element_type(0);
             const auto& new_out_precision = convert->get_output_element_type(0);
             if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
-                return false;
+                const auto a_shape = ov::snippets::utils::get_planar_pshape(brgemm->input(0));
+                const auto& k_dim = *a_shape.rbegin();
+                const auto k_inner_block = brgemm_utils::repacking::compute_inner_k_block(brgemm->get_input_element_type(0));
+                if (k_dim.is_dynamic() || (k_dim.get_length() % k_inner_block != 0)) {
+                    return false;
+                }
             }
         }
 

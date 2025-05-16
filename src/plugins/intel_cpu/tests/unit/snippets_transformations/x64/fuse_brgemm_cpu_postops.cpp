@@ -91,8 +91,8 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<ov::Node>& brgemm,
     }
 }
 
-static const ov::PartialShape brgemm_a_shape{-1, -1, -1, -1};
-static const ov::PartialShape brgemm_b_shape{-1, -1, -1, 128};
+static const ov::PartialShape brgemm_a_shape{-1, -1, -1, 1024};
+static const ov::PartialShape brgemm_b_shape{-1, -1, 1024, 128};
 }  // namespace
 
 class FuseBrgemmCPUPostopsTests : public TransformationTestsF {
@@ -128,9 +128,11 @@ public:
     }
 
     static std::shared_ptr<ov::Model> get_model(const std::pair<ov::element::Type, ov::element::Type>& input_precisions,
-                                                ov::element::Type convert_dst_type) {
-        auto input1 = std::make_shared<ov::opset1::Parameter>(input_precisions.first, brgemm_a_shape);
-        auto input2 = std::make_shared<ov::opset1::Parameter>(input_precisions.second, brgemm_b_shape);
+                                                ov::element::Type convert_dst_type,
+                                                const ov::PartialShape& a_shape = brgemm_a_shape,
+                                                const ov::PartialShape& b_shape = brgemm_b_shape) {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(input_precisions.first, a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(input_precisions.second, b_shape);
         auto brgemm = make_brgemm({input1, input2});
         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, convert_dst_type);
 
@@ -314,7 +316,8 @@ TEST_P(FuseBinaryEltwiseTests, CompareFunctions) {}
 
 const std::vector<std::pair<ov::element::Type, ov::element::Type>> fuse_convert_in_precisions = {
     {ov::element::i8, ov::element::i8},
-    {ov::element::u8, ov::element::i8}};
+    {ov::element::u8, ov::element::i8},
+    {ov::element::bf16, ov::element::bf16}};
 
 const ov::element::TypeVector convert_dst_types = {ov::element::f32, ov::element::i8, ov::element::u8};
 
@@ -575,8 +578,11 @@ TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
     }
 }
 
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeBF16UnsupportedConvertDstType) {
-    model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16}, ov::element::bf16);
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBF16WithInternalBlockingUnsupportedConvertDstType) {
+    model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16},
+                                        ov::element::bf16,
+                                        {-1, -1, -1, 37},
+                                        {-1, -1, 37, 128});
 }
 
 TEST_F(FuseBrgemmCPUPostopsTests, NegativeFP32UnsupportedConvertDstType) {
