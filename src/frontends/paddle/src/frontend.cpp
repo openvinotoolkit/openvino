@@ -372,6 +372,10 @@ void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& 
     }
 }
 
+    // FE should support different paddle model format.
+    // __model__ : legacy format
+    // .pdmodel  : current format
+    // .json     : future format
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
@@ -381,10 +385,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
     // Validating first path, it must contain a model
     if (variants[0].is<std::string>()) {
-        std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
         FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
-        if (!ov::util::ends_with(model_path, suffix)) {
+
+
+        std::string suffix_pdmodel = ".pdmodel";
+        std::string suffix_pir = ".json";
+        if (!ov::util::ends_with(model_path, suffix_pir) && !ov::util::ends_with(model_path, suffix_pdmodel)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
@@ -416,6 +423,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         // So, make a copy for variants[0] to avoid breaking the context in variants[0].
         const auto p_model_stream = variants[0].as<std::istream*>();
         std::istream copy_model_stream(p_model_stream->rdbuf());
+        // TODO PIR: need to confirm which format: pdmodel or pir
         ::paddle::framework::proto::ProgramDesc fw;
         auto ret = fw.ParseFromIstream(&copy_model_stream);
         // step 2:
