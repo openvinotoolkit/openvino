@@ -37,14 +37,20 @@ ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
                                     INSTALL_INCLUDE_DIRECTORIES
                                         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
-ov_developer_package_export_targets(TARGET level-zero-ext)
+ov_developer_package_export_targets(
+    TARGET level-zero-ext
+    INSTALL_INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>
+)
 ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET level-zero-headers)
 ov_install_static_lib(level-zero-headers ${NPU_PLUGIN_COMPONENT})
 
 if(TARGET ze_loader)
-    ov_developer_package_export_targets(TARGET ze_loader)
+    ov_developer_package_export_targets(
+        TARGET ze_loader
+        INSTALL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>)
     ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
     
     add_dependencies(${TARGET_NAME} ze_loader)
