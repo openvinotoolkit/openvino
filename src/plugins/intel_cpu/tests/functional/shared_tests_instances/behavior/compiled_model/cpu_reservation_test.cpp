@@ -91,7 +91,6 @@ TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_CpuPinning) {
 #elif defined(_WIN32)
     ULONG highestNodeNumber = 0;
     if (!GetNumaHighestNodeNumber(&highestNodeNumber)) {
-        std::cout << "Error getting highest NUMA node number: " << GetLastError() << std::endl;
         return;
     }
     if (highestNodeNumber > 0) {
