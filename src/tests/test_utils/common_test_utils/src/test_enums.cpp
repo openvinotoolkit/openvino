@@ -64,9 +64,6 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::FLOOR_MOD:
         os << "FloorMod";
         break;
-    case ov::test::utils::EltwiseTypes::FLOOR:
-        os << "Floor";
-        break;
     case ov::test::utils::EltwiseTypes::MOD:
         os << "Mod";
         break;

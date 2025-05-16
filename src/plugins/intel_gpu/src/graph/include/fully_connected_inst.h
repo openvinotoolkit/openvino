@@ -22,7 +22,7 @@ public:
     program_node& input() const { return get_dependency(0); }
     program_node& weights() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }
-    bool bias_term() const { return get_primitive()->bias.is_valid(); }
+    bool bias_term() const { return !get_primitive()->bias.empty(); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 

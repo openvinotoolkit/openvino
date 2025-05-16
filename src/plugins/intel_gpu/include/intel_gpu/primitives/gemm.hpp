@@ -231,15 +231,10 @@ struct gemm : public primitive_base<gemm> {
         ib >> beam_table.idx;
     }
 
-protected:
-    std::map<size_t, const input_info*> get_dependencies_map() const override {
-        auto ret = std::map<size_t, const input_info*>{};
-        auto idx = input.size();
-
+    std::vector<input_info> get_dependencies() const override {
         if (beam_table.is_valid())
-            ret[idx++] = &beam_table;
-
-        return ret;
+            return { beam_table };
+        return {};
     }
 
 private:

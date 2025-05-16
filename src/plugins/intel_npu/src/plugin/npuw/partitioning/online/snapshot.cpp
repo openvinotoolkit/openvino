@@ -386,23 +386,15 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            Group::GPtr group_with_tag = nullptr;
-            if (group->srcNodes().empty()) {
-                NPUW_ASSERT(!group->dstNodes().empty());
-                auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
-                group_with_tag = m_graph->meta(cons_nh).get<Group::GPtr>();
-            } else {
-                auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
-                group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
-            }
-
-            NPUW_ASSERT(group_with_tag);
-            NPUW_ASSERT(!group_with_tag->isolatedTag().empty());
-            if (group_with_tag->isolatedTag() !=
+            NPUW_ASSERT(!group->srcNodes().empty());
+            auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            NPUW_ASSERT(!group_prod->isolatedTag().empty());
+            if (group_prod->isolatedTag() !=
                 "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
                 continue;
             }
-            group->isolate(group_with_tag->isolatedTag());
+            group->isolate(group_prod->isolatedTag());
         }
     }
 
@@ -441,18 +433,14 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos") {
-                LOG_WARN(
-                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
-                    << " Avoid pattern " << avoid.pattern << " is skipped!");
+            if (avoid.pattern != "RMSNorm") {
+                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm as a pattern (don't confuse with operations)."
+                         << " Avoid pattern " << avoid.pattern << " is skipped!");
                 break;
             }
             handle_patterns = true;
-            if (avoid.pattern == "RMSNorm") {
-                rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
-            } else if (avoid.pattern == "SinCos") {
-                rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
-            }
+
+            rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
             break;
         }
         }
@@ -500,8 +488,6 @@ void Snapshot::earlyRegroup() {
     }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
-            HNDL(RMSNorm3);
-            HNDL(RMSNorm4);
             HNDL(DQMatMulCWu4);
             HNDL(DQMatMulGQu4);
             HNDL(DQMatMulCWi4);

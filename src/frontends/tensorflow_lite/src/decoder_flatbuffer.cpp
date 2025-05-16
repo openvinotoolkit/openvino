@@ -144,6 +144,7 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
     default:
         return {};
     }
+    return {};
 }
 
 ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {

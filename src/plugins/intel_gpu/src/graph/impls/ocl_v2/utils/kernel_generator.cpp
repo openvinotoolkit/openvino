@@ -128,18 +128,7 @@ Arguments KernelGenerator::get_arguments_desc(const RuntimeParams& params) const
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
     }
 
-    size_t num_fused_deps_with_external_input = 0;
-    if (params.has_fused_primitives()) {
-        for (const auto& fd : params.fused_desc) {
-            for (const auto& in_d : fd.inputs) {
-                if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
-                    num_fused_deps_with_external_input++;
-                }
-            }
-        }
-    }
-
-    for (uint32_t i = 0; i < params.input_layouts.size() - num_fused_deps_with_external_input; i++) {
+    for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
 

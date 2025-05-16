@@ -143,13 +143,13 @@ struct fully_connected : public primitive_base<fully_connected> {
     }
 
     /// @brief Primitive id containing weights data.
-    input_info weights;
+    primitive_id weights;
     /// @brief Primitive id containing bias data.
-    input_info bias;
+    primitive_id bias;
 
     bool compressed_weights = false;
-    input_info decompression_scale = {};
-    input_info decompression_zero_point = {};
+    primitive_id decompression_scale = "";
+    primitive_id decompression_zero_point = "";
     bool dynamic_quantized_activation = false;
     bool dynamic_quantized_activation_zp = false;
     input_info activation_scale = {"", 0};
@@ -165,10 +165,10 @@ struct fully_connected : public primitive_base<fully_connected> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, input_size);
         seed = hash_combine(seed, weights_rank);
-        seed = hash_combine(seed, bias.is_valid());
+        seed = hash_combine(seed, bias.empty());
         seed = hash_combine(seed, compressed_weights);
-        seed = hash_combine(seed, !decompression_scale.is_valid());
-        seed = hash_combine(seed, !decompression_zero_point.is_valid());
+        seed = hash_combine(seed, !decompression_scale.empty());
+        seed = hash_combine(seed, !decompression_zero_point.empty());
         seed = hash_combine(seed, activation_scale.is_valid());
         seed = hash_combine(seed, activation_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
@@ -184,10 +184,10 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
-               bias.is_valid() == rhs_casted.bias.is_valid() &&
+               bias.empty() == rhs_casted.bias.empty() &&
                compressed_weights == rhs_casted.compressed_weights &&
-               decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
-               decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
+               decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
+               decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
@@ -242,27 +242,24 @@ struct fully_connected : public primitive_base<fully_connected> {
     }
 
 protected:
-    std::map<size_t, const input_info*> get_dependencies_map() const override {
-        auto ret = std::map<size_t, const input_info*>{};
-        auto idx = input.size();
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
+        ret.push_back(weights);
 
-        OPENVINO_ASSERT(weights.is_valid());
-        ret[idx++] = &weights;
+        if (!bias.empty())
+            ret.push_back(bias);
 
-        if (bias.is_valid())
-            ret[idx++] = &bias;
+        if (!decompression_scale.empty())
+            ret.push_back(decompression_scale);
 
-        if (decompression_scale.is_valid())
-            ret[idx++] = &decompression_scale;
-
-        if (decompression_zero_point.is_valid())
-            ret[idx++] = &decompression_zero_point;
+        if (!decompression_zero_point.empty())
+            ret.push_back(decompression_zero_point);
 
         if (activation_scale.is_valid())
-            ret[idx++] = &activation_scale;
+            ret.push_back(activation_scale);
 
         if (activation_zero_point.is_valid())
-            ret[idx++] = &activation_zero_point;
+            ret.push_back(activation_zero_point);
 
         return ret;
     }

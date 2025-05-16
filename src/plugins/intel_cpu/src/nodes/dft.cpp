@@ -599,18 +599,25 @@ bool DFT::needPrepareParams() const {
 }
 
 void DFT::createPrimitive() {
-    bool hasDFT = true;
-    bool hasFFT = true;
-    if (m_is_axes_size_const && outputShapesDefined()) {
-        axes = getAxes();
-        const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-        hasDFT = hasFFT = false;
-        for (auto axis : axes) {
-            if (IsPowerOfTwo(outputShape[axis])) {
-                hasFFT = true;
-            } else {
-                hasDFT = true;
-            }
+    if (!outputShapesDefined() || !m_is_axes_size_const) {
+        if (mayiuse(cpu::x64::sse41)) {
+            createJITKernels(true, true);
+        }
+        return;
+    }
+
+    bool hasDFT = false;
+    bool hasFFT = false;
+
+    axes = getAxes();
+    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+
+    for (auto axis : axes) {
+        size_t nComplex = outputShape[axis];
+        if (!IsPowerOfTwo(nComplex)) {
+            hasDFT = true;
+        } else {
+            hasFFT = true;
         }
     }
     if (mayiuse(cpu::x64::sse41)) {

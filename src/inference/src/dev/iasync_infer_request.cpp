@@ -99,7 +99,6 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
-    std::lock_guard<std::mutex> lock{m_mutex};
     m_callback = std::move(callback);
 }
 
@@ -149,12 +148,11 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
 
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
-                    std::promise<void> promise;
+                    auto promise = std::move(m_promise);
                     std::function<void(std::exception_ptr)> callback;
                     {
                         std::lock_guard<std::mutex> lock{m_mutex};
                         m_state = InferState::IDLE;
-                        promise = std::move(m_promise);
                         std::swap(callback, m_callback);
                     }
                     if (callback) {

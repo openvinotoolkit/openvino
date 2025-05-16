@@ -177,10 +177,11 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
         }
 
-        if (engine_info.supports_work_group_collective_functions)
-            kernel_string->options += " -cl-std=CL3.0";
-        else
-            kernel_string->options += " -cl-std=CL2.0";
+#if CL_TARGET_OPENCL_VERSION >= 300
+        kernel_string->options += " -cl-std=CL3.0";
+#elif CL_TARGET_OPENCL_VERSION >= 200
+        kernel_string->options += " -cl-std=CL2.0";
+#endif
 
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;

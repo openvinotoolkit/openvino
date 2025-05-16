@@ -167,15 +167,14 @@ struct gather : public primitive_base<gather> {
     }
 
 protected:
-    std::map<size_t, const input_info*> get_dependencies_map() const override {
-        auto ret = std::map<size_t, const input_info*>{};
-        auto idx = input.size();
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
 
         if (decompression_scale.is_valid())
-            ret[idx++] = &decompression_scale;
+            ret.push_back(decompression_scale.pid);
 
         if (decompression_zero_point.is_valid())
-            ret[idx++] = &decompression_zero_point;
+            ret.push_back(decompression_zero_point.pid);
 
         return ret;
     }

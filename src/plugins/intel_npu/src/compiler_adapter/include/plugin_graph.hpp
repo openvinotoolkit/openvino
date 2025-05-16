@@ -16,16 +16,15 @@
 
 namespace intel_npu {
 
-class Graph final : public IGraph {
+class PluginGraph final : public IGraph {
 public:
-    Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
-          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          ze_graph_handle_t graphHandle,
-          NetworkMetadata metadata,
-          std::optional<ov::Tensor> blob,
-          bool blobAllocatedByPlugin,
-          const Config& config,
-          const ov::SoPtr<ICompiler>& compiler = {nullptr});
+    PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
+                const ov::SoPtr<ICompiler>& compiler,
+                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                ze_graph_handle_t graphHandle,
+                NetworkMetadata metadata,
+                std::unique_ptr<BlobContainer> blobPtr,
+                const Config& config);
 
     size_t export_blob(std::ostream& stream) const override;
 
@@ -36,20 +35,14 @@ public:
 
     void initialize(const Config& config) override;
 
-    ~Graph() override;
+    ~PluginGraph() override;
 
 private:
-    bool release_blob(const Config& config);
-
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
-    // In the case of the import path, the blob is released after graph initialization so it can not be any longer
-    // exported
-    bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
-
     const ov::SoPtr<ICompiler> _compiler;
+
     Logger _logger;
 };
 

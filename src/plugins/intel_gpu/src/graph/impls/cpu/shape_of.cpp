@@ -84,8 +84,7 @@ attach_shape_of_impl::attach_shape_of_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx
+        format::bfuwzyx
     };
 
     auto types = {

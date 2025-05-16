@@ -29,6 +29,7 @@ from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_mak
 
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
@@ -127,9 +128,8 @@ class OpenVINOGraphModule(torch.nn.Module):
 
         try:
             result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id, options=self.options)
-            logger.debug("OpenVINO graph execution successful")
-        except Exception as e:
-            logger.debug(f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution.")
+        except Exception:
+            logger.debug("OpenVINO execution failed. Falling back to native PyTorch execution.")
             self.perm_fallback = True
             return self.gm(*args)
 

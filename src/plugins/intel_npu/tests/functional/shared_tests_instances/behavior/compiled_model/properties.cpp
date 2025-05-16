@@ -54,6 +54,7 @@ const std::string& expectedModelName = []() -> std::string {
 }();
 
 const std::vector<ov::AnyMap> compat_PublicCompiledModelConfigs = {
+    {{ov::device::id.name(), ov::Any("")}},
     {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
@@ -61,11 +62,12 @@ const std::vector<ov::AnyMap> compat_PublicCompiledModelConfigs = {
     {{ov::model_name.name(), ov::Any(expectedModelName)}},
     {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
     {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
-    {{ov::hint::num_requests.name(), ov::Any(1u)}}};
+    {{ov::hint::num_requests.name(), ov::Any(1u)}},
+    {{ov::enable_profiling.name(), ov::Any(false)}}};
 
 const std::vector<ov::AnyMap> PublicCompiledModelConfigs = {
     {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}},
-    {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
+    {{ov::hint::inference_precision.name(), ov::Any(ov::element::f16)}},
 };
 
 const std::vector<ov::AnyMap> compiledModelIncorrectConfigs = {

@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 
+#include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -17,7 +18,10 @@ namespace intel_npu {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
-    IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
+    IGraph(ze_graph_handle_t handle,
+           NetworkMetadata metadata,
+           const Config& config,
+           std::unique_ptr<BlobContainer> blobPtr);
 
     virtual size_t export_blob(std::ostream& stream) const = 0;
 
@@ -87,7 +91,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::optional<ov::Tensor> _blob;
+    std::unique_ptr<BlobContainer> _blobPtr;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id = 0;
