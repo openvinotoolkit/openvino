@@ -292,6 +292,18 @@ void IStreamsExecutor::Config::update_executor_config() {
     }
     _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
     _streams = _streams > 0 ? num_streams : _streams;
+    std::cout << "[ threading ] CPU proc_type_table:\n";
+    for (size_t i = 0; i < proc_type_table.size(); i++) {
+        std::cout << proc_type_table[i][ALL_PROC] << " " << proc_type_table[i][MAIN_CORE_PROC] << " "
+                  << proc_type_table[i][EFFICIENT_CORE_PROC] << " " << proc_type_table[i][HYPER_THREADING_PROC] << " "
+                  << proc_type_table[i][PROC_NUMA_NODE_ID] << " " << proc_type_table[i][PROC_SOCKET_ID] << "\n";
+    }
+    std::cout << "[ threading ] streams_info_table:\n";
+    for (size_t i = 0; i < _streams_info_table.size(); i++) {
+        std::cout << _streams_info_table[i][NUMBER_OF_STREAMS] << " " << _streams_info_table[i][PROC_TYPE] << " "
+                  << _streams_info_table[i][THREADS_PER_STREAM] << " " << _streams_info_table[i][STREAM_NUMA_NODE_ID]
+                  << " " << _streams_info_table[i][STREAM_SOCKET_ID] << "\n";
+    }
 
 #ifdef ENABLE_OPENVINO_DEBUG
     OPENVINO_DEBUG("[ threading ] proc_type_table:");
