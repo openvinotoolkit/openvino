@@ -384,8 +384,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
     retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
-    retVector.emplace_back(R"(.*smoke_PagedAttnVSMatmulTest.*)");
-    retVector.emplace_back(R"(.*smoke_PagedAttnVSSDPATest.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
