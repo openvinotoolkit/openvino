@@ -683,7 +683,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                                                              const kernel_selector::MultiDataTensor& input_tensors,
                                                                              bool is_dynamic = false) {
         auto params = get_default_params<kv_cache_rotate_kernel_params_t>(impl_param, is_dynamic);
-
+        GPU_DEBUG_INFO << "test" << std::endl;
         const auto& key_cache_tensor = input_tensors[3];
         const auto& rotated_block_indices_tensor = input_tensors[13];
         const auto& rotation_deltas_tensor = input_tensors[14];
