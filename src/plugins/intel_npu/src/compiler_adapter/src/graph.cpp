@@ -35,7 +35,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 size_t Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
-    std::vector<uint8_t> blob;
+    std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
 
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
@@ -44,10 +44,10 @@ size_t Graph::export_blob(std::ostream& stream) const {
 
     if (_blob ==
         std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
-        _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
+        _zeGraphExt->getGraphBinary(_handle, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
-        blobSize = this->_blob->get_byte_size();
+        blobSize = _blob->get_byte_size();
     }
 
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
