@@ -136,9 +136,7 @@ public:
         past_shape = {-1, 1, head_num, head_size};
         q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
         kv_shape = {-1, 1, head_num, head_size};
-        std::shared_ptr<ov::Node> q_in = nullptr;
-        std::shared_ptr<ov::Node> k_in = nullptr;
-        std::shared_ptr<ov::Node> v_in = nullptr;
+
         auto q = make_param(q_shape, data_type, "q");
         auto k = make_param(kv_shape, data_type, "k");
         auto v = make_param(kv_shape, data_type, "v");
@@ -157,7 +155,7 @@ public:
         pastv->set_friendly_name("pastv_r");
         std::vector<size_t> transposeOrder{1, 2, 0, 3};
         auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
-        q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
+        std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
@@ -173,8 +171,8 @@ public:
                                                  op::v0::Constant::create(ov::element::i32, {1}, {transposeOrder[0]}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, concat_axis);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, concat_axis);
-        k_in = concatK;
-        v_in = concatV;
+        std::shared_ptr<ov::Node> k_in = concatK;
+        std::shared_ptr<ov::Node> v_in = concatV;
         k_in = std::make_shared<ov::op::v1::Transpose>(k_in, preOrder);
         v_in = std::make_shared<ov::op::v1::Transpose>(v_in, preOrder);
         auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in, k_in, v_in, true);
@@ -199,7 +197,7 @@ public:
         auto reshapeSDP =
             std::make_shared<ov::op::v1::Reshape>(transposeSDP,
                                                   constReshape,
-                                                  true);  // LBHS for better compare data between pa and sdpa
+                                                  true);  // use LBHS to better compare data between pa and sdpa
         SinkVector sinks{pastk_assign, pastv_assign};
         ov::OutputVector results{reshapeSDP};
         auto model = std::make_shared<Model>(results, sinks, inputParams, "sdpa_model");
@@ -447,9 +445,7 @@ public:
         past_shape = {-1, 1, head_num, head_size};
         q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
         kv_shape = {-1, 1, head_num, head_size};
-        std::shared_ptr<ov::Node> q_in = nullptr;
-        std::shared_ptr<ov::Node> k_in = nullptr;
-        std::shared_ptr<ov::Node> v_in = nullptr;
+        // std::shared_ptr<ov::Node> q_in = nullptr;
         auto q = make_param(q_shape, data_type, "q");
         auto k = make_param(kv_shape, data_type, "k");
         auto v = make_param(kv_shape, data_type, "v");
@@ -470,7 +466,7 @@ public:
         pastv->set_friendly_name("pastv_r");
         std::vector<size_t> transposeOrder{1, 2, 0, 3};
         auto preOrder = op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
-        q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
+        std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
         auto concat_axis = transposeOrder[2];
         auto gatherK =
             std::make_shared<ov::op::v8::Gather>(pastk,
