@@ -174,9 +174,11 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
+    const auto one_partial_shape = PartialShape({1});
 
-    if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
-        x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+    if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 &&
+        y_scale_shape != one_partial_shape && x_shape.rank().is_static() && x_shape.rank().get_length() > 0 &&
+        x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_scale_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization scale elements ",
@@ -191,7 +193,8 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
     }
 
     if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
-        x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+        y_zero_point_shape != one_partial_shape && x_shape.rank().is_static() && x_shape.rank().get_length() > 0 &&
+        x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_zero_point_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization zero point elements ",
