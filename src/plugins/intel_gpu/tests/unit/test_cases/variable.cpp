@@ -164,28 +164,27 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int32_t input_b = 3, input_f = 590, input_d = 768, weight_b = 768;
-    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_d }, data_types::f16, format::bfyx };
-    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_d }, data_types::f16, format::bfyx });
-    auto input_data_rnd = rg.generate_random_1d<ov::float16>(input_b * input_f * input_d, 0, 1);
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f, input_d }, data_types::f32, format::bfyx };
+    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f, input_d }, data_types::f32, format::bfyx });
+    auto input_data_rnd = rg.generate_random_1d<float>(input_b * input_f * input_d, 0, 1);
     set_values(input_data, input_data_rnd);
 
-    auto weights_data_layout = layout{ov::PartialShape{weight_b, weight_b}, data_types::f16, format::os_iyx_osv32};
+    auto weights_data_layout = layout{ov::PartialShape{weight_b, weight_b}, data_types::f32, format::os_iyx_osv32};
     auto weights_data = engine.allocate_memory(weights_data_layout);
-    auto weights_data_rnd = rg.generate_random_1d<ov::float16>(weights_data_layout.count(), 0, 1);
+    auto weights_data_rnd = rg.generate_random_1d<float>(weights_data_layout.count(), 0, 1);
     set_values(weights_data, weights_data_rnd);
 
-    auto bias_data_layout = layout{ov::PartialShape{1, 1, input_d}, data_types::f16, format::bfyx};
+    auto bias_data_layout = layout{ov::PartialShape{1, 1, input_d}, data_types::f32, format::bfyx};
     auto bias_data = engine.allocate_memory(bias_data_layout);
-    auto bias_data_rnd = rg.generate_random_1d<ov::float16>(bias_data_layout.count(), 0, 1);
+    auto bias_data_rnd = rg.generate_random_1d<float>(bias_data_layout.count(), 0, 1);
     set_values(bias_data, bias_data_rnd);
 
-    const layout variable_layout{{input_b, input_f, input_d}, data_types::f16, format::bfyx};
+    const layout variable_layout{{input_b, input_f, input_d}, data_types::f32, format::bfyx};
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("weights", weights_data));
     topology.add(data("bias", bias_data));
-    //topology.add(fully_connected("fc", input_info("input"), "weights"));
     topology.add(fully_connected("fc", input_info("input"), "weights", "bias"));
     topology.add(read_value{"read_value", { input_info("fc") }, "v0", { variable_layout }});
 
