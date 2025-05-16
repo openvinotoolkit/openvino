@@ -332,6 +332,7 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMa
 
 ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_for_tp;
+    OPENVINO_ASSERT(execution_devices.size() >= 1, "There is no execution devices in HETERO.");
     for (auto device : execution_devices) {
         contexts_for_tp.insert({device, get_core()->get_default_context(device)});
     }
