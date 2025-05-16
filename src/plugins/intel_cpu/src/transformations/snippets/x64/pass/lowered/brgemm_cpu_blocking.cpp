@@ -51,8 +51,10 @@ void BrgemmCPUBlocking::update_loop_infos(
     const std::vector<std::pair<size_t, std::vector<LoopPort>>>& block_to_new_ports) {
     size_t i = 0;
     for (const auto& pair : block_to_new_ports) {
-        if (is_full_dim_value(pair.first))
+        if (is_full_dim_value(pair.first)) {
             continue;
+        }
+
         const auto& new_ports = pair.second;
         OPENVINO_ASSERT(i < loop_ids.size(), "Attempt to access invalid loop id");
         const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_ids[i++]);

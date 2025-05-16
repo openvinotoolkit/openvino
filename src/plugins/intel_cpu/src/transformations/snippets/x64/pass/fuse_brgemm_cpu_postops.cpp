@@ -130,14 +130,14 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         if (pattern_map.count(m_round)) {
             const auto round = ov::as_type_ptr<ov::op::v5::Round>(post_op);
             switch (round->get_mode()) {
-                case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
-                    append_eltwise(alg_kind_t::dnnl_eltwise_round_half_to_even);
-                    break;
-                case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
-                    append_eltwise(alg_kind_t::dnnl_eltwise_round_half_away_from_zero);
-                    break;
-                default:
-                    OPENVINO_THROW("Unsupported round mode: ", round->get_mode());
+            case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
+                append_eltwise(alg_kind_t::dnnl_eltwise_round_half_to_even);
+                break;
+            case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+                append_eltwise(alg_kind_t::dnnl_eltwise_round_half_away_from_zero);
+                break;
+            default:
+                OPENVINO_THROW("Unsupported round mode");
             }
         } else if (pattern_map.count(m_relu)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_relu);
