@@ -832,8 +832,6 @@ DQEinsum::DQEinsum(Context::Ref ctx) {
                 // Update the convert shape
                 if (matched_node_qcvtw) {
                     matched_node_qcvtw->validate_and_infer_types();
-                } else {
-                    matched_node_einsum->validate_and_infer_types();
                 }
 
                 // Add Transpose and insert it

@@ -594,6 +594,9 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                     case ov::element::f16:
                         twrite<uint16_t>(tnew, tread<uint16_t>(t, p, r, shape[0]), r, p, shape[1]);
                         break;
+                    case ov::element::f32:
+                        twrite<uint32_t>(tnew, tread<uint32_t>(t, p, r, shape[0]), r, p, shape[1]);
+                        break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");
                     }
