@@ -5,6 +5,24 @@
 
 set(TARGET_NAME protopipe)
 
+set(VERSION_MAJOR 1)
+set(VERSION_MINOR 0)
+set(VERSION_PATCH 0)
+
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  OUTPUT_VARIABLE GIT_SHA
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/version.hpp
+  @ONLY
+)
+# Include the generated file
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 if (NOT DEFINED PROJECT_NAME)
     if(WIN32)
         cmake_minimum_required(VERSION 3.16)
