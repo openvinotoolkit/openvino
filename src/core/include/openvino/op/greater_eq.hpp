@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API GreaterEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("GreaterEqual", "opset1", op::util::BinaryElementwiseComparison);
+    ~GreaterEqual() override;
     /// \brief Constructs a greater-than-or-equal operation.
     GreaterEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a greater-than-or-equal operation.

@@ -18,6 +18,7 @@ namespace v0 {
 class OPENVINO_API Clamp : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Clamp", "opset1", UnaryElementwiseArithmetic);
+    ~Clamp() override;
 
     Clamp() = default;
     /// \brief Constructs a Clamp node.

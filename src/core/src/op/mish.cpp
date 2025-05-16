@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v4 {
 
+Mish::~Mish() = default;
+
 Mish::Mish(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

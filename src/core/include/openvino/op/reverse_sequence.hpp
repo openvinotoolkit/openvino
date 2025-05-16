@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API ReverseSequence : public Op {
 public:
     OPENVINO_OP("ReverseSequence", "opset1");
+    ~ReverseSequence() override;
 
     ReverseSequence() = default;
     /// \brief Constructs a ReverseSequence operation.

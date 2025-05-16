@@ -29,3 +29,5 @@ bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor&
     visitor.on_attribute("deformable_group", m_deformable_group);
     return true;
 }
+
+ov::op::util::DeformableConvolutionBase::~DeformableConvolutionBase() = default;

@@ -18,6 +18,7 @@ namespace v13 {
 class OPENVINO_API ScaledDotProductAttention : public Op {
 public:
     OPENVINO_OP("ScaledDotProductAttention", "opset13", op::Op);
+    ~ScaledDotProductAttention() override;
 
     /// \brief Constructs a ScaledDotProductAttention operation.
     ScaledDotProductAttention() = default;

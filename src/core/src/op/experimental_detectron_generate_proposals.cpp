@@ -13,6 +13,8 @@ namespace ov {
 namespace op {
 namespace v6 {
 
+ExperimentalDetectronGenerateProposalsSingleImage::~ExperimentalDetectronGenerateProposalsSingleImage() = default;
+
 ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,
     const Output<Node>& anchors,

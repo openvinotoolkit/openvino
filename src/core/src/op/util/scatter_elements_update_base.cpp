@@ -21,6 +21,8 @@ util::ScatterElementsUpdateBase::ScatterElementsUpdateBase(const Output<Node>& d
     constructor_validate_and_infer_types();
 }
 
+util::ScatterElementsUpdateBase::~ScatterElementsUpdateBase() = default;
+
 void util::ScatterElementsUpdateBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_ScatterElementsUpdateBase_validate_and_infer_types);
 

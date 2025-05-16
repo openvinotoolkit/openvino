@@ -131,6 +131,8 @@ static bool evaluate_util(const ov::op::util::MaxPoolBase* op,
 
 namespace v1 {
 
+MaxPool::~MaxPool() = default;
+
 MaxPool::MaxPool(const Output<Node>& arg,
                  const Strides& strides,
                  const Shape& pads_begin,
@@ -248,6 +250,8 @@ namespace ov {
 namespace op {
 namespace v8 {
 
+MaxPool::~MaxPool() = default;
+
 MaxPool::MaxPool(const Output<Node>& arg,
                  const Strides& strides,
                  const Strides& dilations,
@@ -357,6 +361,8 @@ void MaxPool::set_axis(const int64_t axis) {
 namespace ov {
 namespace op {
 namespace v14 {
+
+MaxPool::~MaxPool() = default;
 
 MaxPool::MaxPool(const Output<Node>& arg,
                  const Strides& strides,

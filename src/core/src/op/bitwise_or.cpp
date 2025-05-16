@@ -9,6 +9,8 @@
 namespace ov {
 namespace op {
 namespace v13 {
+BitwiseOr::~BitwiseOr() = default;
+
 BitwiseOr::BitwiseOr(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseBitwise(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

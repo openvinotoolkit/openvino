@@ -66,4 +66,6 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     set_output_type(1, result_et, output_shapes[1]);
     set_output_type(2, result_et, output_shapes[2]);
 }
+
+op::v5::LSTMSequence::~LSTMSequence() = default;
 }  // namespace ov

@@ -15,6 +15,7 @@ namespace v1 {
 class OPENVINO_API ReduceMax : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims);
+    ~ReduceMax() override;
     /// \brief Constructs a summation operation.
     ReduceMax() = default;
     /// \brief Constructs a summation operation.

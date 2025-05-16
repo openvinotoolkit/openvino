@@ -15,6 +15,8 @@
 namespace ov {
 namespace op {
 namespace v5 {
+Loop::~Loop() = default;
+
 Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
     set_argument(1, execution_condition);

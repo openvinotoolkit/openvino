@@ -3,3 +3,5 @@
 //
 
 #include "openvino/op/util/read_value_base.hpp"
+
+ov::op::util::ReadValueBase::~ReadValueBase() = default;

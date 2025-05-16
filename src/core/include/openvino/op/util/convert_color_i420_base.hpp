@@ -68,6 +68,7 @@ protected:
 
 public:
     OPENVINO_OP("ConvertColorI420Base", "util");
+    ~ConvertColorI420Base() override;
 
     void validate_and_infer_types() override;
 

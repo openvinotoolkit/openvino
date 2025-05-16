@@ -38,6 +38,8 @@ InterpolateBase::InterpolateBase(const Output<Node>& image,
     ov::mark_as_precision_sensitive(input(2));
 }
 
+InterpolateBase::~InterpolateBase() = default;
+
 bool InterpolateBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_InterpolateBase_visit_attributes);
     visitor.on_attribute("mode", m_attrs.mode);

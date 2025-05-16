@@ -15,6 +15,7 @@ namespace v3 {
 class OPENVINO_API ScatterElementsUpdate : public util::ScatterElementsUpdateBase {
 public:
     OPENVINO_OP("ScatterElementsUpdate", "opset3", util::ScatterElementsUpdateBase);
+    ~ScatterElementsUpdate() override;
 
     ScatterElementsUpdate() = default;
     /// \brief Constructs a ScatterElementsUpdate node
@@ -37,6 +38,7 @@ namespace v12 {
 class OPENVINO_API ScatterElementsUpdate : public op::util::ScatterElementsUpdateBase {
 public:
     OPENVINO_OP("ScatterElementsUpdate", "opset12", op::util::ScatterElementsUpdateBase);
+    ~ScatterElementsUpdate() override;
 
     /// \brief Lists the supported reduction types for this version of the operator.
     ///        See the specification for the description of how reduction works with ScatterElementsUpdate.

@@ -17,6 +17,7 @@ namespace v4 {
 class OPENVINO_API Swish : public Op {
 public:
     OPENVINO_OP("Swish", "opset4", op::Op);
+    ~Swish() override;
     Swish() = default;
 
     /// \brief Constructs an Swish operation.

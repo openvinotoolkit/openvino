@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API GRN : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("GRN", "opset1", util::UnaryElementwiseArithmetic);
+    ~GRN() override;
 
     GRN() = default;
     /// \brief      Constructs a GRN operation.

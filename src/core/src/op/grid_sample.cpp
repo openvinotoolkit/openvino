@@ -61,6 +61,8 @@ private:
     };
 };
 
+GridSample::~GridSample() = default;
+
 GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
     : op::Op{{data, grid}},
       m_attributes{attributes} {

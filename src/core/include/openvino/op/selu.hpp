@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API Selu : public Op {
 public:
     OPENVINO_OP("Selu", "opset1");
+    ~Selu() override;
 
     Selu() = default;
     /// \brief Constructs a Selu node.

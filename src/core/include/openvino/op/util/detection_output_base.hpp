@@ -31,6 +31,8 @@ public:
     };
 
     OPENVINO_OP("DetectionOutputBase", "util");
+
+    ~DetectionOutputBase() override;
     DetectionOutputBase() = default;
     DetectionOutputBase(const OutputVector& args);
 

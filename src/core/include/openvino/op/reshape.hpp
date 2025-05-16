@@ -18,6 +18,7 @@ namespace v1 {
 class OPENVINO_API Reshape : public Op {
 public:
     OPENVINO_OP("Reshape", "opset1", op::Op);
+    ~Reshape() override;
     Reshape() = default;
     /// \brief Constructs a dynamic reshape operation. This operation does not perform
     ///        transpose.

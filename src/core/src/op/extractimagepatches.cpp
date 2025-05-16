@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v3 {
+ExtractImagePatches::~ExtractImagePatches() = default;
+
 ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
                                          const ov::Shape& sizes,
                                          const Strides& strides,

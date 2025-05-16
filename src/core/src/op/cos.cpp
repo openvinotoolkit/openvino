@@ -26,6 +26,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace cos
 
 namespace v0 {
+Cos::~Cos() = default;
+
 Cos::Cos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

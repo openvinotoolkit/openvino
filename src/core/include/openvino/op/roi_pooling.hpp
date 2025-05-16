@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API ROIPooling : public Op {
 public:
     OPENVINO_OP("ROIPooling", "opset2");
+    ~ROIPooling() override;
 
     ROIPooling() = default;
     /// \brief Constructs a ROIPooling operation

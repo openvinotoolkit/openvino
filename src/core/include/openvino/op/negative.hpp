@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API Negative : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Negative", "opset1", util::UnaryElementwiseArithmetic);
+    ~Negative() override;
     /// \brief Constructs a negative operation.
     Negative() = default;
     /// \brief Constructs a negative operation.

@@ -62,6 +62,7 @@ namespace v1 {
 class OPENVINO_API ReduceSum : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims);
+    ~ReduceSum() override;
     /// \brief Constructs a summation operation.
     ReduceSum() = default;
     /// \brief Constructs a summation operation.

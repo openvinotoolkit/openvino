@@ -23,6 +23,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
     constructor_validate_and_infer_types();
 }
 
+GroupQueryAttention::~GroupQueryAttention() = default;
+
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(GroupQueryAttention_validate_and_infer_types);
     // GQA expectes the following inputs: query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache

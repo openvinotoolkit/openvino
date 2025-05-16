@@ -17,6 +17,7 @@ namespace v1 {
 class OPENVINO_API LogicalAnd : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalAnd", "opset1", util::BinaryElementwiseLogical);
+    ~LogicalAnd() override;
     /// \brief Constructs a logical-and operation.
     LogicalAnd() = default;
 

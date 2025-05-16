@@ -10,6 +10,8 @@
 namespace ov {
 namespace op {
 namespace v1 {
+Gather::~Gather() = default;
+
 Gather::Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axes)
     : GatherBase(params, indices, axes) {
     constructor_validate_and_infer_types();
@@ -27,6 +29,7 @@ std::shared_ptr<Node> Gather::clone_with_new_inputs(const OutputVector& new_args
 }  // namespace v1
 
 namespace v7 {
+Gather::~Gather() = default;
 Gather::Gather(const Output<Node>& data,
                const Output<Node>& indices,
                const Output<Node>& axis,
@@ -69,6 +72,7 @@ std::shared_ptr<Node> Gather::clone_with_new_inputs(const OutputVector& new_args
 }  // namespace v7
 
 namespace v8 {
+Gather::~Gather() = default;
 Gather::Gather(const Output<Node>& data,
                const Output<Node>& indices,
                const Output<Node>& axis,

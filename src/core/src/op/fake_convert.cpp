@@ -47,6 +47,8 @@ struct Evaluate : element::NoAction<bool> {
 };
 }  // namespace fake_convert_details
 
+FakeConvert::~FakeConvert() = default;
+
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)

@@ -34,6 +34,8 @@ public:
 
     OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp);
 
+    ~Loop() override;
+
     /// \brief Constructs a Loop operation.
     Loop() = default;
 

@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v0 {
 
+Exp::~Exp() = default;
+
 Exp::Exp(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

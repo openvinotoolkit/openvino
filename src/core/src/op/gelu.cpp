@@ -14,6 +14,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+Gelu::~Gelu() = default;
+
 Gelu::Gelu() : UnaryElementwiseArithmetic() {}
 
 Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic(data) {
@@ -44,6 +46,8 @@ void Gelu::validate_and_infer_types() {
 }  // namespace v0
 
 namespace v7 {
+Gelu::~Gelu() = default;
+
 Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
     : UnaryElementwiseArithmetic(data),
       m_approximation_mode(mode) {

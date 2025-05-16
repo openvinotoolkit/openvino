@@ -16,6 +16,7 @@ namespace v1 {
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase);
+    ~MaxPool() override;
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
@@ -54,6 +55,7 @@ namespace v8 {
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
+    ~MaxPool() override;
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;
@@ -118,6 +120,7 @@ namespace v14 {
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset14", op::util::MaxPoolBase);
+    ~MaxPool() override;
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;

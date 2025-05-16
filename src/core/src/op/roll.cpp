@@ -11,6 +11,8 @@ namespace ov {
 namespace op {
 namespace v7 {
 
+Roll::~Roll() = default;
+
 Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Output<Node>& axes) : Op({data, shift, axes}) {
     constructor_validate_and_infer_types();
 }

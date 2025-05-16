@@ -39,6 +39,8 @@ ov::op::util::TopKBase::TopKBase(const Output<Node>& data,
     ov::mark_as_precision_sensitive(input(1));
 }
 
+ov::op::util::TopKBase::~TopKBase() = default;
+
 void ov::op::util::TopKBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_TopK_Base_validate_and_infer_types);
 

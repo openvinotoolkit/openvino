@@ -12,6 +12,8 @@ namespace ov {
 namespace op {
 namespace v15 {
 
+SearchSorted::~SearchSorted() = default;
+
 SearchSorted::SearchSorted(const Output<Node>& sorted_sequence,
                            const Output<Node>& values,
                            bool right_mode,

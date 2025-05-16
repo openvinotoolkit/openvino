@@ -29,6 +29,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v0 {
 
+PRelu::~PRelu() = default;
+
 PRelu::PRelu() : Op() {}
 
 PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope) : Op({data, slope}) {

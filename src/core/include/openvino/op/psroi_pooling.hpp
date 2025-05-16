@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API PSROIPooling : public Op {
 public:
     OPENVINO_OP("PSROIPooling", "opset1");
+    ~PSROIPooling() override;
 
     PSROIPooling() = default;
     /// \brief Constructs a PSROIPooling operation

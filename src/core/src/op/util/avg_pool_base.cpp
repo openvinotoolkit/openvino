@@ -29,6 +29,8 @@ AvgPoolBase::AvgPoolBase(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+AvgPoolBase::~AvgPoolBase() = default;
+
 void AvgPoolBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_AvgPoolBase_validate_and_infer_types);
 

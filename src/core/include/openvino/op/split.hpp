@@ -18,6 +18,7 @@ namespace v1 {
 class OPENVINO_API Split : public Op {
 public:
     OPENVINO_OP("Split", "opset1", op::Op);
+    ~Split() override;
 
     /// \brief Constructs a split operation.
     Split() = default;

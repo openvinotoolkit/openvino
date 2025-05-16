@@ -11,6 +11,8 @@ op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, co
     : Op(arguments),
       m_attrs{attrs} {}
 
+op::util::MulticlassNmsBase::~MulticlassNmsBase() = default;
+
 void op::util::MulticlassNmsBase::validate() {
     OV_OP_SCOPE(util_MulticlassNmsBase_validate);
 

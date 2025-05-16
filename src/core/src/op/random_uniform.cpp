@@ -25,6 +25,8 @@ inline bool alignment(const PhiloxAlignment& alignment) {
 }
 }  // namespace validate
 
+RandomUniform::~RandomUniform() = default;
+
 RandomUniform::RandomUniform(const Output<Node>& out_shape,
                              const Output<Node>& min_val,
                              const Output<Node>& max_val,

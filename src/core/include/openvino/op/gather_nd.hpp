@@ -14,6 +14,7 @@ namespace v5 {
 class OPENVINO_API GatherND : public op::util::GatherNDBase {
 public:
     OPENVINO_OP("GatherND", "opset5", op::util::GatherNDBase);
+    ~GatherND() override;
     GatherND() = default;
 
     /// \brief Constructs a GatherND operation.
@@ -36,6 +37,7 @@ namespace v8 {
 class OPENVINO_API GatherND : public op::util::GatherNDBase {
 public:
     OPENVINO_OP("GatherND", "opset8", op::util::GatherNDBase);
+    ~GatherND() override;
     GatherND() = default;
 
     /// \brief Constructs a GatherND operation.

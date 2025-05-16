@@ -18,6 +18,7 @@ namespace util {
 class OPENVINO_API MultiSubGraphOp : public ov::op::Sink {
 public:
     OPENVINO_OP("MultiSubGraphOp", "util", ov::op::Sink);
+    ~MultiSubGraphOp() override;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class OPENVINO_API InputDescription {

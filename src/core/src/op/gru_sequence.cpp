@@ -14,6 +14,8 @@
 
 namespace ov {
 
+op::v5::GRUSequence::~GRUSequence() = default;
+
 op::v5::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
       m_linear_before_reset(false) {}

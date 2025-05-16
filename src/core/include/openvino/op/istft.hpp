@@ -12,6 +12,7 @@ namespace ov::op::v16 {
 class OPENVINO_API ISTFT : public Op {
 public:
     OPENVINO_OP("ISTFT", "opset16");
+    ~ISTFT() override;
     ISTFT() = default;
 
     /// \brief Constructs an ISTFT operation with signal length to be inferred

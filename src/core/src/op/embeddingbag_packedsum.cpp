@@ -8,6 +8,8 @@
 
 namespace ov {
 
+op::v3::EmbeddingBagPackedSum::~EmbeddingBagPackedSum() = default;
+
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& per_sample_weights)

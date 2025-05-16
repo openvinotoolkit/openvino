@@ -15,6 +15,8 @@ ov::op::util::BinaryElementwiseBitwise::BinaryElementwiseBitwise(const Output<No
     : Op({arg0, arg1}),
       m_autob(autob) {}
 
+ov::op::util::BinaryElementwiseBitwise::~BinaryElementwiseBitwise() = default;
+
 void ov::op::util::BinaryElementwiseBitwise::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_BinaryElementwiseBitwise_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);

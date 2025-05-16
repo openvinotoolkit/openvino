@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Abs : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);
+    ~Abs() override;
     /// \brief Constructs an absolute value operation.
     Abs() = default;
     /// \brief Constructs an absolute value operation.

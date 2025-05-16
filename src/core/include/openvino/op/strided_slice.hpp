@@ -19,6 +19,7 @@ namespace v1 {
 class OPENVINO_API StridedSlice : public Op {
 public:
     OPENVINO_OP("StridedSlice", "opset1", op::Op);
+    ~StridedSlice() override;
 
     StridedSlice() = default;
 

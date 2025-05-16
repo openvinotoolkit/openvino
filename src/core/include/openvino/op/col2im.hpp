@@ -14,6 +14,7 @@ namespace v15 {
 class OPENVINO_API Col2Im : public ov::op::Op {
 public:
     OPENVINO_OP("Col2Im", "opset15", ov::op::Op);
+    ~Col2Im() override;
 
     Col2Im() = default;
     /// \brief Constructs a Col2Im operation.

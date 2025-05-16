@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Maximum : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic);
+    ~Maximum() override;
 
     /// \brief Constructs a maximum operation.
     Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

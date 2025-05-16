@@ -39,6 +39,8 @@ ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::EmbeddingBagPackedBase::~EmbeddingBagPackedBase() = default;
+
 void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_EmbeddingBagPackedBase_validate_and_infer_types);
     NODE_VALIDATION_CHECK(

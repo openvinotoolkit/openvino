@@ -22,6 +22,7 @@ namespace v0 {
 class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_OP("Interpolate", "opset1");
+    ~Interpolate() override;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
@@ -77,6 +78,7 @@ namespace v4 {
 class OPENVINO_API Interpolate : public util::InterpolateBase {
 public:
     OPENVINO_OP("Interpolate", "opset4", util::InterpolateBase);
+    ~Interpolate() override;
 
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation without 'axes' input.
@@ -118,6 +120,7 @@ namespace v11 {
 class OPENVINO_API Interpolate : public util::InterpolateBase {
 public:
     OPENVINO_OP("Interpolate", "opset11", util::InterpolateBase);
+    ~Interpolate() override;
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation without 'axes' input.
     ///

@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API LessEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("LessEqual", "opset1", op::util::BinaryElementwiseComparison);
+    ~LessEqual() override;
     /// \brief Constructs a less-than-or-equal operation.
     LessEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
 

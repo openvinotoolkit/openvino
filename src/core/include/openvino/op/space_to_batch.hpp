@@ -24,6 +24,7 @@ namespace v1 {
 class OPENVINO_API SpaceToBatch : public Op {
 public:
     OPENVINO_OP("SpaceToBatch", "opset2", op::Op);
+    ~SpaceToBatch() override;
 
     SpaceToBatch() = default;
 

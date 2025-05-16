@@ -16,6 +16,8 @@ namespace ov {
 namespace op {
 namespace v16 {
 
+Identity::~Identity() = default;
+
 Identity::Identity(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }

@@ -109,6 +109,8 @@ bool evaluate_symbol(const Node* shape_of_node, TensorSymbolVector& output_symbo
 }  // namespace shape_of
 
 namespace v3 {
+ShapeOf::~ShapeOf() = default;
+
 ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : ShapeOfBase({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
@@ -182,6 +184,8 @@ bool ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& inp
 }  // namespace v3
 
 namespace v0 {
+ShapeOf::~ShapeOf() = default;
+
 ShapeOf::ShapeOf(const Output<Node>& arg) : ShapeOfBase({arg}) {
     constructor_validate_and_infer_types();
 }

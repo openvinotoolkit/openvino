@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API MatMul : public Op {
 public:
     OPENVINO_OP("MatMul", "opset1");
+    ~MatMul() override;
     MatMul() = default;
     /// \brief Constructs an Matrix Multiplication operation.
     ///

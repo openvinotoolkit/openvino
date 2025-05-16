@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Asin : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Asin", "opset1", util::UnaryElementwiseArithmetic);
+    ~Asin() override;
     /// \brief Constructs an arcsin operation.
     Asin() = default;
     /// \brief Constructs an arcsin operation.

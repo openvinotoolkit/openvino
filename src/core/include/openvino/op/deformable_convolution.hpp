@@ -17,6 +17,7 @@ namespace v1 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase);
+    ~DeformableConvolution() override;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -64,6 +65,7 @@ namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);
+    ~DeformableConvolution() override;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;

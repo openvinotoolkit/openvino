@@ -24,6 +24,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace tan
 
 namespace v0 {
+Tan::~Tan() = default;
+
 Tan::Tan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

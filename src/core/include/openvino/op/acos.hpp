@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Acos : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Acos", "opset1", util::UnaryElementwiseArithmetic);
+    ~Acos() override;
     /// \brief Constructs an arccos operation.
     Acos() = default;
     /// \brief Constructs an arccos operation.

@@ -15,6 +15,7 @@ namespace v1 {
 class OPENVINO_API OneHot : public Op {
 public:
     OPENVINO_OP("OneHot", "opset1", op::Op);
+    ~OneHot() override;
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;

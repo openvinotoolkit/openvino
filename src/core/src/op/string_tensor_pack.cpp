@@ -12,6 +12,8 @@ namespace ov {
 namespace op {
 namespace v15 {
 
+StringTensorPack::~StringTensorPack() = default;
+
 StringTensorPack::StringTensorPack(const Output<Node>& begins, const Output<Node>& ends, const Output<Node>& symbols)
     : Op({begins, ends, symbols}) {
     constructor_validate_and_infer_types();

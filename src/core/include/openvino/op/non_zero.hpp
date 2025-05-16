@@ -21,6 +21,7 @@ namespace v3 {
 class OPENVINO_API NonZero : public Op {
 public:
     OPENVINO_OP("NonZero", "opset3", op::Op);
+    ~NonZero() override;
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.

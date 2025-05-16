@@ -14,6 +14,7 @@ namespace util {
 class OPENVINO_API PadBase : public Op {
 public:
     OPENVINO_OP("PadBase", "util");
+    ~PadBase() override;
 
     PadBase() = default;
 

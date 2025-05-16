@@ -13,6 +13,7 @@ namespace op {
 class OPENVINO_API PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
+    ~PagedAttentionExtension() override;
 
     PagedAttentionExtension(const ov::OutputVector& args);
     void validate_and_infer_types() override;

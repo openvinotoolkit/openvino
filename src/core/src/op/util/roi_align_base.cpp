@@ -24,6 +24,8 @@ ROIAlignBase::ROIAlignBase(const Output<Node>& input,
       m_sampling_ratio{sampling_ratio},
       m_spatial_scale{spatial_scale} {}
 
+ROIAlignBase::~ROIAlignBase() = default;
+
 void ROIAlignBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_RoiAlignBase_validate_and_infer_types);
 

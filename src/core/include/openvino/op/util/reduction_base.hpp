@@ -30,6 +30,7 @@ protected:
 
 public:
     OPENVINO_OP("ReductionBase", "util");
+    ~ReductionBase() override;
 
     /// \return true if reduction axes are constant else false.
     bool reduction_axes_constant() const;

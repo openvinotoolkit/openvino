@@ -40,6 +40,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace one_hot
 
 namespace v1 {
+OneHot::~OneHot() = default;
+
 OneHot::OneHot(const Output<Node>& indices,
                const Output<Node>& depth,
                const Output<Node>& on_value,

@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Atan : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Atan", "opset1", util::UnaryElementwiseArithmetic);
+    ~Atan() override;
     /// \brief Constructs an arctan operation.
     Atan() = default;
 

@@ -17,6 +17,8 @@ ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Out
     : Op({arg0, arg1}),
       m_autob(autob) {}
 
+ov::op::util::BinaryElementwiseArithmetic::~BinaryElementwiseArithmetic() = default;
+
 void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);

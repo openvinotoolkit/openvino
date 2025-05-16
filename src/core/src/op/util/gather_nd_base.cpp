@@ -12,6 +12,8 @@ ov::op::util::GatherNDBase::GatherNDBase(const Output<Node>& data, const Output<
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::GatherNDBase::~GatherNDBase() = default;
+
 void ov::op::util::GatherNDBase::validate_inputs_and_infer_shape() {
     // check types of input tensors
     const auto& indices_type = get_input_element_type(1);

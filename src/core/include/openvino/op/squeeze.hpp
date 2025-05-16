@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset1");
+    ~Squeeze() override;
 
     Squeeze();
     /// \brief Constructs a squeeze v0 operation.
@@ -44,6 +45,7 @@ namespace v15 {
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset15");
+    ~Squeeze() override;
 
     Squeeze();
     /// \brief Constructs a squeeze v15 operation.

@@ -15,6 +15,8 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+BatchToSpace::~BatchToSpace() = default;
+
 BatchToSpace::BatchToSpace(const Output<Node>& data,
                            const Output<Node>& block_shape,
                            const Output<Node>& crops_begin,

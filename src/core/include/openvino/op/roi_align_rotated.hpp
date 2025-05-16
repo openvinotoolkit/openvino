@@ -15,6 +15,7 @@ namespace v15 {
 class OPENVINO_API ROIAlignRotated : public util::ROIAlignBase {
 public:
     OPENVINO_OP("ROIAlignRotated", "opset15", util::ROIAlignBase);
+    ~ROIAlignRotated() override;
 
     ROIAlignRotated() = default;
     /// \brief Constructs a ROIAlignRotated operation.

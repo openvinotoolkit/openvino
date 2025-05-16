@@ -15,6 +15,7 @@ namespace v8 {
 class OPENVINO_API RandomUniform : public Op {
 public:
     OPENVINO_OP("RandomUniform", "opset8");
+    ~RandomUniform() override;
 
     RandomUniform() = default;
 

@@ -121,6 +121,8 @@ bool has_evaluate(const op::util::ScatterNDBase* node) {
 }  // namespace
 }  // namespace scatter_nd_update
 namespace v3 {
+ScatterNDUpdate::~ScatterNDUpdate() = default;
+
 std::shared_ptr<Node> ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -157,6 +159,8 @@ bool ScatterNDUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const 
 }  // namespace v3
 
 namespace v15 {
+ScatterNDUpdate::~ScatterNDUpdate() = default;
+
 ScatterNDUpdate::ScatterNDUpdate(const Output<Node>& inputs,
                                  const Output<Node>& indices,
                                  const Output<Node>& updates,

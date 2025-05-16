@@ -14,6 +14,8 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+ConvertLike::~ConvertLike() = default;
+
 ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like) : Op({data, like}) {
     constructor_validate_and_infer_types();
 }

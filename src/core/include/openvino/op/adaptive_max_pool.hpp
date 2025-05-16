@@ -16,6 +16,7 @@ namespace v8 {
 class OPENVINO_API AdaptiveMaxPool : public Op {
 public:
     OPENVINO_OP("AdaptiveMaxPool", "opset8");
+    ~AdaptiveMaxPool() override;
 
     AdaptiveMaxPool() = default;
 

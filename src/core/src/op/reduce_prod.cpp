@@ -38,6 +38,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace reduce_prod
 namespace v1 {
 
+ReduceProd::~ReduceProd() = default;
+
 ReduceProd::ReduceProd(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

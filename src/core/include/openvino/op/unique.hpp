@@ -15,6 +15,7 @@ namespace v10 {
 class OPENVINO_API Unique : public Op {
 public:
     OPENVINO_OP("Unique", "opset10");
+    ~Unique() override;
 
     Unique() = default;
 

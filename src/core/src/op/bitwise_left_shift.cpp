@@ -36,6 +36,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 };
 }  // namespace left_shift
 
+BitwiseLeftShift::~BitwiseLeftShift() = default;
+
 BitwiseLeftShift::BitwiseLeftShift(const Output<Node>& arg0,
                                    const Output<Node>& arg1,
                                    const AutoBroadcastSpec& auto_broadcast)

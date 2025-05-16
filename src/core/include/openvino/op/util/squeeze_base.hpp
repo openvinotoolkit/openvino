@@ -15,6 +15,7 @@ namespace util {
 class OPENVINO_API SqueezeBase : public Op {
 public:
     OPENVINO_OP("Squeeze", "util");
+    ~SqueezeBase() override;
     SqueezeBase() = default;
     /// \brief Constructs a squeeze operation.
     ///

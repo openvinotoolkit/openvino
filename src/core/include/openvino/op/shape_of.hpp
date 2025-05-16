@@ -14,6 +14,7 @@ namespace v3 {
 class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
     OPENVINO_OP("ShapeOf", "opset3", util::ShapeOfBase);
+    ~ShapeOf() override;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -51,6 +52,7 @@ namespace v0 {
 class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
     OPENVINO_OP("ShapeOf", "opset1", util::ShapeOfBase);
+    ~ShapeOf() override;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);

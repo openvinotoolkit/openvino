@@ -17,6 +17,7 @@ namespace v3 {
 class OPENVINO_API Atanh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic);
+    ~Atanh() override;
 
     /// \brief Constructs an Atanh operation.
     Atanh() = default;

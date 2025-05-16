@@ -14,6 +14,7 @@ namespace v10 {
 class OPENVINO_API IsNaN : public Op {
 public:
     OPENVINO_OP("IsNaN", "opset10");
+    ~IsNaN() override;
     IsNaN() = default;
     /// \brief Constructs a IsNaN operation.
     ///

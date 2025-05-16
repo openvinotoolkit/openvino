@@ -172,6 +172,8 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
 }  // namespace
 namespace v14 {
 
+ConvertPromoteTypes::~ConvertPromoteTypes() = default;
+
 ConvertPromoteTypes::ConvertPromoteTypes(const Output<Node>& input_0,
                                          const Output<Node>& input_1,
                                          const bool promote_unsafe,

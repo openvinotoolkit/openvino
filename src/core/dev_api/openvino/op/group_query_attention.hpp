@@ -11,6 +11,7 @@ namespace ov::op::internal {
 class OPENVINO_API GroupQueryAttention : public Op {
 public:
     OPENVINO_OP("GroupQueryAttention");
+    ~GroupQueryAttention() override;
 
     GroupQueryAttention() = default;
     GroupQueryAttention(const ov::OutputVector& args,

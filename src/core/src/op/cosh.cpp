@@ -26,6 +26,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace cosh
 
 namespace v0 {
+Cosh::~Cosh() = default;
+
 Cosh::Cosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

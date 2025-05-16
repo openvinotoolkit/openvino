@@ -3,3 +3,5 @@
 //
 
 #include "openvino/op/util/assign_base.hpp"
+
+ov::op::util::AssignBase::~AssignBase() = default;

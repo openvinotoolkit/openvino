@@ -14,6 +14,7 @@ namespace v10 {
 class OPENVINO_API IsFinite : public Op {
 public:
     OPENVINO_OP("IsFinite", "opset10");
+    ~IsFinite() override;
     IsFinite() = default;
     /// \brief Constructs a IsFinite operation.
     ///

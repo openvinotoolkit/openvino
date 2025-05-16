@@ -15,6 +15,7 @@ namespace v15 {
 class OPENVINO_API SliceScatter : public Op {
 public:
     OPENVINO_OP("SliceScatter", "opset15");
+    ~SliceScatter() override;
 
     SliceScatter() = default;
 

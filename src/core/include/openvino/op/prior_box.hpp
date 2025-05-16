@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API PriorBox : public Op {
 public:
     OPENVINO_OP("PriorBox", "opset1");
+    ~PriorBox() override;
     struct Attributes {
         // min_size         Desired min_size of prior boxes
         // max_size         Desired max_size of prior boxes
@@ -74,6 +75,7 @@ namespace v8 {
 class OPENVINO_API PriorBox : public Op {
 public:
     OPENVINO_OP("PriorBox", "opset8");
+    ~PriorBox() override;
     struct Attributes {
         // min_size                    Desired min_size of prior boxes
         // max_size                    Desired max_size of prior boxes

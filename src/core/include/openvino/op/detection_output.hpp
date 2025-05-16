@@ -20,6 +20,8 @@ public:
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);
 
+    ~DetectionOutput() override;
+
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
     ///
@@ -72,6 +74,8 @@ public:
     using Attributes = op::util::DetectionOutputBase::AttributesBase;
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
+
+    ~DetectionOutput() override;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation

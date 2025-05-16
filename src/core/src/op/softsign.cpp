@@ -24,6 +24,8 @@ struct Evaluate : element::NoAction<bool> {
 
 }  // namespace softsign
 namespace v9 {
+SoftSign::~SoftSign() = default;
+
 SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

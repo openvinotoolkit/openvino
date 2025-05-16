@@ -15,6 +15,7 @@ namespace v13 {
 class OPENVINO_API BitwiseXor : public util::BinaryElementwiseBitwise {
 public:
     OPENVINO_OP("BitwiseXor", "opset13", util::BinaryElementwiseBitwise);
+    ~BitwiseXor() override;
     /// \brief Constructs a bitwise XOR operation.
     BitwiseXor() = default;
     /// \brief Constructs a bitwise XOR operation.

@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Transpose : public Op {
 public:
     OPENVINO_OP("Transpose", "opset1", op::Op);
+    ~Transpose() override;
 
     Transpose() = default;
     ///

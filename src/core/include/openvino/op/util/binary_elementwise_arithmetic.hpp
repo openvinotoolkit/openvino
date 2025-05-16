@@ -48,6 +48,7 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseArithmetic", "util");
+    ~BinaryElementwiseArithmetic() override;
 
     void validate_and_infer_types() override;
 
