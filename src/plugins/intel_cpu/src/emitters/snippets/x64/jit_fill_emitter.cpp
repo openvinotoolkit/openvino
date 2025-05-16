@@ -10,7 +10,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {

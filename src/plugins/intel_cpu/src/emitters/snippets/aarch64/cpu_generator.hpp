@@ -13,13 +13,13 @@ namespace ov::intel_cpu::aarch64 {
 
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
 public:
-    explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h);
+    explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t> h);
     [[nodiscard]] const uint8_t* get_code() const override;
     [[nodiscard]] size_t get_code_size() const override;
     [[nodiscard]] bool empty() const override;
 
 private:
-    const std::unique_ptr<const dnnl::impl::cpu::aarch64::jit_generator> h_compiled;
+    const std::unique_ptr<const dnnl::impl::cpu::aarch64::jit_generator_t> h_compiled;
 };
 
 class CPUTargetMachine : public snippets::TargetMachine {
@@ -37,7 +37,7 @@ public:
     [[nodiscard]] dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
-    std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h;
+    std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t> h;
     dnnl::impl::cpu::aarch64::cpu_isa_t isa;
     ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };

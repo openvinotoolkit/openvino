@@ -73,9 +73,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
     size_t vlen;
     if (mayiuse(avx512_core)) {
-        vlen = cpu_isa_traits<avx512_core>::vlen;
+        vlen = cpu_isa_traits_t<avx512_core>::vlen;
     } else {
-        vlen = cpu_isa_traits<cpu_isa_t::avx2>::vlen;
+        vlen = cpu_isa_traits_t<cpu_isa_t::avx2>::vlen;
     }
     // blocking N
     N_blk = !is_f32 ? 32 : std::max(N, vlen / inType.size());
@@ -211,7 +211,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     if (use_amx && b_accumulate) {
         brgemm_attr_t brgattr;
         brgattr.max_bs = 1;
-        brgattr.wary_tail_read = false;
+        brgattr.wary_A_k_tail_read = false;
         brgattr.hint_innermost_loop = brgemm_innermost_undef;
         // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support
         // this using tileload(c) without postops
