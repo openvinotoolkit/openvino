@@ -37,6 +37,20 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = { "(b)", "(f)", "(z)", "(y)", "(x)" };
+        } else if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = { "(b)", "(f)", "(y)", "(x)" };
+        } else {
+            OPENVINO_THROW("swiglu_ref doesn't support 6D or higher dims.");
+        }
+
+        auto conf = FusedOpsConfiguration("", idx_order, "res", GetAccumulatorType(params), 1);
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+
     return jit;
 }
 
