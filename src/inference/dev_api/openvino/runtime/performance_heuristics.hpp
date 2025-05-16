@@ -24,6 +24,8 @@ struct MemBandwidthPressure {
     float ratio_mem_limited_deconvs = 0;
     float ratio_mem_limited_gemms = 0;
     float ratio_compute_deconvs = 0;
+    int total_gemms = 0;
+    int total_convs = 0;
 
     static constexpr float UNKNOWN = FLT_MAX;
     static constexpr float ALL = 1.0f;

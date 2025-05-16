@@ -32,7 +32,8 @@ namespace intel_cpu {
  */
 enum class TbbPartitioner {
     STATIC = 0,  //!<  Static partitioner
-    AUTO = 1     //!<  Auto partitioner
+    AUTO = 1,    //!<  Auto partitioner
+    DEFAULT = 2, //!<  Initial value of configuration
 };
 
 /** @cond INTERNAL */
@@ -42,6 +43,8 @@ inline std::ostream& operator<<(std::ostream& os, const TbbPartitioner& tbb_part
         return os << "STATIC";
     case TbbPartitioner::AUTO:
         return os << "AUTO";
+    case TbbPartitioner::DEFAULT:
+        return os << "DEFAULT";
     default:
         OPENVINO_THROW("Unsupported tbb partitioner!");
     }
@@ -54,6 +57,8 @@ inline std::istream& operator>>(std::istream& is, TbbPartitioner& tbb_partitione
         tbb_partitioner = TbbPartitioner::STATIC;
     } else if (str == "AUTO") {
         tbb_partitioner = TbbPartitioner::AUTO;
+    } else if (str == "DEFAULT") {
+        tbb_partitioner = TbbPartitioner::DEFAULT;
     } else {
         OPENVINO_THROW("Unsupported tbb partitioner: ", str);
     }
