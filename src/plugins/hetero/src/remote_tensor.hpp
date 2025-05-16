@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include "openvino/runtime/iremote_tensor.hpp"
-#include "context.hpp"
-
-#include <string>
 #include <map>
+#include <string>
+
+#include "context.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 
 namespace ov {
 namespace hetero {
 
 class HeteroRemoteTensor : public ov::IRemoteTensor {
 public:
-    HeteroRemoteTensor(std::shared_ptr<ov::hetero::HeteroContext> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
+    HeteroRemoteTensor(std::shared_ptr<ov::hetero::HeteroContext> context,
+                       std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
 
     const std::string& get_device_name() const override;
 
@@ -35,9 +36,15 @@ public:
 
     void set_shape(ov::Shape shape) override;
 
-    void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                 size_t src_offset,
+                 size_t dst_offset,
+                 const ov::Shape& roi_shape) const override;
 
-    void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                   size_t src_offset,
+                   size_t dst_offset,
+                   const ov::Shape& roi_shape) override;
 
 private:
     std::shared_ptr<HeteroContext> m_context;

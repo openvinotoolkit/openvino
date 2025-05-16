@@ -11,11 +11,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 namespace {
@@ -662,7 +662,8 @@ void ov::hetero::fix_model_with_paged_attention(std::shared_ptr<ov::Model>& mode
                     }
                 }
             }
-            auto new_shape = ov::op::v0::Constant::create(element::Type_t::u64, {4}, {-1, 1, num_key_value_heads, head_dim});
+            auto new_shape =
+                ov::op::v0::Constant::create(element::Type_t::u64, {4}, {-1, 1, num_key_value_heads, head_dim});
             auto new_reshape = std::make_shared<ov::op::v1::Reshape>(node, new_shape, false);
             for (auto& iter : org_users) {
                 iter.second->input(iter.first).replace_source_output(new_reshape->output(0));

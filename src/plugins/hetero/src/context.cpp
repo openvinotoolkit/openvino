@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "context.hpp"
+
 #include <memory>
 
 #include "openvino/runtime/make_tensor.hpp"
 #include "remote_tensor.hpp"
-#include "context.hpp"
 
 namespace ov {
 namespace hetero {
@@ -23,7 +24,9 @@ std::shared_ptr<HeteroContext> HeteroContext::get_this_shared_ptr() {
     return std::static_pointer_cast<HeteroContext>(shared_from_this());
 }
 
-ov::SoPtr<ov::IRemoteTensor> HeteroContext::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
+ov::SoPtr<ov::IRemoteTensor> HeteroContext::create_tensor(const ov::element::Type& type,
+                                                          const ov::Shape& shape,
+                                                          const ov::AnyMap& params) {
     std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
     for (auto& item : m_contexts) {
         auto a = item.second->create_tensor(type, shape, params);

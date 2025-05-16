@@ -8,7 +8,7 @@ namespace ov {
 namespace hetero {
 
 HeteroRemoteTensor::HeteroRemoteTensor(std::shared_ptr<HeteroContext> context,
-                                             std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
+                                       std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
     : m_context(context),
       m_ordered_tensor(tensors) {
     for (auto& tensor : tensors) {
@@ -57,7 +57,10 @@ void HeteroRemoteTensor::set_shape(ov::Shape shape) {
     }
 }
 
-void HeteroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const {
+void HeteroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                                 size_t src_offset,
+                                 size_t dst_offset,
+                                 const ov::Shape& roi_shape) const {
     if (auto remote = std::dynamic_pointer_cast<ov::hetero::HeteroRemoteTensor>(dst)) {
         int i = 0;
         for (auto& tensor : m_remote_tensors) {
@@ -74,7 +77,10 @@ void HeteroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t
     }
 }
 
-void HeteroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) {
+void HeteroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                                   size_t src_offset,
+                                   size_t dst_offset,
+                                   const ov::Shape& roi_shape) {
     if (auto remote = std::dynamic_pointer_cast<const ov::hetero::HeteroRemoteTensor>(src)) {
         int i = 0;
         for (auto& tensor : m_remote_tensors) {
