@@ -46,7 +46,8 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs);
 class SubgraphCodeGenerator {
 public:
     SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
-                          const std::shared_ptr<CPURuntimeConfig>& config);
+                          const std::shared_ptr<CPURuntimeConfig>& config,
+                          const std::set<size_t>& external_ptrs_idces);
 
     [[nodiscard]] const std::shared_ptr<snippets::Schedule>& get() const {
         return schedule;
@@ -120,11 +121,8 @@ protected:
 // Class for Subgraphs with static shapes
 class SubgraphStaticBaseExecutor {
 public:
-    SubgraphStaticBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config) {
-        precompute_ptr_mappings(snippet_config->brgemm_external_ptrs_idces,
-                                snippet_config->in_num,
-                                m_src_ptr_mappings,
-                                m_external_ptr_mappings);
+    SubgraphStaticBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num) {
+        precompute_ptr_mappings(external_ptrs_idces, in_num, m_src_ptr_mappings, m_external_ptr_mappings);
     };
     virtual ~SubgraphStaticBaseExecutor() = default;
 
@@ -159,15 +157,14 @@ private:
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
 class SubgraphDynamicSpecializedBaseExecutor {
 public:
-    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
+    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                                           const std::set<size_t>& external_ptrs_idces,
+                                           size_t in_num)
         : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
           m_data_offsets(snippet_config->io_data_offsets),
           m_loop_args(snippet_config->loop_args) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
-        precompute_ptr_mappings(snippet_config->brgemm_external_ptrs_idces,
-                                snippet_config->in_num,
-                                m_src_ptr_mappings,
-                                m_external_ptr_mappings);
+        precompute_ptr_mappings(external_ptrs_idces, in_num, m_src_ptr_mappings, m_external_ptr_mappings);
     }
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
