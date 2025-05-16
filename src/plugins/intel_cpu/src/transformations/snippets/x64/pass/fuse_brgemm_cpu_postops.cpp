@@ -15,6 +15,7 @@
 #include "snippets/op/scalar.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 
 namespace ov::intel_cpu {
 
@@ -27,16 +28,12 @@ using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 namespace {
 ov::pass::pattern::op::Predicate brgemm_predicate(
     [](const Output<Node>& output) {
-        const auto brgemm = output.get_node_shared_ptr();
-        // Note: postops are not supported in case of blocking enabled,
-        // so f32 precision is not included in supported list
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(output.get_node_shared_ptr());
+        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        // Note: postops are not supported in case of blocking enabled
         // Ticket: 165567
-        static const ov::element::TypeVector supported_in_precisions{ov::element::bf16,
-                                                                     ov::element::i8,
-                                                                     ov::element::u8};
         return has_static_rank()(output) && consumers_count(1)(output) &&
-               type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
-               type_matches_any(supported_in_precisions)(brgemm->input_value(1));
+               !pass::BrgemmCPUBlocking::is_kn_blocking_supported(brgemm);
     },
     "brgemm_predicate");
 
