@@ -11,6 +11,7 @@
 #ifdef _WIN32
 #    include <windows.h>
 #    define PATH_MAX MAX_PATH
+typedef BOOLEAN WIN_BOOLEAN;
 #else
 #    include <limits.h>
 #endif

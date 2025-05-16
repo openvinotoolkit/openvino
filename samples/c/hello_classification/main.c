@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <opencv_c_wrapper.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "infer_result_util.h"
-#include "openvino/c/openvino.h"
+#include "opencv_c_wrapper.h"
 #include "samples_util/path_util.h"
+// Uses windows.h must be before openvino/c/openvino.h
+#include "openvino/c/openvino.h"
 
 void print_model_input_output_info(ov_model_t* model) {
     char* friendly_name = NULL;

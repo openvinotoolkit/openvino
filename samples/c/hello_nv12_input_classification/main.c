@@ -7,8 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "openvino/c/openvino.h"
 #include "samples_util/path_util.h"
+// Uses windows.h must be before openvino/c/openvino.h
+#include "openvino/c/openvino.h"
 
 /**
  * @brief Struct to store infer results
