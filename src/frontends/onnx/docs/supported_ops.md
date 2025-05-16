@@ -273,7 +273,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |QGemm                                                   |                        |1                               |                                |
 |com.microsoft           |QLinearAdd                                              |1                       |1                               |                                |
 |com.microsoft           |QLinearAveragePool                                      |1                       |1                               |                                |
-|com.microsoft           |QLinearConcat                                           |                        |1                               |                                |
+|com.microsoft           |QLinearConcat                                           |1                       |1                               |                                |
 |com.microsoft           |QLinearConv                                             |                        |1                               |                                |
 |com.microsoft           |QLinearGlobalAveragePool                                |                        |1                               |                                |
 |com.microsoft           |QLinearLeakyRelu                                        |1                       |1                               |                                |
