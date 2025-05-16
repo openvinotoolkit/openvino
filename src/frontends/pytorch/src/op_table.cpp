@@ -324,6 +324,7 @@ OP_CONVERTER(translate_min_dim_fx);
 OP_CONVERTER(translate_new_full_fx);
 OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
+OP_CONVERTER(translate_nested_tensor_from_mask);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
@@ -632,6 +633,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::new_zeros", op::translate_new_zeros},
         {"aten::nonzero", op::translate_nonzero},
         // aten::nonzero_numpy - Supported in limited set of patterns
+        {"aten::_nested_tensor_from_mask", op::translate_nested_tensor_from_mask},
         {"aten::norm", op::translate_norm},
         {"aten::normal", op::translate_normal},
         {"aten::normal_", op::translate_normal_},
