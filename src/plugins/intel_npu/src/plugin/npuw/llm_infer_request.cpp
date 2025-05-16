@@ -245,6 +245,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
             const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " does not need kv cache. Skipping.");
+                continue;
+            }
+
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
             // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
@@ -306,6 +311,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+            LOG_DEBUG("Input name " << input_name << " does not need kv cache. Skipping.");
+            continue;
+        }
+
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u
