@@ -1551,3 +1551,20 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, input1});
     }
 }
+
+TEST(TransformationTests, AttributeMatcherTypeRelaxed) {
+    using namespace ov;
+
+    auto input0 = std::make_shared<opset1::Parameter>(ov::element::i32, ov::Shape{2, 2});
+    auto input1 = std::make_shared<opset1::Parameter>(ov::element::i32, ov::Shape{2, 2});
+    auto add_tr = makeOP<op::TypeRelaxed<ov::opset1::Add>>({input0, input1},
+                                                           {{"type_relax", true},
+                                                            {"input_data_types", {}},
+                                                            {"output_data_types", {ov::element::i32}},
+                                                            {"auto_broadcast", "numpy"}});
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{add_tr}, ov::ParameterVector{input0, input1});
+    pass::Manager manager;
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    EXPECT_NO_THROW(manager.run_passes(model));
+}
