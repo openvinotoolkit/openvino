@@ -145,9 +145,9 @@ static std::string make_default_tensor_name(const ov::Output<const ov::Node>& ou
     return default_name;
 }
 
-static std::vector<std::string> extractLayerNames(ov::OutputVector& ouputs) {
+static std::vector<std::string> extractLayerNames(ov::OutputVector& outputs) {
     std::vector<std::string> names;
-    std::transform(ouputs.begin(), ouputs.end(), std::back_inserter(names), [](auto& node) {
+    std::transform(outputs.begin(), outputs.end(), std::back_inserter(names), [](auto& node) {
         if (node.get_names().empty()) {
             node.set_names({make_default_tensor_name(node)});
         }
