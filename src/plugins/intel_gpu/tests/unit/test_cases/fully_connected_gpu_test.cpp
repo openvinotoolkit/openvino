@@ -3860,7 +3860,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
     void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
                                                         size_t quantize_group_size = 32, int scales_group_size = 128,
-                                                        bool is_wzp_test = false, bool is_wzp_scalar = false) {
+                                                        bool is_wzp_test = false, bool is_wzp_scalar = false, int wzp_size = 1) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -3877,7 +3877,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::fbyx });
-        auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, 1}, data_types::u8, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, wzp_size}, data_types::u8, format::bfyx });
 
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
@@ -5346,6 +5346,9 @@ TEST_F(fully_connected_gpu_tests, dynamic_multi_inference_multiple_shapes_cached
     this->test_dynamic_multi_inference_multiple_shapes(true);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int8_dynamic_quantize_grouped_wzp_test) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(false, 320, 1024, 1024, 32, 32, true, false, 32);
+}
 
 using fully_connected_dynamic_test_params = std::tuple<
     std::vector<ov::Dimension::value_type>, // batch_sizes
