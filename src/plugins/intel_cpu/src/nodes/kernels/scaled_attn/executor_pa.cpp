@@ -2265,6 +2265,7 @@ struct MHAHelper {
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
+        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         if (_quant_key_bychannel || _quant_value_bychannel) {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
         } else {
@@ -2276,6 +2277,7 @@ struct MHAHelper {
             _qk_gemm.resize(_block_size);
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
+            size_t wv_stride = q_is_xf16 ? _output.stride(1) : H * SV;
             for (size_t i = 0; i < _block_size; i++) {
                 _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                              _block_size,
@@ -2292,7 +2294,7 @@ struct MHAHelper {
                                                    // if it's bf16, the stride needs double due to reuse float buffer
                                                    (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
-                                                   _output.stride(1),
+                                                   wv_stride,
                                                    false,
                                                    in_type);
                 _wv_gemm_acc[i] =
@@ -2302,7 +2304,7 @@ struct MHAHelper {
                                                    // if it's bf16, the stride needs double due to reuse float buffer
                                                    (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
-                                                   _output.stride(1),
+                                                   wv_stride,
                                                    false,
                                                    in_type,
                                                    true);
