@@ -48,6 +48,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten._to_copy.default": None,
             "torch.ops.aten._unsafe_view.default": None,
             "torch.ops.aten.abs.default": None,
+            "torch.ops.aten.absolute.default": None,
             "torch.ops.aten.acos.default": None,
             "torch.ops.aten.acosh.default": None,
             "torch.ops.aten.adaptive_max_pool1d.default": None,
