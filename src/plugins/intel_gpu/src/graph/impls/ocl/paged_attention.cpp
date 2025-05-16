@@ -102,8 +102,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (use_micro_sdpa)
                 return kernel_selector::SDPAKernelMicro::GetTileQSize(_kernels_data[Stage::SDPA]);
-            else if (can_replace_with_sdpa_micro)
-                return kernel_selector::SDPAKernelMicro::GetTileQSize(_kernels_data[idx_sdpa_micro]);
+            else if (has_additional_sdpa_micro())
+                return kernel_selector::SDPAKernelMicro::GetTileQSize(_kernels_data[get_additional_sdpa_micro_index()]);
 #endif
             return default_block_size;
         } else {
@@ -117,7 +117,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ib >> make_data(&has_score_aggregation, sizeof(bool));
         ib >> make_data(&has_rotated_blocks, sizeof(bool));
         ib >> make_data(&use_micro_sdpa, sizeof(bool));
-        ib >> make_data(&idx_sdpa_micro, sizeof(size_t));
+
         if (is_dynamic()) {
             auto& kv_cache_update_kernel_selector = kv_cache_update_kernel_selector_t::Instance();
             auto kv_cache_update_kernel_impl = kv_cache_update_kernel_selector.GetImplementation(_kernels_data[Stage::KV_CACHE_UPDATE].kernelName);
@@ -137,9 +137,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 kv_cache_rotate_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[Stage::KV_CACHE_ROTATE]);
             }
 
-            if (idx_sdpa_micro != 0) {
-                auto sdpa_micro_kernel_impl = sdpa_kernel_selector.GetImplementation(_kernels_data[idx_sdpa_micro].kernelName);
-                sdpa_micro_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[idx_sdpa_micro]);
+            if (has_additional_sdpa_micro()) {
+                auto sdpa_micro_idx = get_additional_sdpa_micro_index();
+                auto sdpa_micro_kernel_impl = sdpa_kernel_selector.GetImplementation(_kernels_data[sdpa_micro_idx].kernelName);
+                sdpa_micro_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[sdpa_micro_idx]);
             }
         }
     }
@@ -150,7 +151,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ob << make_data(&has_score_aggregation, sizeof(bool));
         ob << make_data(&has_rotated_blocks, sizeof(bool));
         ob << make_data(&use_micro_sdpa, sizeof(bool));
-        ob << make_data(&idx_sdpa_micro, sizeof(size_t));
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
@@ -206,8 +206,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (use_micro_sdpa) {
             add_internal_buffers(internal_buffers, _kernels_data[Stage::SDPA]);
-        } else if (can_replace_with_sdpa_micro) {
-            add_internal_buffers(internal_buffers, _kernels_data[idx_sdpa_micro]);
+        } else if (has_additional_sdpa_micro()) {
+            add_internal_buffers(internal_buffers, _kernels_data[get_additional_sdpa_micro_index()]);
         }
 
         return internal_buffers;
@@ -379,9 +379,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
         }
 
-        if (stage == PagedAttentionStage::PREFILL && (use_micro_sdpa | can_replace_with_sdpa_micro)) {
+        if (stage == PagedAttentionStage::PREFILL && (use_micro_sdpa || has_additional_sdpa_micro())) {
             const auto memory_idx = intermediates_memories.size() - 1;
-
             auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
@@ -479,10 +478,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
 
         size_t stage_idx = stage;
-        if (stage == Stage::SDPA && can_replace_with_sdpa_micro) {
-            // In this case, kernels for sdpa_micro are at the end of kernels vector.
-            stage_idx = idx_sdpa_micro;
-            kernel_offset = _kernels.size() - 2;
+        if (stage == Stage::SDPA && !use_micro_sdpa && has_additional_sdpa_micro()) {
+            auto& instance_params = *instance.get_impl_params();
+            const auto& desc = instance_params.typed_desc<paged_attention>();
+            if (desc->sliding_window > 0) {
+                // Whether aligned_seq_len is less than sliding_window has already been checked in update_dispatch_data,
+                // so here we only need to check if sliding_window exists.
+                stage_idx = get_additional_sdpa_micro_index();
+                kernel_offset = _kernels.size() - 2;
+            }
         }
 
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage_idx].kernels.size(); ++kd_idx) {
@@ -503,7 +507,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                       intermediate_memories.begin() + internal_buffers_offset,
                                       intermediate_memories.begin() + internal_buffers_offset + internal_buffers_count);
 
-            if ((use_micro_sdpa | can_replace_with_sdpa_micro) && stage == Stage::SDPA) {
+            if (stage == Stage::SDPA &&
+                (use_micro_sdpa || (has_additional_sdpa_micro() && stage_idx == get_additional_sdpa_micro_index()))) {
                 args.intermediates.push_back(intermediate_memories.back());
             }
 
@@ -990,13 +995,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         if (stage == PagedAttentionStage::PREFILL) {
             auto sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, get_query_block_size(stage), impl_param.is_dynamic());
             (_kernels_data[Stage::SDPA].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[Stage::SDPA]);
-            if (!use_micro_sdpa && idx_sdpa_micro != 0 && sdpa_kernel_params.conf.paged_attention_sliding_window > 0 &&
+            if (!use_micro_sdpa && has_additional_sdpa_micro() &&
+                sdpa_kernel_params.conf.paged_attention_sliding_window > 0 &&
                 (sdpa_kernel_params.conf.paged_attention_aligned_seq_len <
                     static_cast<int64_t>(sdpa_kernel_params.conf.paged_attention_sliding_window))) {
-                can_replace_with_sdpa_micro = true;
-                (_kernels_data[idx_sdpa_micro].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[idx_sdpa_micro]);
-            } else {
-                can_replace_with_sdpa_micro = false;
+                auto sdpa_micro_index = get_additional_sdpa_micro_index();
+                (_kernels_data[sdpa_micro_index].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[sdpa_micro_index]);
             }
         }
 
@@ -1035,14 +1039,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         // Create an additional sdpa_micro kernel to be able to fall back to at runtime
         // if sdpa_micro is not selected due to sliding window.
-        size_t idx_sdpa_micro = 0;
         if (kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()
             && sdpa_kernel_params.conf.paged_attention_sliding_window > 0) {
             sdpa_kernel_params.conf.paged_attention_sliding_window = 0;
             auto sdpa_micro = sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params);
             if (!sdpa_micro.kernels[0].micro_kernels.empty()) {
                 kernels_data.push_back(sdpa_micro);
-                idx_sdpa_micro = kernels_data.size() - 1;
             }
         }
 
@@ -1055,9 +1057,31 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             impl->use_micro_sdpa = true;
         }
 
-        impl->idx_sdpa_micro = idx_sdpa_micro;
-
         return impl;
+    }
+
+private:
+    size_t get_additional_sdpa_micro_index() const {
+        return _kernels_data.size() - 1;
+    }
+
+    bool has_additional_sdpa_micro() const {
+        size_t expected_size = Stage::PA_SDPA + 1 + (has_rotated_blocks ? 1 : 0);
+        return _kernels_data.size() > expected_size &&
+               !_kernels_data[get_additional_sdpa_micro_index()].kernels.empty() &&
+               !_kernels_data[get_additional_sdpa_micro_index()].kernels[0].micro_kernels.empty();
+    }
+
+    bool should_use_additional_sdpa_micro(const kernel_selector::sdpa_params& params) const {
+        if (use_micro_sdpa)
+            return false;
+
+        if (!has_additional_sdpa_micro())
+            return false;
+
+        return params.conf.paged_attention_sliding_window > 0 &&
+               (params.conf.paged_attention_aligned_seq_len <
+                static_cast<int64_t>(params.conf.paged_attention_sliding_window));
     }
 
 private:
@@ -1065,9 +1089,6 @@ private:
     bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
     bool use_micro_sdpa = false;
-    size_t idx_sdpa_micro = 0;
-
-    bool can_replace_with_sdpa_micro = false;  // Used only at runtime for sdpa kernel selection. No caching required.
 };
 
 namespace detail {
