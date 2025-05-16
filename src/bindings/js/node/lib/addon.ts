@@ -423,6 +423,12 @@ interface Tensor {
    * Reports whether the tensor is continuous or not.
    */
   isContinuous(): boolean;
+  /** 
+     * Copies the data from another tensor. 
+     * The destination tensor should have the same element type and shape.
+     */
+  copyTo(tensor: Tensor): void; 
+
 }
 
 /**

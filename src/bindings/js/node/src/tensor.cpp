@@ -8,6 +8,7 @@
 #include "node/include/helper.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
@@ -44,7 +45,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("copyTo", &TensorWrap::copy_to)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -190,4 +192,31 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    std::vector<std::string> allowed_signatures;
+
+    if (!ov::js::validate<TensorWrap>(info, allowed_signatures)) {
+        const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
+        reportError(env, error_message);
+        return;
+    }
+
+    TensorWrap* otherTensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].As<Napi::Object>());
+    auto& other_tensor = otherTensorWrap->_tensor;
+
+    if (_tensor.get_element_type() != other_tensor.get_element_type()) {
+        reportError(env, "Tensors must have the same element type to copy data.");
+        return;
+    }
+
+    if (_tensor.get_shape() != other_tensor.get_shape()) {
+        reportError(env, "Tensors must have the same shape to copy data.");
+        return;
+    }
+
+    std::memcpy(_tensor.data(), other_tensor.data(), _tensor.get_byte_size());
 }
