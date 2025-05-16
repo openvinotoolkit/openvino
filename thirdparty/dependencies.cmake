@@ -119,6 +119,12 @@ if(ENABLE_INTEL_GPU)
                 list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_UUID)
             endif()
 
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_PCI_BUS_INFO_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_PCI_BUS_INFO_KHR_CPP REGEX ".*CL_DEVICE_PCI_BUS_INFO_KHR.*")
+            if(CL_DEVICE_PCI_BUS_INFO_KHR_CPP)
+                list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_BUS_INFO)
+            endif()
+
             set_target_properties(OpenCL::OpenCL PROPERTIES
                 INTERFACE_COMPILE_DEFINITIONS "${opencl_interface_definitions}")
         endif()
