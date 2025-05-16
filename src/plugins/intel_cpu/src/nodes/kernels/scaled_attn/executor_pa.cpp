@@ -2160,6 +2160,13 @@ void rotate_kv_cache(PlainTensor& key_cache,
     }
 }
 
+struct ScoreAggregationInfo {
+    int32_t score_offsets_aligned;      // tmp buffer offset for current block in the whole buffer
+    int32_t score_offsets;              // dst buffer offset for output
+    int32_t score_buf_num;              // tmp buffer number for current head
+    int32_t kv_len_aligned;             // tmp buffer length for current block
+};
+
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
@@ -2202,8 +2209,8 @@ struct MHAHelper {
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;
-    PlainTensor _score_offsets_aligned;
-    PlainTensor _score_offsets;
+
+    std::vector<ScoreAggregationInfo> _score_infos;
 
     PlainTensor _block_rotation_coefficient_scratch;
 
@@ -2360,24 +2367,37 @@ struct MHAHelper {
         }
     }
 
-    void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins) {
+    void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins, const PlainTensor& score_aggregation_window) {
         static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
         auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
-        _score_offsets_aligned.resize<int32_t>({past_lens.m_dims[0]});
-        _score_offsets.resize<int32_t>({past_lens.m_dims[0]});
+        _score_infos.resize(past_lens.m_dims[0]);
         int32_t total_kv_len_aligned = 0;
         int32_t total_kv_len = 0;
         for (int32_t i = 0; i < seq_cout; i++) {
+            auto score_win_len = score_aggregation_window.ptr<int32_t>()[i];
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+
+            // The score_aggregation_window may span multiple blocks, so need to allocate tmp buf for each block.
+            // This will only occur in prefill.
+            auto q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
+            auto q_start_idx_score_block = q_start_idx_score / _block_size;
+            auto q_end_idx_score_block = (q_len + _block_size - 1) / _block_size;
+            auto tmp_buf_num = score_win_len ? q_end_idx_score_block - q_start_idx_score_block : 0;
             auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
-            _score_offsets_aligned.ptr<int32_t>()[i] = total_kv_len_aligned;
-            _score_offsets.ptr<int32_t>()[i] = total_kv_len;
             // aligned to cache line to avoid false sharing
-            total_kv_len_aligned += rnd_up(kv_len, cache_line_size / sizeof(float));
+            auto kv_len_aligned = rnd_up(kv_len, cache_line_size / sizeof(float));
+            _score_infos[i].score_offsets_aligned = total_kv_len_aligned;
+            _score_infos[i].score_offsets = total_kv_len;
+            _score_infos[i].score_buf_num = tmp_buf_num;
+            _score_infos[i].kv_len_aligned = kv_len_aligned;
+            total_kv_len_aligned += kv_len_aligned * tmp_buf_num;
             total_kv_len += kv_len;
         }
 
         _score_output.resize<float>({total_kv_len_aligned * H});
+        parallel_for(H, [&] (size_t h) {
+            std::memset(_score_output.ptr<float>(h * total_kv_len_aligned), 0, total_kv_len_aligned * sizeof(float));
+        });
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -2401,7 +2421,9 @@ struct MHAHelper {
                               size_t q_len,
                               size_t cur_kv_len,
                               const PlainTensor& alibi_slopes,
-                              float* score_output) {
+                              float* score_output,
+                              size_t q_start_idx_score,
+                              const ScoreAggregationInfo* score_info_ptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -2473,13 +2495,15 @@ struct MHAHelper {
                                                precision_of<DATA_TYPE>::value,
                                                alibi_slope);
                 }
-                if (score_output) {
-                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
-                             reinterpret_cast<DATA_TYPE*>(score),
-                             1,
-                             cur_kv_len,
-                             0,
-                             0);
+                if (score_output && m >= q_start_idx_score) {
+                    cvt_add(score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                            score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                            reinterpret_cast<DATA_TYPE*>(score),
+                            1,
+                            cur_kv_len,
+                            0,
+                            0,
+                            0);
                 }
             }
 
@@ -2547,7 +2571,9 @@ struct MHAHelper {
                                   size_t q_len,
                                   size_t cur_kv_len,
                                   const PlainTensor& alibi_slopes,
-                                  float* score_output) {
+                                  float* score_output,
+                                  size_t q_start_idx_score,
+                                  const ScoreAggregationInfo* score_info_ptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -2639,10 +2665,16 @@ struct MHAHelper {
                                                precision_of<DATA_TYPE>::value,
                                                alibi_slope);
                 }
-                if (score_output) {
-                    sve_utils::cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
-                                        reinterpret_cast<DATA_TYPE*>(score),
-                                        cur_kv_len);
+                if (score_output && m >= q_start_idx_score) {
+                    // TODO: add sve opt code
+                    cvt_add(score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                            score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                            reinterpret_cast<DATA_TYPE*>(score),
+                            1,
+                            cur_kv_len,
+                            0,
+                            0,
+                            0);
                 }
             }
 
@@ -2749,9 +2781,9 @@ struct MHAHelper {
                                            ov::element::f32,
                                            alibi_slope);
                 if (score_output) {
-                    memcpy(score_output + h * rnd_up(cur_kv_len, 16),
-                           _weight.ptr<float>(ithr, h - hq_beg, pq),
-                           cur_kv_len * sizeof(float));
+                    std::memcpy(score_output + h * rnd_up(cur_kv_len, 16),
+                                _weight.ptr<float>(ithr, h - hq_beg, pq),
+                                cur_kv_len * sizeof(float));
                 }
             }
         }
@@ -2810,7 +2842,8 @@ struct MHAHelper {
                        [[maybe_unused]] const PlainTensor& subsequence_begins,
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
-                       const PlainTensor& alibi_slopes) {
+                       const PlainTensor& alibi_slopes,
+                       const PlainTensor& score_aggregation_window) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
@@ -2934,10 +2967,15 @@ struct MHAHelper {
         if (output_score) {
             parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-                auto* src = _weight_bhl.ptr<float>(b, 0, pq);
-                size_t src_stride = _weight_bhl.stride(2);
-                auto* dst = output_score.ptr<float>() + _score_offsets.ptr<int32_t>()[b];
-                attn_reduce(dst, src, H, cur_kv_len, src_stride);
+                const auto score_win_len = score_aggregation_window.ptr<int32_t>()[b];
+                auto* dst = output_score.ptr<float>() + _score_infos[b].score_offsets;
+                if (score_win_len) {
+                    auto* src = _weight_bhl.ptr<float>(b, 0, pq);
+                    size_t src_stride = _weight_bhl.stride(2);
+                    attn_reduce(dst, src, H, cur_kv_len, src_stride);
+                } else {
+                    std::memset(dst, 0, cur_kv_len * sizeof(float));
+                }
             });
         }
 
@@ -3115,7 +3153,8 @@ struct MHA {
                          const PlainTensor& subsequence_begins,
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
-                         const PlainTensor& alibi_slopes) {
+                         const PlainTensor& alibi_slopes,
+                         const PlainTensor& score_aggregation_window) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -3226,8 +3265,11 @@ struct MHA {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
                 float* score_output = nullptr;
                 if (output_score) {
-                    auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
-                    score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
+                    const auto score_win_len = score_aggregation_window.ptr<int32_t>()[batch_in_seq];
+                    if (score_win_len) {
+                        auto score_offset = _helper._score_infos[batch_in_seq].score_offsets_aligned;
+                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
+                    }
                 }
 
                 _helper.exec_kernel_one_bh(
@@ -3251,11 +3293,17 @@ struct MHA {
                 const auto cur_kv_len =
                     static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
                 float* score_output = nullptr;
+                size_t q_start_idx_score = 0;
+                ScoreAggregationInfo* score_info_ptr = nullptr;
                 if (output_score) {
-                    // last block
-                    if (q_len - q_blk * _helper._block_size <= _helper._block_size) {
-                        auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
-                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
+                    const auto score_win_len = static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq]);
+                    if (score_win_len) {
+                        q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
+                        if (q_start_idx_score >= q_blk * _helper._block_size) {
+                            score_info_ptr = &_helper._score_infos[batch_in_seq];
+                            auto score_offset = score_info_ptr->score_offsets_aligned * _helper.H + (q_blk - q_start_idx_score / _helper._block_size) * score_info_ptr->kv_len_aligned;
+                            score_output = _helper._score_output.template ptr<float>() + score_offset;
+                        }
                     }
                 }
 
@@ -3280,7 +3328,9 @@ struct MHA {
                         q_len,
                         cur_kv_len,
                         alibi_slopes,
-                        score_output);
+                        score_output,
+                        q_start_idx_score,
+                        score_info_ptr);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
@@ -3298,7 +3348,9 @@ struct MHA {
                         q_len,
                         cur_kv_len,
                         alibi_slopes,
-                        score_output);
+                        score_output,
+                        q_start_idx_score,
+                        score_info_ptr);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -3317,7 +3369,9 @@ struct MHA {
                     q_len,
                     cur_kv_len,
                     alibi_slopes,
-                    score_output);
+                    score_output,
+                    q_start_idx_score,
+                    score_info_ptr);
 #    endif
             }
         });
@@ -3326,12 +3380,17 @@ struct MHA {
                 auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] -
                                                    subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
-                auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
-                auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper.H;
-                size_t src_stride = rnd_up(cur_kv_len, 16);
-                auto dst_offset = _helper._score_offsets.template ptr<int32_t>()[b];
+                const auto score_win_len = score_aggregation_window.ptr<int32_t>()[b];
+                const auto& score_info = _helper._score_infos[b];
+                auto dst_offset = score_info.score_offsets;
                 auto* dst = output_score.ptr<float>() + dst_offset;
-                attn_reduce(dst, src, _helper.H, cur_kv_len, src_stride);
+                if (score_win_len) {
+                    auto* src = _helper._score_output.template ptr<float>() + score_info.score_offsets_aligned * _helper.H;
+                    size_t src_stride = score_info.kv_len_aligned;
+                    attn_reduce(dst, src, _helper.H * score_info.score_buf_num, cur_kv_len, src_stride);
+                } else {
+                    std::memset(dst, 0, cur_kv_len * sizeof(float));
+                }
             });
         }
     }
@@ -3351,7 +3410,7 @@ struct MHA {
                     const PlainTensor& score_aggregation_window) {
         _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
         if (output_score) {
-            _helper.init_score_buffers(past_lens, subsequence_begins);
+            _helper.init_score_buffers(past_lens, subsequence_begins, score_aggregation_window);
         }
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
@@ -3367,7 +3426,8 @@ struct MHA {
                             subsequence_begins,
                             block_indices,
                             block_indices_begins,
-                            alibi_slopes);
+                            alibi_slopes,
+                            score_aggregation_window);
         } else {
             _helper.exec_loop_bhl(query,
                                   present_key,
@@ -3379,7 +3439,8 @@ struct MHA {
                                   subsequence_begins,
                                   block_indices,
                                   block_indices_begins,
-                                  alibi_slopes);
+                                  alibi_slopes,
+                                  score_aggregation_window);
         }
     }
 };
