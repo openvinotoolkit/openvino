@@ -75,8 +75,7 @@ bool parseCommandLine(int* argc, char*** argv) {
         showUsage();
         return false;
     }
-    if (FLAGS_v)
-    {
+    if (FLAGS_v) {
         std::cout << APP_VERSION << std::endl;
         return false;
     }
