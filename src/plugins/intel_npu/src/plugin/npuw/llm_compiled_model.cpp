@@ -12,6 +12,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -395,6 +396,88 @@ struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
 };
+} // anonymous namespace
+
+class CutTailAfterSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutTailAfterSlice");
+    CutTailAfterSlice::CutTailAfterSlice(
+        std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
+        auto slice = opp::wrap_type<ov::op::v8::Slice>({opp::any_input(), opp::any_input(),
+                                                        opp::any_input(), opp::any_input(),
+                                                        opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({slice, opp::any_input()});
+
+        // There are several patterns for matmul we are looking for:
+        // Matmul -> Result
+        // Matmul -> Add -> Result
+        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
+        // Matmul -> Transpose -> Result
+        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+        // MatMul -> Divide -> Tanh -> Multiply -> Result
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(
+            ov::OutputVector{matmul->output(0), matmul_add->output(0),
+                             matmul_transpose->output(0), matmul_multiply->output(0)});
+        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+    
+            auto matched_node_slice = node_to_output.at(slice).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
+            if (node_to_output.count(matmul_add)) {
+                matched_node_last_op = node_to_output.at(matmul_add).get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_transpose)) {
+                matched_node_last_op = node_to_output.at(matmul_transpose).get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_multiply)) {
+                matched_node_last_op = node_to_output.at(matmul_multiply).get_node_shared_ptr();
+            } else {
+                matched_node_last_op = matched_node_matmul;
+            }
+            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
+
+            auto matched_slice = std::static_pointer_cast<ov::op::v8::Slice>(matched_node_slice);
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
+
+            // Cut original model after Slice Op:
+            matched_result->input(0).replace_source_output(matched_slice);
+            matched_result->output(0).set_names({"output_embed"});
+            matched_result->validate_and_infer_types();
+
+            // Create an additional model after Slice Op:
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_slice->output(0).get_element_type(),
+                                                                     matched_slice->output(0).get_partial_shape());
+            new_param->output(0).add_names({"output_embed"});
+            matched_matmul->input(0).replace_source_output(new_param);
+            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
+            tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(
+                ov::OutputVector{new_result->output(0)},
+                ov::ParameterVector{new_param},
+                "TailVocabMatmul");
+           
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(res, "CutTailAfterSlice"), std::move(callback));
+
+    }
+};
+
+namespace {
+std::shared_ptr<ov::Model> cut_tail_after_slice(std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    std::shared_ptr<ov::Model> tail_vocab_mm = nullptr;
+    std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref(tail_vocab_mm);
+    rewr.add_matcher<CutTailAfterSlice>(tail_vocab_mm_ref);
+    rewr.run_on_model(model);
+
+    return tail_vocab_mm;
+}
 
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
@@ -424,6 +507,22 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         new_shapes.emplace(input_name, new_shape);
     }
     model->reshape(new_shapes);
+}
+
+void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model,
+                                   const uint32_t& batch_dim) {
+    // We have only one input: output of Slice operation, and this output should
+    // have "1" in 1st dimension.
+    // Batch size should be also equal "1" for NPU.
+    const auto& input = tail_mm_model->input(0);
+    const auto& partial_shape = input.get_partial_shape();
+    NPUW_ASSERT(partial_shape.size() == 3);
+
+    ov::PartialShape new_shape = partial_shape;
+    new_shape[batch_dim] = 1;
+    new_shape[1] = 1;
+
+    tail_mm_model->reshape(new_shape);
 }
 
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
@@ -496,7 +595,7 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
@@ -510,7 +609,7 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, co
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
                                       const std::optional<NPUDesc>& npudesc,
                                       const ::intel_npu::npuw::llm::PrefillHint hint) {
-    auto config = get_default_common_config(model, npudesc);
+    auto config = get_default_common_config(npudesc);
     if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
         if (is_cw_compressed(model)) {
             // NB: These two ifs are not combined into one with && deliberately
@@ -532,10 +631,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
     return config;
 }
 
-ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
-                                       const std::optional<NPUDesc>& npudesc,
+ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
                                        const ::intel_npu::npuw::llm::GenerateHint hint) {
-    auto config = get_default_common_config(model, npudesc);
+    auto config = get_default_common_config(npudesc);
     if (hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
@@ -545,6 +643,18 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+    }
+    return config;
+}
+
+ov::AnyMap get_default_tail_mm_config(const std::optional<NPUDesc>& npudesc) {
+    auto config = get_default_common_config(npudesc);
+    config.erase("NPUW_SLICE_OUT");
+    config.erase("NPUW_FUNCALL_ASYNC");
+    config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         config.emplace("NPUW_DQ", "YES");
@@ -610,13 +720,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
+    LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
-    LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
+    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-    LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
+    // Add Slice before last MatMul for the prefill model
+    // Use the same function as GenAI
+    LOG_DEBUG("Trying to separate Vocabulary matrix multiplication after Slice op into additional "
+        "model...");
+    auto tail_mm_model = cut_tail_after_slice(kvcache_model);
+    if (tail_mm_model) {
+        LOG_INFO("Three-model pipeline will be created.");
+    } else {
+        LOG_INFO("Two-model pipeline will be created");
+    }
+    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
@@ -627,14 +747,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
-    LOG_DEBUG("4. Make prefill model with static shapes");
+    LOG_DEBUG("Make prefill model with static shapes");
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
-    LOG_DEBUG("5. Make kvcache model with static shapes");
+    LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+    if (tail_mm_model) {
+        LOG_DEBUG("Make tail matmul model with static shapes");
+        reshape_sliced_tail_to_static(tail_mm_model, axes.batch);
+    }
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
-        LOG_DEBUG("6. Check and apply opt layout");
+        LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
             NPUW_ASSERT(optimize_value_tensors(prefill_model));
@@ -643,14 +767,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_DEBUG("vtensors optimisation not applied");
         }
     } else {
-        LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
+        LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
     NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
+    LOG_DEBUG("Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
+    LOG_DEBUG("Converting KV-cache in kvcache model to FP16.");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
-    LOG_DEBUG("9. Converting KV-cache in prefill model to FP16.");
+    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
@@ -669,7 +793,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+        generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint))
             .as<ov::AnyMap>();
 
     const auto& prefill_config_addition_value =
@@ -690,7 +814,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
-
+    if (tail_mm_model) {
+        auto& tail_mm_config = get_default_tail_mm_config(npudesc);
+        merge_config_with(tail_mm_config, other_props);
+        m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+            ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));
+        NPUW_ASSERT(m_tail_mm_compiled);
+    }
     implement_properties();
     LOG_DEBUG("Done");
 }
@@ -800,6 +930,11 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         EncryptContext enc_ctx(false, nullptr, nullptr);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
+        bool is_tail_mm_present = m_tail_mm_compiled != nullptr;
+        write(model_stream, is_tail_mm_present); 
+        if (is_tail_mm_present) {
+            m_tail_mm_compiled->serialize(model_stream, enc_ctx);
+        }
     };
 
     std::stringstream non_encrypted_stream;
@@ -986,7 +1121,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         EncryptContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-
+        bool is_tail_mm_present = false;
+        read(model_stream, is_tail_mm_present);
+        if (is_tail_mm_present) {
+            compiled->m_tail_mm_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        }
         return compiled;
     };
 
