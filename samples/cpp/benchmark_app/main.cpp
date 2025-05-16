@@ -606,6 +606,11 @@ int main(int argc, char* argv[]) {
             if (is_virtual_device(device)) {
                 device_nstreams.erase(device);
             }
+
+            if (!FLAGS_cache_dir.empty()) {
+                // Choose between better model compilation time and cache file size.
+                device_config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
+            }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
             return device_name.find(item.first) == 0;

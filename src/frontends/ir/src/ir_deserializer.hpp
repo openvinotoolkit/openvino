@@ -5,15 +5,12 @@
 #pragma once
 
 #include <cctype>
-#include <istream>
 #include <memory>
 #include <pugixml.hpp>
 
-#include "input_model.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils.hpp"
@@ -61,12 +58,14 @@ class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ov::AlignedBuffer>& weights,
+                             const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
         : m_node(node),
           m_weights(weights),
+          m_origin_weights(origin_weights),
           m_opsets(opsets),
           m_extensions(extensions),
           m_variables(variables),
@@ -179,6 +178,7 @@ private:
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
                                           const pugi::xml_node& node,
                                           const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                          const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
                                           const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
@@ -190,6 +190,7 @@ private:
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<ov::AlignedBuffer>& m_weights;
+    const std::shared_ptr<ov::AlignedBuffer>& m_origin_weights;
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
