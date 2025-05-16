@@ -41,7 +41,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    ov::element::Type get_output_type() const;
+    virtual ov::element::Type get_output_type() const;
     std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;
     ov::PartialShape infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const;
     ov::PartialShape get_planar_output_shape(const ov::PartialShape& output_shape) const;

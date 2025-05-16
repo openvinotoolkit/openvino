@@ -85,6 +85,7 @@ private:
     std::vector<ptrdiff_t> start_offset_out = {};
 
     RepackedInputConfig repacked_constant_input_config = {};
+    std::set<size_t> external_ptrs_idces = {};
 
     bool is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
