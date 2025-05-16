@@ -328,12 +328,12 @@ void jit_exp_emitter::register_table_entries() {
 /// FLOOR ///
 jit_floor_emitter::jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
-        prepare_table();
-    }
+    prepare_table();
+}
 
 jit_floor_emitter::jit_floor_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node) :
     jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
-        prepare_table();
+    prepare_table();
 }
 
 size_t jit_floor_emitter::get_inputs_num() const {
