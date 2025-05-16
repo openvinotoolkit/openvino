@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/op/convert.hpp"
@@ -79,6 +80,8 @@ public:
         m_input_data_types[inputIndex] = element_type;
     }
 
+    static constexpr std::string_view version_prefix{"type_relaxed_"};
+
 protected:
     void remember_input_data_types(Node& node, element::TypeVector& old_input_types);
 
@@ -95,7 +98,7 @@ protected:
     } init_rt_result;
 
     init_rt_result init_rt_info(Node& node) const {
-        node.get_rt_info()["opset"] = "type_relaxed_opset";
+        node.get_rt_info()["opset"] = std::string(version_prefix) + node.get_type_info().version_id;
         return {};
     }
 
