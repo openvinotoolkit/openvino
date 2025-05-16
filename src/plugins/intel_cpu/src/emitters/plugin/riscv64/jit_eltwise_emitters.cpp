@@ -12,7 +12,6 @@ using namespace Xbyak_riscv;
 
 #define CONST_1_F    0x3f800000  // 1.f
 
-
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
     const std::shared_ptr<ov::Node>& node)
@@ -326,8 +325,8 @@ void jit_exp_emitter::register_table_entries() {
 }
 
 /// FLOOR ///
-jit_floor_emitter::jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+jit_floor_emitter::jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
+    jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -341,11 +340,11 @@ size_t jit_floor_emitter::get_inputs_num() const {
 }
 
 size_t jit_floor_emitter::aux_vecs_count() const {
-    return 2; 
+    return 1; 
 }
 
 size_t jit_floor_emitter::aux_fp_gprs_count() const {
-    return 2; 
+    return 1; 
 }
 
 void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -356,59 +355,27 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const 
     }
 }
 void jit_floor_emitter::register_table_entries() {
-
-    push_arg_entry_of("zero", 0x00000000);    
-    push_arg_entry_of("neg_one", 0xbf800000);
+    push_arg_entry_of("neg_one", 0xbf800000); 
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
-    VReg aux1 = VReg(aux_vec_idxs[0]);    
-    VReg aux2 = VReg(aux_vec_idxs[1]); 
-    FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
-    FReg fp1 = FReg(aux_fp_gpr_idxs[1]);
+    VReg aux1 = VReg(aux_vec_idxs[0]);
+    FReg fp1 = FReg(aux_fp_gpr_idxs[0]);
 
-
-    h->vmv_v_v(aux1, src);                
-    load_table_val("zero", fp0);               
-    h->vmflt_vf(mask_vreg(), src, fp0);      
-    h->vmv1r_v(aux2, mask_vreg());           
-
-    if (exec_prc_ == element::f32) {
-        
-        h->vfcvt_x_f_v(dst, src);            
-        h->vfcvt_f_x_v(dst, dst);            
-
-        h->vmv1r_v(mask_vreg(), aux2);       
-        h->vmfgt_vv(mask_vreg(), dst, aux1); 
-        load_table_val("neg_one", fp1);       
-        h->vfadd_vf(dst, dst, fp1, VM::masked);
-
-    } else if (exec_prc_ == element::f16) {
-
-        h->vfwcvt_f_f_v(dst, src);          
-        
-        h->vfcvt_x_f_v(dst, dst);            
-        h->vfcvt_f_x_v(dst, dst);           
-
-        h->vmv1r_v(mask_vreg(), aux2);      
-        h->vmfgt_vv(mask_vreg(), dst, aux1); 
-        load_table_val("neg_one", fp1);       
-        h->vfadd_vf(dst, dst, fp1, VM::masked); 
-
-        h->vfncvt_f_f_w(dst, dst);      
-
-    } else {
-        OPENVINO_THROW("Unsupported precision");
-    }
+    h->vmv_v_v(aux1, src);                   
+    h->vfcvt_x_f_v(dst, src);               
+    h->vfcvt_f_x_v(dst, dst);                
+    
+    h->vmfgt_vv(mask_vreg(), dst, aux1);    
+    load_table_val("neg_one", fp1);         
+    h->vfadd_vf(dst, dst, fp1, VM::masked);  
 }
-
 std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}, {element::f16}};
+    return {{element::f32}}; 
 }
-
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
     const std::shared_ptr<ov::Node>& node)
