@@ -1,0 +1,24 @@
+{
+    "commandList" : [
+        {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"}
+    ],
+"appCmd" : "make --jobs=4",
+"appPath": "/home/ygayda/Documents/ov/openvino/tools/commit_slider/tests/brokenCompilation/build/",
+"gitPath" : "/home/ygayda/Documents/ov/openvino/tools/commit_slider/tests/brokenCompilation/",
+"buildPath" : "/home/ygayda/Documents/ov/openvino/tools/commit_slider/tests/brokenCompilation/build/",
+"verboseOutput": true,
+"runConfig" : {
+    "commitList" : {
+        "getCommitListCmd" : "git log c6218f276dc4b3da3901170e03e0ccb0ec155a8a..6d1b372d9d55337b36b705bf85d5ae2507359754 --boundary --pretty=\"%h\""
+    },
+    "mode" : "checkOutput",
+    "traversal" : "firstFixedVersion",
+    "stopPattern" : "(.)*\\[100%]\\ Built\\ target(.)*"
+}
+}
