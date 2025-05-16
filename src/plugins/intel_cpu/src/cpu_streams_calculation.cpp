@@ -606,6 +606,15 @@ int get_model_prefer_threads(const int num_streams,
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
+            std::cout << "max_mem_tolerance = " << networkToleranceForLowCache.max_mem_tolerance << std::endl;
+            std::cout << "ratio_compute_convs = " << networkToleranceForLowCache.ratio_compute_convs << std::endl;
+            std::cout << "ratio_compute_deconvs = " << networkToleranceForLowCache.ratio_compute_deconvs << std::endl;
+            std::cout << "ratio_mem_limited_convs = " << networkToleranceForLowCache.ratio_mem_limited_convs << std::endl;
+            std::cout << "ratio_mem_limited_deconvs = " << networkToleranceForLowCache.ratio_mem_limited_deconvs << std::endl;
+            std::cout << "ratio_mem_limited_gemms = " << networkToleranceForLowCache.ratio_mem_limited_gemms << std::endl;
+            std::cout << "total_convs = " << networkToleranceForLowCache.total_convs << std::endl;
+            std::cout << "total_gemms = " << networkToleranceForLowCache.total_gemms << std::endl;
+
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams != 1) {
             config.modelPreferThreads = 4;
