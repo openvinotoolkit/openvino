@@ -28,16 +28,17 @@ namespace pass {
  *   round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
  *
  * Marking:
+ *   - z0  := levels if unsigned, 0 if signed
  *   - isc := (levels-1) / (ih - il)
- *   - ish := -il * isc
+ *   - ish := -il * isc - z0
  *   - osc := (oh - ol) / (levels-1)
- *   - osh := ol
+ *   - osh := ol + z0 * osc
  * Final expression:
  *   round(x * isc + ish) * osc + osh
  *
  * Some optimizations (example for scalars):
  * 1. If output element type of FQ is U8 and il = 0, ish = 0, osc = 1, osh = 0, there is enough expression: x * isc
- * 2. If output element type of FQ is I8 and ish ~= 128, osc = 1, osh ~= -128, il * isc ~= -128, ih * isc ~= 127 there is enough expression: x * isc
+ * 2. If output element type of FQ is I8 and ish ~= 128, osc = 1, osh ~= -128, il * isc ~= -128, ih * isc ~= 127 there is enough expression: x * isc + 128
  * 3. If osc = 1, osh = 0, there isn't dequantization
  * 4. If there isn't dequantization and output element type of FQ isn't FP32, there isn't rounding
  *
