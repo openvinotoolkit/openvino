@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <variant>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -31,14 +32,47 @@
 #include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
+
+bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(RoPEFusion);
+    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
+    // optional heads & tails are fused in separate matcher pass,
+    // after RoPENode has been created.
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionIOSlicing>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPreprocess>();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1);
+    if (m_support_2d_rope) {
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+    }
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
+
+    return symbolic_optimizations.run_on_model(model);
+}
 
 // This is a utility function used in the work around in ChatGLM pattern.
 // Since the existing implementation of Symbols don't allow for checking
@@ -72,51 +106,44 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     // y1 = x * t_cos
     // y2 = x3 * t_sin
     // y = y1 + y2
-    auto x = makePattern(ov::Rank(4));
-    auto t_cos = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
+    auto x = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+    auto t_cos = pattern::any_input(pattern::rank_equals(4));
+    auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto num_heads = ov::gen_pattern::Symbol("num_heads");
-    auto head_size = ov::gen_pattern::Symbol("head_size");
-
-    auto x1_target_shape = makeConst({0, num_heads, 0, -1, 2});
-    auto x1 = makePattern<opset1::Reshape>({x, x1_target_shape}, {{"special_zero", true}});
-    auto split = makePattern<opset1::Split>({x1, -1}, {{"num_splits", 2}});
+    auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()},
+                                                  pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
+    auto split = pattern::wrap_type<opset1::Split>({x1, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
 
     // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
-    auto x1_1_neg_1 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto opt_squeeze = pattern::optional<opset1::Squeeze>({split->output(1), -1});
+    auto x1_1_neg = pattern::wrap_type<opset1::Multiply>({opt_squeeze, -1}, {{"auto_broadcast", "numpy"}});
+    auto opt_squeeze_1 = pattern::optional<opset1::Squeeze>({x1_1_neg, -1});
+    auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
-    auto squeeze_2 = makePattern<opset1::Squeeze>({split->output(1), -1});
-    auto x1_1_neg_2 = makePattern<opset1::Multiply>({squeeze_2, -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto unsqueeze_2 = makePattern<opset1::Unsqueeze>({x1_1_neg_2, -1});
+    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
+    auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
+                                                  pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
 
-    auto x1_1_neg_3 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto squeeze_3 = makePattern<opset1::Squeeze>({x1_1_neg_3, -1});
-    auto unsqueeze_3 = makePattern<opset1::Unsqueeze>({squeeze_3, -1});
+    auto y1 = pattern::wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto y2 = pattern::wrap_type<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
 
-    auto x2 = makePattern<opset1::Concat>({x1_1_neg_1 | unsqueeze_2 | unsqueeze_3, split->output(0)}, {{"axis", -1}});
-    auto x3_target_shape = makeConst({0, num_heads, 0, head_size});
-    auto x3 = makePattern<opset1::Reshape>({x2, x3_target_shape}, {{"special_zero", true}});
-
-    auto y1 = makePattern<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto y2 = makePattern<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
-
-    auto y = makePattern<opset1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
-    auto result = y;
+    auto result = pattern::wrap_type<opset1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
+        auto symbols = m.get_symbols();
+        auto num_heads = symbols["PRESERVED_DIMS"].g()[1];
+        auto head_size = symbols["head_size"];
+        if (!num_heads.is_static() || !head_size.is_static()) {
+            return false;
+        }
+
         op::internal::RoPE::Config config;
-        config.head_cnt = static_cast<size_t>(validator["num_heads"]);
-        config.head_size = static_cast<size_t>(validator["head_size"]);
+        config.head_cnt = static_cast<size_t>(num_heads.i());
+        config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
         config.is_interleaved = true;
         config.output_trans0213 = false;
@@ -142,7 +169,6 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-
         return true;
     };
 

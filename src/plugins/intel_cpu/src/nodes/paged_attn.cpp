@@ -283,6 +283,14 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+#if defined(OPENVINO_ARCH_ARM64)
+    if (rtPrecision == ov::element::f16) {
+        rtPrecision = ov::element::f16;
+    } else {
+        rtPrecision = ov::element::f32;
+    }
+    return rtPrecision;
+#endif
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;

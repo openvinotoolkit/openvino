@@ -119,6 +119,7 @@
 #include "slice_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
+#include "sparse_fill_empty_rows_shape_inference.hpp"
 #include "split_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
@@ -448,6 +449,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset16
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),
     // opset15
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),

@@ -312,7 +312,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !kq_common_scales) {
         const auto scale_dt = convert_type(params.key_cache_comp_scale.GetDType());
         problem_kq.Ta_scale = scale_dt;
-        problem_kq.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_kq.A_scale.alignment = scale_dt.size();
 
         problem_kq.A_scale.layout = micro::MatrixLayout::T;
         problem_kq.aScale2D = true;
@@ -321,7 +321,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         const auto zp_dt = convert_type(params.key_cache_comp_zp.GetDType());
         problem_kq.Tao = zp_dt;
-        problem_kq.AO.alignment = micro::data_type_size(zp_dt);
+        problem_kq.AO.alignment = zp_dt.size();
         problem_kq.AO.layout = micro::MatrixLayout::T;
         problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
         problem_kq.aOffset = micro::ABOffset::Calc;
@@ -378,7 +378,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !vs_common_scales) {
         auto scale_dt = convert_type(params.value_cache_comp_scale.GetDType());
         problem_vs.Ta_scale = scale_dt;
-        problem_vs.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_vs.A_scale.alignment = scale_dt.size();
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.aScale2D = true;
     }
@@ -386,7 +386,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         auto zp_dt = convert_type(params.value_cache_comp_zp.GetDType());
         problem_vs.Tao = zp_dt;
-        problem_vs.AO.alignment = micro::data_type_size(zp_dt);
+        problem_vs.AO.alignment = zp_dt.size();
         problem_vs.AO.layout = micro::MatrixLayout::N;
         problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
         problem_vs.aOffset = micro::ABOffset::Calc;

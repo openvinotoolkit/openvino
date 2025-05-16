@@ -37,4 +37,29 @@ AttributeAdapter<std::vector<double>>::~AttributeAdapter() = default;
 AttributeAdapter<std::vector<std::string>>::~AttributeAdapter() = default;
 AttributeAdapter<std::set<std::string>>::~AttributeAdapter() = default;
 
+template class DirectValueAccessor<std::vector<std::string>>;
+template class DirectValueAccessor<std::vector<signed char>>;
+template class DirectValueAccessor<std::vector<unsigned short>>;
+template class DirectValueAccessor<std::vector<unsigned int>>;
+template class DirectValueAccessor<std::vector<unsigned char>>;
+template class DirectValueAccessor<std::vector<short>>;
+template class DirectValueAccessor<std::vector<double>>;
+template class DirectValueAccessor<std::vector<float>>;
+template class DirectValueAccessor<std::vector<int>>;
+template class DirectValueAccessor<std::vector<long>>;
+template class DirectValueAccessor<std::vector<unsigned long>>;
+template class DirectValueAccessor<std::set<std::string>>;
+
+template class EnumAttributeAdapterBase<op::PadMode>;
+template class EnumAttributeAdapterBase<op::FillMode>;
+template class EnumAttributeAdapterBase<op::PadType>;
+template class EnumAttributeAdapterBase<op::RoundingType>;
+template class EnumAttributeAdapterBase<op::AutoBroadcastType>;
+template class EnumAttributeAdapterBase<op::BroadcastType>;
+template class EnumAttributeAdapterBase<op::EpsMode>;
+template class EnumAttributeAdapterBase<op::TopKSortType>;
+template class EnumAttributeAdapterBase<op::TopKMode>;
+template class EnumAttributeAdapterBase<op::PhiloxAlignment>;
+template class EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
+template class EnumAttributeAdapterBase<element::Type_t>;
 }  // namespace ov

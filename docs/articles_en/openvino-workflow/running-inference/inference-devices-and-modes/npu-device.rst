@@ -167,6 +167,7 @@ offer a limited set of supported OpenVINO features.
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::luid (windows only)
          ov::device::pci_info
          ov::device::gops
          ov::device::type

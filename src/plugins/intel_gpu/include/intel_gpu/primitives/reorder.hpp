@@ -214,7 +214,7 @@ struct reorder : public primitive_base<reorder> {
     /// @brief Requested memory format.
     format output_format;
     /// @brief Primitive id to get mean subtract values. Ignored if subtract_per_feature is set.
-    primitive_id mean;
+    input_info mean;
     /// @brief Array of mean subtract values.
     std::vector<float> subtract_per_feature;
     /// @brief Mode of mean execution.
@@ -238,7 +238,7 @@ struct reorder : public primitive_base<reorder> {
         seed = hash_combine(seed, input_mem_type);
         seed = hash_combine(seed, truncate);
         seed = hash_range(seed, subtract_per_feature.begin(), subtract_per_feature.end());
-        seed = hash_combine(seed, mean.empty());
+        seed = hash_combine(seed, mean.is_valid());
 
         if (weights_reorder_params) {
             seed = hash_combine(seed, weights_reorder_params->hash());
@@ -262,7 +262,7 @@ struct reorder : public primitive_base<reorder> {
                input_mem_type == rhs_casted.input_mem_type &&
                truncate == rhs_casted.truncate &&
                output_format == rhs_casted.output_format &&
-               mean.empty() == rhs_casted.mean.empty() &&
+               mean.is_valid() == rhs_casted.mean.is_valid() &&
                reorder_weights_eq;
     }
 
@@ -299,10 +299,14 @@ struct reorder : public primitive_base<reorder> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        if (mean.empty())
-            return {};
-        return {mean};
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (mean.is_valid())
+            ret[idx++] = &mean;
+
+        return ret;
     }
 };
 

@@ -303,15 +303,6 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
         is_shuffled = true;
     }
 
-    std::vector<JitTerm> in_vars_converted;
-    for (const auto& in_d : dep_data) {
-        auto in_name = get_input_var_name(in_d.m_idx, is_shuffled, shuffle_var);
-        if (params.input_layouts[in_d.m_idx].data_type != out_type) {
-            in_name = convert_to_output_type(in_name, vec_size);
-        }
-        in_vars_converted.emplace_back(in_name);
-    }
-
     if (desc.is_type<eltwise>()) {
         auto p = desc.get_typed_fuse_params<EltwiseFuseParams>();
 

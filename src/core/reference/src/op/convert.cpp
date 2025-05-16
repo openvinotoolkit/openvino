@@ -8,7 +8,7 @@
 
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/reference/utils/jit_generator.hpp"
-#    include "openvino/util/common_util.hpp"
+#    include "openvino/util/os.hpp"
 #endif
 
 #ifdef OV_CORE_USE_INTRINSICS

@@ -166,8 +166,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string w_zp = desc->weights_zero_points.empty() ? "false" : "true";
-    std::string a_zp = desc->activations_zero_points.empty() ? "false" : "true";
+    std::string w_zp = desc->weights_zero_points.is_valid() ? "true" : "false";
+    std::string a_zp = desc->activations_zero_points.is_valid() ? "true" : "false";
 
     json_composite conv_info;
     conv_info.add("stride", cldnn::to_string(strd));

@@ -314,7 +314,7 @@ TEST_P(deconv_actv, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", p.groups, p.stride, p.pad),
         activation("act", input_info("deconv"), activation_func::relu),
         reorder("out", input_info("act"), p.default_format, data_types::f32)
     );

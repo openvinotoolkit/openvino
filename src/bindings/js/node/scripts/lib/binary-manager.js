@@ -95,7 +95,8 @@ class BinaryManager {
         path.dirname(process.env.npm_package_resolved),
         'bin'
       ).replace('file:', '');
-      if (existsSync(path.join(binDir, 'libopenvino.so'))) {
+      if (existsSync(path.join(binDir, 'libopenvino.so')) ||
+        existsSync(path.join(binDir, 'openvino.dll'))) {
         try {
           await fs.cp(binDir, destinationPath, {'recursive': true});
 

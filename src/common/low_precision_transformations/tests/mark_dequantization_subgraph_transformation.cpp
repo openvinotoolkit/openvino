@@ -8,10 +8,12 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_precision.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -774,4 +776,95 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
+    // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
+    // are marked with the 'disable_fp16_compression' attribute
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        disable_fp16_compression(convert);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        disable_fp16_compression(convert_on_zero_point);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        disable_fp16_compression(subtract);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        disable_fp16_compression(multiply);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
+    // This test uses the legacy TransformationTests class because ConvertPrecision pass
+    // internally inserts additional nodes for data type consistency, which causes the
+    // check_unique_names() function to fail with a "Tensor name: N is missing in ..." error.
+    // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
+
+    // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
+    // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
+    // during Constant Folding (called from ConvertPrecision pass), using f32 data type for constants.
+
+    std::shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+
+        const auto keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+        manager.register_pass<pass::ConvertPrecision>(element::f32, element::f16, type_to_fuse_map{}, keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(element::f16, Shape{1});
+        auto input_decompress_to_f32 = std::make_shared<opset10::Convert>(parameter, element::f32);
+        auto weights = opset10::Constant::create(dequantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto add = std::make_shared<opset10::Add>(input_decompress_to_f32, weights);
+        auto add_compressed_to_f16 = std::make_shared<opset10::Convert>(add, element::f16);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add_compressed_to_f16});
+    }
+
+    auto func_comparator = FunctionsComparator::with_default();
+    auto result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
 }

@@ -2145,6 +2145,74 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_concat_i8) {
+    const auto model = convert_model("com.microsoft/qlinear_concat_i8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<int8_t> y_zero_point{5};
+
+    const std::vector<int8_t> X1{1, 2, 3, 4};
+    const std::vector<float> X1_scale{0.1f};
+    const std::vector<int8_t> X1_zero_point{0};
+
+    const std::vector<int8_t> X2{5, 6, 7, 8};
+    const std::vector<float> X2_scale{0.1f};
+    const std::vector<int8_t> X2_zero_point{0};
+
+    const std::vector<int8_t> expected_output{6, 7, 10, 11, 8, 9, 12, 13};
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_input<int8_t>(Shape{2, 2}, X1);
+    test_case.add_input<float>(Shape{1}, X1_scale);
+    test_case.add_input<int8_t>(Shape{1}, X1_zero_point);
+
+    test_case.add_input<int8_t>(Shape{2, 2}, X2);
+    test_case.add_input<float>(Shape{1}, X2_scale);
+    test_case.add_input<int8_t>(Shape{1}, X2_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 4}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_concat_u8) {
+    const auto model = convert_model("com.microsoft/qlinear_concat_u8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<uint8_t> y_zero_point{5};
+
+    const std::vector<uint8_t> X1{10, 20, 30, 40, 50, 60, 15, 25, 35, 45, 55, 65,
+                                  12, 22, 32, 42, 52, 62, 18, 28, 38, 48, 58, 68};
+    const std::vector<float> X1_scale{0.1f};
+    const std::vector<uint8_t> X1_zero_point{0};
+
+    const std::vector<uint8_t> X2{70, 80, 90, 100, 110, 120, 75, 85, 95, 105, 115, 125,
+                                  72, 82, 92, 102, 112, 122, 78, 88, 98, 108, 118, 128};
+    const std::vector<float> X2_scale{0.1f};
+    const std::vector<uint8_t> X2_zero_point{0};
+
+    const std::vector<uint8_t> expected_output{
+        15, 25, 35, 45, 55, 65, 75, 85, 95, 105, 115, 125, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130,
+        17, 27, 37, 47, 57, 67, 77, 87, 97, 107, 117, 127, 23, 33, 43, 53, 63, 73, 83, 93, 103, 113, 123, 133};
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<uint8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_input<uint8_t>(Shape{4, 6}, X1);
+    test_case.add_input<float>(Shape{1}, X1_scale);
+    test_case.add_input<uint8_t>(Shape{1}, X1_zero_point);
+
+    test_case.add_input<uint8_t>(Shape{4, 6}, X2);
+    test_case.add_input<float>(Shape{1}, X2_scale);
+    test_case.add_input<uint8_t>(Shape{1}, X2_zero_point);
+
+    test_case.add_expected_output<uint8_t>(Shape{4, 12}, expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax) {
     const auto model = convert_model("com.microsoft/qlinear_softmax_opset13.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

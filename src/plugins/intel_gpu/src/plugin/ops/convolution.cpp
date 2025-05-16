@@ -123,7 +123,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
         weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = false;
 
     auto strides = op->get_strides();
@@ -138,7 +137,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                1,
                                                strides,
@@ -150,7 +149,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                1,
                                                strides,
@@ -211,7 +210,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
         weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = true;
 
     auto strides = op->get_strides();
@@ -227,7 +225,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
 
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                groups,
                                                strides,
@@ -242,7 +240,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                groups,
                                                strides,

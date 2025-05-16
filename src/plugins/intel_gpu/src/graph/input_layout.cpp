@@ -40,7 +40,7 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
     bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
     if (!empty_mem && need_to_check_memory_to_set) {
-        check_memory_to_set(*mem, ol);
+        check_memory_compatibility(*mem, ol);
     }
 
     event::ptr ev = nullptr;

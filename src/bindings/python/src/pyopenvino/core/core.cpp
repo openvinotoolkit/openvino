@@ -93,6 +93,31 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "get_property",
+        [](ov::Core& self,
+           const std::string& device_name,
+           const std::string& name,
+           const std::map<std::string, py::object>& arguments) -> py::object {
+            std::map<std::string, ov::Any> _properties = Common::utils::properties_to_any_map(arguments);
+            return Common::utils::from_ov_any(self.get_property(device_name, name, _properties));
+        },
+        py::arg("device_name"),
+        py::arg("name"),
+        py::arg("arguments"),
+        R"(
+            Gets properties dedicated to device behaviour.
+
+            :param device_name: A name of a device to get a properties value.
+            :type device_name: str
+            :param name: Property or name of Property.
+            :type name: str
+            :param arguments: Additional arguments to get a property.
+            :type arguments: dict[str, typing.Any]
+            :return: Extracted information from property.
+            :rtype: typing.Any
+        )");
+
+    cls.def(
+        "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& property) -> py::object {
             return Common::utils::from_ov_any(self.get_property(device_name, property));
         },

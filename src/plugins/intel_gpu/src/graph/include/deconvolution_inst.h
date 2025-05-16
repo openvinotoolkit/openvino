@@ -30,7 +30,7 @@ public:
     program_node& weights() const { return get_dependency(1);}
     program_node& bias() const { return get_dependency(2);}
 
-    bool bias_term() const { return !get_primitive()->bias.empty();}
+    bool bias_term() const { return get_primitive()->bias.is_valid();}
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
 
