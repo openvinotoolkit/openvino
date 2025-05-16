@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <iterator>
@@ -12,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -46,6 +48,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -84,7 +87,7 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getThreadPool());
 
     this->_name = std::move(name);
 
@@ -343,7 +346,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getThreadPool());
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -525,6 +528,9 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::impl::threadpool_utils::activate_threadpool(getThreadPool().get());
+#endif
             node->createPrimitive();
         }
 

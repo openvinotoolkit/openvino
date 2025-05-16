@@ -411,6 +411,7 @@ void Input::cloneBlobIfRequired() {
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
             auto fn_bf16_check = jit_has_bf16_overflows_function();
+            const auto& cpu_parallel = context->getCpuParallel();
             if (fn && fn_bf16_check) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
@@ -418,7 +419,7 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_subnormals_local(false);
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
-                    parallel_for(iterations_num, [&](int n) {
+                    cpu_parallel->parallel_for(iterations_num, [&](int n) {
                         auto ptr = f32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {
                             reinterpret_cast<const float*>(ptr),
