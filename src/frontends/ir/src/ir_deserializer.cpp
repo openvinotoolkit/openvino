@@ -530,14 +530,26 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     }
 
     // Run DFS starting from outputs to get nodes topological order
-    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes, &dfs](const size_t id) {
-        if (dfs_used_nodes.count(id))
-            return;
-        dfs_used_nodes.insert(id);
-        for (auto& edge : edges[id]) {
-            dfs(edge.fromLayerId);
+    auto dfs = [&](size_t start_id) {
+        std::stack<size_t> stack;
+        std::unordered_set<size_t> visited;
+        stack.push(start_id);
+        while (!stack.empty()) {
+            size_t id = stack.top();
+            if (dfs_used_nodes.count(id)) {
+                stack.pop();
+                continue;
+            }
+            if (visited.insert(id).second) {
+                for (const auto& edge : edges[id])
+                    if (!dfs_used_nodes.count(edge.fromLayerId))
+                        stack.push(edge.fromLayerId);
+            } else {
+                stack.pop();
+                dfs_used_nodes.insert(id);
+                order.push_back(id);
+            }
         }
-        order.push_back(id);
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
