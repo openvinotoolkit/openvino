@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("setShape", &TensorWrap::set_shape)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -190,4 +191,46 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // if (!info[0].IsArray()) {
+    //    Napi::TypeError::New(env, "The argument to setShape() must be an array.").ThrowAsJavaScriptException();
+    //    return;
+    // }
+    
+    // ov::Shape shape;
+    // try {
+    //    shape = js_to_cpp<ov::Shape>(info, 0);
+    // } catch (const std::exception& e) {
+    //    Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what()).ThrowAsJavaScriptException();
+    //    return;
+    // }
+    
+    auto shape = js_to_cpp<ov::Shape>(info, 0);
+    
+    size_t new_size = ov::shape_size(shape);
+    size_t current_capacity = ov::shape_size(_tensor.get_shape());
+
+    if (new_size != current_capacity) {
+        if (new_size > current_capacity) {
+            Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.")
+                .ThrowAsJavaScriptException();
+        } else {
+            Napi::Error::New(
+                env,
+                "Shape mismatch: the new shape must have the same number of elements as the original shape.")
+                .ThrowAsJavaScriptException();
+        }
+        return;
+    }
+    
+    try {
+        _tensor.set_shape(shape);
+    } catch (const std::exception& e) {
+        Napi::Error::New(env, std::string("Failed to set shape: ") + e.what()).ThrowAsJavaScriptException();
+        return;
+    }
 }
