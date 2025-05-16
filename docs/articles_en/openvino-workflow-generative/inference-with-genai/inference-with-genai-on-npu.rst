@@ -244,13 +244,14 @@ reusing them for future pipeline runs.
 CACHE_DIR
 -----------------------------------------------------------------------------------------------
 
-``CACHE_DIR`` operates similarly to the older ``NPUW_CACHE_DIR``, except for differences below:
+``CACHE_DIR`` operates similarly to the older ``NPUW_CACHE_DIR``, except for the differences below:
 
 * It creates a single ".blob" file and loads it faster.
-* By default the produced blob is weightless, so either original weights file or ``ov::Model``
-  object is required to load such a blob.
-* Optionally you can cache a blob with weights inside making it much bigger than the default
-  weightless blob. To do so you may pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
+* Blob type is defined by ``"CACHE_MODE"``. By default it's ``"OPTIMIZE_SIZE"``, in which case NPUW
+  produces weightless blob, so either original weights file or ``ov::Model`` object is required
+  to load such a blob.
+* Optionally, you can cache a blob with weights inside making it much bigger than the default
+  weightless blob. To do so, you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 
 .. tab-set::
 
@@ -278,8 +279,10 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
 * It allows to explicitly specify where to **store** the compiled model.
 * For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
-* By default the blob will be weightless. To export a blob with weights you may use
-  ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
+* Blob type is defined by ``"CACHE_MODE"``. By default it's ``"OPTIMIZE_SIZE"``, in which case NPUW
+  produces weightless blob, so either original weights file or ``ov::Model`` object is required
+  to load such a blob.
+* To export a blob with weights you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
 
@@ -370,7 +373,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
-Blobs encryption
+Blob encryption
 -----------------------------------------------------------------------------------------------
 
 When exporting NPUW blobs you can also specify encryption and decryption functions for the blob.
