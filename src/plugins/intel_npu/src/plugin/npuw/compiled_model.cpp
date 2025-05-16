@@ -34,7 +34,6 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/convert_precision.hpp"
-#include "unsafe_infer_request.hpp"
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -1422,24 +1421,18 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
-    std::shared_ptr<ov::ISyncInferRequest> result;
+    std::shared_ptr<IBaseInferRequest> result;
     if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
-        auto  ui = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
-        
-        // avoid extra lock in subscribers chain
-        if (auto shared = m_listener.lock()) {
-            ui->add_infer_requests_listener(shared);
-        }
-        return ui;
+        result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
-        auto  ji = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
-        if (auto shared = m_listener.lock()) {
-            ji->add_infer_requests_listener(shared);
-        }
-        return ji;
+        result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
-    // NPUW_ASSERT(result);
-    // return result;
+    NPUW_ASSERT(result);
+    // avoid extra lock in subscribers chain
+    if (auto shared = m_listener.lock()) {
+        result->add_infer_requests_listener(shared);
+    }
+    return result;
 }
 
 void ov::npuw::CompiledModel::set_infer_request_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> lst) {
@@ -1448,13 +1441,7 @@ void ov::npuw::CompiledModel::set_infer_request_listener(std::weak_ptr<ov::npuw:
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
-
-    // TODO:  use factory
-    if (m_listener.lock()) {
-        return std::make_shared<ov::npuw::UnsafeAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
-    } else {
-        return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
-    }
+    return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {

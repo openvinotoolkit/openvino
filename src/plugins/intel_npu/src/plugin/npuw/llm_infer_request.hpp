@@ -44,13 +44,14 @@ private:
         std::future<void> future;
     };                       
     std::list<KVCacheCopyTask> tasks_in_progress;
-    void copy_kv_cache(const std::string & node_names = "");
+    void copy_kv_cache(std::string name = "", ov::SoPtr<ITensor> tensor = {});
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
-    void subscribe_subrequest(std::size_t, IInferRequestSubmissionListener::Completed) ;
-    void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest>, std::size_t);
+    void subscribe_subrequest(std::size_t, IInferRequestSubmissionListener::Completed);
+    void complete_subrequest(std::size_t);
+    void on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor);
                     
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;

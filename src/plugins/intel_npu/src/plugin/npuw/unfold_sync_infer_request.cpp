@@ -107,7 +107,7 @@ void ov::npuw::UnfoldInferRequest::infer() {
     auto wait_and_clear = [&](RqPtrsIdx& rqs) {
         for (auto&& r : rqs) {
             r.first->wait();
-            complete_subrequest(r.first, r.second);
+            complete_subrequest(r.second);
         }
         rqs.clear();
     };
@@ -150,7 +150,7 @@ void ov::npuw::UnfoldInferRequest::infer() {
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
-            complete_subrequest(subr, idx);
+            complete_subrequest(idx);
         }
     }  // (async)
 }

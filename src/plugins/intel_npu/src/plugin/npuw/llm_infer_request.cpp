@@ -144,16 +144,21 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
 
-    m_prefil_request_listener = std::make_shared<LLMPrefillInferRequest>(
-        [this](std::size_t idx, IInferRequestSubmissionListener::Completed cb){
-            this->subscribe_subrequest(idx, cb);
-        },
-        [this](ov::SoPtr<ov::IAsyncInferRequest> req, size_t idx){
-            this->complete_subrequest(req, idx);
-        }
-    );
+    if (m_copy_cache_inline) {
+        m_prefil_request_listener = std::make_shared<LLMPrefillInferRequest>(
+            [this](std::size_t idx, IInferRequestSubmissionListener::Completed cb){
+                subscribe_subrequest(idx, cb);
+            },
+            [this](size_t idx){
+                complete_subrequest(idx);
+            },
+            [this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
+                on_output_ready(idx, name, tensor);
+            }
+        );
 
-    compiled_model->m_prefill_compiled->set_infer_request_listener(m_prefil_request_listener);
+        compiled_model->m_prefill_compiled->set_infer_request_listener(m_prefil_request_listener);
+    }
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
@@ -172,15 +177,27 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 }
 
 void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed) {
-    LOG_DEBUG("Prefill::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+    LOG_DEBUG("LLMInferRequest::subscribe_subrequest - [" << idx << "]");
+    
     // lets rely on only 2 inferrequests are existed, so at the moment we have to start third one - lets wait for the first one to complete
-    if (!tasks_in_progress.empty() && tasks_in_progress.size() >= 2) {
-        tasks_in_progress.front().future.wait();
-        tasks_in_progress.pop_front();
+    if (!tasks_in_progress.empty() && idx > 1) {
+        auto clearing_idx = idx - 2;        
+        for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end(); ) {
+            if (task_it->index <= clearing_idx) {
+                LOG_DEBUG("LLMInferRequest::subscribe_subrequest  completing copy request:" << task_it->index);
+                task_it->future.wait();
+                task_it = tasks_in_progress.erase(task_it);
+            } else {
+                ++task_it;
+            }
+        }
     }
 }
-void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> /*request*/, std::size_t idx)  {
-    bool bcopy_inline = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>();
+void ov::npuw::LLMInferRequest::complete_subrequest(std::size_t idx)  {
+    LOG_DEBUG("LLMInferRequest::complete_subrequest " << idx << " waiting for produced tensors");
+}
+void ov::npuw::LLMInferRequest::on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor)  {
+    LOG_DEBUG("LLMInferRequest::on_output_ready for: " << idx << ", name: " << name);
     
     if (!m_copy_cache_inline) {
         return;
@@ -188,9 +205,8 @@ void ov::npuw::LLMInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferReq
 
     KVCacheCopyTask t;
     t.index = idx;
-    t.future = std::async(std::launch::async, [idx, this]() {
-        auto cache_node_name = std::string("present.") + std::to_string(idx);
-        copy_kv_cache(cache_node_name);
+    t.future = std::async(std::launch::async, [name, tensor, this]() {
+        copy_kv_cache(name, tensor);
     });
 
     tasks_in_progress.push_back(std::move(t));
@@ -267,29 +283,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outputs) {
-    if (!copy_only_outputs.empty()) {
-        LOG_DEBUG("Copying KV-cache tensors from prefill to generate model with patern: " << copy_only_outputs <<"* "); 
-    } else {
-        LOG_DEBUG("Copying KV-cache tensors from prefill to generate");
-    }
-
+void ov::npuw::LLMInferRequest::copy_kv_cache(std::string prefill_output_name, ov::SoPtr<ITensor> tensor) {
     const auto pattern = std::regex("present");
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    const std::size_t kStartOutputKVCacheLayers = 1u;
-    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
-        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-        // orthers tensors might be not ready or already copied
-        if (!copy_only_outputs.empty() && output_name.find(copy_only_outputs) == std::string::npos) {
-            continue;
-        }        
-        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-
+    auto copy_tensor = [pattern, kvcache_desc, this](auto output_name,  const auto & prefill_out_tensor)  {
         const auto& input_name = std::regex_replace(output_name, pattern, "past_key_values");
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
         // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
         //        taking into account kvcache dimension.
         fill_tensor<ov::float16>(kvcache_in_tensor, 0);
@@ -299,9 +299,9 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outpu
                                 : kvcache_desc.dim;
 
         auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                kv_dim,
-                                                kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                kvcache_desc.max_prompt_size);
+                                                   kv_dim,
+                                                   kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                   kvcache_desc.max_prompt_size);
 
         auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
@@ -312,6 +312,21 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(const std::string& copy_only_outpu
             copy_by_planes(prefill_out_slice, kvcache_in_slice);
         } else {
             prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+        }
+    };
+
+    if (!prefill_output_name.empty()) {
+        LOG_DEBUG("Copying KV-cache output from prefill to generate model: " << prefill_output_name);
+        copy_tensor(prefill_output_name, tensor);
+    } else {
+        LOG_DEBUG("Copying all KV-cache tensors from prefill to generate model");
+
+        const std::size_t kStartOutputKVCacheLayers = 1u;
+        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers; ++i) {
+            const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();       
+            auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+            copy_tensor(output_name, prefill_out_tensor);
         }
     }
 }
@@ -338,7 +353,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             tasks_in_progress.clear();
         }
 
-        LOG_ERROR("Prepare attention mask pattern.");
+        LOG_DEBUG("Prepare attention mask pattern.");
         auto* attention_mask_data =
             m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
         attention_mask_data[kvcache_desc.total_size - 1] = 1;

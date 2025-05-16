@@ -213,12 +213,10 @@ void ov::npuw::IBaseInferRequest::infer() {
         if (!valid_subrequest(idx)) {
             continue;
         }
-        subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
 
-        complete_subrequest(get_real_subrequest(idx), idx);
         if (m_npuw_model->m_acc_check) {
             ensure_subrequest_is_accurate(idx, failover);
             failover_happened |= failover;
@@ -707,7 +705,7 @@ void ov::npuw::IBaseInferRequest::add_infer_requests_listener(std::weak_ptr<ov::
     m_subscribers.push_back(new_listener);
 }
 
-void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
+void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, ov::npuw::IInferRequestSubmissionListener::Completed cb) {
     std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, cb](RListenerPtr& subreq) {
         if (auto shared = subreq.lock()) {
             shared->subscribe_subrequest(idx, cb);
@@ -715,12 +713,27 @@ void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, Complete
     });
 }
 
-void ov::npuw::IBaseInferRequest::complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) {
-    std::for_each(m_subscribers.begin(), m_subscribers.end(), [request, idx](RListenerPtr& subreq) {
-        if (auto shared = subreq.lock()) {
-            shared->complete_subrequest(request, idx);
-        }
-    });
+void ov::npuw::IBaseInferRequest::complete_subrequest(std::size_t idx) {
+    if (m_subscribers.empty()) {
+        LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx << " ... SKIP");
+        return;
+    }
+    LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx );
+
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_results) {
+        std::size_t result_idx{}, sub_out_idx{};
+        std::tie(result_idx, sub_out_idx) = it;
+
+        const auto& produced = m_npuw_model->outputs()[result_idx];
+        auto tensor = m_port_to_tensor.at(produced).tensor;
+
+        std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, produced, tensor](RListenerPtr& subreq) {
+            if (auto shared = subreq.lock()) {
+                shared->on_output_ready(idx, produced.get_any_name(), tensor);
+            }
+        });
+    }
 }
 
 ov::npuw::IBaseInferRequest::RqPtr ov::npuw::IBaseInferRequest::get_real_subrequest(std::size_t idx) {

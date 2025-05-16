@@ -7,29 +7,27 @@ namespace ov :: npuw {
 
 // decoration of inferrequest with prefill model specific KV-cache copying
 class LLMPrefillInferRequest final : 
-//    public std::enable_shared_from_this<LLMPrefillInferRequest>, 
-//    public ov::ISyncInferRequest, 
     public IInferRequestSubmissionListener {
 
 
   std::function<void (std::size_t, Completed cb)> m_subscribe_dispatch;
-  std::function<void (ov::SoPtr<ov::IAsyncInferRequest>, std::size_t)> m_complete_dispatch;
+  std::function<void ( std::size_t)> m_complete_dispatch;
+  std::function<void ( std::size_t idx, std::string , ov::SoPtr<ITensor>)> m_output_ready_dispatch;
 
 public:
     LLMPrefillInferRequest() = delete;
-    template <class CB1, class CB2>
-    LLMPrefillInferRequest(CB1 cb1, CB2 cb2) : m_subscribe_dispatch(cb1), m_complete_dispatch(cb2) { }
+    template <class CB1, class CB2, class CB3>
+    LLMPrefillInferRequest(CB1 cb1, CB2 cb2, CB3 cb3) 
+        : m_subscribe_dispatch(cb1), m_complete_dispatch(cb2), m_output_ready_dispatch(cb3) { }
 
-    // 
-    // void subscribe_itself(std::shared_ptr<IBaseInferRequest> base_request) {
-    //     this->base = std::move(base_request);
-    //     base->add_infer_requests_listener(shared_from_this());
-    // }
-    void subscribe_subrequest(std::size_t sz, Completed cb) override {
-      m_subscribe_dispatch (sz, cb);
+    void on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) override {
+        m_output_ready_dispatch(idx, name, tensor);
     }
-    void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> req, std::size_t sz) override {
-      m_complete_dispatch(req, sz);
+    void subscribe_subrequest(std::size_t idx, Completed cb) override {
+        m_subscribe_dispatch (idx, cb);
+    }
+    void complete_subrequest(std::size_t idx) override {
+        m_complete_dispatch(idx);
     }
   };
 

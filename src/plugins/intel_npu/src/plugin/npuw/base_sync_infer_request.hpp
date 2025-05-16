@@ -33,17 +33,20 @@ using LinkFrom = std::pair<std::size_t /* Subrequest index */
 class   IInferRequestSubmissionListener {
 public:
     using Completed = std::function<void(std::exception_ptr)>;
-    // TODO: not used for now
-    //std::vector<IBaseInferRequest::IInferRequestSubmissionListener> m_completion_cbs;
 
     virtual ~IInferRequestSubmissionListener() = default;
     virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
-    virtual void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) = 0;
+    virtual void complete_subrequest(std::size_t idx) = 0;
+    // output or node - ???
+    // also having idx, or returning future here, might be helpfull to track copy completion time
+    // maybe merge it with complete subrequest???
+    virtual void on_output_ready(std::size_t idx, std::string , ov::SoPtr<ITensor>) = 0;
+
 };
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
-class IBaseInferRequest : public ov::ISyncInferRequest, public IInferRequestSubmissionListener {
+class IBaseInferRequest : public ov::ISyncInferRequest/*, public IInferRequestSubmissionListener */{
 public:
     explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>&);
 
@@ -71,6 +74,11 @@ public:
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
+    
+    // IInferRequestSubmissionListener : dispatch impl
+    virtual void subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed cb);
+    virtual void complete_subrequest(std::size_t idx);
+
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
     virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
@@ -192,9 +200,8 @@ protected:
     now_t now_idx() const;
 
     std::vector<RListenerPtr> m_subscribers;
-    // IInferRequestSubmissionListener : dispatch impl
-    void subscribe_subrequest(std::size_t idx, Completed cb) override;
-    void complete_subrequest(ov::SoPtr<ov::IAsyncInferRequest> request, std::size_t idx) override;
+    
+
 
 
 private:
