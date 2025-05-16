@@ -70,7 +70,11 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
         var.copy_to(tensor);
     }
     NPUW_ASSERT(tensor);
-    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+    size_t blob_size = var.get_byte_size();
+    if (blob_size > static_cast<decltype(blob_size)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    stream.write(reinterpret_cast<const char*>(var.data()), static_cast<std::streamsize>(blob_size));
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
