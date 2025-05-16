@@ -58,8 +58,8 @@ struct RequiresFallbackDefault {
 template <typename PostOpType>
 [[maybe_unused]] static inline bool hasPostOp(const ConvConfig& config) {
     const auto& postOps = config.attrs.postOps;
-    return any_of(postOps.begin(), postOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-        return std::dynamic_pointer_cast<PostOpType>(postOp);
+    return any_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        return postOp.type() == typeid(PostOpType);
     });
 }
 
