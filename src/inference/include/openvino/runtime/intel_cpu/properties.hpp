@@ -27,6 +27,55 @@ namespace ov {
 namespace intel_cpu {
 
 /**
+ * @enum       TbbPartitioner
+ * @brief      This enum contains definition of the type of TBB partitioner.
+ */
+enum class TbbPartitioner {
+    STATIC = 0,  //!<  Static partitioner
+    AUTO = 1     //!<  Auto partitioner
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const TbbPartitioner& tbb_partitioner) {
+    switch (tbb_partitioner) {
+    case TbbPartitioner::STATIC:
+        return os << "STATIC";
+    case TbbPartitioner::AUTO:
+        return os << "AUTO";
+    default:
+        OPENVINO_THROW("Unsupported tbb partitioner!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, TbbPartitioner& tbb_partitioner) {
+    std::string str;
+    is >> str;
+    if (str == "STATIC") {
+        tbb_partitioner = TbbPartitioner::STATIC;
+    } else if (str == "AUTO") {
+        tbb_partitioner = TbbPartitioner::AUTO;
+    } else {
+        OPENVINO_THROW("Unsupported tbb partitioner: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines the type of TBB partitioner in parallel.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select the type of TBB partitioner.
+ *
+ * The following code is an example to set auto partitioner. It is STATIC by default.
+ *
+ * @code
+ * ie.set_property(ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO));
+ * @endcode
+ */
+static constexpr Property<TbbPartitioner> tbb_partitioner{"TBB_PARTITIONER"};
+
+/**
  * @brief This property define whether to perform denormals optimization.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *

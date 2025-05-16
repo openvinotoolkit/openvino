@@ -111,17 +111,18 @@ void Inverse::lu_decomposition(const float* data,
                                size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::fill(L.begin(), L.end(), 0.0f);
     if (!m_adjoint) {
         cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
     } else {
-        parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
+        cpu_parallel->parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
             U[j * m_side + i] = data[batch_idx + i * m_side + j];
         });
     }
 
-    parallel_for(m_side, [&](size_t i) {
+    cpu_parallel->parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = 1.0f;
         P[i] = i;
     });
@@ -143,7 +144,7 @@ void Inverse::lu_decomposition(const float* data,
         if (pivot_row != k) {
             // Swap rows in L, U and P
             std::swap(P[k], P[pivot_row]);
-            parallel_for(m_side, [&](size_t i) {
+            cpu_parallel->parallel_for(m_side, [&](size_t i) {
                 std::swap(L[k_idx + i], L[pivot_idx + i]);
                 std::swap(U[k_idx + i], U[pivot_idx + i]);
             });
@@ -152,12 +153,12 @@ void Inverse::lu_decomposition(const float* data,
         const auto remaining_columns = m_side - k;
         const auto remaining_rows = remaining_columns - 1;
 
-        parallel_for(remaining_rows, [&](size_t i) {
+        cpu_parallel->parallel_for(remaining_rows, [&](size_t i) {
             const auto i_idx = (i + k + 1) * m_side;
             L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
         });
 
-        parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
+        cpu_parallel->parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
             const auto i_idx = (i / remaining_columns + k + 1) * m_side;
             const auto j_idx = i % remaining_columns + k;
             U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
@@ -166,7 +167,8 @@ void Inverse::lu_decomposition(const float* data,
 }
 
 void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) {
-    parallel_for(m_side, [&](size_t column) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for(m_side, [&](size_t column) {
         std::vector<float> X(m_side, 0.0f);
         std::vector<float> Y(m_side, 0.0f);
 

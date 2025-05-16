@@ -117,6 +117,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            intel_cpu.TbbPartitioner,
+            (
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 0),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 1),
+            ),
+        ),
+        (
             intel_auto.SchedulePolicy,
             (
                 (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
@@ -355,6 +362,11 @@ def test_properties_ro(ov_property_ro, expected_value):
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
             ),
+        ),
+        (
+            intel_cpu.tbb_partitioner,
+            "TBB_PARTITIONER",
+            ((intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.AUTO),),
         ),
         (
             intel_auto.device_bind_buffer,
