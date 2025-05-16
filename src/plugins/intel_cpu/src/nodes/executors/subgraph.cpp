@@ -56,16 +56,16 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
 }
 
 SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
-                                             const std::shared_ptr<CPURuntimeConfig>& config) {
+                                             const std::shared_ptr<CPURuntimeConfig>& config,
+                                             const std::set<size_t>& external_ptrs_idces) {
     OPENVINO_ASSERT(snippet_attrs, "Subgraph attributes are empty!");
     OPENVINO_ASSERT(config, "Runtime Config is empty!");
 
     jit_snippets_compile_args jcp;
     jcp.data_offsets.reserve(config->io_data_offsets.size());
-    const auto& brgemm_external_ptrs_idces = config->brgemm_external_ptrs_idces;
     for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
         // Note: external ptrs must be ignored by the kernel during compilation
-        if (!brgemm_external_ptrs_idces.count(i)) {
+        if (!external_ptrs_idces.count(i)) {
             jcp.data_offsets.push_back(config->io_data_offsets[i]);
         }
     }
