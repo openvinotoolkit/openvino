@@ -44,11 +44,12 @@ using namespace ::tests;
 * [11]: alibi_slopes, optional
 * [12]: max_context_len
 * shape: [], type: i32
-* [13]: rotated_block_indices​, optional​
+* [13]: score_aggregation_window​, optional​, shape: [batch_size_in_sequences]
+* [14]: rotated_block_indices​, optional​
 * shape: [num_rotated_blocks]​, type: i32
-* [14]: rotation_deltas​, optional​
+* [15]: rotation_deltas​, optional​
 * shape: [num_rotated_blocks, BLOCK_SIZE]​ || [num_rotated_blocks, 1]​, type: i32
-* [15]: rotation_trig_lut​, optional​
+* [16]: rotation_trig_lut​, optional​
 * shape: [max_num_batched_tokens / BLOCK_SIZE, head_size]​ || [max_num_batched_tokens, head_size], type: f16
 */
 
@@ -85,6 +86,7 @@ struct PagedAttentionManager {
     std::vector<int> block_indices;
     std::vector<int> block_indices_begins;
     std::vector<int> max_context_len;
+    std::vector<int> score_aggregation_window;
 
     // rotation related inputs
     std::vector<int> rotated_block_indices;
@@ -347,6 +349,10 @@ struct PagedAttentionManager {
 
     memory::ptr get_max_context_len_memory() {
         return get_memory_from_vec(max_context_len);
+    }
+
+    memory::ptr get_score_aggregation_window_memory() {
+        return get_memory_from_vec(score_aggregation_window);
     }
 
     memory::ptr get_rotated_block_indices_memory() {
@@ -808,6 +814,8 @@ public:
         auto alibi_mem = pam.get_alibi_memory();
         auto max_context_len_mem = pam.get_max_context_len_memory();
 
+        auto score_aggregation_window_mem = pam.get_score_aggregation_window_memory();
+
         // cache rotation related memory buffers
         auto rotated_block_indices_mem = pam.get_rotated_block_indices_memory();
         auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
@@ -826,6 +834,7 @@ public:
         auto sliding_window_layout = sliding_window_mem->get_layout();
         auto alibi_layout = alibi_mem->get_layout();
         auto max_context_len_layout = max_context_len_mem->get_layout();
+        auto score_aggregation_window_layout = score_aggregation_window_mem->get_layout();
         auto rotated_block_indices_layout = rotated_block_indices_mem->get_layout();
         auto rotation_deltas_layout = rotation_deltas_mem->get_layout();
         auto rotation_trig_lut_layout = rotation_trig_lut_mem->get_layout();
@@ -888,7 +897,8 @@ public:
             input_info("scale"),
             input_info("sliding_window"),
             input_info("alibi"),
-            input_info("max_context_len") };
+            input_info("max_context_len"),
+            input_info("score_aggregation_window") };
 
         if (p.rotation_config.apply_rotation) {
             pa_inputs.push_back(input_info("rotated_block_indices"));
@@ -923,6 +933,7 @@ public:
             input_layout("sliding_window", sliding_window_layout),
             input_layout("alibi", alibi_layout),
             input_layout("max_context_len", max_context_len_layout),
+            input_layout("score_aggregation_window", score_aggregation_window_layout),
             pa_prim,
             reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16)
         );
@@ -960,6 +971,7 @@ public:
         network->set_input_data("sliding_window", sliding_window_mem);
         network->set_input_data("alibi", alibi_mem);
         network->set_input_data("max_context_len", max_context_len_mem);
+        network->set_input_data("score_aggregation_window", score_aggregation_window_mem);
 
         if (p.rotation_config.apply_rotation) {
             network->set_input_data("rotated_block_indices", rotated_block_indices_mem);
@@ -1047,8 +1059,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    // check this.  if using 128, 256 will have issue
-    paged_attention_test_params{ {{96, 0}, {128, 0}}, 2, 48, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 48, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{1, 10}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 10}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
     paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
