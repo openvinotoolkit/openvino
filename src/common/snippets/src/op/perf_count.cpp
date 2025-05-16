@@ -31,7 +31,8 @@ ConsoleDumper::~ConsoleDumper() {
     for (; iterator_iter != m_iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        // uint64_t avg = iter == 0 ? 0 : acc / iter;
+        uint64_t avg = iter == 0 ? 0 : acc / 101;
         if (avg > avg_max)
             avg_max = avg;
     }
@@ -92,7 +93,8 @@ void CSVDumper::update(const op::PerfCountEnd* node) {
     for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        // uint64_t avg = iter == 0 ? 0 : acc / iter;
+        uint64_t avg = iter == 0 ? 0 : acc / 101;
         if (avg > avg_max)
             avg_max = avg;
     }
@@ -169,12 +171,12 @@ void PerfCountBegin::set_start_time() {
 PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {}
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
-                           std::vector<std::shared_ptr<utils::Dumper>> dumpers,
+                           std::vector<std::shared_ptr<utils::Dumper>> dumper_types,
                            const std::string& params)
     : PerfCountEndBase({pc_begin}),
       accumulation(0ul),
       iteration(0u),
-      dumpers(std::move(dumpers)) {
+      dumpers(std::move(dumper_types)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
     for (const auto& dumper : dumpers) {

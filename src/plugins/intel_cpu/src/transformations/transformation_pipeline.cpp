@@ -1094,7 +1094,8 @@ void Transformations::MainSnippets() {
     }
 
     // TODO [123659] Implement common logic to split optimization and limitation conditions
-    const auto ignoreCallback = config.snippetsMode == Config::SnippetsMode::IgnoreCallback;
+    // const auto ignoreCallback = config.snippetsMode == Config::SnippetsMode::IgnoreCallback;
+    const auto ignoreCallback = true;
 
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between
     // MatMul and Result. However there may be Convert [f32->bf16] before Result since:

@@ -7,6 +7,7 @@
 
 #include "pass.hpp"
 
+#include "snippets/op/brgemm.hpp"
 #include "snippets/op/perf_count.hpp"
 
 namespace ov {
@@ -28,6 +29,8 @@ public:
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
+    std::string collect_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
+                               const snippets::lowered::LinearIR& linear_ir);
     std::map<std::string, std::string> m_boundary_op_names;
 };
 
