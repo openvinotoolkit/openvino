@@ -157,6 +157,9 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
+        if (hasIntDotProductSupport()) {
+            return false;
+        }
         if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
             return false;
 
