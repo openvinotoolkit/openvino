@@ -1426,6 +1426,10 @@ void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
         executeReference(src, weights, dst, srcStride, weightsStride, dstStride);
     }
 }
+void BinaryConvolution::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
+    // not implemented yet
+    THROW_CPU_NODE_ERR(" doesn't support dyanmic shapes");
+}
 
 bool BinaryConvolution::created() const {
     return getType() == Type::BinaryConvolution;

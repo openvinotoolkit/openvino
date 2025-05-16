@@ -22,8 +22,7 @@ namespace intel_cpu {
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposerLegacy {
 public:
-    DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
-                              dnnl::primitive_attr& attr,
+    DnnlPostOpsComposerLegacy(dnnl::primitive_attr& attr,
                               dnnl::post_ops& ops,
                               std::unordered_map<int, MemoryPtr>& args,
                               const VectorDims& outputDims,
@@ -49,7 +48,6 @@ public:
     }
 
 private:
-    const dnnl::engine& engine;
     dnnl::primitive_attr& attr;
     dnnl::post_ops& ops;
     std::unordered_map<int, MemoryPtr>& args;

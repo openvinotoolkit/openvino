@@ -34,7 +34,7 @@ inline MemoryPtr create_memory(ov::element::Type prc, const Shape& shape) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     CpuBlockedMemoryDescPtr desc;
     desc = std::make_shared<CpuBlockedMemoryDesc>(prc, shape);
-    return std::make_shared<Memory>(eng, desc);
+    return std::make_shared<Memory>(desc);
 }
 
 TEST_F(CPUTensorExtTest, canCreateTensor) {

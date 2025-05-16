@@ -15,7 +15,6 @@ void ProxyMemoryBlock::setMemBlock(std::shared_ptr<IMemoryBlock> pBlock) {
     }
 
     m_pMemBlock = std::move(pBlock);
-    notifyUpdate();
 }
 
 void ProxyMemoryBlock::setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock) {
@@ -26,7 +25,6 @@ void ProxyMemoryBlock::setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock) {
 
     m_pMemBlock = std::move(pBlock);
     m_pMemBlock->resize(m_size);
-    notifyUpdate();
 }
 
 void ProxyMemoryBlock::reset() {
@@ -40,7 +38,6 @@ void ProxyMemoryBlock::reset() {
 
     m_pMemBlock = m_pOrigBlock;
     m_pMemBlock->resize(m_size);
-    notifyUpdate();
 }
 
 void* ProxyMemoryBlock::getRawPtr() const noexcept {
@@ -49,37 +46,15 @@ void* ProxyMemoryBlock::getRawPtr() const noexcept {
 
 void ProxyMemoryBlock::setExtBuff(void* ptr, size_t size) {
     m_pMemBlock->setExtBuff(ptr, size);
-    notifyUpdate();
 }
 
 bool ProxyMemoryBlock::resize(size_t size) {
     auto res = m_pMemBlock->resize(size);
     DEBUG_LOG(this, ", ", m_pMemBlock, " size ", m_size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
     m_size = size;
-    notifyUpdate();
     return res;
 }
 
 bool ProxyMemoryBlock::hasExtBuffer() const noexcept {
     return m_pMemBlock->hasExtBuffer();
-}
-
-void ProxyMemoryBlock::registerMemory(Memory* memPtr) {
-    if (memPtr) {
-        m_setMemPtrs.insert(memPtr);
-    }
-}
-
-void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
-    if (memPtr) {
-        m_setMemPtrs.erase(memPtr);
-    }
-}
-
-void ProxyMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
-        if (item) {
-            item->update();
-        }
-    }
 }

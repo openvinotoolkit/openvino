@@ -15,7 +15,7 @@ namespace intel_cpu {
  * This is a memory block that represents a view on a subblock inside another continuous dynamic memory block
  *
  */
-class PartitionedMemoryBlock : public IMemoryBlockObserver {
+class PartitionedMemoryBlock : public IMemoryBlock {
 public:
     PartitionedMemoryBlock(MemoryBlockPtr pBlock,
                            size_t total_chunks = 1,
@@ -32,8 +32,6 @@ public:
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
-    void registerMemory(Memory* memPtr) override;
-    void unregisterMemory(Memory* memPtr) override;
 
 private:
     MemoryBlockPtr m_pBlock;

@@ -84,6 +84,7 @@ public:
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

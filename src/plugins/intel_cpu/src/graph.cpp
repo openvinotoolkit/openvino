@@ -728,8 +728,8 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
         }
     };
 
-    auto allocateStringMemory = [&context](const EdgePtr& edge) {
-        auto memory = std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc());
+    auto allocateStringMemory = [](const EdgePtr& edge) {
+        auto memory = std::make_shared<StringMemory>(edge->getOriginalDesc());
         edge->reuse(memory);
         return memory->getStringMemoryBlockPtr();
     };
@@ -737,7 +737,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
     auto notAllocatedPartitionEnd = std::partition(
         clusters.begin(),
         clusters.begin() + remaining,
-        [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
+        [&allocateStringMemory, &allocateConstantEdge](const EdgeCluster& cluster) {
             const auto& baseEdge = cluster.at(0);
 
             // Allocate a cluster of the constants
@@ -758,8 +758,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
                 // reuse starting from second edge (skip the base edge)
                 for (size_t i = 1; i < cluster.size(); i++) {
                     const auto& edge = cluster.at(i);
-                    edge->reuse(
-                        std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc(), memBlock));
+                    edge->reuse(std::make_shared<StringMemory>(edge->getOriginalDesc(), memBlock));
                 }
                 return false;
             }
@@ -1199,10 +1198,10 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
             auto actualDesc = edgeMemory.getDescPtr();
 
             if (actualDesc->getPrecision() == element::string) {
-                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                StringMemory ext_mem(ext_tensor_desc, ext_data_ptr);
                 edgeMemory.load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
-                Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
+                Memory ext_mem(ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory.load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
@@ -1303,10 +1302,10 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         auto externDesc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
         if (actualDesc->getPrecision() == element::string) {
-            StringMemory outBloMem(getEngine(), externDesc, ext_blob_ptr);
+            StringMemory outBloMem(externDesc, ext_blob_ptr);
             outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*externDesc) && !isScalarOutput) {
-            Memory outBloMem(getEngine(), externDesc, ext_blob_ptr, false);
+            Memory outBloMem(externDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,

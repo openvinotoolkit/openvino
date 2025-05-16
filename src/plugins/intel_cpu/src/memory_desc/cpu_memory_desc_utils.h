@@ -73,7 +73,7 @@ public:
      * @return empty memory descriptor
      */
     static std::shared_ptr<MemoryDesc> makeEmptyDesc();
-    static std::shared_ptr<IMemory> makeEmptyMemory(const GraphContext::CPtr& context);
+    static std::shared_ptr<IMemory> makeEmptyMemory();
 
     /**
      * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the
