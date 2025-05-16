@@ -112,6 +112,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> make_data(&has_scores_output, sizeof(bool));
+        ib >> make_data(&has_score_aggregation, sizeof(bool));
         ib >> make_data(&has_rotated_blocks, sizeof(bool));
         ib >> make_data(&use_micro_sdpa, sizeof(bool));
         if (is_dynamic()) {
@@ -138,6 +139,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << make_data(&has_scores_output, sizeof(bool));
+        ob << make_data(&has_score_aggregation, sizeof(bool));
         ob << make_data(&has_rotated_blocks, sizeof(bool));
         ob << make_data(&use_micro_sdpa, sizeof(bool));
     }
@@ -657,6 +659,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             config.has_const_scale_val = false;
         }
 
+        config.has_score_aggregation = desc->has_score_aggregation;
         config.has_rotated_blocks = desc->has_rotated_blocks;
 
         if (desc->heads_num != desc->kv_heads_num) {
@@ -685,9 +688,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto params = get_default_params<kv_cache_rotate_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& key_cache_tensor = input_tensors[3];
-        const auto& rotated_block_indices_tensor = input_tensors[13];
-        const auto& rotation_deltas_tensor = input_tensors[14];
-        const auto& rotation_trig_lut_tensor = input_tensors[15];
+        const auto& rotated_block_indices_tensor = input_tensors[14];
+        const auto& rotation_deltas_tensor = input_tensors[15];
+        const auto& rotation_trig_lut_tensor = input_tensors[16];
 
         const auto inputs_number = 3;
         const auto outputs_number = 1;
@@ -703,9 +706,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(13)},
-            {1, in_offsets_map.at(14)},
-            {2, in_offsets_map.at(15)},
+            {0, in_offsets_map.at(14)},
+            {1, in_offsets_map.at(15)},
+            {2, in_offsets_map.at(16)},
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
             {0, in_offsets_map.at(3)},
@@ -1005,6 +1008,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         auto impl = std::make_unique<paged_attention_impl>(kernels_data);
         impl->has_scores_output = desc->has_scores_output();
+        impl->has_score_aggregation = desc->has_score_aggregation;
         impl->has_rotated_blocks = desc->has_rotated_blocks;
 
         if (!kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()) {
@@ -1016,6 +1020,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
 private:
     bool has_scores_output = false;
+    bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
     bool use_micro_sdpa = false;
 };
