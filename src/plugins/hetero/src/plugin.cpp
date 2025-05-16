@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "compiled_model.hpp"
+#include "context.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
-#include "context.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
