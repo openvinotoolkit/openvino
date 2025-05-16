@@ -3,6 +3,7 @@
 //
 
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/mvn_config.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 
@@ -19,9 +20,12 @@ struct Config;
 
 struct FCAttrs;
 struct ConvAttrs;
+struct MVNAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
 std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const MVNAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const PostOps& postOps);
 
 template <typename Attrs>
 std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config) {
