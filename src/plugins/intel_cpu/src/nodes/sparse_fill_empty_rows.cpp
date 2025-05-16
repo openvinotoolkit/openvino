@@ -66,6 +66,7 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
+
     const auto* denseShapePtr = getSrcDataAtPortAs<const int32_t>(1);
     const auto numRows = static_cast<size_t>(denseShapePtr[0]);
 
