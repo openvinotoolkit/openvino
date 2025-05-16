@@ -10,35 +10,37 @@ namespace ov {
 namespace test {
 
 class LoraPatternBase : public SubgraphBaseTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<const char*>& obj);
-
 protected:
     void run_test_empty_tensors();
-    void run_test_random_tensors();
+    void run_test_random_tensors(ov::element::Type net_type, size_t lora_rank);
 
-protected:
     static constexpr auto t4_name = "lora/MatMul.B";
     static constexpr auto t5_name = "lora/MatMul.alpha";
     static constexpr auto t6_name = "lora/MatMul.A";
-    static constexpr auto netType = ov::element::f32;
 };
 
-class LoraPatternMatmul : public LoraPatternBase, public testing::WithParamInterface<const char*> {
-public:
-    void SetUp() override;
+using LoraMatMulParams = std::tuple<std::string,         // Device name
+                                    ov::element::Type,   // Network type
+                                    size_t,              // Input matrix M dimension
+                                    size_t,              // Weights matrix N dimension
+                                    size_t,              // Weights matrix K dimension
+                                    size_t>;             // LoRA rank
 
-protected:
-    static constexpr size_t K = 563ul; // Weights matrix K dimension
-    static constexpr size_t N = 2048ul; // Weights matrix N dimension
+class LoraPatternMatmul : public LoraPatternBase, public testing::WithParamInterface<LoraMatMulParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj);
+    void SetUp() override;
 };
 
-class LoraPatternConvolution : public LoraPatternBase, public testing::WithParamInterface<const char*> {
-public:
-    void SetUp() override;
+using LoraConvolutionParams = std::tuple<std::string,         // Device name
+                                         ov::element::Type,   // Network type
+                                         size_t,              // Number of channels
+                                         size_t>;             // LoRA rank
 
-protected:
-    static constexpr size_t num_channels = 64ul;
+class LoraPatternConvolution : public LoraPatternBase, public testing::WithParamInterface<LoraConvolutionParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<LoraConvolutionParams> obj);
+    void SetUp() override;
 };
 
 } // namespace test

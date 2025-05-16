@@ -39,6 +39,7 @@
 #include "dynamic_quantize_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "lora_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -1796,6 +1797,25 @@ void primitive_inst::do_runtime_in_place_crop() {
     }
 }
 
+void primitive_inst::do_runtime_skip_lora() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_lora: " + id()));
+    if (!get_node().is_type<lora>() || !get_node().is_runtime_skippable())
+        return;
+
+    bool is_empty_lora = true;
+    for (size_t i = 2; i < _impl_params->input_layouts.size(); ++i) {
+        is_empty_lora &= _impl_params->get_input_layout(i).count() == 0;
+    }
+
+    if (is_empty_lora) {
+        set_can_be_optimized(true);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " : can be optimized due to empty adapters" << std::endl;
+    } else {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " cannot be optimized " << std::endl;
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -1904,6 +1924,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
+        do_runtime_skip_lora();
         do_runtime_in_place_crop();
 
         if (!is_valid_fusion()) {
