@@ -226,7 +226,12 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0);
-    fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0);
+    auto& kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
+    fill_tensor<int64_t>(kv_attn_mask, 0);
+    LOG_DEBUG("Prepare attention mask pattern.");
+    // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
+    //       We can safely set this "1" at the start and then copy on one "1" less in the infer_generate().
+    kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - 1] = 1;
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 }
 
@@ -339,11 +344,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 input_ids->get_byte_size(),
                 reinterpret_cast<uint8_t*>(kv_input_ids->data()));
 
-    LOG_DEBUG("Prepare attention mask pattern.");
-    // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask:
+    // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
+    //       As it is already set in prepare_for_new_conversation(), here we copy on one "1" unit less.
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
     std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, kv_attn_mask->data<int64_t>());
-    kv_attn_mask->data<int64_t>()[kvcache_desc.total_size - 1] = 1;
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
