@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
@@ -16,7 +18,8 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
       m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
     m_subrequest_devices.resize(m_num_submodels, {});
-    m_completion_cbs.resize(m_num_submodels, {});
+    // TODO: not used yet
+    // m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
@@ -170,8 +173,7 @@ void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
 }
 
 void ov::npuw::IBaseInferRequest::check_tensors() const {
-    // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
-    // `m_tensors` are not allocated
+    // Ignore 
     return;
 }
 
@@ -211,11 +213,10 @@ void ov::npuw::IBaseInferRequest::infer() {
         if (!valid_subrequest(idx)) {
             continue;
         }
-        subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
-        complete_subrequest(idx);
+
         if (m_npuw_model->m_acc_check) {
             ensure_subrequest_is_accurate(idx, failover);
             failover_happened |= failover;
@@ -698,4 +699,39 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
 
 ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
+}
+
+void ov::npuw::IBaseInferRequest::add_infer_requests_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> new_listener) {
+    m_subscribers.push_back(new_listener);
+}
+
+void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, ov::npuw::IInferRequestSubmissionListener::Completed cb) {
+    std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, cb](RListenerPtr& subreq) {
+        if (auto shared = subreq.lock()) {
+            shared->subscribe_subrequest(idx, cb);
+        }
+    });
+}
+
+void ov::npuw::IBaseInferRequest::complete_subrequest(std::size_t idx) {
+    if (m_subscribers.empty()) {
+        LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx << " ... SKIP");
+        return;
+    }
+    LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx );
+
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_results) {
+        std::size_t result_idx{}, sub_out_idx{};
+        std::tie(result_idx, sub_out_idx) = it;
+
+        const auto& produced = m_npuw_model->outputs()[result_idx];
+        auto tensor = m_port_to_tensor.at(produced).tensor;
+
+        std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, produced, tensor](RListenerPtr& subreq) {
+            if (auto shared = subreq.lock()) {
+                shared->on_output_ready(idx, produced.get_any_name(), tensor);
+            }
+        });
+    }
 }

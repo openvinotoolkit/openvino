@@ -448,15 +448,10 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Done");
 }
 
-ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subrequest(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    return m_subrequests[real_idx];
-}
 
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
     auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);
-    return ncthis->get_real_subrequest(idx) != nullptr;
+    return m_subrequests[real(idx)] != nullptr;
 }
 
 void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
@@ -672,29 +667,37 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t idx, const std::function<void()>& f) {
+    std::size_t real_idx = real(idx);
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!comp_model_desc.spatial) {
         // Non-spatial execution: trigger request asynchronously, run `f` in this context
         auto& r = m_subrequests[real_idx];
+        subscribe_subrequest(idx, [](std::exception_ptr) {});
         r->start_async();
         f();  // expect noexcept
         r->wait();
+        complete_subrequest(idx);
     } else {
         // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
         // spatial inference
         auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx);
+        unsafe_infer(idx);
         future.wait();
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t idx) {
+    std::size_t real_idx = real(idx);
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
+    subscribe_subrequest(idx, [](std::exception_ptr) {});
+
     if (!comp_model_desc.spatial) {
+        
         // Run normally
         r->infer();
+
     } else {
         // Run over the specified range... Note: the full inputs/outputs
         // must be prepared in the m_spatial_io at this point
@@ -794,13 +797,15 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
                                                      spatial.tail_size);
                 in_view->copy_to(out_view._ptr);
             }  // for(outputs)
+
         }
     }
+    complete_subrequest(idx);
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    auto real_idx = real(idx);
     const std::size_t next_idx = next(idx + 1);
 
     if (comp_model_desc.replaced_by) {
@@ -812,7 +817,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
@@ -823,7 +828,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                unsafe_infer(real_idx);
+                unsafe_infer(idx);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -833,9 +838,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                unsafe_infer(real_idx);
+                unsafe_infer(idx);
             } else {
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
                         next_prepared = true;
@@ -853,9 +858,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            unsafe_infer(real_idx);
+            unsafe_infer(idx);
         } else {
-            unsafe_during(real_idx, [&]() {
+            unsafe_during(idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;
@@ -865,13 +870,18 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
     }  // if (replaced_by)
 }
 
-void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
-    get_real_subrequest(idx)->set_callback(std::move(cb));
-}
+// void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
+//     get_real_subrequest(idx)->set_callback(std::move(cb));
 
-void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
-    // do nothing here
-}
+//     LOG_ERROR("JustInferRequest::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
+
+// }
+
+// void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
+//     LOG_ERROR("JustInferRequest::complete_subrequest - initiate do an kv-kache copy for prefil model [" << idx << "]");
+
+//     // do nothing here
+// }
 
 void ov::npuw::JustInferRequest::cancel_subrequest(std::size_t idx) {
     m_subrequests[idx]->cancel();

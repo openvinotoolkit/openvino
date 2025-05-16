@@ -1421,14 +1421,22 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
-    std::shared_ptr<ov::ISyncInferRequest> result;
+    std::shared_ptr<IBaseInferRequest> result;
     if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
-        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
-        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
+    // avoid extra lock in subscribers chain
+    if (auto shared = m_listener.lock()) {
+        result->add_infer_requests_listener(shared);
+    }
     return result;
+}
+
+void ov::npuw::CompiledModel::set_infer_request_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> lst) {
+    m_listener = lst;
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
