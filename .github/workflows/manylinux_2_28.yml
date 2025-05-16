@@ -68,7 +68,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_20_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_test\":{\"debian_10_py310\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64_docker\":\"mock\",\"ov_build\":{\"manylinux2014_x86_64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_20_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_test\":{\"debian_10_py310\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -80,7 +80,6 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_x64_docker
             ov_build/manylinux_2_28
             ov_test/ubuntu_20_04_x64_py313
             ov_test/ubuntu_22_04_x64
