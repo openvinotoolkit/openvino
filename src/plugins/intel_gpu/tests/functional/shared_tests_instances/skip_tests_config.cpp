@@ -83,6 +83,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
+            // Issue: 167823
+            R"(.*smoke_LPT.*ConcatWithNeighborsGraphTransformation.CompareWithRefImpl.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
