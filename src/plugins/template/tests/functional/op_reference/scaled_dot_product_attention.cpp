@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
@@ -37,7 +36,6 @@ SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
                                  const PartialShape& attentionMaskShape,
                                  const PartialShape& outputShape,
                                  bool isCausal,
-                                 bool isAttentionMaskBool,
                                  const std::vector<T>& qData,
                                  const std::vector<T>& kData,
                                  const std::vector<T>& vData,
@@ -144,7 +142,6 @@ std::vector<SDPAParams> generateParams() {
                                                          attention_mask_shape,          \
                                                          output_shape,                  \
                                                          is_causal,                     \
-                                                         is_attention_mask_bool,        \
                                                          q_data,                        \
                                                          k_data,                        \
                                                          v_data,                        \
