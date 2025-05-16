@@ -233,6 +233,10 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), expectedExecuteDev);
     }
+    // clean up
+    for (auto& item : metaDevices) {
+        plugin->unregister_priority(item.device_priority, item.device_name);
+    }
 }
 
 const std::vector<StatefulModelConfigParams> testConfigs = {
