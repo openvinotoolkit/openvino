@@ -30,8 +30,8 @@ protected:
     int64_t axis, k;
 };
 
-const auto TopkTestValues = Values(make_tuple(StaticShapeVector{{0}, {}}, 0, 1, StaticShape{1}),
-                                   make_tuple(StaticShapeVector{{5, 2, 10, 0}, {}}, -1, 5, StaticShape{5, 2, 10, 5}),
+const auto TopkTestValues = Values(make_tuple(StaticShapeVector{{0}, {}}, 0, 1, StaticShape{0}),
+                                   make_tuple(StaticShapeVector{{5, 2, 10, 0}, {}}, -1, 5, StaticShape{5, 2, 10, 0}),
                                    make_tuple(StaticShapeVector{{3, 5, 6}, {}}, 1, 2, StaticShape{3, 2, 6}));
 
 namespace v1 {
