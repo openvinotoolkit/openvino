@@ -113,7 +113,7 @@ public:
 
 private:
     std::vector<LazyTensor> tensors;
-    std::size_t axis;
+    std::size_t axis = 0;
 };
 
 class Unpack {
