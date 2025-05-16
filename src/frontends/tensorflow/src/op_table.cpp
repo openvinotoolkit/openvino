@@ -370,6 +370,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},
         {"SaveV2", CreatorFunction(translate_no_op)},
         {"ScatterNd", CreatorFunction(translate_scatter_nd_op)},
+        {"SegmentMax", CreatorFunction(translate_segment_max_op)},
         {"SegmentSum", CreatorFunction(translate_segment_sum_op)},
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},

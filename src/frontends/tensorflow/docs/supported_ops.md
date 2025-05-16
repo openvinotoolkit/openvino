@@ -1025,7 +1025,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SdcaOptimizer                                           | NO                            |                               |
 | SdcaOptimizerV2                                         | NO                            |                               |
 | SdcaShrinkL1                                            | NO                            |                               |
-| SegmentMax                                              | NO                            |                               |
+| SegmentMax                                              | YES                           |                               |
 | SegmentMaxV2                                            | NO                            |                               |
 | SegmentMean                                             | NO                            |                               |
 | SegmentMin                                              | NO                            |                               |
