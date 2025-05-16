@@ -88,16 +88,10 @@ class TestSplitWithSizes(PytorchLayerTest):
         import torch
 
         class aten_split_with_sizes(torch.nn.Module):
-            def __init__(self):
-                super(aten_split_with_sizes, self).__init__()                
-                #self.sizes = 20
-
             def forward(self, x, y):
                 return x.split([y.shape[0]], dim=0)
 
-        ref_net = None
-
-        return aten_split_with_sizes(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
+        return aten_split_with_sizes(), None, ["aten::split_with_sizes", "prim::ListConstruct"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -106,6 +100,7 @@ class TestSplitWithSizes(PytorchLayerTest):
     def test_split_with_sizes(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version, trace_model=True)
+
 
 class TestSplitWithSizesCopy(PytorchLayerTest):
     def _prepare_input(self):
@@ -128,5 +123,34 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
 
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes_copy(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True)
+
+
+class TestSplitWithSizesComplex(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(20, 2).astype(np.float32),
+                np.random.randn(5).astype(np.float32))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes(torch.nn.Module):
+            def forward(self, x, y):
+                x = torch.view_as_complex(x)
+                x1, x2, x3, x4 = x.split([y.shape[0], y.shape[0], y.shape[0], y.shape[0]], dim=0)
+                return (torch.view_as_real(x1),
+                        torch.view_as_real(x2),
+                        torch.view_as_real(x3),
+                        torch.view_as_real(x4))
+
+        return aten_split_with_sizes(), None, ["aten::split_with_sizes", "prim::ListConstruct"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_split_with_sizes_complex(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version, trace_model=True)
