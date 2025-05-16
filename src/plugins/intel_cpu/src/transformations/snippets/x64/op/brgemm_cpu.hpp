@@ -62,6 +62,21 @@ public:
 
     ov::OutputVector get_postop_inputs() const;
 
+    /**
+     * @brief Sets the post ops configuration for the BrgemmCPU operation
+     * and resets the output type since it can be forced by postops config.
+     */
+    void set_postops_config(const PostopsConfig& post_ops);
+
+    /**
+     * @brief Adds a new post op input to the BrgemmCPU operation. It also does the following:
+     *       - Adds the new input to input Memory Access PortMap
+     *       - Adds the new input to input port descriptors if they are already initialized
+     *       - Validates the new input
+     * @param postop_input The new input node to be added as a post-operation.
+     */
+    void add_postop_input(const ov::Output<Node>& postop_input);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
@@ -72,7 +87,8 @@ private:
                                                      const std::vector<size_t>& layout_c);
     static size_t compute_gemm_inputs_count(const BRGEMM_TYPE type);
     void validate_with_scratchpad() const;
-    void validate_inputs() const;
+    void validate_inputs_size() const;
+    void validate_postop_inputs() const;
     ov::element::Type get_output_type() const override;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;

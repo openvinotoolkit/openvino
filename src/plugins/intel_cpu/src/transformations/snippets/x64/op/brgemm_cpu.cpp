@@ -67,7 +67,7 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<si
                                                             const std::vector<size_t>& layout_b,
                                                             const std::vector<size_t>& layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
-    validate_inputs();
+    validate_inputs_size();
 
     const std::vector<ov::PartialShape> planar_input_shapes{
         snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
@@ -75,20 +75,20 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<si
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
-    // Additional check for 3rd input
     validate_with_scratchpad();
+    validate_postop_inputs();
 }
 
 void BrgemmCPU::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmCPU_validate_and_infer_types);
-    validate_inputs();
+    validate_inputs_size();
 
     const auto planar_input_shapes = get_planar_input_shapes({input(0), input(1)});
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 
-    // Additional check for 3rd input
     validate_with_scratchpad();
+    validate_postop_inputs();
 }
 
 void BrgemmCPU::validate_with_scratchpad() const {
@@ -102,7 +102,7 @@ void BrgemmCPU::validate_with_scratchpad() const {
     }
 }
 
-void BrgemmCPU::validate_inputs() const {
+void BrgemmCPU::validate_inputs_size() const {
     OPENVINO_ASSERT(get_input_size() >= m_gemm_inputs_count,
                     "BrgemmCPU expects at least ",
                     m_gemm_inputs_count,
@@ -111,13 +111,36 @@ void BrgemmCPU::validate_inputs() const {
                     " inputs");
 }
 
+void BrgemmCPU::validate_postop_inputs() const {
+    auto result_shape = get_output_partial_shape(0);
+    for (size_t i = m_gemm_inputs_count; i < get_input_size(); ++i) {
+        OPENVINO_ASSERT(get_input_element_type(i) == ov::element::f32,
+                        "BrgemmCPU supports only must have f32 element type but got ",
+                        get_input_element_type(i),
+                        " on input ",
+                        i);
+        const auto& input_shape = get_input_partial_shape(i);
+        OPENVINO_ASSERT(
+            ov::PartialShape::broadcast_merge_into(result_shape, input_shape, ov::op::AutoBroadcastType::NUMPY),
+            "BrgemmCPU postop input ",
+            i,
+            " is not broadcastable to the output shape.");
+    }
+}
+
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    // Note: all brgemm inputs are Memory Access, so we can form planar vector of the MA descs from the PortMap
+    std::vector<PortDescriptor> input_port_descriptors;
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        input_port_descriptors.push_back(get_input_port_descriptor(i));
+    }
+
     return std::make_shared<BrgemmCPU>(
         new_args,
         m_type,
-        get_input_port_descriptors(),
+        input_port_descriptors,
         get_output_port_descriptor(0),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
@@ -145,6 +168,28 @@ ov::element::Type BrgemmCPU::get_output_type() const {
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     const auto& input_values = this->input_values();
     return {input_values.begin() + m_gemm_inputs_count, input_values.end()};
+}
+
+void BrgemmCPU::set_postops_config(const PostopsConfig& post_ops) {
+    m_post_ops_config = post_ops;
+    // Since postops config may force output type, need to reset it
+    set_output_type(0, get_output_type(), get_output_partial_shape(0));
+}
+
+void BrgemmCPU::add_postop_input(const ov::Output<Node>& postop_input) {
+    const size_t input_idx = get_input_size();
+    set_argument(input_idx, postop_input);
+    m_input_ports[input_idx] = {0, 0};
+    m_input_ports[input_idx].index = input_idx;
+
+    auto& rt_info = get_rt_info();
+    const auto& found = rt_info.find(ov::snippets::lowered::PortDescriptorVectorAttribute::get_type_info_static());
+    // if PortDesc vectors are already created, a new postop input must be added to the input vector
+    if (found != rt_info.end()) {
+        auto& in_descs = found->second.as<ov::snippets::lowered::PortDescriptorVectorAttribute>().inputs;
+        in_descs.emplace_back(std::make_shared<ov::snippets::lowered::PortDescriptor>(input(input_idx)));
+    }
+    validate_postop_inputs();
 }
 
 BrgemmCPU::PostopsConfig::PostopsConfig()

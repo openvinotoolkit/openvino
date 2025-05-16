@@ -25,45 +25,26 @@ using namespace ov::pass::pattern;
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 namespace {
-std::shared_ptr<BrgemmCPU> clone_with_new_params(
-    const std::shared_ptr<const BrgemmCPU>& brgemm,
-    const BrgemmCPU::PostopsConfig& postops,
-    const ov::OutputVector& new_inputs,
-    const std::vector<ov::snippets::modifier::MemoryAccess::PortDescriptor>& new_in_descs) {
-    auto new_brgemm =
-        std::make_shared<BrgemmCPU>(new_inputs,
-                                    brgemm->get_type(),
-                                    new_in_descs,
-                                    brgemm->get_output_port_descriptor(0),
-                                    PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0))->get_layout(),
-                                    PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
-                                    PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
-                                    postops);
+ov::pass::pattern::op::Predicate brgemm_predicate(
+    [](const Output<Node>& output) {
+        const auto brgemm = output.get_node_shared_ptr();
+        // Note: postops are not supported in case of blocking enabled,
+        // so f32 precision is not included in supported list
+        // Ticket: 165567
+        static const ov::element::TypeVector supported_in_precisions{ov::element::bf16,
+                                                                     ov::element::i8,
+                                                                     ov::element::u8};
+        return has_static_rank()(output) && consumers_count(1)(output) &&
+               type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
+               type_matches_any(supported_in_precisions)(brgemm->input_value(1));
+    },
+    "brgemm_predicate");
 
-    // PortDescriptors are copied manually since it is not copyable attribute
-    for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
-        const auto in_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(i));
-        PortDescriptorUtils::set_port_descriptor_ptr(new_brgemm->input(i), in_desc);
-    }
-    const auto out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
-    PortDescriptorUtils::set_port_descriptor_ptr(new_brgemm->output(0), out_desc);
-    return new_brgemm;
-}
-
-auto brgemm_predicate = [](const Output<Node>& output) {
-    const auto brgemm = output.get_node_shared_ptr();
-    // Note: postops are not supported in case of blocking enabled,
-    // so f32 precision is not included in supported list
-    // Ticket: 165567
-    static const ov::element::TypeVector supported_in_precisions{ov::element::bf16, ov::element::i8, ov::element::u8};
-    return has_static_rank()(output) && consumers_count(1)(output) &&
-           type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
-           type_matches_any(supported_in_precisions)(brgemm->input_value(1));
-};
-
-auto scalar_predicate = [](const Output<Node>& output) {
-    return type_matches(ov::element::f32)(output);
-};
+ov::pass::pattern::op::Predicate scalar_predicate(
+    [](const Output<Node>& output) {
+        return type_matches(ov::element::f32)(output);
+    },
+    "scalar_predicate");
 
 }  // namespace
 
@@ -113,11 +94,10 @@ pass::FuseConvert::FuseConvert() {
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = convert->get_output_element_type(0);
-        auto new_brgemm =
-            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
-        new_brgemm->set_friendly_name(convert->get_friendly_name());
-        ov::copy_runtime_info({brgemm, convert}, new_brgemm);
-        ov::replace_node(convert, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->set_friendly_name(convert->get_friendly_name());
+        ov::copy_runtime_info({brgemm, convert}, brgemm);
+        ov::replace_node(convert, brgemm);
         return true;
     };
 
@@ -155,11 +135,10 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
             OPENVINO_THROW("Unsupported round mode: ");
         }
 
-        auto new_brgemm =
-            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
-        new_brgemm->set_friendly_name(round->get_friendly_name());
-        ov::copy_runtime_info({brgemm, round}, new_brgemm);
-        ov::replace_node(round, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->set_friendly_name(round->get_friendly_name());
+        ov::copy_runtime_info({brgemm, round}, brgemm);
+        ov::replace_node(round, brgemm);
         return true;
     };
 
@@ -237,11 +216,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
-        auto new_brgemm =
-            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
-        new_brgemm->set_friendly_name(post_op->get_friendly_name());
-        ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
-        ov::replace_node(post_op, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->set_friendly_name(post_op->get_friendly_name());
+        ov::copy_runtime_info({brgemm, post_op}, brgemm);
+        ov::replace_node(post_op, brgemm);
         return true;
     };
 
@@ -316,20 +294,16 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
 
-        auto brgemm_inputs = brgemm->input_values();
-        auto input_descs = brgemm->get_input_port_descriptors();
-        brgemm_inputs.push_back(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
-        input_descs.emplace_back(0, 0);
-
-        auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
-        new_brgemm->set_friendly_name(post_op->get_friendly_name());
-        ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
-        ov::replace_node(post_op, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->add_postop_input(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
+        brgemm->set_friendly_name(post_op->get_friendly_name());
+        ov::copy_runtime_info({brgemm, post_op}, brgemm);
+        ov::replace_node(post_op, brgemm);
 
         // Note: binary postop's output and the corresponding matmul's input are marked as ignored
         // since they shouldn't be processed by the common lowering pipeline,
         // and will be handled by the brgemm kernel itself
-        PortDescriptorUtils::set_address_reg_type(new_brgemm->inputs().back());
+        PortDescriptorUtils::set_address_reg_type(brgemm->inputs().back());
         PortDescriptorUtils::set_address_reg_type(parameter_out);
         if (pattern_map.count(m_rank_norm)) {
             const auto rank_norm = pattern_map.at(m_rank_norm).get_node_shared_ptr();
@@ -375,11 +349,10 @@ pass::FuseScaleShift::FuseScaleShift() {
             ", Beta = ",
             beta);
 
-        auto new_brgemm =
-            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
-        new_brgemm->set_friendly_name(shift->get_friendly_name());
-        ov::copy_runtime_info({brgemm, scale, shift}, new_brgemm);
-        ov::replace_node(shift, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->set_friendly_name(shift->get_friendly_name());
+        ov::copy_runtime_info({brgemm, scale, shift}, brgemm);
+        ov::replace_node(shift, brgemm);
         return true;
     };
 
@@ -419,11 +392,10 @@ pass::FuseClip::FuseClip() {
             ", in_high = ",
             clip_max);
 
-        auto new_brgemm =
-            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
-        new_brgemm->set_friendly_name(min_op->get_friendly_name());
-        ov::copy_runtime_info({brgemm, max_op, min_op}, new_brgemm);
-        ov::replace_node(min_op, new_brgemm);
+        brgemm->set_postops_config(postops_config);
+        brgemm->set_friendly_name(min_op->get_friendly_name());
+        ov::copy_runtime_info({brgemm, max_op, min_op}, brgemm);
+        ov::replace_node(min_op, brgemm);
         return true;
     };
 
