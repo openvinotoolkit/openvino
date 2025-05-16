@@ -110,39 +110,49 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_round = wrap_type<ov::op::v5::Round>({m_brgemm});
-
+    auto m_relu = wrap_type<ov::op::v0::Relu>({m_brgemm});
+    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_round, m_relu});
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto round = ov::as_type_ptr<ov::op::v5::Round>(pattern_map.at(m_round).get_node_shared_ptr());
+        const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
 
         auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = round->get_output_element_type(0);
+        postops_config.forced_output_type = post_op->get_output_element_type(0);
 
-        auto append_eltwise = [&postops_config, &round](alg_kind_t alg_kind) {
+        auto append_eltwise = [&postops_config, &post_op](alg_kind_t alg_kind) {
             OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, 0.f, 0.f) == dnnl_success,
                             "Failed to append unary eltwise ",
-                            round);
+                            post_op);
         };
 
-        const auto mode = round->get_mode();
-        if (mode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_round_half_to_even);
-        } else if (mode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_round_half_away_from_zero);
+        if (pattern_map.count(m_round)) {
+            const auto round = ov::as_type_ptr<ov::op::v5::Round>(post_op);
+            switch (round->get_mode()) {
+                case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
+                    append_eltwise(alg_kind_t::dnnl_eltwise_round_half_to_even);
+                    break;
+                case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+                    append_eltwise(alg_kind_t::dnnl_eltwise_round_half_away_from_zero);
+                    break;
+                default:
+                    OPENVINO_THROW("Unsupported round mode: ", round->get_mode());
+            }
+        } else if (pattern_map.count(m_relu)) {
+            append_eltwise(alg_kind_t::dnnl_eltwise_relu);
         } else {
-            OPENVINO_THROW("Unsupported round mode: ");
+            OPENVINO_THROW("Unsupported unary operation: ", post_op);
         }
 
         brgemm->set_postops_config(postops_config);
-        brgemm->set_friendly_name(round->get_friendly_name());
-        ov::copy_runtime_info({brgemm, round}, brgemm);
-        ov::replace_node(round, brgemm);
+        brgemm->set_friendly_name(post_op->get_friendly_name());
+        ov::copy_runtime_info({brgemm, post_op}, brgemm);
+        ov::replace_node(post_op, brgemm);
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(m_round, matcher_name);
+    auto m = std::make_shared<Matcher>(m_postop, matcher_name);
     register_matcher(m, callback);
 }
 

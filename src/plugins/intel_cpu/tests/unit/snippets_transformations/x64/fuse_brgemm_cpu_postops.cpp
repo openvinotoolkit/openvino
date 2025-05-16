@@ -396,6 +396,29 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfAwayFromZero) {
     }
 }
 
+TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseRelu) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        auto brgemm = make_brgemm({input1, input2});
+        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
+        auto relu = std::make_shared<ov::op::v0::Relu>(convert);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1, input2});
+    }
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_relu, 0.0f, 0.0f);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+    }
+}
+
 TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
     const float scale_val = 2.f;
     const float shift_val = 3.f;
