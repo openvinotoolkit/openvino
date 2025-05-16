@@ -1,24 +1,21 @@
 
-#include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
+
+#include "openvino/core/rt_info.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
 using namespace ov::pass::pattern::op;
 
-Block::Block(const OutputVector& inputs,
-             const OutputVector& outputs,
-             const std::string& name)
-        : Pattern(inputs, op::Predicate{}),
-          m_inputs(inputs),
-          m_outputs(outputs) {
+Block::Block(const OutputVector& inputs, const OutputVector& outputs, const std::string& name)
+    : Pattern(inputs, op::Predicate{}),
+      m_inputs(inputs),
+      m_outputs(outputs) {
     set_output_type(0, element::dynamic, PartialShape::dynamic());
     set_friendly_name(name);
 }
 
-bool Block::match_value(Matcher* matcher,
-                        const Output<Node>& pattern_value,
-                        const Output<Node>& graph_value) {
+bool Block::match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) {
     auto block_pattern_root = m_outputs.front();
 
     // Using a local matcher to match only those patterns that are encapsulated into the current Block.

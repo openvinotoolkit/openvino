@@ -6,8 +6,7 @@
 using namespace ov::pass;
 using namespace ov::pass::pattern;
 
-MultiMatcher::MultiMatcher(const std::string& name)
-    : m_name(name) {}
+MultiMatcher::MultiMatcher(const std::string& name) : m_name(name) {}
 
 void MultiMatcher::register_patterns(const std::vector<std::shared_ptr<Node>>& patterns,
                                      Callback callback,

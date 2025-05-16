@@ -17,14 +17,14 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -84,8 +84,10 @@ TEST(MultiMatcherTest, matches_overlapped_add_and_matmul) {
 
     MultiMatcher matcher("mixed");
     matcher.register_patterns({pat_add, pat_matmul}, [&](const auto& matches) {
-        if (matches.count(pat_add)) adds = static_cast<int>(matches.at(pat_add).size());
-        if (matches.count(pat_matmul)) matmuls = static_cast<int>(matches.at(pat_matmul).size());
+        if (matches.count(pat_add))
+            adds = static_cast<int>(matches.at(pat_add).size());
+        if (matches.count(pat_matmul))
+            matmuls = static_cast<int>(matches.at(pat_matmul).size());
     });
 
     ASSERT_TRUE(matcher.run_on_model(model));
@@ -129,7 +131,9 @@ TEST(MultiMatcherTest, no_match_found) {
 
     bool callback_invoked = false;
     MultiMatcher matcher("no_match");
-    matcher.register_patterns({pat}, [&](const auto&) { callback_invoked = true; });
+    matcher.register_patterns({pat}, [&](const auto&) {
+        callback_invoked = true;
+    });
 
     ASSERT_FALSE(matcher.run_on_model(model));
     EXPECT_FALSE(callback_invoked);
@@ -153,8 +157,10 @@ TEST(MultiMatcherTest, matches_multiple_pattern_types) {
 
     MultiMatcher matcher("types");
     matcher.register_patterns({relu_pat, sigm_pat}, [&](const auto& matches) {
-        if (matches.count(relu_pat)) relu_count = static_cast<int>(matches.at(relu_pat).size());
-        if (matches.count(sigm_pat)) sigm_count = static_cast<int>(matches.at(sigm_pat).size());
+        if (matches.count(relu_pat))
+            relu_count = static_cast<int>(matches.at(relu_pat).size());
+        if (matches.count(sigm_pat))
+            sigm_count = static_cast<int>(matches.at(sigm_pat).size());
     });
 
     ASSERT_TRUE(matcher.run_on_model(model));

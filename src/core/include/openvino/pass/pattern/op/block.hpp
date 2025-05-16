@@ -1,7 +1,7 @@
 #pragma once
 
-#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
 namespace ov::pass::pattern::op {
 
@@ -34,13 +34,9 @@ class OPENVINO_API Block : public Pattern {
 public:
     OPENVINO_RTTI("Block");
 
-    Block(const OutputVector& inputs,
-          const OutputVector& outputs,
-          const std::string& name = "");
+    Block(const OutputVector& inputs, const OutputVector& outputs, const std::string& name = "");
 
-    bool match_value(Matcher* matcher,
-                     const Output<Node>& pattern_value,
-                     const Output<Node>& graph_value) override;
+    bool match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) override;
 
     const OutputVector& get_inputs() const {
         return m_inputs;

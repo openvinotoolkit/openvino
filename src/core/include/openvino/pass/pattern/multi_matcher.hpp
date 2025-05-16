@@ -43,8 +43,8 @@ namespace pass {
  */
 class OPENVINO_API MultiMatcher : public ov::pass::ModelPass {
 public:
-    using Callback = std::function<void(
-        const std::unordered_map<std::shared_ptr<Node>, std::vector<pattern::PatternValueMap>>&)>;
+    using Callback =
+        std::function<void(const std::unordered_map<std::shared_ptr<Node>, std::vector<pattern::PatternValueMap>>&)>;
 
     OPENVINO_RTTI("MultiMatcher", "0", ModelPass);
 
@@ -56,9 +56,7 @@ public:
      * @param callback  Callback applied to all matches grouped by pattern
      * @param strict    Whether to use strict mode in Matcher
      */
-    void register_patterns(const std::vector<std::shared_ptr<Node>>& patterns,
-                           Callback callback,
-                           bool strict = false);
+    void register_patterns(const std::vector<std::shared_ptr<Node>>& patterns, Callback callback, bool strict = false);
 
     /**
      * @brief Run all matchers once over the model

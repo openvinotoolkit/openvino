@@ -3,15 +3,16 @@
 //
 
 #include <gtest/gtest.h>
-#include "openvino/op/parameter.hpp"
+
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -23,10 +24,7 @@ TEST(PatternBlockTest, block_matches_simple_matmul) {
     auto weights = any_input();
     auto matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
 
-    auto block = std::make_shared<Block>(
-        OutputVector{input, weights},
-        OutputVector{matmul},
-        "matmul_block");
+    auto block = std::make_shared<Block>(OutputVector{input, weights}, OutputVector{matmul}, "matmul_block");
 
     Matcher matcher(block);
 
@@ -52,10 +50,7 @@ TEST(PatternBlockTest, block_matches_matmul_add_chain) {
     auto matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
     auto add = wrap_type<ov::op::v1::Add>({matmul, bias});
 
-    auto block = std::make_shared<Block>(
-        OutputVector{input, weights, bias},
-        OutputVector{add},
-        "matmul_add_block");
+    auto block = std::make_shared<Block>(OutputVector{input, weights, bias}, OutputVector{add}, "matmul_add_block");
 
     Matcher matcher(block);
 
@@ -82,10 +77,7 @@ TEST(PatternBlockTest, block_does_not_match_wrong_operator) {
     auto matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
     auto add = wrap_type<ov::op::v1::Add>({matmul, bias});
 
-    auto block = std::make_shared<Block>(
-        OutputVector{input, weights, bias},
-        OutputVector{add},
-        "matmul_add_block");
+    auto block = std::make_shared<Block>(OutputVector{input, weights, bias}, OutputVector{add}, "matmul_add_block");
 
     Matcher matcher(block);
 
@@ -108,10 +100,7 @@ TEST(PatternBlockTest, block_does_not_match_if_input_missing) {
     auto matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
     auto add = wrap_type<ov::op::v1::Add>({matmul, bias});
 
-    auto block = std::make_shared<Block>(
-        OutputVector{input, weights, bias},
-        OutputVector{add},
-        "matmul_add_block");
+    auto block = std::make_shared<Block>(OutputVector{input, weights, bias}, OutputVector{add}, "matmul_add_block");
 
     Matcher matcher(block);
 
@@ -129,16 +118,11 @@ TEST(PatternBlockTest, block_nested_blocks) {
     auto bias = any_input();
 
     auto inner_matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
-    auto inner_block = std::make_shared<Block>(
-        OutputVector{input, weights},
-        OutputVector{inner_matmul},
-        "inner_matmul_block");
+    auto inner_block =
+        std::make_shared<Block>(OutputVector{input, weights}, OutputVector{inner_matmul}, "inner_matmul_block");
 
     auto add = wrap_type<ov::op::v1::Add>({inner_block, bias});
-    auto outer_block = std::make_shared<Block>(
-        OutputVector{input, weights, bias},
-        OutputVector{add},
-        "outer_block");
+    auto outer_block = std::make_shared<Block>(OutputVector{input, weights, bias}, OutputVector{add}, "outer_block");
 
     Matcher matcher(outer_block);
 
@@ -158,16 +142,10 @@ TEST(PatternBlockTest, block_chained_blocks) {
     auto bias = any_input();
 
     auto matmul = wrap_type<ov::op::v0::MatMul>({input, weights});
-    auto block1 = std::make_shared<Block>(
-        OutputVector{input, weights},
-        OutputVector{matmul},
-        "matmul_block");
+    auto block1 = std::make_shared<Block>(OutputVector{input, weights}, OutputVector{matmul}, "matmul_block");
 
     auto add = wrap_type<ov::op::v1::Add>({block1, bias});
-    auto block2 = std::make_shared<Block>(
-        OutputVector{input, weights, bias},
-        OutputVector{add},
-        "add_block");
+    auto block2 = std::make_shared<Block>(OutputVector{input, weights, bias}, OutputVector{add}, "add_block");
 
     Matcher matcher(block2);
 
