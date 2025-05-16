@@ -5,17 +5,18 @@
 #include "registry/implementation_manager.hpp"
 #include "program_node.h"
 
-namespace cldnn {
-namespace ocl {
+using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
-struct LoraImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("lora")
+namespace ov::intel_gpu::ocl {
 
-    LoraImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+struct Lora : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::lora")
 
-    std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    explicit Lora(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
 
-    bool validate_impl(const program_node& node) const override {
+    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static const std::vector<format> supported_fmts = {
             format::bfyx,
         };
@@ -40,5 +41,4 @@ struct LoraImplementationManager : public ImplementationManager {
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
