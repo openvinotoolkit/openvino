@@ -89,11 +89,14 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class FullyConnectedFusingTestOneDNN : public BaseFusingTest<fully_connected_test_params> {
+protected:
+    std::unordered_map<std::string, layout> extra_inputs;
+
 public:
     void execute(fully_connected_test_params& p, bool is_caching_test = false, bool is_dynamic = false) {
         // Onednn post operation has issue in a machine that does not support imad.
         if (!engine.get_device_info().supports_immad)
-            return;
+            GTEST_SKIP();
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p), -1, 1);
 
@@ -111,6 +114,12 @@ public:
         network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(cfg_fused), is_caching_test);
         network_fused->set_input_data("input", input_prim);
         network_not_fused->set_input_data("input", input_prim);
+
+        for (const auto& [input_id, data_layout] : extra_inputs) {
+            auto data_mem = get_mem(data_layout, -1, 1);
+            network_fused->set_input_data(input_id, data_mem);
+            network_not_fused->set_input_data(input_id, data_mem);
+        }
 
         compare(*network_not_fused, *network_fused, p);
     }
@@ -599,6 +608,41 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(s
     fully_connected_test_params{ CASE_FC_FP16_7, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
+}));
+
+class fc_fp16_eltwise_add_full_tensor : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            input_layout("input2", get_output_layout(p)),
+            data("weights", get_mem(get_weights_layout(p), -1, 1)),
+            data("bias", get_mem(get_bias_layout(p), -2, 2)),
+            activation("activation", input_info("input2"), activation_func::relu),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("activation") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f16)
+        );
+
+        extra_inputs["input2"] = get_output_layout(p);
+
+        tolerance = 1e-2f;
+        execute(p, is_caching_test);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_add_full_tensor, basic) {
+    run_test(false);
+}
+
+TEST_P(fc_fp16_eltwise_add_full_tensor, basic_cached) {
+    run_test(true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_full_tensor, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_2, 4, 5 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 4, 5 },
 }));
 
 class fc_fp16_eltwise_add_dynamic : public FullyConnectedFusingTestOneDNN {};
