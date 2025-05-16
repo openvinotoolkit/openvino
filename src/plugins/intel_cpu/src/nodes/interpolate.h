@@ -10,9 +10,76 @@
 
 #define MAX_INPUT_INTERPOLATE 8
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
+
+float coordTransToInput(int outCoord, float scale, int inShape, int outShape, InterpolateCoordTransMode coordTransMode);
+int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
+std::vector<float> getCubicCoeffs(float mantissa, float a);
+void linearOnnxCF(int outCoord,
+                  float scale,
+                  int inShape,
+                  int outShape,
+                  int& index0,
+                  int& index1,
+                  float& weight0,
+                  float& weight1,
+                  InterpolateCoordTransMode coordTransMode);
+
+static inline float getPillowBilinearCoeffs(float m) {
+    if (m < 0.0f) {
+        m = -m;
+    }
+    if (m < 1.0) {
+        return 1.0f - m;
+    }
+    return 0.0f;
+}
+
+static inline float getPillowBicubicCoeffs(float m) {
+    float a = -0.5f;
+    if (m < 0.0f) {
+        m = -m;
+    }
+    if (m < 1.0) {
+        return ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
+    }
+    if (m < 2.0f) {
+        return (((m - 5) * m + 8) * m - 4) * a;
+    }
+    return 0.0f;
+}
+
+void buildTblNN(const VectorDims& srcDimPad5d,
+                const VectorDims& dstDim5d,
+                const InterpolateAttrs& interpAttrs,
+                size_t dataRank,
+                std::vector<int> &auxTable);
+void buildTblLinearOnnx(const VectorDims& srcDimPad5d,
+                        const VectorDims& dstDim5d,
+                        const InterpolateAttrs& interpAttrs,
+                        size_t dataRank,
+                        std::vector<int> &auxTable,
+                        int spatialDimSize,
+                        size_t srcDataSize);
+void buildTblLinear(const VectorDims& srcDimPad5d,
+                    const VectorDims& dstDim5d,
+                    const InterpolateAttrs& interpAttrs,
+                    size_t dataRank,
+                    std::vector<int> &auxTable,
+                    int kernel_width);
+void buildTblCubic(const VectorDims& srcDimPad5d,
+                   const VectorDims& dstDim5d,
+                   const InterpolateAttrs& interpAttrs,
+                   size_t dataRank,
+                   std::vector<int> &auxTable,
+                   const int CUBIC_GRID_LEN);
+void buildTblPillow(const VectorDims& srcDimPad5d,
+                    const VectorDims& dstDim5d,
+                    const InterpolateAttrs& interpAttrs,
+                    size_t dataRank,
+                    std::vector<int> &auxTable,
+                    const float PILLOW_BILINEAR_WINDOW_SCALE,
+                    const float PILLOW_BICUBIC_WINDOW_SCALE);
 
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
@@ -115,49 +182,10 @@ private:
         }
 
     private:
-        void buildTblNN(const VectorDims& srcDimPad5d,
-                        const VectorDims& dstDim5d,
-                        const std::vector<float>& dataScales,
-                        InterpolateLayoutType layout,
-                        InterpolateNearestMode nearestMode);
-        void buildTblLinearOnnx(const VectorDims& srcDimPad5d,
-                                const VectorDims& dstDim5d,
-                                const std::vector<float>& dataScales,
-                                InterpolateLayoutType layout);
-        void buildTblLinear(const VectorDims& srcDimPad5d,
-                            const VectorDims& dstDim5d,
-                            const std::vector<float>& dataScales,
-                            int kernel_width,
-                            bool antialias);
-        void buildTblCubic(const VectorDims& srcDimPad5d,
-                           const VectorDims& dstDim5d,
-                           const std::vector<float>& dataScales,
-                           float cubicCoeff,
-                           InterpolateLayoutType layout);
-        void buildTblPillow(const VectorDims& srcDimPad5d,
-                            const VectorDims& dstDim5d,
-                            const std::vector<float>& dataScales,
-                            float cubicCoeff,
-                            InterpolateLayoutType layout);
-
-        float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-        int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
-        void linearOnnxCF(int outCoord,
-                          float scale,
-                          int inShape,
-                          int outShape,
-                          int& index0,
-                          int& index1,
-                          float& weight0,
-                          float& weight1);
-        std::vector<float> getCubicCoeffs(float mantissa, float a);
-        static float getPillowBilinearCoeffs(float m);
-        static float getPillowBicubicCoeffs(float m);
         inline void create_pillow_working_buf(InterpolateLayoutType layout);
 
     protected:
         InterpolateMode mode;
-        InterpolateCoordTransMode coordTransMode;
         InterpolateLayoutType configured_for_layout;
         VectorDims srcDimPad5d, dstDim5d;
         ov::element::Type inputPrec, outputPrec;
@@ -347,6 +375,6 @@ private:
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+} // namespace ov::intel_cpu::node
+
+
