@@ -445,13 +445,53 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset15) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_default) {
     // Simple ReLU test
-    auto model = convert_model("relu.onnx");
+    auto model = convert_model("relu_default.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
     test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset1) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset13.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<bfloat16>({-1.3f, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<bfloat16>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset14.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int16_t>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<int16_t>({0, 0, 0, 1, 2, 3});
     test_case.run();
 }
 
@@ -2959,10 +2999,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_erf) {
     const auto model = convert_model("erf.onnx");
 
     Inputs inputs;
-    inputs.emplace_back(ov::test::NDArray<float, 2>{
-        {-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
-        {-3.141592f, 0.0f},
-        {0.5f, 1.0f}}.get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 2>{{-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
+                                    {-3.141592f, 0.0f},
+                                    {0.5f, 1.0f}}
+            .get_vector());
 
     const std::vector<float> expected_output =
         ov::test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
