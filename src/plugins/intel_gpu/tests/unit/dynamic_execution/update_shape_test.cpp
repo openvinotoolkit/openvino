@@ -138,6 +138,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto sliding_window_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto alibi_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
     auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto score_aggregation_window_layout = layout{ov::PartialShape{0}, data_types::i32, format::bfyx};
+    auto score_aggregation_window_mem = engine.allocate_memory(score_aggregation_window_layout);
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -151,7 +153,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("scale"),
                                          input_info("sliding_window"),
                                          input_info("alibi"),
-                                         input_info("max_context_len")};
+                                         input_info("max_context_len"),
+                                         input_info("score_aggregation_window")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
@@ -178,6 +181,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("sliding_window", sliding_window_layout));
     topology.add(input_layout("alibi", alibi_layout));
     topology.add(input_layout("max_context_len", max_context_len_layout));
+    topology.add(input_layout("score_aggregation_window", score_aggregation_window_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("const_one"), 0, 1, ov::Shape{}));
@@ -202,6 +206,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("scale", scale_mem);
     network.set_input_data("sliding_window", sliding_window_mem);
     network.set_input_data("alibi", alibi_mem);
+    network.set_input_data("score_aggregation_window", score_aggregation_window_mem);
 
     // Set original max_context_len value
     auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
@@ -233,6 +238,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("scale", scale_mem);
     network.set_input_data("sliding_window", sliding_window_mem);
     network.set_input_data("alibi", alibi_mem);
+    network.set_input_data("score_aggregation_window", score_aggregation_window_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast
     set_values(max_context_len_mem, {8});
