@@ -7,10 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "infer_result_util.h"
-#include "opencv_c_wrapper.h"
 #include "samples_util/path_util.h"
 // Uses windows.h must be before openvino/c/openvino.h
+#include "infer_result_util.h"
+#include "opencv_c_wrapper.h"
 #include "openvino/c/openvino.h"
 
 void print_model_input_output_info(ov_model_t* model) {
