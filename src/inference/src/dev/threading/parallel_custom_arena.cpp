@@ -10,6 +10,7 @@
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 
 #    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
+#    define TBB_SUPPORT_PARALLEL_PHASE (TBB_INTERFACE_VERSION >= 12150)
 #    if defined(__APPLE__)
 // 2021.2 TBB doesn't export for macOS symbol:
 //     _ZN3tbb6detail2r131constraints_default_concurrencyERKNS0_2d111constraintsEl
@@ -311,6 +312,19 @@ task_arena::operator tbb::task_arena&() {
 int task_arena::max_concurrency() {
     initialize();
     return my_task_arena.max_concurrency();
+}
+
+void task_arena::start_parallel_phase() {
+#    if TBB_SUPPORT_PARALLEL_PHASE
+    initialize();
+    my_task_arena.start_parallel_phase();
+#    endif
+}
+
+void task_arena::end_parallel_phase() {
+#    if TBB_SUPPORT_PARALLEL_PHASE
+    my_task_arena.end_parallel_phase(true);
+#    endif
 }
 
 namespace info {
