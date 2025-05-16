@@ -126,7 +126,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         f->validate_nodes_and_infer_types();
     }
 
-    ov::pass::Manager manager(get_pass_config(), "MOC");
+    ov::pass::Manager manager("MOC");
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
