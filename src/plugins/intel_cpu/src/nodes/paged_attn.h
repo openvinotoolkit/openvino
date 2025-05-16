@@ -48,7 +48,7 @@ public:
 
     static bool isQuantByChannel(const Config::CacheQuantMode mode,
                                  const ov::element::Type precision,
-                                 const bool isKey) noexcept;
+                                 const bool isKey);
 
 private:
     ov::element::Type getRuntimePrecision() const override;
