@@ -275,7 +275,7 @@ CACHE_DIR
 Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CACHE_DIR`` but:
 
 * It allows to explicitly specify where to **store** the compiled model.
-* For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
+* For subsequent runs, it requires the same ``BLOB_PATH`` and ``WEIGHTS_PATH`` to **import** the compiled model.
 
 .. tab-set::
 
@@ -309,7 +309,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
             .. code-block:: python
 
-               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob" }
+               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob", "WEIGHTS_PATH": "model_path\\openvino_model.bin" }
                pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
 
 
