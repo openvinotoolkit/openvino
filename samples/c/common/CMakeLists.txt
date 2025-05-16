@@ -3,4 +3,4 @@
 #
 
 add_subdirectory(opencv_c_wrapper)
-add_subdirectory(utils)
+add_subdirectory(sample_util)
