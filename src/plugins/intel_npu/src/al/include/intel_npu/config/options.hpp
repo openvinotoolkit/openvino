@@ -792,7 +792,7 @@ struct TURBO final : OptionBase<TURBO, bool> {
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::Both;
     }
 
     static ov::PropertyMutability mutability() {

@@ -23,7 +23,7 @@ public:
     void execute(const dnnl::stream& strm) override;
 
 private:
-    template <typename T, typename T_IND>
+    template <typename T>
     void executeImpl();
 
     template <typename T>
