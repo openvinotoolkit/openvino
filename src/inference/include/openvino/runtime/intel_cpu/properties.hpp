@@ -31,9 +31,9 @@ namespace intel_cpu {
  * @brief      This enum contains definition of the type of TBB partitioner.
  */
 enum class TbbPartitioner {
-    STATIC = 0,  //!<  Static partitioner
-    AUTO = 1,    //!<  Auto partitioner
-    DEFAULT = 2, //!<  Initial value of configuration
+    STATIC = 0,   //!<  Static partitioner
+    AUTO = 1,     //!<  Auto partitioner
+    DEFAULT = 2,  //!<  Initial value of configuration
 };
 
 /** @cond INTERNAL */
