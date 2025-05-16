@@ -1849,12 +1849,20 @@ void Partitioner::optimize(const std::string& func_name) {
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
+        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>() && cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+            NPUW_ASSERT(
+                false &&
+                "Conflicting configuration: NPUW_HOST_GATHER and NPUW_GATHER_QUANT should not be enabled together!");
+        }
+
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
+        if (!cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+            rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
+            rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
+            rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
+            rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
+        }
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
@@ -1862,6 +1870,29 @@ void Partitioner::optimize(const std::string& func_name) {
         // Convert specific convolutions to matmuls
         rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
         rewr.run_on_model(f._model);
+
+        // Quantized Gather + Unpack on host in the runtime
+        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+            // FIXME: since we are running it after lifted Gather,
+            // we need to first try to match Asymm or Symm patterns.
+            // Otherwise smaller HostGatherQuant might be matched first and break
+            // the quantization logic.
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
+            {
+                ov::pass::GraphRewrite rewr2;
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
+                rewr2.run_on_model(f._model);
+            }
+        }
 
         // Move Gather to host, if required
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
@@ -1967,6 +1998,63 @@ void Partitioner::optimize(const std::string& func_name) {
             }
         }
 
+        // Host-side quantized gather, pt 1. Add new parameters first
+        if (ctx.params_to_quant_gather_unpack) {
+            auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
+            for (const auto& param_new_and_unpack : params_to_quant_gather_unpack.params_to_runtime_unpack_gather) {
+                // New input in the graph
+                new_params.push_back(param_new_and_unpack.first);
+                // Note: don't remove w, z and s params here to keep them shared with the quant vocab in tail
+                for (auto&& funcall : func_group.refs) {
+                    auto new_elem_type = param_new_and_unpack.first->get_element_type();
+                    const auto& new_shape = param_new_and_unpack.first->get_shape();
+                    // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
+                    // FIXME: It turns out this tensor will be completely unused.
+                    // It will just sit in the memory to do nothing.
+                    // Most likely it may stay empty since we need a 1:1 matching between
+                    // closure tensors and parameters (minus base).
+                    // Based on our logic (when tensors get transferred from lazy tensors via bank
+                    // to the closure), this tensor should be non-empty to avoid this process.
+                    funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                    funcall.get()._lazy_closure.push_back(LazyTensor());
+                    funcall.get()._is_lazy_unpack.push_back(false);
+                }
+
+                // Temporary inputs to gather into
+                new_params.push_back(param_new_and_unpack.second.second.w);
+                for (auto&& funcall : func_group.refs) {
+                    auto new_elem_type = param_new_and_unpack.second.second.w->get_element_type();
+                    const auto& new_shape = param_new_and_unpack.second.second.w->get_shape();
+                    // Same thing for any new parameters
+                    funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                    funcall.get()._lazy_closure.push_back(LazyTensor());
+                    funcall.get()._is_lazy_unpack.push_back(false);
+                }
+                if (param_new_and_unpack.second.second.z) {
+                    new_params.push_back(param_new_and_unpack.second.second.z);
+                    for (auto&& funcall : func_group.refs) {
+                        auto new_elem_type = param_new_and_unpack.second.second.z->get_element_type();
+                        const auto& new_shape = param_new_and_unpack.second.second.z->get_shape();
+                        // Same thing for any new parameters
+                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                        funcall.get()._lazy_closure.push_back(LazyTensor());
+                        funcall.get()._is_lazy_unpack.push_back(false);
+                    }
+                }
+                if (param_new_and_unpack.second.second.s) {
+                    new_params.push_back(param_new_and_unpack.second.second.s);
+                    for (auto&& funcall : func_group.refs) {
+                        auto new_elem_type = param_new_and_unpack.second.second.s->get_element_type();
+                        const auto& new_shape = param_new_and_unpack.second.second.s->get_shape();
+                        // Same thing for any new parameters
+                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                        funcall.get()._lazy_closure.push_back(LazyTensor());
+                        funcall.get()._is_lazy_unpack.push_back(false);
+                    }
+                }
+            }
+        }
+
         // Add all new parameters introduced by this change
         f._model->add_parameters(new_params);
 
@@ -2003,6 +2091,36 @@ void Partitioner::optimize(const std::string& func_name) {
             auto gather_idx_id = f._model->get_parameter_index(params_to_gather.pids);
             for (auto&& funcall : func_group.refs) {
                 funcall.get()._host_gather = ov::npuw::Subgraph::Gather{gather_dst_id, gather_src_id, gather_idx_id};
+            }
+        }
+
+        // Host-side quantized gather, pt. 2: Write the gather mappings to funcall
+        if (ctx.params_to_quant_gather_unpack) {
+            auto& params_to_quant_gather_unpack = *ctx.params_to_quant_gather_unpack;
+            for (const auto& param_new_and_unpack_gather :
+                 params_to_quant_gather_unpack.params_to_runtime_unpack_gather) {
+                // New param in the graph
+                auto gather_dst_id = f._model->get_parameter_index(param_new_and_unpack_gather.first);
+                // Tmp params to gather into in runtime
+                auto gather_dst_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.w);
+                auto gather_dst_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.z);
+                auto gather_dst_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.s);
+                // Orig params to gather from
+                auto gather_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.w);
+                auto gather_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.z);
+                auto gather_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.s);
+                // Original pids
+                auto gather_idx_id = f._model->get_parameter_index(params_to_quant_gather_unpack.pids);
+                for (auto&& funcall : func_group.refs) {
+                    funcall.get()._quant_unpack_gather = ov::npuw::Subgraph::QuantUnpackGather{gather_dst_id,
+                                                                                               gather_dst_w_id,
+                                                                                               gather_dst_z_id,
+                                                                                               gather_dst_s_id,
+                                                                                               gather_w_id,
+                                                                                               gather_z_id,
+                                                                                               gather_s_id,
+                                                                                               gather_idx_id};
+                }
             }
         }
 
