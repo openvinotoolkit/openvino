@@ -1373,8 +1373,14 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        // FIXME: also check sole_reader/convert
-        if (out_len >= 2048) {
+        auto sole_reader = [](ov::Output<ov::Node> out) {
+            const auto readers = out.get_target_inputs();
+            NPUW_ASSERT(readers.size() >= 1);
+            return readers.begin()->get_node();
+        };
+
+        if (out_len >= 2048 && (matched_out_mul.get_target_inputs().size() > 1 ||
+                                ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
@@ -1438,10 +1444,21 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
         const auto& matched_out_qweight = node_to_output.at(qweight);
+        const auto& matched_out_reshape = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        // FIXME: also check sole_reader/convert
-        if (out_len >= 2048) {
+        auto sole_reader = [](ov::Output<ov::Node> out) {
+            const auto readers = out.get_target_inputs();
+            NPUW_ASSERT(readers.size() >= 1);
+            return readers.begin()->get_node();
+        };
+
+        if (out_len >= 2048 &&
+            (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
+             qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+             qweight_type == ov::element::f8e8m0) &&
+            (matched_out_reshape.get_target_inputs().size() > 1 ||
+             ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_reshape)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1482,8 +1499,14 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
 
         const auto& matched_out_gather = node_to_output.at(qgthrw);
 
-        // FIXME: also check sole_reader/convert
-        if (out_shape.back() >= 2048) {
+        auto sole_reader = [](ov::Output<ov::Node> out) {
+            const auto readers = out.get_target_inputs();
+            NPUW_ASSERT(readers.size() >= 1);
+            return readers.begin()->get_node();
+        };
+
+        if (out_shape.back() >= 2048 && (matched_out_gather.get_target_inputs().size() > 1 ||
+                                         ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);

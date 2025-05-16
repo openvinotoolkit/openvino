@@ -347,9 +347,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
-            ov::Tensor wraped_from(from->get_element_type(),
-                                    ov::Shape{from_shape[1], from_shape[2]},
-                                    from->data());
+            ov::Tensor wraped_from(from->get_element_type(), ov::Shape{from_shape[1], from_shape[2]}, from->data());
             ov::Tensor wraped_zerop(zerop->get_element_type(),
                                     ov::Shape{zerop_shape[1], zerop_shape[2]},
                                     zerop->data());

@@ -1873,9 +1873,10 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Quantized Gather + Unpack on host in the runtime
         if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
-            // FIXME: run 1 by 1 in the order below,
-            // otherwise smaller pattern might be matched first
-            // FIXME: update patterns to match properly (sole_reader, convert, etc)
+            // FIXME: since we are running it after lifted Gather,
+            // we need to first try to match Asymm or Symm patterns.
+            // Otherwise smaller HostGatherQuant might be matched first and break
+            // the quantization logic.
             {
                 ov::pass::GraphRewrite rewr2;
                 rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
