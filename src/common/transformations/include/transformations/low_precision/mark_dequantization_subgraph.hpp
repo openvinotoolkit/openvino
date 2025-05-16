@@ -76,5 +76,38 @@ public:
                                 bool fold_multiply_const = true);
 };
 
+/**
+ * @ingroup ov_transformation_common_api
+ *
+ * @brief KeepDequantizationPrecision matches Dequantization subgraphs and, if precision matches with
+ * specified, Convert, Multiply, Subtract and Reshape nodes might be marked with disable_fp16_compression attribute.
+ * This prevents precision loss when the original precision is lowered during ConvertPrecision execution.
+ *
+ * Example scenario:
+ *      Original Dequantization subgraph:       Potential transformed subgraph after ConvertPrecision:
+ *        Input (i32)      Const (i32)                    Input (i32)     Const (i32)
+ *            │              │                               │              │
+ *            ▼              ▼                               ▼              ▼
+ *        Convert (f32)  Convert (f32)                   Convert (f16)  Convert (f16)
+ *            │              │                               │              │
+ *            ▼              ▼                               ▼              ▼
+ *             Subtract (f32)                                 Subtract (f16)
+ *                 │                                              │
+ *                 │     Scale (f32)                              │     Scale (f16)
+ *                 │      │                                       │      │
+ *                 ▼      ▼                                       ▼      ▼
+ *                 Multiply (f32)                                 Multiply (f16)
+ *
+ *    Without KeepDequantizationPrecision, ConvertPrecision transformation may convert
+ *    these operations to use fp16 instead of f32, potentially leading to accuracy degradation.
+ *    Marking these nodes (KeepDequantizationPrecision) preserves the original dequantization precision (f32).
+ *
+ */
+class TRANSFORMATIONS_API KeepDequantizationPrecision : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("KeepDequantizationPrecision");
+    explicit KeepDequantizationPrecision(const element::TypeVector& precisions);
+};
+
 }  // namespace pass
 }  // namespace ov
