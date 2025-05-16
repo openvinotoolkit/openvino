@@ -25,6 +25,7 @@ struct ConvAttrs {
     bool withBias;
     bool weightsNonTransposed;
     bool isGrouped;
+    bool isInternalOpset;
     // @todo can we just check for port precisions instead?
     bool isGraphQuantized;
     bool fcSemantic;

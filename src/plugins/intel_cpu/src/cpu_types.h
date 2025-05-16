@@ -151,6 +151,7 @@ enum class Algorithm {
     AdaptivePoolingAvg,
 
     // Convolution algorithms
+    ConvolutionBiased,
     ConvolutionCommon,
     ConvolutionGrouped,
 

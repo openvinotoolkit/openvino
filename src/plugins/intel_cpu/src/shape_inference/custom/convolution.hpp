@@ -21,7 +21,8 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const std::vector<ptrdiff_t>& pads_begin,
                                    const std::vector<ptrdiff_t>& pads_end,
                                    bool auto_padding,
-                                   bool isGrouped);
+                                   bool isGrouped,
+                                   bool isInternalOpset);
 
 using Result = IShapeInfer::Result;
 class ConvolutionShapeInfer : public ShapeInferEmptyPads {
@@ -31,13 +32,15 @@ public:
                           std::vector<ptrdiff_t> pads_begin,
                           std::vector<ptrdiff_t> pads_end,
                           bool auto_padding,
-                          bool isGrouped = false)
+                          bool isGrouped = false,
+                          bool isInternalOpset = false)
         : m_strides(std::move(strides)),
           m_dilations(std::move(dilations)),
           m_pads_begin(std::move(pads_begin)),
           m_pads_end(std::move(pads_end)),
           m_auto_padding(auto_padding),
-          m_isGrouped(isGrouped) {}
+          m_isGrouped(isGrouped),
+          m_isInternalOpset(isInternalOpset) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
@@ -52,6 +55,7 @@ private:
     std::vector<ptrdiff_t> m_pads_end;
     bool m_auto_padding;
     bool m_isGrouped;
+    bool m_isInternalOpset;
 };
 
 class ConvolutionShapeInferFactory : public ShapeInferFactory {
