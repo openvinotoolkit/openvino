@@ -263,7 +263,7 @@ TEST_F(TypePropSparseFillEmptyRowsTest, invalid_indices_element_type) {
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The element type of the indices input must be i32 or i64"));
+                    HasSubstr("The element types of the dense_shape and indices inputs must match"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, invalid_dense_shape_element_type) {
@@ -274,7 +274,29 @@ TEST_F(TypePropSparseFillEmptyRowsTest, invalid_dense_shape_element_type) {
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The element type of the dense_shape input must be i32 or i64"));
+                    HasSubstr("The element types of the dense_shape and indices inputs must match"));
+}
+
+TEST_F(TypePropSparseFillEmptyRowsTest, invalid_merged_type) {
+    const auto values = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
+    const auto dense_shape = std::make_shared<op::v0::Parameter>(element::u32, PartialShape{2});
+    const auto indices = std::make_shared<op::v0::Parameter>(element::u32, PartialShape{3, 2});
+    const auto default_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+
+    OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
+                    ov::NodeValidationFailure,
+                    HasSubstr("The element type of the indices and dense_shape inputs must be i32 or i64"));
+}
+
+TEST_F(TypePropSparseFillEmptyRowsTest, incompatible_indices_types) {
+    const auto values = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
+    const auto dense_shape = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto indices = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{3, 2});
+    const auto default_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+
+    OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
+                    ov::NodeValidationFailure,
+                    HasSubstr("The element types of the dense_shape and indices inputs must match"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, mismatch_values_and_indices_dimensions) {
