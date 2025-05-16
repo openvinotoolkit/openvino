@@ -536,12 +536,9 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
     //  * Alias - Case when we group all devices under one common name
-    {
-        // Acquire a shared lock to allow concurrent reads of m_hidden_devices
-        std::shared_lock<std::shared_mutex> lock(m_init_devs_mutex);
-        if (m_init_devs) {
-            return m_hidden_devices;
-        }
+    // Acquire a shared lock to allow concurrent reads of m_hidden_devices       
+    if (std::shared_lock<std::shared_mutex> lock(m_init_devs_mutex); m_init_devs) {
+        return m_hidden_devices;
     }
 
     std::lock_guard<std::shared_mutex> lock(m_init_devs_mutex);
