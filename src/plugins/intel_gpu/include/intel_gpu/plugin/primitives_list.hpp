@@ -305,3 +305,5 @@ REGISTER_FACTORY(internal, IndirectSDPA);
 REGISTER_FACTORY(internal, RoPE);
 REGISTER_FACTORY(internal, DynamicQuantize);
 REGISTER_FACTORY(internal, PagedAttentionExtension);
+REGISTER_FACTORY(internal, LoraSubgraph);
+REGISTER_FACTORY(internal, LoraSubgraphFused);

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
-
+#include "intel_gpu/primitives/lora.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -19,6 +18,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -983,6 +983,7 @@ void network::allocate_primitive_instance(program_node const& node) {
             _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _inputs.push_back(inst);
     }
+
     if (node.is_output()) {
         if (inst->output_memory_ptr())
             _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
@@ -990,6 +991,8 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
+
+    bool is_lora_state = false;
     if (node.is_type<read_value>()) {
         _read_values.push_back(inst);
         const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
@@ -998,13 +1001,30 @@ void network::allocate_primitive_instance(program_node const& node) {
                 _state_initializers[variable_id].push_back(get_primitive(id));
             }
         }
+        const auto& users = node.get_users();
+        if (!users.empty()) {
+            is_lora_state = users.front()->is_type<lora>();
+        }
     }
+
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get());
+
+        bool transpose_required = false;
+        if (is_lora_state) {
+            const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
+            for (size_t state_idx : {2, 4}) {
+                if (lora_prim->input[state_idx].pid == node.id()) {
+                    transpose_required = lora_prim->transposed_states;
+                }
+            }
+        }
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get(), transpose_required);
     }
-    if (node.is_constant())
+
+    if (node.is_constant()) {
         transfer_memory_to_device(inst, node);
+    }
 }
 
 void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
@@ -1012,7 +1032,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
 
-    auto users = node.get_users();
+    const auto& users = node.get_users();
     if (users.size() == 1
         && users.front()->is_type<reshape>()
         && users.front()->is_dynamic())
@@ -1077,10 +1097,12 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
 void network::set_variables_state_info(const std::string& variable_id,
                                        const layout& variable_layout,
                                        ov::element::Type user_specified_type,
-                                       const primitive* p) {
+                                       const primitive* p,
+                                       bool transpose_required) {
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
 
     _variables_state_info.at(variable_id).m_primitives.insert(p);
+    _variables_state_info.at(variable_id).transpose_required = transpose_required;
 }
 
 void network::set_reuse_variable_mem(bool reuse) {
