@@ -160,28 +160,33 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
 
     // These predicates are used to skip the transformation in cases where a more optimized transformation is available
-    auto not_scale_shift_pattern = [](const Output<Node>& output) {
-        if (!consumers_count(1)(output)) {
-            return true;
-        }
-        const auto& consumer = output.get_target_inputs().begin()->get_node();
-        if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                                                       is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-            return false;
-        }
-        return true;
-    };
-    auto not_clip_pattern = [](const Output<Node>& output) {
-        if (!consumers_count(1)(output)) {
-            return true;
-        }
-        const auto& consumer = output.get_target_inputs().begin()->get_node();
-        if (ov::is_type<ov::op::v1::Minimum>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+    ov::pass::pattern::op::Predicate not_scale_shift_pattern(
+        [](const Output<Node>& output) {
+            if (!consumers_count(1)(output)) {
+                return true;
+            }
+            const auto& consumer = output.get_target_inputs().begin()->get_node();
+            if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
                                                            is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-            return false;
-        }
-        return true;
-    };
+                return false;
+            }
+            return true;
+        },
+        "not_scale_shift_pattern");
+    ov::pass::pattern::op::Predicate not_clip_pattern(
+        [](const Output<Node>& output) {
+            if (!consumers_count(1)(output)) {
+                return true;
+            }
+            const auto& consumer = output.get_target_inputs().begin()->get_node();
+            if (ov::is_type<ov::op::v1::Minimum>(consumer) &&
+                (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                 is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
+                return false;
+            }
+            return true;
+        },
+        "not_clip_pattern");
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_scalar = wrap_type<Scalar>(scalar_predicate);
@@ -241,9 +246,11 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     : m_external_params(external_params) {
     MATCHER_SCOPE(FuseBinaryEltwise);
 
-    auto binary_input_predicate = [](const Output<Node>& output) {
-        return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
-    };
+    ov::pass::pattern::op::Predicate binary_input_predicate(
+        [](const Output<Node>& output) {
+            return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
+        },
+        "binary_input_predicate");
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_postop_input = wrap_type<ov::op::v0::Parameter>(binary_input_predicate);
