@@ -35,6 +35,8 @@ public:
             const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
     };
 
+    static bool is_kn_blocking_supported(const std::shared_ptr<BrgemmCPU>& brgemm);
+
 private:
     static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(
         snippets::lowered::LinearIR& linear_ir,
