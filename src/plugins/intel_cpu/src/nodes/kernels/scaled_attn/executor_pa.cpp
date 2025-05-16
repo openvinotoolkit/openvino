@@ -2161,10 +2161,10 @@ void rotate_kv_cache(PlainTensor& key_cache,
 }
 
 struct ScoreAggregationInfo {
-    int32_t score_offsets_aligned;      // tmp buffer offset for current block in the whole buffer
-    int32_t score_offsets;              // dst buffer offset for output
-    int32_t score_buf_num;              // tmp buffer number for current head
-    int32_t kv_len_aligned;             // tmp buffer length for current block
+    int32_t score_offsets_aligned;  // tmp buffer offset for current block in the whole buffer
+    int32_t score_offsets;          // dst buffer offset for output
+    int32_t score_buf_num;          // tmp buffer number for current head
+    int32_t kv_len_aligned;         // tmp buffer length for current block
 };
 
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
@@ -2367,7 +2367,9 @@ struct MHAHelper {
         }
     }
 
-    void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins, const PlainTensor& score_aggregation_window) {
+    void init_score_buffers(const PlainTensor& past_lens,
+                            const PlainTensor& subsequence_begins,
+                            const PlainTensor& score_aggregation_window) {
         static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
         auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
         _score_infos.resize(past_lens.m_dims[0]);
@@ -2395,7 +2397,7 @@ struct MHAHelper {
         }
 
         _score_output.resize<float>({total_kv_len_aligned * H});
-        parallel_for(H, [&] (size_t h) {
+        parallel_for(H, [&](size_t h) {
             std::memset(_score_output.ptr<float>(h * total_kv_len_aligned), 0, total_kv_len_aligned * sizeof(float));
         });
     }
@@ -2500,7 +2502,7 @@ struct MHAHelper {
                             score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
                             reinterpret_cast<DATA_TYPE*>(score),
                             1,
-                            cur_kv_len,
+                            rnd_up(cur_kv_len, _block_size),
                             0,
                             0,
                             0);
@@ -3296,12 +3298,15 @@ struct MHA {
                 size_t q_start_idx_score = 0;
                 ScoreAggregationInfo* score_info_ptr = nullptr;
                 if (output_score) {
-                    const auto score_win_len = static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq]);
+                    const auto score_win_len =
+                        static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq]);
                     if (score_win_len) {
                         q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
-                        if (q_start_idx_score >= q_blk * _helper._block_size) {
+                        if (q_cnt + q_blk * _helper._block_size > q_start_idx_score) {
                             score_info_ptr = &_helper._score_infos[batch_in_seq];
-                            auto score_offset = score_info_ptr->score_offsets_aligned * _helper.H + (q_blk - q_start_idx_score / _helper._block_size) * score_info_ptr->kv_len_aligned;
+                            auto score_offset =
+                                score_info_ptr->score_offsets_aligned * _helper.H +
+                                (q_blk - q_start_idx_score / _helper._block_size) * score_info_ptr->kv_len_aligned;
                             score_output = _helper._score_output.template ptr<float>() + score_offset;
                         }
                     }
@@ -3385,7 +3390,8 @@ struct MHA {
                 auto dst_offset = score_info.score_offsets;
                 auto* dst = output_score.ptr<float>() + dst_offset;
                 if (score_win_len) {
-                    auto* src = _helper._score_output.template ptr<float>() + score_info.score_offsets_aligned * _helper.H;
+                    auto* src =
+                        _helper._score_output.template ptr<float>() + score_info.score_offsets_aligned * _helper.H;
                     size_t src_stride = score_info.kv_len_aligned;
                     attn_reduce(dst, src, _helper.H * score_info.score_buf_num, cur_kv_len, src_stride);
                 } else {
