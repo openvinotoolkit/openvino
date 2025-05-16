@@ -17,6 +17,7 @@
 #include "openvino/core/parallel.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN (-3.4028235e38f)
@@ -35,6 +36,10 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr& weightDesc) {
     if (attrs.dynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max())
         return false;
+
+    if (hasIntDotProductSupport()) {
+        return false;
+    }
 
     if (weightDesc->getPrecision() != element::i8)
         return false;
