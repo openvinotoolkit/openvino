@@ -8,6 +8,7 @@ import math
 import os
 import re
 import logging
+import platform
 from pathlib import Path
 
 import torch
@@ -256,7 +257,7 @@ def test_so_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        'Parameter', 'Elu', 'Constant', 'ConvertLike', 'Multiply', 'Result']
+        "Parameter", "Elu", "Constant", "ConvertLike", "Multiply", "Result"]
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)
@@ -462,6 +463,148 @@ def test_multiple_module_extension():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Tan", "Add", "Result"]
+
+
+def verify_model(model, example_input, expected_ops):
+    import numpy as np
+    import openvino as ov
+    # Convert and compile the model
+    converted_model = ov.convert_model(model, example_input=(example_input,))
+    assert converted_model, "Model conversion failed."
+    compiled_model = ov.compile_model(converted_model, "CPU")
+    assert compiled_model, "Model compilation failed."
+
+    # Verify model operations
+    actual_ops = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert actual_ops == expected_ops, f"Expected {expected_ops}, but got {actual_ops}."
+
+    # Test model execution
+    test_input = example_input.numpy(force=True)
+    res = compiled_model((test_input,))
+    ref = model(torch.from_numpy(test_input))
+    rtol, atol = 1e-7, 0
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.1, 0.001
+    if isinstance(ref, tuple):
+        for i, ref_part in enumerate(ref):
+            np.testing.assert_allclose(res[i], ref_part.numpy(), rtol, atol)
+    else:
+        np.testing.assert_allclose(res[0], ref.numpy(), rtol, atol)
+
+
+def test_inlined_extension():
+    from openvino.frontend.pytorch import inlined_extension
+    rng = np.random.default_rng(42)
+
+    @inlined_extension
+    def numpy_cos(x):
+        return torch.from_numpy(np.cos(x.numpy(force=True)))
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            return numpy_cos(x) + self.relu_module(x)
+
+    model = ModelWithModule()
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Add", "Result"]
+    verify_model(model, example, expected_ops)
+
+
+def test_multiple_inlined_extension():
+    from openvino.frontend.pytorch import inlined_extension
+    rng = np.random.default_rng(42)
+
+    @inlined_extension
+    def numpy_roll(x):
+        return torch.from_numpy(np.roll(x.numpy(force=True), 10, 0))
+
+    @inlined_extension
+    def numpy_cos(x):
+        return torch.from_numpy(np.cos(x.numpy(force=True)))
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            x = numpy_roll(x) + self.relu_module(x)
+            x = numpy_cos(x) + self.relu_module(x)
+            return numpy_roll(x) + self.relu_module(x)
+
+    model = ModelWithModule()
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Add", "InlinedCustomOp", "Relu", "Add", "InlinedCustomOp", "Relu", "Add", "Result"]
+    verify_model(model, example, expected_ops)
+
+
+def test_inlined_extension_multiple_outputs():
+    from openvino.frontend.pytorch import inlined_extension
+    rng = np.random.default_rng(42)
+
+    @inlined_extension
+    def numpy_split(x):
+        np_array = x.numpy(force=True)
+        midpoint = np_array.shape[0] // 2
+        part1 = np_array[:midpoint]
+        part2 = np_array[midpoint:]
+        return torch.from_numpy(part1), torch.from_numpy(part2)
+
+    class ModelWithMultipleOutputs(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            part1, part2 = numpy_split(x)
+            return self.relu_module(part1), self.relu_module(part2)
+
+    model = ModelWithMultipleOutputs()
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Result", "Relu", "Result"]
+    verify_model(model, example, expected_ops)
+
+
+def test_inlined_extension_with_torch_model():
+    from openvino.frontend.pytorch import inlined_extension
+    rng = np.random.default_rng(42)
+
+    # Define a simple PyTorch model
+    class SimpleTorchModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = torch.nn.Linear(100, 100)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    # Instantiate the model
+    simple_model = SimpleTorchModel()
+
+    @inlined_extension
+    def model_based_extension(x):
+        return simple_model(x)
+
+    class ModelWithInlinedTorchModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            return model_based_extension(x) + self.relu_module(x)
+
+    model = ModelWithInlinedTorchModel()
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Add", "Result"]
+    verify_model(model, example, expected_ops)
 
 
 def test_pytorch_telemetry():
