@@ -96,9 +96,6 @@ protected:
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
     void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
     virtual void update_subrequest_links(std::size_t idx) = 0;
-    // FIXME: probably this one should go to the base class too
-    RqPtr get_real_subrequest(std::size_t idx);
-
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     RqPtrs m_subrequests;

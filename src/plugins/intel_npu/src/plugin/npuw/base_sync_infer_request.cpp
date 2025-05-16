@@ -735,9 +735,3 @@ void ov::npuw::IBaseInferRequest::complete_subrequest(std::size_t idx) {
         });
     }
 }
-
-ov::npuw::IBaseInferRequest::RqPtr ov::npuw::IBaseInferRequest::get_real_subrequest(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    return m_subrequests[real_idx];
-}
