@@ -324,6 +324,58 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("exponent_bias", 0x0000007f);
 }
 
+/// MOD ///
+jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_mod_emitter::get_inputs_num() const {
+    return 2;
+}
+size_t jit_mod_emitter::aux_vecs_count() const {
+    return 2;
+}
+void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg tmp1 = VReg(aux_vec_idxs[0]);
+    VReg tmp2 = VReg(aux_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    switch (exec_prc_) {
+    case ov::element::i32:
+        h->vdiv_vv(tmp1, src0, src1);
+        h->vmul_vv(tmp2, tmp1, src1);
+        h->vsub_vv(dst, src0, tmp2);
+        break;
+    case ov::element::f32:
+        h->vfdiv_vv(tmp1, src0, src1);
+        h->vfmul_vv(tmp2, tmp1, src1);
+        h->vfsub_vv(dst, src0, tmp2);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
+}
+
+std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::i32, element::i32},
+            {element::f32, element::f32}};
+}
+
 /// FLOOR ///
 jit_floor_emitter::jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
     jit_emitter(host, host_isa, exec_prc) {
@@ -450,7 +502,7 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, cons
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
-
+    
     h->vfmul_vv(dst, src0, src1);
 }
 
