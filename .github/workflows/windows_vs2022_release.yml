@@ -359,7 +359,7 @@ jobs:
         shell: cmd
         run: |
           :: Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
+          python3 -m pytest -v ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
