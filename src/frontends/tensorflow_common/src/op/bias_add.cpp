@@ -23,7 +23,7 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
 
     auto complex_type_mark_value = as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
     auto complex_type_mark_bias = as_type_ptr<ComplexTypeMark>(bias.get_node_shared_ptr());
-    auto complex_type_inputs = (complex_type_mark_value || complex_type_mark_bias) ? true : false;
+    auto complex_type_inputs = (complex_type_mark_value && complex_type_mark_bias) ? true : false;
     // validations prior to processing
     if (complex_type_inputs) {
         // extractions for complex processing

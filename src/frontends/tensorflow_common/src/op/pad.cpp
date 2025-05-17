@@ -84,6 +84,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
 
 OutputVector translate_padv2_op(const NodeContext& node) {
     default_op_checks(node, 3, {"PadV2", "PADV2"}, true);
+    auto op_type = node.get_op_type();
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
     auto constant_value = node.get_input(2);
@@ -98,6 +99,9 @@ OutputVector translate_padv2_op(const NodeContext& node) {
         auto x_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
 
         auto constant_complex_type_mark = as_type_ptr<ComplexTypeMark>(constant_value.get_node_shared_ptr());
+        TENSORFLOW_OP_VALIDATION(node,
+                                 constant_complex_type_mark,
+                                 "Missing ComplexTypeMark for padding value to operation " + op_type);
         auto constant_input = constant_complex_type_mark->get_data();
         auto constant_value_real = make_shared<v8::Gather>(constant_input, gather_index_real, minus_one)->output(0);
         auto constant_value_imag = make_shared<v8::Gather>(constant_input, gather_index_imag, minus_one)->output(0);
