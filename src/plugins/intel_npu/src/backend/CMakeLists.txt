@@ -53,6 +53,7 @@ if(ENABLE_LLVM_BACKEND)
         set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config})
     endif()
 
+    message(STATUS "dest dir:${TEST_DEST_DIR}     config:${config}")
     add_custom_command(TARGET ${TARGET_NAME}
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${TEST_SOURCE_DIR} ${TEST_DEST_DIR}
