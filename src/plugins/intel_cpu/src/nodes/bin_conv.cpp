@@ -559,7 +559,7 @@ private:
 
             if (jcp_.exclude_pad) {
                 mov(reg_tmp_32, jcp_.ic);
-                imul(reg_tmp_32, ptr[param1 + GET_OFF(kh_padding)]);
+                imul(reg_tmp_64, ptr[param1 + GET_OFF(kh_padding)]);
 
                 for (int jj = 0; jj < ur_w; jj++) {
                     kw_padding[jj] = 0;
@@ -583,7 +583,7 @@ private:
             for (int jj = 0; jj < ur_w; jj++) {
                 if (jcp_.exclude_pad) {
                     mov(reg_shift, kw_padding[jj]);
-                    imul(reg_shift, reg_tmp_32);
+                    imul(reg_shift, reg_tmp_64);
                     uni_vmovq(Xmm(vmm_shift.getIdx()), reg_shift);
                     uni_vbroadcastss(vmm_shift, Xmm(vmm_shift.getIdx()));
                     uni_vcvtdq2ps(vmm_shift, vmm_shift);
