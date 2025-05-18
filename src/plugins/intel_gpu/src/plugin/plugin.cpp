@@ -591,6 +591,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_lora_operation.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
@@ -815,7 +816,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     try {
         model = model_param->second.as<std::shared_ptr<const ov::Model>>();
     } catch (...) {
-        OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
+        OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<const ov::Model> type");
     }
     GPU_DEBUG_INFO << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major

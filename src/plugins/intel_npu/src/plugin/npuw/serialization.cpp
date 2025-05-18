@@ -95,7 +95,8 @@ enum class AnyType : int {
     BOOL,
     CACHE_MODE,
     ELEMENT_TYPE,
-    ANYMAP
+    ANYMAP,
+    PERFMODE
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -137,6 +138,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::AnyMap>()) {
         write(stream, static_cast<int>(AnyType::ANYMAP));
         write(stream, var.as<ov::AnyMap>());
+    } else if (var.is<ov::hint::PerformanceMode>()) {
+        write(stream, static_cast<int>(AnyType::PERFMODE));
+        write(stream, var.as<ov::hint::PerformanceMode>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -151,6 +155,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::hint::PerformanceMode& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
 
@@ -315,6 +323,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::AnyMap val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::PERFMODE) {
+        ov::hint::PerformanceMode val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -329,6 +341,10 @@ void ov::npuw::s11n::read(std::istream& stream, ov::CacheMode& var) {
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::hint::PerformanceMode& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
