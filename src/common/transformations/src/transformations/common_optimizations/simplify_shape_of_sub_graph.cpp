@@ -202,10 +202,12 @@ pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
         std::shared_ptr<Node> replace_op;
         if (indices_rank.get_length() == 0) {
             std::vector<int64_t> vi;
-            vi.reserve(gather_in_rank.get_length() - 1);
-            for (int64_t i = 0; i < gather_in_rank.get_length(); ++i) {
-                if (i != axis)
-                    vi.push_back(i);
+            if (gather_in_rank.get_length() != 0) {
+                vi.reserve(gather_in_rank.get_length() - 1);
+                for (int64_t i = 0; i < gather_in_rank.get_length(); ++i) {
+                    if (i != axis)
+                        vi.push_back(i);
+                }
             }
             auto new_indices = v0::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
             replace_op = std::make_shared<v1::Gather>(new_shapeof, new_indices, zero_axis);
