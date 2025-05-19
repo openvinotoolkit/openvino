@@ -27,6 +27,8 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
 
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     ov::element::Type ngPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -46,8 +48,6 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 }
 
 void ConcatWithNeighborsGraphTransformation::run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
