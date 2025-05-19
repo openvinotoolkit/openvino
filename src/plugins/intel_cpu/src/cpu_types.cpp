@@ -111,6 +111,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SpaceToBatch", Type::SpaceToBatch},
         {"DepthToSpace", Type::DepthToSpace},
         {"SpaceToDepth", Type::SpaceToDepth},
+        {"SparseFillEmptyRows", Type::SparseFillEmptyRows},
         {"Roll", Type::Roll},
         {"LRN", Type::Lrn},
         {"Split", Type::Split},
@@ -309,6 +310,7 @@ std::string NameFromType(const Type type) {
         CASE(Transpose);
         CASE(SpaceToDepth);
         CASE(SpaceToBatch);
+        CASE(SparseFillEmptyRows);
         CASE(MemoryOutput);
         CASE(MemoryInput);
         CASE(RNNSeq);
