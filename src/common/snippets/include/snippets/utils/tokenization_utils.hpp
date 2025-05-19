@@ -25,10 +25,10 @@ namespace utils {
 bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::SnippetsTokenization::Config& config);
 /**
  * @brief Tokenizes a list of nodes into Subgraph with the following rules:
- *        1. The user is responsible for vali count of parameters, results and hiddent virtual ports (constants)
+ *        1. The user is responsible for valid count of parameters, results and hidden virtual ports (constants)
  *        2. The list of nodes cannot contain Subgraph ops
  * @param ordered_ops node list which should be tokenized
- * @return tokenized subgraphs
+ * @return tokenized subgraph
  */
 std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops);
 } // namespace utils
