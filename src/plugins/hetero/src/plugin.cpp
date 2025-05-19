@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "context.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -25,6 +24,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
+#include "remote_context.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -336,5 +336,5 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::
     for (auto device : execution_devices) {
         contexts_for_tp.insert({device, get_core()->get_default_context(device)});
     }
-    return std::make_shared<ov::hetero::HeteroContext>(contexts_for_tp);
+    return std::make_shared<ov::hetero::RemoteContext>(contexts_for_tp);
 }

@@ -7,8 +7,7 @@
 namespace ov {
 namespace hetero {
 
-HeteroRemoteTensor::HeteroRemoteTensor(std::shared_ptr<HeteroContext> context,
-                                       std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
+RemoteTensor::RemoteTensor(std::shared_ptr<RemoteContext> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
     : m_context(context),
       m_ordered_tensor(tensors) {
     for (auto& tensor : tensors) {
@@ -19,49 +18,49 @@ HeteroRemoteTensor::HeteroRemoteTensor(std::shared_ptr<HeteroContext> context,
     }
 }
 
-const std::string& HeteroRemoteTensor::get_device_name() const {
+const std::string& RemoteTensor::get_device_name() const {
     return m_context->get_device_name();
 }
 
-const ov::element::Type& HeteroRemoteTensor::get_element_type() const {
+const ov::element::Type& RemoteTensor::get_element_type() const {
     return m_tensors.begin()->second->get_element_type();
 }
 
-const ov::Strides& HeteroRemoteTensor::get_strides() const {
+const ov::Strides& RemoteTensor::get_strides() const {
     return m_tensors.begin()->second->get_strides();
 }
 
-const AnyMap& HeteroRemoteTensor::get_properties() const {
+const AnyMap& RemoteTensor::get_properties() const {
     return m_tensors.begin()->second->get_properties();
 }
 
-const ov::Shape& HeteroRemoteTensor::get_shape() const {
+const ov::Shape& RemoteTensor::get_shape() const {
     return m_tensors.begin()->second->get_shape();
 }
 
-std::shared_ptr<HeteroContext> HeteroRemoteTensor::get_context() const {
+std::shared_ptr<RemoteContext> RemoteTensor::get_context() const {
     return m_context;
 }
 
-ov::SoPtr<ov::IRemoteTensor> HeteroRemoteTensor::get_tensor(int index) const {
+ov::SoPtr<ov::IRemoteTensor> RemoteTensor::get_tensor(int index) const {
     return m_ordered_tensor[index];
 }
 
-ov::SoPtr<ov::IRemoteTensor> HeteroRemoteTensor::get_tensor_by_name(const std::string device_name) const {
+ov::SoPtr<ov::IRemoteTensor> RemoteTensor::get_tensor_by_name(const std::string device_name) const {
     return m_tensors.at(device_name);
 }
 
-void HeteroRemoteTensor::set_shape(ov::Shape shape) {
+void RemoteTensor::set_shape(ov::Shape shape) {
     for (auto it = m_tensors.begin(); it != m_tensors.end(); ++it) {
         it->second->set_shape(shape);
     }
 }
 
-void HeteroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
-                                 size_t src_offset,
-                                 size_t dst_offset,
-                                 const ov::Shape& roi_shape) const {
-    if (auto remote = std::dynamic_pointer_cast<ov::hetero::HeteroRemoteTensor>(dst)) {
+void RemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                           size_t src_offset,
+                           size_t dst_offset,
+                           const ov::Shape& roi_shape) const {
+    if (auto remote = std::dynamic_pointer_cast<ov::hetero::RemoteTensor>(dst)) {
         int i = 0;
         for (auto& tensor : m_remote_tensors) {
             auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(i)._ptr);
@@ -77,11 +76,11 @@ void HeteroRemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     }
 }
 
-void HeteroRemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
-                                   size_t src_offset,
-                                   size_t dst_offset,
-                                   const ov::Shape& roi_shape) {
-    if (auto remote = std::dynamic_pointer_cast<const ov::hetero::HeteroRemoteTensor>(src)) {
+void RemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                             size_t src_offset,
+                             size_t dst_offset,
+                             const ov::Shape& roi_shape) {
+    if (auto remote = std::dynamic_pointer_cast<const ov::hetero::RemoteTensor>(src)) {
         int i = 0;
         for (auto& tensor : m_remote_tensors) {
             auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(i)._ptr);

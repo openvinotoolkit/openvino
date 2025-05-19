@@ -7,16 +7,15 @@
 #include <map>
 #include <string>
 
-#include "context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "remote_context.hpp"
 
 namespace ov {
 namespace hetero {
 
-class HeteroRemoteTensor : public ov::IRemoteTensor {
+class RemoteTensor : public ov::IRemoteTensor {
 public:
-    HeteroRemoteTensor(std::shared_ptr<ov::hetero::HeteroContext> context,
-                       std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
+    RemoteTensor(std::shared_ptr<ov::hetero::RemoteContext> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
 
     const std::string& get_device_name() const override;
 
@@ -28,7 +27,7 @@ public:
 
     const ov::Shape& get_shape() const override;
 
-    std::shared_ptr<HeteroContext> get_context() const;
+    std::shared_ptr<RemoteContext> get_context() const;
 
     ov::SoPtr<ov::IRemoteTensor> get_tensor(int index) const;
 
@@ -47,7 +46,7 @@ public:
                    const ov::Shape& roi_shape) override;
 
 private:
-    std::shared_ptr<HeteroContext> m_context;
+    std::shared_ptr<RemoteContext> m_context;
     std::vector<ov::SoPtr<ov::IRemoteTensor>> m_ordered_tensor;
     std::map<std::string, ov::SoPtr<ov::IRemoteTensor>> m_tensors;
     std::vector<std::shared_ptr<ov::IRemoteTensor>> m_remote_tensors;

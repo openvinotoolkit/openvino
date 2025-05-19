@@ -80,7 +80,7 @@ ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<con
 
 void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                           const ov::SoPtr<ov::ITensor>& tensor) {
-    if (auto remote = std::dynamic_pointer_cast<ov::hetero::HeteroRemoteTensor>(tensor._ptr)) {
+    if (auto remote = std::dynamic_pointer_cast<ov::hetero::RemoteTensor>(tensor._ptr)) {
         auto device_name = get_request(port)->get_compiled_model()->get_context()->get_device_name();
         get_request(port)->set_tensor(port, remote->get_tensor_by_name(device_name));
     } else {

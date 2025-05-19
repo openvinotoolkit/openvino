@@ -433,6 +433,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
+    if (!(m_configs_map.find(device_id) != m_configs_map.end())) {
+        std::cout << "m_configs_map.find(device_id) != m_configs_map.end()\n";
+    }
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);

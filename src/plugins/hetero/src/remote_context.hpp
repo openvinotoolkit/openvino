@@ -10,11 +10,11 @@
 
 namespace ov {
 namespace hetero {
-class HeteroContext : public ov::IRemoteContext {
+class RemoteContext : public ov::IRemoteContext {
 public:
-    using Ptr = std::shared_ptr<HeteroContext>;
+    using Ptr = std::shared_ptr<RemoteContext>;
 
-    HeteroContext(std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts);
+    RemoteContext(std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts);
 
     const std::string& get_device_name() const override;
     const ov::AnyMap& get_property() const override;
@@ -24,7 +24,7 @@ public:
                                                const ov::AnyMap& params) override;
 
 private:
-    std::shared_ptr<HeteroContext> get_this_shared_ptr();
+    std::shared_ptr<RemoteContext> get_this_shared_ptr();
     std::map<std::string, ov::SoPtr<ov::IRemoteContext>> m_contexts;
 };
 
