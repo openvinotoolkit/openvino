@@ -68,6 +68,12 @@ public:
     explicit DQMatMulCWi(Context::Ref ctx);
 };
 
+class DQMatMulCWi_Transpose : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi_Transpose");
+    explicit DQMatMulCWi_Transpose(Context::Ref ctx);
+};
+
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQi");
