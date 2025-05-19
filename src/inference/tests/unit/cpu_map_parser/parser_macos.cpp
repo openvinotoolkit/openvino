@@ -52,11 +52,11 @@ public:
 };
 
 MacOSCpuMapTestCase test_case_arm_1 = {
-    8,                     // param[expected out]: total 8 logcial processors on this simulated platform
-    1,                     // param[expected out]: total 1 numa nodes on this simulated platform
-    1,                     // param[expected out]: total 1 sockets on this simulated platform
-    8,                     // param[expected out]: total 8 CPU cores on this simulated platform
-    {{8, 4, 4, 0, 0, 0}},  // param[expected out]: The proc_type_table of this simulated platform
+    8,                        // param[expected out]: total 8 logcial processors on this simulated platform
+    1,                        // param[expected out]: total 1 numa nodes on this simulated platform
+    1,                        // param[expected out]: total 1 sockets on this simulated platform
+    8,                        // param[expected out]: total 8 CPU cores on this simulated platform
+    {{8, 4, 4, 0, 0, 0, 0}},  // param[expected out]: The proc_type_table of this simulated platform
     {
         {"hw.ncpu", 8},
         {"hw.physicalcpu", 8},
@@ -71,7 +71,7 @@ MacOSCpuMapTestCase test_case_arm_2 = {
     1,
     1,
     8,
-    {{8, 4, 4, 0, 0, 0}},
+    {{8, 4, 4, 0, 0, 0, 0}},
     {
         {"hw.ncpu", 8},
         {"hw.physicalcpu", 8},
@@ -84,7 +84,7 @@ MacOSCpuMapTestCase test_case_arm_3 = {
     1,
     1,
     8,
-    {{8, 4, 4, 0, 0, 0}},
+    {{8, 4, 4, 0, 0, 0, 0}},
     {
         {"hw.ncpu", 8},
         {"hw.optional.arm64", 1},
@@ -96,7 +96,7 @@ MacOSCpuMapTestCase test_case_x86_1 = {
     1,
     1,
     6,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {{"hw.ncpu", 12}, {"hw.physicalcpu", 6}},
 };
 
@@ -105,7 +105,7 @@ MacOSCpuMapTestCase test_case_x86_2 = {
     1,
     1,
     12,
-    {{12, 12, 0, 0, 0, 0}},
+    {{12, 12, 0, 0, 0, 0, 0}},
     {{"hw.ncpu", 12}},
 };
 

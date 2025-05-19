@@ -11,8 +11,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -34,7 +35,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 
@@ -52,7 +53,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset1::PriorBox>(input, image, attrs);
 
-        model_ref = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model_ref = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
     }
 }
 
@@ -72,7 +73,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 }

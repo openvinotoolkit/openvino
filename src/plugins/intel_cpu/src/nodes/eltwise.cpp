@@ -26,13 +26,8 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_left_shift.hpp"
-#include "openvino/op/bitwise_not.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_right_shift.hpp"
-#include "openvino/op/bitwise_xor.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/ops.hpp"
 #include "pooling.h"
 #include "selective_build.h"
 #include "shape_inference/custom/eltwise.hpp"
@@ -73,8 +68,8 @@ using namespace dnnl::impl::cpu::aarch64;
 namespace ov::intel_cpu::node {
 
 Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op) {
-    const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(0));
-    const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+    const auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     int constPort = -1;
     if (const2) {
         constPort = 1;
@@ -156,8 +151,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseIsInf;
              const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
-             node.alpha = attributes.detect_negative;
-             node.beta = attributes.detect_positive;
+             node.alpha = static_cast<float>(attributes.detect_negative);
+             node.beta = static_cast<float>(attributes.detect_positive);
         }},
         {ov::op::v10::IsNaN::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseIsNaN;
@@ -808,6 +803,7 @@ public:
 
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (!one_of(algorithm,
+                    Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
@@ -2372,7 +2368,12 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
     }
 // Convert can be fused into Eltwise only if jit implementation is supported
 #if defined(OPENVINO_ARCH_ARM64)
-    return EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
+    return EltwiseJitExecutor::isSupportedOp(this,
+                                             getAlpha(),
+                                             getBeta(),
+                                             getGamma(),
+                                             {},
+                                             {convertNode->getOriginalOutputPrecisionAtPort(0)});
 #else
     return false;
 #endif

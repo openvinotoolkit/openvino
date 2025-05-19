@@ -286,6 +286,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::brgconv_avx2_dw,
         impl_desc_type::brgconv_avx2_1x1,
         impl_desc_type::brgconv_avx2,
+        impl_desc_type::jit_avx2_1x1_dw,
         impl_desc_type::jit_uni_dw,
         impl_desc_type::jit_uni_1x1,
         impl_desc_type::jit_uni,
@@ -317,7 +318,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();
@@ -338,9 +339,11 @@ void Convolution::selectOptimalPrimitiveDescriptor() {
     }
 }
 
-static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape& sumShape) {
+static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
+                                   const Shape& sumShape,
+                                   ov::element::Type sumPrecision) {
     if (outputDesc->getShape().isStatic()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     // When we set the input shape with ranged dimensions, the sum node's input shape may mismatch with the output
@@ -348,7 +351,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
     // {128, 256}} Sum input shape = {1, 160, 1, 1} Update sum shape to {1, 160, {1, 256}, {1, 256}}
     const auto& shape = outputDesc->getShape();
     if (shape.getRank() != sumShape.getRank()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     const auto& sumDims = sumShape.getDims();
@@ -363,7 +366,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
 
     auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
-    return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
+    return std::make_shared<CpuBlockedMemoryDesc>(sumPrecision,
                                                   Shape(minDims, maxDims),
                                                   blockedOutputDesc->getBlockDims(),
                                                   blockedOutputDesc->getOrder(),
@@ -391,11 +394,9 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
     return {srcDescs, dstDesc};
 }
 
-ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDescArgs& descs,
-                                                                 const ConvAttrs& attrs,
-                                                                 const PostOps& postOps) {
+ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDescArgs& descs, const ConvAttrs& attrs) {
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    return std::make_shared<ExecutorFactory<ConvAttrs>>(attrs, postOps, executionContext, descs, memoryFormatFilter);
+    return std::make_shared<ExecutorFactory<ConvAttrs>>(attrs, executionContext, descs, memoryFormatFilter);
 }
 
 std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecision() {
@@ -466,7 +467,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     const auto [dstType, sumType] = getDstAndSumPrecision();
 
-    m_postOps = getPostOps(fusedWith, sumType);
+    m_attrs.postOps = getPostOps(fusedWith, sumType);
 
     auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
@@ -477,7 +478,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDesc},
     };
 
-    m_factory = createExecutorFactory(descs, m_attrs, m_postOps);
+    m_factory = createExecutorFactory(descs, m_attrs);
 
     const std::vector<MemoryDescArgs> nodeDescriptorsList = m_factory->getProperMemoryDescriptors(descs);
 
@@ -493,9 +494,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         for (const auto& desc : nodeDescriptors) {
-            if (m_atoi.count(desc.first)) {
+            if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
                 const auto& inputDesc = desc.second;
-                nodeConfig.inConfs[m_atoi[desc.first]] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
+                nodeConfig.inConfs[it->second] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
             }
         }
 
@@ -527,10 +528,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         }
 
         if (withSum) {
-            nodeConfig.inConfs.emplace_back(
-                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1)),
-                BlockedMemoryDesc::FULL_MASK,
-                -1);
+            auto sumDesc =
+                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1), sumType);
+            nodeConfig.inConfs.emplace_back(sumDesc, BlockedMemoryDesc::FULL_MASK, -1);
         }
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
@@ -635,7 +635,8 @@ ExecutorPtr Convolution::createFallbackExecutor() {
         return fallbackExecutor;
     }
 
-    PostOps fallbackPostOps = m_postOps;
+    ConvAttrs fallbackAttrs = m_attrs;
+    PostOps& fallbackPostOps = fallbackAttrs.postOps;
     // remove sum post-op from fallback post-ops
     auto sumPostOp =
         std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
@@ -644,7 +645,8 @@ ExecutorPtr Convolution::createFallbackExecutor() {
 
     fallbackPostOps.erase(sumPostOp, fallbackPostOps.end());
 
-    CPU_NODE_ASSERT(fallbackPostOps.size() < m_postOps.size(), "Unexpected post-ops size after sum post-op removal");
+    CPU_NODE_ASSERT(fallbackPostOps.size() < m_attrs.postOps.size(),
+                    "Unexpected post-ops size after sum post-op removal");
 
     auto dstType = getOriginalInputPrecisionAtPort(0);
 
@@ -661,7 +663,7 @@ ExecutorPtr Convolution::createFallbackExecutor() {
         {ARG_DST, dstDesc},
     };
 
-    auto fallbackFactory = createExecutorFactory(descs, m_attrs, fallbackPostOps);
+    auto fallbackFactory = createExecutorFactory(descs, fallbackAttrs);
     fallbackExecutor = fallbackFactory->make(m_memory);
     return fallbackExecutor;
 }

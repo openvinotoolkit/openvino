@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::test;
 

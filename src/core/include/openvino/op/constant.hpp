@@ -468,20 +468,32 @@ private:
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
-    template <class U,
-              class ConstantT,
-              typename std::enable_if<!std::is_unsigned<ConstantT>::value &&
-                                      !std::is_same<U, ConstantT>::value>::type* = nullptr>
+    template <class U, class ConstantT, std::enable_if_t<!std::is_same_v<U, ConstantT>>* = nullptr>
     static bool in_type_range(const ConstantT v) {
-        return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
-    }
-
-    template <class U,
-              class ConstantT,
-              typename std::enable_if<std::is_unsigned<ConstantT>::value && !std::is_same<U, ConstantT>::value>::type* =
-                  nullptr>
-    static bool in_type_range(const ConstantT v) {
-        return v <= std::numeric_limits<U>::max();
+        if constexpr (std::is_unsigned_v<ConstantT> && std::is_integral_v<U>) {
+            if constexpr (std::numeric_limits<ConstantT>::max() < std::numeric_limits<U>::max()) {
+                return true;
+            } else {
+                return v <= std::numeric_limits<U>::max();
+            }
+        } else if constexpr (std::is_unsigned_v<ConstantT>) {
+            return v <= std::numeric_limits<U>::max();
+        } else if constexpr (std::is_integral_v<ConstantT> && std::is_integral_v<U>) {
+            if constexpr (std::numeric_limits<U>::lowest() < std::numeric_limits<ConstantT>::lowest() &&
+                          std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
+                return true;
+            } else if constexpr (std::numeric_limits<ConstantT>::lowest() < std::numeric_limits<U>::lowest() &&
+                                 std::numeric_limits<U>::max() <= std::numeric_limits<ConstantT>::max()) {
+                return std::numeric_limits<U>::lowest() <= v;
+            } else if constexpr (std::numeric_limits<ConstantT>::lowest() >= std::numeric_limits<U>::lowest() &&
+                                 std::numeric_limits<U>::max() > std::numeric_limits<ConstantT>::max()) {
+                return v <= std::numeric_limits<U>::max();
+            } else {
+                return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+            }
+        } else {
+            return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+        }
     }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
@@ -491,7 +503,7 @@ private:
 #    pragma warning(pop)
 #endif
 
-    template <class U, class ConstantT, typename std::enable_if<std::is_same<U, ConstantT>::value>::type* = nullptr>
+    template <class U, class ConstantT, std::enable_if_t<std::is_same_v<U, ConstantT>>* = nullptr>
     static constexpr bool in_type_range(const ConstantT) {
         return true;
     }

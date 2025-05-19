@@ -24,13 +24,17 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Openvino_tokenizers:
@@ -87,7 +91,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -130,7 +134,7 @@ jobs:
 
       - name: Upload OpenVINO tokenizers wheel
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl

@@ -55,7 +55,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto round = std::make_shared<op::v5::Round>(in, op::v5::Round::RoundMode::HALF_TO_EVEN);
-        return std::make_shared<Model>(NodeVector{round}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{round}, ParameterVector{in});
     }
 };
 
@@ -82,7 +82,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto round = std::make_shared<op::v5::Round>(in, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-        return std::make_shared<Model>(NodeVector{round}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{round}, ParameterVector{in});
     }
 };
 

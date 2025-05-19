@@ -8,7 +8,6 @@
 
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
-#include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/rms.hpp"

@@ -10,10 +10,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
@@ -40,7 +41,7 @@ public:
 
             auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
 
-            model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
             manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
             manager.register_pass<pass::ConstantFolding>();
@@ -54,7 +55,7 @@ public:
                 scores,
                 opset8::MatrixNms::Attributes());
 
-            model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
         }
         ASSERT_EQ(model->get_output_element_type(0), model_ref->get_output_element_type(0))
             << "Output element type mismatch " << model->get_output_element_type(0).get_type_name() << " vs "
