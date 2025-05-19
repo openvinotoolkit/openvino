@@ -1033,16 +1033,22 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             kernels_data.push_back(kv_cache_rotate_kernel_selector.get_best_kernel(kv_cache_rotate_kernel_params));
         }
 
+        auto is_sdpa_micro = [](const kernel_selector::kernel_data& kd) -> bool {
+            OPENVINO_ASSERT(kd.kernels.size() != 0);
+            return !kd.kernels[0].micro_kernels.empty();
+        };
+
         // If sdpa_micro kernel is supported, create both sdpa and sdpa_micro kernels
         // And add sdpa_micro kernel to the end of the kernels_data vector
-        if (sdpa_kernel_params.conf.paged_attention_sliding_window == 0 && !kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()) {
-            sdpa_kernel_params.conf.paged_attention_sliding_window = 1024;
+        if (sdpa_kernel_params.conf.paged_attention_sliding_window == 0 && is_sdpa_micro(kernels_data[Stage::SDPA])) {
+            sdpa_kernel_params.conf.paged_attention_sliding_window = std::numeric_limits<size_t>::max();
             kernels_data.push_back(sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params));
+            OPENVINO_ASSERT(kernels_data.size() > 1);
             std::swap(kernels_data[Stage::SDPA], kernels_data[kernels_data.size() - 1]); // Move sdpa_micro to the end of the vector.
-        } else if (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 && kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()) {
+        } else if (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 && !is_sdpa_micro(kernels_data[Stage::SDPA])) {
             sdpa_kernel_params.conf.paged_attention_sliding_window = 0;
             auto sdpa_micro = sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params);
-            if (!sdpa_micro.kernels[0].micro_kernels.empty()) {
+            if (is_sdpa_micro(sdpa_micro)) {
                 kernels_data.push_back(sdpa_micro);
             }
         }
