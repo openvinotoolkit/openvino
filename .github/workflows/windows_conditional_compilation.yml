@@ -179,6 +179,7 @@ jobs:
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_FASTER_BUILD=ON `
+            -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
