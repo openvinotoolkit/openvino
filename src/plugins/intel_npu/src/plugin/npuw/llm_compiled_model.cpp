@@ -665,6 +665,8 @@ public:
         auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
         // Matmul -> Transpose -> Result
         auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+        //  Matmul -> Convert -> Result
+        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
         // MatMul -> Divide -> Tanh -> Multiply -> Result
         auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
         auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
@@ -672,7 +674,8 @@ public:
 
         auto last_op = std::make_shared<ov::pass::pattern::op::Or>(
             ov::OutputVector{matmul->output(0), matmul_add->output(0),
-                             matmul_transpose->output(0), matmul_multiply->output(0)});
+                             matmul_transpose->output(0), matmul_convert->output(0),
+                             matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -685,6 +688,8 @@ public:
                 matched_node_last_op = node_to_output.at(matmul_add).get_node_shared_ptr();
             } else if (node_to_output.count(matmul_transpose)) {
                 matched_node_last_op = node_to_output.at(matmul_transpose).get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_convert)) {
+                matched_node_last_op = node_to_output.at(matmul_convert).get_node_shared_ptr();
             } else if (node_to_output.count(matmul_multiply)) {
                 matched_node_last_op = node_to_output.at(matmul_multiply).get_node_shared_ptr();
             } else {
