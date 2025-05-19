@@ -2498,7 +2498,8 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
-                    auto score_block_ptr = score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
+                    auto score_block_ptr =
+                        score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
                     cvt_add(score_block_ptr,
                             score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
@@ -2670,7 +2671,8 @@ struct MHAHelper {
                 }
                 if (score_output && m >= q_start_idx_score) {
                     // TODO: add sve opt code
-                    auto score_block_ptr = score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
+                    auto score_block_ptr =
+                        score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
                     cvt_add(score_block_ptr,
                             score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
