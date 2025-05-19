@@ -323,7 +323,17 @@ class Compiler {
         LOG_INFO("Online partitioning: compiling single group pipeline...");
         LOG_BLOCK();
 
-        m_snapshot->singleGroup();
+        // Note: Assuming the context was set with minimum graph size = 1
+        // Note: If there are avoids present there will be multiple groups formed instead of 1
+        m_snapshot->earlyAvoids();
+        m_snapshot->repeat([&] {
+            m_snapshot->repeat([&] {
+                m_snapshot->collectLHF();
+            });
+            m_snapshot->repeat([&] {
+                m_snapshot->fuseRemnantsExtended();
+            });
+        });
 
         LOG_INFO("Done");
     }
@@ -387,11 +397,6 @@ public:
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
-        if (currentPipeline() == Pipeline::NONE) {
-            none();
-            return;
-        }
-
         // Parse OV Model into internal data structures. After this
         // stage each layer = it's own group (excluding Parameters,
         // Results, Constants and Converts).
@@ -410,7 +415,11 @@ public:
 
         switch (currentPipeline()) {
         case Pipeline::NONE:
-            break;  // unreachable
+            // Allow partitioning to merge everything into a single group
+            ctx.min_graph_size = 1;
+            m_snapshot->setCtx(ctx);
+            none();
+            break;
         case Pipeline::INIT:
             init();
             break;
