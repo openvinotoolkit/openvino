@@ -26,10 +26,11 @@ public:
 };
 
 /**
- * @brief Returns default 2D subtensor filled with FULL_DIM values.
+ * @brief Returns default subtensor with passed rank filled with FULL_DIM values.
+ * @param rank rank of subtensor
  * @return default subtensor
  */
-ov::snippets::VectorDims get_default_subtensor();
+ov::snippets::VectorDims get_default_subtensor(size_t rank = 2);
 
 /**
  * @brief Inits input and output descriptors, and sets them to expression and its ov::Node.

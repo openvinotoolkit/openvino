@@ -514,11 +514,11 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           getConstantInputIndexes());
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                           getConstantInputIndexes(),
                                            cpu_config->repacked_input_config,
                                            repacked_constant_input_config);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);

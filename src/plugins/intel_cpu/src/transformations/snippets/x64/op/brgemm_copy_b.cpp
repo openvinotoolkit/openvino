@@ -19,7 +19,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, config.with_compensations() ? 2 : 1),
       op::Op({x}),
-      m_config(std::move(config)),
+      m_config(config),
       m_src_type(src_type) {
     set_output_size(m_config.with_compensations() ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
@@ -39,9 +39,9 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, config.with_compensations() ? 2 : 1),
       op::Op({x}),
-      m_config(std::move(config)),
+      m_config(config),
       m_src_type(src_type) {
-    set_output_size(config.with_compensations() ? 2 : 1);
+    set_output_size(m_config.with_compensations() ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
     if (m_config.with_compensations()) {

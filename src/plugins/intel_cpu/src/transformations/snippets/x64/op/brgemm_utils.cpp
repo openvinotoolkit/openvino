@@ -21,47 +21,58 @@ namespace ov {
 
 namespace intel_cpu::brgemm_utils {
 
-BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, bool transposed_b) {
+BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt,
+                           const ov::element::Type& wei_dt,
+                           bool are_wei_constant,
+                           bool transposed_b)
+    : BrgemmConfig(get_prim_isa(src_dt, wei_dt), src_dt, wei_dt, are_wei_constant, transposed_b) {}
+
+BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
+                           const ov::element::Type& src_dt,
+                           const ov::element::Type& wei_dt,
+                           bool are_wei_constant,
+                           bool transposed_b)
+    : m_isa(isa),
+      m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
+      m_are_wei_constant(are_wei_constant),
+      m_are_wei_blocked(m_are_wei_constant),
+      m_wei_k_blk(brgemm_utils::get_elems_in_vec(wei_dt)) {
+    const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
+
+    // FC always requires weight repacking
+    m_with_wei_repacking = !is_fp32 || transposed_b || m_are_wei_constant || m_are_wei_blocked;
+
+    // TODO: Add more logic based on shapes and prc
+    m_wei_n_blk = is_superset(m_isa, avx512_core) || !is_fp32 ? 64 : 24;
+
+    validate();
+}
+
+dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Type& src_dt,
+                                                           const ov::element::Type& wei_dt) {
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
     const auto is_fp16 = src_dt == ov::element::f16 && wei_dt == ov::element::f16;
     const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
     const auto is_int8 = utils::one_of(src_dt, ov::element::i8, ov::element::u8) && wei_dt == ov::element::i8;
     OPENVINO_ASSERT(is_fp32 || is_fp16 || is_bf16 || is_int8, "Incorrect configuration");
 
-    // Init ISA
     if (is_bf16) {
-        m_isa = mayiuse(avx512_core_amx) ? avx512_core_amx : mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa_undef;
-    } else if (is_fp16) {
-        m_isa = mayiuse(avx512_core_amx_fp16) ? avx512_core_amx : isa_undef;
-    } else if (is_int8) {
-        m_isa = mayiuse(avx512_core_amx)    ? avx512_core_amx
-                : mayiuse(avx512_core_vnni) ? avx512_core_vnni
-                : mayiuse(avx2_vnni_2)      ? avx2_vnni_2
-                : mayiuse(avx2_vnni)        ? avx2_vnni
-                                            : isa_undef;
-    } else if (is_fp32) {
-        m_isa = mayiuse(avx512_core) ? avx512_core : mayiuse(cpu::x64::avx2) ? cpu::x64::avx2 : isa_undef;
+        return mayiuse(avx512_core_amx) ? avx512_core_amx : mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa_undef;
     }
-    OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined!");
 
-    // FC always requires weight repacking
-    m_with_wei_repacking = !is_fp32 || transposed_b;
-    m_with_compensations = src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2);
-    m_with_wsp = is_amx();
+    if (is_fp16) {
+        return mayiuse(avx512_core_amx_fp16) ? avx512_core_amx_fp16 : isa_undef;
+    }
 
-    validate();
-}
+    if (is_int8) {
+        return mayiuse(avx512_core_amx)    ? avx512_core_amx
+               : mayiuse(avx512_core_vnni) ? avx512_core_vnni
+               : mayiuse(avx2_vnni_2)      ? avx2_vnni_2
+               : mayiuse(avx2_vnni)        ? avx2_vnni
+                                           : isa_undef;
+    }
 
-BrgemmConfig::BrgemmConfig(cpu_isa_t isa,
-                           const ov::element::Type& wei_dt,
-                           bool with_wei_repacking,
-                           bool with_compensations,
-                           bool with_wsp)
-    : m_isa(isa),
-      m_with_wei_repacking(with_wei_repacking),
-      m_with_compensations(with_compensations),
-      m_with_wsp(with_wsp) {
-    validate();
+    return mayiuse(avx512_core) ? avx512_core : mayiuse(cpu::x64::avx2) ? cpu::x64::avx2 : isa_undef;
 }
 
 bool BrgemmConfig::is_amx() const {
@@ -70,9 +81,9 @@ bool BrgemmConfig::is_amx() const {
 
 void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
-    OPENVINO_ASSERT(IMPLICATION(m_with_wsp, is_amx()), "Scratchpad with empty memory is withed only for AMX");
     OPENVINO_ASSERT(IMPLICATION(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
+    OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
 }
 
 size_t compute_vnni_factor(const ov::element::Type& precision) {
@@ -89,39 +100,13 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_inner_n_block(const ov::element::Type& precision) {
-    switch (precision) {
-    case element::i8:
-        return 64;
-    case element::bf16:
-    case element::f16:
-        return 32;
-    case element::f32:
-        return 16;
-    default:
-        OPENVINO_THROW("BrgemmCopyB doesn't support precision ", precision);
-    }
-}
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K, size_t N, size_t wei_k_blk, size_t wei_n_blk) {
+    OPENVINO_ASSERT(
+        !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
+        "wei_k_blk and wei_n_blk cannot be dynamic");
 
-size_t compute_inner_k_block(const ov::element::Type& precision) {
-    return brgemm_utils::get_elems_in_vec(precision);
-}
-
-ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
-                                                           size_t N,
-                                                           const ov::element::Type& prc,
-                                                           bool is_transposed) {
-    const size_t new_N = compute_repacked_n_dim(N, prc);
-    //  - In case of transpose, K dimension must be rounded-up to number of elems in vector register
-    //    For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
-    //    onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-    //  - Low precision repacking writes the result by VNNIFactor * wei_n_blk blocks
-    //    despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
-    //    have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
-    //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-    const size_t K_alignment =
-        is_transposed ? brgemm_utils::get_elems_in_vec(prc) : brgemm_utils::compute_vnni_factor(prc);
-    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, K_alignment), new_N, K_alignment};
+    const size_t new_N = compute_blocked_dim(N, wei_n_blk);
+    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, wei_k_blk), new_N, wei_k_blk};
 }
 
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
@@ -147,13 +132,17 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
 bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attributes(AttributeVisitor& visitor) {
     bool with_wei_repacking = m_ref.with_wei_repacking();
     bool with_comps = m_ref.with_compensations();
-    bool with_wsp = m_ref.with_wsp();
-    std::string isa = isa2str(m_ref.isa());
+    bool is_amx = m_ref.is_amx();
+    std::string isa = JIT_IMPL_NAME_HELPER("", m_ref.isa(), "");
+    size_t wei_n_blk = m_ref.wei_n_blk();
+    size_t wei_k_blk = m_ref.wei_k_blk();
 
     visitor.on_attribute("with_brgemm_copy_b", with_wei_repacking);
     visitor.on_attribute("with_compensations", with_comps);
-    visitor.on_attribute("with_wsp", with_wsp);
+    visitor.on_attribute("is_amx", is_amx);
     visitor.on_attribute("prim_isa", isa);
+    visitor.on_attribute("wei_n_blk", wei_n_blk);
+    visitor.on_attribute("wei_k_blk", wei_k_blk);
     return true;
 }
 }  // namespace ov
