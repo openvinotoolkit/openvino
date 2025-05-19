@@ -102,7 +102,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         // than the actual number of Constants during tokenization.
         // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
         // we should calculate potential number of non-scalar Constants that will be moved up from body.
-        size_t hidden_virtual_ports_count = 0;
         // Heuiristic count of possible buffers - upper-bound value
         const size_t uniqie_buffer_reg_group_count = 2;
         std::string fused_names;
@@ -137,7 +136,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         // Add possible FQ before matmul0
         if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->input_value(0).get_node_shared_ptr())) {
             if (has_one_consumer(fq)) {
-                hidden_virtual_ports_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
+                potential_body_params_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
                 ordered_ops.push_back(fq);
             }
         }
@@ -150,7 +149,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
 
         while (has_one_consumer(prev_op)) {
             auto possible_param_count = potential_body_params_count;
-            auto possible_hidden_virtual_ports_count = hidden_virtual_ports_count;
+            auto possible_potential_body_params_count = potential_body_params_count;
 
             if (is_matmul_supported(interm_op) && !transformation_callback(interm_op)) {
                 // +1 for weights
@@ -158,7 +157,8 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             } else if (is_supported_intermediate_op(interm_op)) {
                 possible_param_count += get_potential_body_params(interm_op);
                 if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->input_value(0).get_node_shared_ptr())) {
-                    possible_hidden_virtual_ports_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
+                    possible_potential_body_params_count +=
+                        ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
                 }
             } else {
                 // Unsupported op
@@ -167,7 +167,8 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
 
             // TODO [75567]: move this plugin-specific constraint to the plugin callback
             // +1 - for result
-            if (possible_param_count + possible_hidden_virtual_ports_count + uniqie_buffer_reg_group_count + 1 > available_regs)
+            if (possible_param_count + possible_potential_body_params_count + uniqie_buffer_reg_group_count + 1 >
+                available_regs)
                 break;
 
             ordered_ops.push_back(interm_op);
@@ -176,7 +177,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
 
             // Move counts
             potential_body_params_count = possible_param_count;
-            hidden_virtual_ports_count = possible_hidden_virtual_ports_count;
+            potential_body_params_count = possible_potential_body_params_count;
         }
 
         // Currently, sequence of MLP should contain 2 MatMuls at least
