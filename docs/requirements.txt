@@ -20,7 +20,7 @@ MarkupSafe==2.1.1
 mistune==2.0.3
 myst-parser==2.0.0
 packaging==23.0
-pluggy==0.13.1
+pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.15.1
 pyparsing==3.0.9
