@@ -5,9 +5,16 @@
 
 set(TARGET_NAME protopipe)
 
-set(VERSION_MAJOR 1)
-set(VERSION_MINOR 0)
-set(VERSION_PATCH 0)
+if (NOT DEFINED PROJECT_NAME)
+    set(STANDALONE true)
+endif()
+
+# Enable CMP0048 policy
+if(POLICY CMP0048)
+    cmake_policy(SET CMP0048 NEW)
+endif()
+
+project(protopipe VERSION 1.0.0)
 
 execute_process(
   COMMAND git rev-parse --short HEAD
@@ -16,20 +23,17 @@ execute_process(
 )
 
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in
-  ${CMAKE_CURRENT_BINARY_DIR}/version.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/version/version.hpp
   @ONLY
 )
-# Include the generated file
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-if (NOT DEFINED PROJECT_NAME)
+if (STANDALONE)
     if(WIN32)
         cmake_minimum_required(VERSION 3.16)
     else()
         cmake_minimum_required(VERSION 3.13)
     endif()
-    project(protopipe_standalone)
     include("cmake/standalone.cmake")
     return()
 endif()
@@ -70,7 +74,7 @@ ov_add_target(ADD_CPPLINT
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               ADDITIONAL_SOURCE_DIRS ${PROTOPIPE_SOURCE_DIR}
-              INCLUDES ${PROTOPIPE_SOURCE_DIR}
+              INCLUDES ${PROTOPIPE_SOURCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/version"
               LINK_LIBRARIES PRIVATE ${DEPENDENCIES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
