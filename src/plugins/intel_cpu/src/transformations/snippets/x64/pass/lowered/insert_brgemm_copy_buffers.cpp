@@ -69,7 +69,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
 
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(src_dt);
         OPENVINO_ASSERT(vnni_factor > 0, "vnni_factor cannot be zero!");
-        const auto inner_k_blk = brgemm_utils::repacking::compute_inner_k_block(src_dt);
+        const auto inner_k_blk = ov::as_type_ptr<BrgemmCPU>(brgemm_expr->get_node())->get_config().wei_k_blk();
         OPENVINO_ASSERT(inner_k_blk > 0, "inner_k_blk cannot be zero!");
         const auto tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
         const auto current_scratch_size = scratch_expr->get_byte_size();

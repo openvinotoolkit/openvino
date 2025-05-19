@@ -23,10 +23,14 @@ namespace intel_cpu::brgemm_utils {
 class BrgemmConfig {
 public:
     BrgemmConfig() = default;
-    BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, bool transposed_b);
+    BrgemmConfig(const ov::element::Type& src_dt,
+                 const ov::element::Type& wei_dt,
+                 bool are_wei_constant,
+                 bool transposed_b);
     BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
                  const ov::element::Type& src_dt,
                  const ov::element::Type& wei_dt,
+                 bool are_wei_constant,
                  bool transposed_b);
 
     dnnl::impl::cpu::x64::cpu_isa_t isa() const {
@@ -42,6 +46,19 @@ public:
     bool with_scratchpad() const {
         return is_amx() || with_compensations();
     }
+    bool are_wei_blocked() const {
+        return m_are_wei_blocked;
+    }
+    bool are_wei_constant() const {
+        return m_are_wei_constant;
+    }
+
+    size_t wei_n_blk() const {
+        return m_wei_n_blk;
+    }
+    size_t wei_k_blk() const {
+        return m_wei_k_blk;
+    }
 
 private:
     void validate() const;
@@ -52,6 +69,18 @@ private:
     dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
     bool m_with_wei_repacking = false;
     bool m_with_compensations = false;
+    bool m_are_wei_constant = false;
+    /* Currently we support the following representations of weights:
+     *  - planar - ab
+     *  - planar with inner K blocking for low precision - Ab<vnni_factor>a
+     *  - blocked - BA<wei_k_blk>a<m_wei_n_blk>b<vnni_factor>a (if there is vnni)
+     *  "Blocked" weight-format helps to achieve better cache-locality - LDB is equal to <m_wei_n_blk>.
+     * Note: FC requires blocked by N weights for better cache-locality (small LDB).
+     *       In MatMul scenario it might leads to perf degradation.
+     */
+    bool m_are_wei_blocked = false;
+    size_t m_wei_n_blk = 0lu;
+    size_t m_wei_k_blk = 0lu;
 };
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision
@@ -79,23 +108,24 @@ inline bool is_i8_supported() {
 }
 
 namespace repacking {
-/// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
-size_t compute_inner_n_block(const ov::element::Type& precision);
-/// \brief  Computes inner K block size used by OneDNN implementation. Depends on tensor precision
-size_t compute_inner_k_block(const ov::element::Type& precision);
-
-/// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
+/// \brief  Computes Blocked (N/K) dim in output blocked shape of BrgemmCopyB
 template <typename T,
           typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
-inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
-    return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
+inline T compute_blocked_dim(T dim, size_t blk) {
+    assert(!ov::snippets::utils::is_dynamic_value(blk) && "blk cannot be dynamic");
+    return ov::snippets::utils::rnd_up(dim, static_cast<T>(blk));
+}
+
+/// \brief  Computes LDB
+template <typename T,
+          typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+inline T compute_LDB(T n, size_t wei_n_blk, bool are_wei_blocked) {
+    assert(!ov::snippets::utils::is_dynamic_value(wei_n_blk) && "wei_n_blk cannot be dynamic");
+    return are_wei_blocked ? wei_n_blk : compute_blocked_dim(n, wei_n_blk);
 }
 
 /// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm
-ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
-                                                           size_t N,
-                                                           const ov::element::Type& prc,
-                                                           bool is_transposed);
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K, size_t N, size_t wei_k_blk, size_t wei_n_blk);
 
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU

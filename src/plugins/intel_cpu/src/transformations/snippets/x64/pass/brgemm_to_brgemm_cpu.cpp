@@ -15,6 +15,7 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
@@ -43,17 +44,24 @@ void set_full_port_desc(const T& port) {
 }
 }  // namespace
 
-pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
-    MATCHER_SCOPE(BrgemmToBrgemmCPU);
+bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(BrgemmToBrgemmCPU);
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
+
     auto is_not_tpp = [](const Output<Node>& out) {
         return !std::dynamic_pointer_cast<const intel_cpu::tpp::modifier::TensorProcessingPrimitive>(
             out.get_node_shared_ptr());
     };
     auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>(is_not_tpp);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm);
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
-        const auto node = m.get_match_root();
+    bool status = false;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (!matcher->match(n)) {
+            continue;
+        }
+
+        const auto node = matcher->get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
         if (!brgemm || brgemm_plugin) {
@@ -68,11 +76,25 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         auto layout_b = brgemm_in1_desc->get_layout();
         auto layout_c = brgemm_out_desc->get_layout();
 
-        const auto element_type_a = brgemm->get_input_element_type(0);
-        const auto element_type_b = brgemm->get_input_element_type(1);
+        const auto etype_a = brgemm->get_input_element_type(0);
+        const auto etype_b = brgemm->get_input_element_type(1);
+
+        bool are_wei_constant = false;
+        auto brgemm_parent_1 = brgemm->input_value(1).get_node_shared_ptr();
+        const auto shape_infer_leaf =
+            ov::snippets::utils::get_leaf_node_of_first_parent_shape_infer_seq(brgemm_parent_1);
+        if (shape_infer_leaf) {
+            brgemm_parent_1 = shape_infer_leaf->input_value(0).get_node_shared_ptr();
+        }
+        if (const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(brgemm_parent_1)) {
+            const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
+            OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
+                            "Parameter index is invalid in EliminateBrgemmCopyB transformation");
+            are_wei_constant = m_constant_inputs_idxs.count(param_idx) > 0;
+        }
 
         const bool transpose_b = BrgemmCopyB::is_transposed(layout_b);
-        const auto brgemm_config = brgemm_utils::BrgemmConfig(element_type_a, element_type_b, transpose_b);
+        const auto brgemm_config = brgemm_utils::BrgemmConfig(etype_a, etype_b, are_wei_constant, transpose_b);
 
         auto offset_a = brgemm->get_offset_a();
         auto offset_b = brgemm->get_offset_b();
@@ -85,8 +107,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         std::shared_ptr<BrgemmCopyB> brgemm_copy_b = nullptr;
 
         if (brgemm_config.with_wei_repacking()) {
-            brgemm_copy_b =
-                std::make_shared<BrgemmCopyB>(brgemm_in1, element_type_a, brgemm_config, offset_b, 0, 0, layout_b);
+            brgemm_copy_b = std::make_shared<BrgemmCopyB>(brgemm_in1, etype_a, brgemm_config, offset_b, 0, 0, layout_b);
             PortDescriptorUtils::set_port_descriptor(brgemm_copy_b->input(0),
                                                      brgemm_in1_desc->get_subtensor(),
                                                      layout_b);
@@ -145,10 +166,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_cpu);
 
-        return true;
-    };
+        status = true;
+    }
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
-    register_matcher(m, callback);
+    return status;
 }
 }  // namespace ov::intel_cpu

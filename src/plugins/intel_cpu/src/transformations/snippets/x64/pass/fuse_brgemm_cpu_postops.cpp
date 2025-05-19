@@ -42,7 +42,6 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 
 namespace ov::intel_cpu {
@@ -124,8 +123,7 @@ pass::FuseConvert::FuseConvert() {
             if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
                 const auto a_shape = ov::snippets::utils::get_planar_pshape(brgemm->input(0));
                 const auto& k_dim = *a_shape.rbegin();
-                const auto k_inner_block =
-                    brgemm_utils::repacking::compute_inner_k_block(brgemm->get_input_element_type(0));
+                const auto k_inner_block = brgemm->get_config().wei_k_blk();
                 if (k_dim.is_dynamic() || (k_dim.get_length() % k_inner_block != 0)) {
                     return false;
                 }

@@ -41,7 +41,7 @@ std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& ma
     } else {
         OPENVINO_THROW("Unsupported input precisions: ", a_precision, " and ", b_precision);
     }
-    ov::intel_cpu::brgemm_utils::BrgemmConfig brgemm_config(isa, a_precision, b_precision, false);
+    ov::intel_cpu::brgemm_utils::BrgemmConfig brgemm_config(isa, a_precision, b_precision, false, false);
 
     auto create_brgemm_cpu = [&brgemm_config, postop_inputs, &postops](const ov::OutputVector& postprocessed_inputs) {
         ov::OutputVector all_inputs = postprocessed_inputs;

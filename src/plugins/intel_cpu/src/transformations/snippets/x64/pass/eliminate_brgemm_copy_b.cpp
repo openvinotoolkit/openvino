@@ -46,6 +46,7 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto& copy_b_out = pattern_map.at(m_copy_b);
         const auto copy_b_node = ov::as_type_ptr<BrgemmCopyB>(copy_b_out.get_node_shared_ptr());
         OPENVINO_ASSERT(copy_b_node, "BrgemmCopyB node is null in EliminateBrgemmCopyB transformation");
+        const auto& brgemm_config = copy_b_node->get_config();
 
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
@@ -60,8 +61,8 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                         "Parameter index is invalid in EliminateBrgemmCopyB transformation");
         // Update external repacking config for the further pipeline stages to mark this input as repacked
-        auto& config = m_constant_inputs_idxs.count(param_idx) == 0 ? m_repacked_runtime_inputs_config
-                                                                    : m_repacked_constant_inputs_config;
+        auto& config =
+            brgemm_config.are_wei_constant() ? m_repacked_constant_inputs_config : m_repacked_runtime_inputs_config;
         config[param_idx] = RepackedInput();
 
         // If there is non-planar layout, we should insert reshape to support shape inference

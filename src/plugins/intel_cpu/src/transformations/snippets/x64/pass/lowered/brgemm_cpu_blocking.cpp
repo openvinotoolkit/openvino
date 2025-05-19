@@ -104,10 +104,6 @@ void BrgemmCPUBlocking::create_not_processed_postops_ports(const ov::snippets::l
                       {{m_block, new_ports}, {n_block, new_ports}, {k_block, new_ports}});
 }
 
-size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
-}
-
 bool BrgemmCPUBlocking::is_kn_blocking_supported(const ov::element::Type& input_type) {
     return input_type == element::f32;
 }
@@ -116,14 +112,26 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     assert(brgemm && "BrgemmCPU is expected!");
+    const auto& brgemm_config = brgemm->get_config();
 
-    auto [m_blk, n_blk, k_blk] = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+    const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
+
+    const auto default_n_blk =
+        dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+
+    size_t m_blk = get_corrected_blk_size_by_dim(m, get_default_m_blk(m));
+    size_t n_blk =
+        get_corrected_blk_size_by_dim(n, brgemm_config.are_wei_blocked() ? brgemm_config.wei_n_blk() : default_n_blk);
+    size_t k_blk = get_corrected_blk_size_by_dim(k, get_default_k_blk(k));
+
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)
     if (is_kn_blocking_supported(brgemm->get_input_element_type(1))) {
         OPENVINO_ASSERT(brgemm->get_postops_config().post_ops.len() == 0,
                         "Blocking for Brgemm with postops is not supported");
     } else {
+        OPENVINO_ASSERT(!brgemm_config.are_wei_blocked(),
+                        "Weights of Brgemm cannot be repacked in blocked format if KN blocking is not supported");
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }

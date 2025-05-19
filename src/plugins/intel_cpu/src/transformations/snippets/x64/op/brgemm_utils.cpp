@@ -22,6 +22,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -33,18 +34,49 @@ namespace ov {
 
 namespace intel_cpu::brgemm_utils {
 
-BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, bool transposed_b)
-    : BrgemmConfig(get_prim_isa(src_dt, wei_dt), src_dt, wei_dt, transposed_b) {}
+BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt,
+                           const ov::element::Type& wei_dt,
+                           bool are_wei_constant,
+                           bool transposed_b)
+    : BrgemmConfig(get_prim_isa(src_dt, wei_dt), src_dt, wei_dt, are_wei_constant, transposed_b) {}
 
+// [TODO] 168764: Blocked weights repacking requires blocked loop by N for correct ptr increments.
+//        If kn_blocking is not supported by Brgemm, we cannot repack weights to blocked layout
 BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
                            const ov::element::Type& src_dt,
                            const ov::element::Type& wei_dt,
+                           bool are_wei_constant,
                            bool transposed_b)
     : m_isa(isa),
-      m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)) {
+      m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
+      m_are_wei_constant(are_wei_constant),
+      m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt) && m_are_wei_constant),
+      m_wei_k_blk(brgemm_utils::get_elems_in_vec(wei_dt)) {
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
 
-    m_with_wei_repacking = !is_fp32 || transposed_b;
+    // FC always requires weight repacking
+    m_with_wei_repacking = !is_fp32 || transposed_b || m_are_wei_constant || m_are_wei_blocked;
+
+    // TODO: Add more logic based on shapes and prc
+    if (m_are_wei_blocked) {
+        m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 48;
+    } else {
+        switch (wei_dt) {
+        case element::i8:
+            m_wei_n_blk = 64;
+            break;
+        case element::bf16:
+        case element::f16:
+            m_wei_n_blk = 32;
+            break;
+        case element::f32:
+            m_wei_n_blk = 16;
+            break;
+        default:
+            OPENVINO_THROW("Unsupport precision of weights", wei_dt);
+        }
+    }
+
     validate();
 }
 
@@ -84,6 +116,7 @@ void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
     OPENVINO_ASSERT(ov::snippets::utils::implication(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
+    OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
 }
 
 size_t compute_vnni_factor(const ov::element::Type& precision) {
@@ -100,39 +133,13 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_inner_n_block(const ov::element::Type& precision) {
-    switch (precision) {
-    case element::i8:
-        return 64;
-    case element::bf16:
-    case element::f16:
-        return 32;
-    case element::f32:
-        return 16;
-    default:
-        OPENVINO_THROW("BrgemmCopyB doesn't support precision ", precision);
-    }
-}
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K, size_t N, size_t wei_k_blk, size_t wei_n_blk) {
+    OPENVINO_ASSERT(
+        !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
+        "wei_k_blk and wei_n_blk cannot be dynamic");
 
-size_t compute_inner_k_block(const ov::element::Type& precision) {
-    return brgemm_utils::get_elems_in_vec(precision);
-}
-
-ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
-                                                           size_t N,
-                                                           const ov::element::Type& prc,
-                                                           bool is_transposed) {
-    const size_t new_N = compute_repacked_n_dim(N, prc);
-    //  - In case of transpose, K dimension must be rounded-up to number of elems in vector register
-    //    For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
-    //    onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-    //  - Low precision repacking writes the result by VNNIFactor * wei_n_blk blocks
-    //    despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
-    //    have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
-    //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-    const size_t K_alignment =
-        is_transposed ? brgemm_utils::get_elems_in_vec(prc) : brgemm_utils::compute_vnni_factor(prc);
-    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, K_alignment), new_N, K_alignment};
+    const size_t new_N = compute_blocked_dim(N, wei_n_blk);
+    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, wei_k_blk), new_N, wei_k_blk};
 }
 
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
@@ -158,13 +165,19 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
 bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attributes(AttributeVisitor& visitor) {
     bool with_wei_repacking = m_ref.with_wei_repacking();
     bool with_comps = m_ref.with_compensations();
-    bool with_wsp = m_ref.is_amx();
-    std::string isa = isa2str(m_ref.isa());
+    bool are_wei_blocked = m_ref.are_wei_blocked();
+    bool is_amx = m_ref.is_amx();
+    std::string isa = JIT_IMPL_NAME_HELPER("", m_ref.isa(), "");
+    size_t wei_n_blk = m_ref.wei_n_blk();
+    size_t wei_k_blk = m_ref.wei_k_blk();
 
     visitor.on_attribute("with_brgemm_copy_b", with_wei_repacking);
     visitor.on_attribute("with_compensations", with_comps);
-    visitor.on_attribute("with_wsp", with_wsp);
+    visitor.on_attribute("are_wei_blocked", are_wei_blocked);
+    visitor.on_attribute("is_amx", is_amx);
     visitor.on_attribute("prim_isa", isa);
+    visitor.on_attribute("wei_n_blk", wei_n_blk);
+    visitor.on_attribute("wei_k_blk", wei_k_blk);
     return true;
 }
 }  // namespace ov

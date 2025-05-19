@@ -56,7 +56,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brgemm_config = brgemm_node->get_config();
     const auto& post_ops_config = brgemm_node->get_postops_config();
     if (brgemm_config.is_amx()) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_config.isa(), post_ops_config.post_ops);
+        BrgemmAMXKernelConfig kernel_config(brg0Prc,
+                                            brg1Prc,
+                                            brgOutPrc,
+                                            brgemm_config.wei_k_blk(),
+                                            brgemm_config.isa(),
+                                            post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
