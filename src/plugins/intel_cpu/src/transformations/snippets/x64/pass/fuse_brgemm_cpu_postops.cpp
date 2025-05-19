@@ -29,10 +29,9 @@ namespace {
 ov::pass::pattern::op::Predicate brgemm_predicate(
     [](const Output<Node>& output) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(output.get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
         // Note: postops are not supported in case of blocking enabled
         // Ticket: 165567
-        return has_static_rank()(output) && consumers_count(1)(output) &&
+        return has_static_rank()(output) && consumers_count(1)(output) && brgemm != nullptr &&
                !pass::BrgemmCPUBlocking::is_kn_blocking_supported(brgemm);
     },
     "brgemm_predicate");
