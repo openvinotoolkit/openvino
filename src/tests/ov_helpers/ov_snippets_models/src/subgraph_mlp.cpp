@@ -32,6 +32,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
             b_row,
             std::vector<float>{0.1122f});
         current = std::make_shared<ov::op::v1::Add>(current, constant);
+        current = std::make_shared<ov::op::v0::Relu>(current);
     };
 
     mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
@@ -62,19 +63,25 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
+    auto mlp_layer = [&](size_t m, size_t n) {
+        auto b_shape = ov::Shape{m, n};
+        auto b_row = ov::Shape{m};
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f});
         current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        current = std::make_shared<ov::op::v1::Multiply>(current, add);
-        for (size_t i = 0; i < num_hidden_layers; ++i) {
-            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   b_row,
-                                                                   std::vector<float>{0.1122f + i});
-            current = std::make_shared<ov::op::v1::Add>(current, constant);
-        }
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+            b_row,
+            std::vector<float>{0.1122f});
+        current = std::make_shared<ov::op::v1::Add>(current, constant);
         current = std::make_shared<ov::op::v0::Relu>(current);
+    };
+
+    mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
+    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
+        mlp_layer(hidden_matmul_size, hidden_matmul_size);
     }
+    mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size);
+
     ov::builder::subgraph::FakeQuantizeOnData onData2 =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData2);
