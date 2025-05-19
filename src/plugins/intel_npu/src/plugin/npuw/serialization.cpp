@@ -15,15 +15,17 @@
 #include "util.hpp"
 
 // NOTE: This construtor should only be used when exporting blobs
-ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
-: is_weightless(_is_weightless),
-  const_to_offset(_const_to_offset) {}
+ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
+                                               const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+    : is_weightless(_is_weightless),
+      const_to_offset(_const_to_offset) {}
 
 // NOTE: This construtor can and should only be used when importing weightless blobs
-ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights, const s11n::WeightsContext::ConstsCache& _consts_cache)
-: is_weightless(true),
-  weights(_weights),
-  consts_cache(_consts_cache) {
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                                               const s11n::WeightsContext::ConstsCache& _consts_cache)
+    : is_weightless(true),
+      weights(_weights),
+      consts_cache(_consts_cache) {
     NPUW_ASSERT(_weights || !_consts_cache.empty());
 }
 
