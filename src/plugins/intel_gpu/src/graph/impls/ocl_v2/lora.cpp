@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "lora.hpp"
+
+#include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "utils/jitter.hpp"
+#include "intel_gpu/primitives/lora.hpp"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 #include "primitive_ocl_base.hpp"
+#include "utils/jitter.hpp"
 #include "utils/kernel_generator.hpp"
-
-#include "lora.hpp"
-#include "lora_inst.h"
-#include "intel_gpu/primitives/lora.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -123,9 +122,7 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            std::vector<std::vector<ChannelName>> dims_by_gws = {{ChannelName::BATCH},
-                                                                 {ChannelName::FEATURE},
-                                                                 {ChannelName::Y, ChannelName::X}};
+            std::vector<std::vector<ChannelName>> dims_by_gws = {{ChannelName::BATCH}, {ChannelName::FEATURE}, {ChannelName::Y, ChannelName::X}};
 
             const auto& out_l = params.output_layouts[0];
             size_t b = extract_channel(ChannelName::BATCH, out_l);
@@ -173,9 +170,9 @@ public:
 
 class LoraOptFirstTokenBase : public LoraOptBase {
 protected:
-    explicit LoraOptFirstTokenBase(std::string_view suffix, size_t reg_m, size_t reg_n) : LoraOptBase(suffix),
-                                                                                          reg_m(reg_m),
-                                                                                          reg_n(reg_n) {}
+    explicit LoraOptFirstTokenBase(std::string_view suffix, size_t reg_m, size_t reg_n) : LoraOptBase(suffix), reg_m(reg_m), reg_n(reg_n) {}
+
+    // clang-format off
 
     std::string generate_block_read(ov::element::Type_t dtype, std::string input) const {
         std::string res = dtype == ov::element::f16 ? "intel_sub_group_block_read_us((const __global ushort*)("
@@ -282,6 +279,8 @@ protected:
         return res;
     }
 
+    // clang-format on
+
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = LoraOptBase::get_jit_constants(params);
 
@@ -302,8 +301,7 @@ protected:
 
 class LoraOptFirstTokenA : public LoraOptFirstTokenBase {
 public:
-    explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n)
-        : LoraOptFirstTokenBase("first_token_a_" + suffix, reg_m, reg_n) {}
+    explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n) : LoraOptFirstTokenBase("first_token_a_" + suffix, reg_m, reg_n) {}
 
 protected:
     std::pair<size_t, size_t> get_subgroup_params(const RuntimeParams& params) const {
@@ -361,8 +359,8 @@ protected:
             auto& wgs = kd.params.workGroups;
 
             const auto& lora_input_lo = params.input_layouts[1];
-            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo) *
-                           extract_channel(ChannelName::FEATURE, lora_input_lo);
+            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+            size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
             const auto& state_alpha_lo = params.input_layouts[3];
             size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
@@ -379,7 +377,7 @@ protected:
             size_t bm = reg_m * sg_m;
             size_t bn = reg_n * sg_n * subgroup_size;
 
-            wgs.global = {round_up_to(batch, bm) / reg_m, round_up_to(lora_rank, bn) / reg_n, 1};
+            wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(lora_rank, bn) / reg_n, 1};
             wgs.local = {sg_m, sg_n * subgroup_size, 1};
         }};
     }
@@ -432,8 +430,8 @@ protected:
             auto& wgs = kd.params.workGroups;
 
             const auto& lora_input_lo = params.input_layouts[1];
-            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo) *
-                           extract_channel(ChannelName::FEATURE, lora_input_lo);
+            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+            size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
             const auto& state_b_lo = params.input_layouts[4];
             size_t N = extract_channel(ChannelName::BATCH, state_b_lo);
@@ -443,7 +441,7 @@ protected:
             size_t bm = reg_m * sg_m;
             size_t bn = reg_n * sg_n * subgroup_size;
 
-            wgs.global = {round_up_to(batch, bm) / reg_m, round_up_to(N, bn) / reg_n, 1};
+            wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(N, bn) / reg_n, 1};
             wgs.local = {sg_m, sg_n * subgroup_size, 1};
         }};
     }
@@ -491,7 +489,7 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
@@ -505,7 +503,7 @@ protected:
             size_t gemma_sgK = max_workgroup_size / lora_rank;
 
             size_t K = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
-            size_t gemma_wgs = ceil_div(K, gemm_a_sg_bk * gemma_sgK);
+            size_t gemma_wgs = ceil_div(K, LoraOptBase::gemm_a_sg_bk * gemma_sgK);
 
             wgs.global = {gemma_wgs, gemma_sgK, lora_rank};
             wgs.local = {1, gemma_sgK, lora_rank};
@@ -571,7 +569,6 @@ protected:
 };
 
 bool is_optimized_kernel_supported(const cldnn::primitive_inst& instance) {
-    const auto& in_dtype = instance.get_input_layout().data_type;
     size_t subgroup_size = LoraOptBase::get_subgroup_size(*instance.get_impl_params());
 
     const auto& state_a_layout = instance.get_input_layout(2);
@@ -689,10 +686,10 @@ public:
         }
 
         const auto& lora_input_lo = params.input_layouts[1];
-        size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo) *
-                       extract_channel(ChannelName::FEATURE, lora_input_lo);
+        size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+        size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
-        auto first_token_buffer = BufferDescriptor{lora_rank * batch, params.get_output_layout().data_type};
+        auto first_token_buffer = BufferDescriptor{lora_rank * batch * feature, params.get_output_layout().data_type};
 
         const auto& state_a_lo = params.input_layouts[2];
         size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
