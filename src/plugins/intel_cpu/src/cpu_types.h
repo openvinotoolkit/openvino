@@ -51,6 +51,7 @@ enum class Type {
     Transpose,
     SpaceToBatch,
     SpaceToDepth,
+    SparseFillEmptyRows,
     StridedSlice,
     MemoryOutput,
     MemoryInput,
