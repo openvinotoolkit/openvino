@@ -44,7 +44,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             BufferExpressionPtr buffer_expr = nullptr;
             if (out_port == 0) {
                 buffer_expr = factory->build<RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
-            } else if (out_port == 1 && with_compensations(copy_b->get_type())) {
+            } else if (out_port == 1 && copy_b->get_config().with_compensations()) {
                 buffer_expr = factory->build<CompensationsBufferExpression>(buffer_op, {copy_b_out});
             } else {
                 OPENVINO_THROW("BrgemmCopyB has incorrect output ports");
@@ -95,7 +95,8 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& brgemm_expr = *expr_it;
         if (const auto brgemm_cpu = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node())) {
-            if (brgemm_utils::with_repacking(brgemm_cpu->get_type())) {
+            const auto& brgemm_config = brgemm_cpu->get_config();
+            if (brgemm_config.with_wei_repacking()) {
                 // BrgemmCopyB might be extracted from the body
                 if (const auto copy_b_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr)) {
                     auto insertion_it = std::next(linear_ir.find_before(expr_it, copy_b_expr));
@@ -106,7 +107,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
                 }
             }
 
-            if (brgemm_utils::with_amx(brgemm_cpu->get_type())) {
+            if (brgemm_config.is_amx()) {
                 const auto& scratch_expr = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(
                     brgemm_expr->get_input_port_connector(2)->get_source().get_expr());
                 update_scratchpad(brgemm_expr, scratch_expr);

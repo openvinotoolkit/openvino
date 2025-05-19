@@ -108,11 +108,8 @@ size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-bool BrgemmCPUBlocking::is_kn_blocking_supported(const BrgemmCPU::BRGEMM_TYPE type,
-                                                 const ov::element::Type& input_type) {
-    return stand_alone(type) ||
-           // Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
-           (with_repacking(type) && input_type == element::f32);
+bool BrgemmCPUBlocking::is_kn_blocking_supported(const ov::element::Type& input_type) {
+    return input_type == element::f32;
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
@@ -123,7 +120,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     auto [m_blk, n_blk, k_blk] = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)
-    if (is_kn_blocking_supported(brgemm->get_type(), brgemm->get_input_element_type(1))) {
+    if (is_kn_blocking_supported(brgemm->get_input_element_type(1))) {
         OPENVINO_ASSERT(brgemm->get_postops_config().post_ops.len() == 0,
                         "Blocking for Brgemm with postops is not supported");
     } else {
@@ -146,8 +143,8 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             size_t n_block,
                                             size_t k_block) {
     const auto& brgemm_expr = *brgemm_it;
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    const auto type = brgemm->get_type();
+    const auto& brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    const auto& brgemm_config = brgemm->get_config();
 
     auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
                                                                                     brgemm_it,
@@ -157,7 +154,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const bool with_postops = brgemm->get_input_size() - brgemm->get_gemm_inputs_count() > 0;
-    if (stand_alone(type)) {
+    if (!brgemm_config.with_wei_repacking()) {
         if (with_postops) {
             create_not_processed_postops_ports(brgemm_expr, loop_manager, m_block, n_block, k_block);
         }
@@ -170,13 +167,13 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
         copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
     }
-    if (with_amx(type)) {
+    if (brgemm_config.is_amx()) {
         move_new_memory_buffer(linear_ir, brgemm_it);
         auto buffer_it = std::prev(brgemm_it);
         buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
     }
 
-    if (with_compensations(type)) {
+    if (brgemm_config.with_compensations()) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
         OPENVINO_ASSERT(brgemm_expr->get_input_count() >= 3,
                         "Brgemm must have at least 3 inputs in case of compensations.");

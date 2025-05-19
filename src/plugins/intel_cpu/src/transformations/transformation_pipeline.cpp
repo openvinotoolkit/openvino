@@ -212,7 +212,6 @@
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
-#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
@@ -1169,10 +1168,7 @@ void Transformations::MainSnippets() {
             one_of(config.inferencePrecision, element::f16, element::bf16)) {
             return false;
         }
-        // After postop itself is checked, need to check if matmul before the op can fuse it
-        const auto brgemm_type =
-            brgemm_utils::get_brgemm_type(matmul->get_input_element_type(0), matmul->get_transpose_b());
-        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm_type, matmul->get_input_element_type(0));
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
     };
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).

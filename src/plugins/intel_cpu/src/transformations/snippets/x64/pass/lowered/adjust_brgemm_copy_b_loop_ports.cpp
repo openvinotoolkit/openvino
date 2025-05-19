@@ -11,7 +11,6 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
@@ -36,13 +35,14 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& node = p.get_expr()->get_node();
             if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
-                const auto precision = node->get_input_element_type(1);
+                const auto& brgemm_config = brg->get_config();
+                const auto& precision = node->get_input_element_type(1);
                 /*
                  * The BrgemmCopyB operation repacks the weights in the following way:
                  *  1) VNNI format is applied: KN4k for I8/U8, or KN2k for BF16
                  *  2) Zero padding is applied if N4k < 256 or N2k < 64
                  */
-                if (brgemm_utils::with_repacking(brg->get_type()) && loop_port.is_incremented()) {
+                if (brgemm_config.with_wei_repacking() && loop_port.is_incremented()) {
                     // K blocking loop: account for zero padding
                     if (loop_port.get_dim_idx() == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;
@@ -96,7 +96,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     for (const auto& expr : linear_ir) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
-        if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type())) {
+        if (!brgemm || !brgemm->get_config().with_wei_repacking()) {
             continue;
         }
         const auto& brgemm_loop_ids = expr->get_loop_ids();

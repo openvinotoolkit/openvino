@@ -20,41 +20,39 @@ namespace ov {
 
 namespace intel_cpu::brgemm_utils {
 
-enum class BRGEMM_TYPE {
-    STAND_ALONE,  // No extra requirements, used for f32|f32
-    WITH_AMX,     // i8|i8 or bf16|bf16 on AMX system or fp16|fp16 on AMX_FP16 system - needs BrgemmCopyB and scratchpad
-    WITH_COMPENSATIONS,  // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
-    REPACKING_ONLY,      // u8|i8, bf16|bf16 or f16|f16 (non-AMX system), or brgemm with transpose_b=true - needs
-                         // BrgemmCopyB on second input for data repacking
+class BrgemmConfig {
+public:
+    BrgemmConfig() = default;
+    BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, bool transposed_b);
+    BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
+                 const ov::element::Type& src_dt,
+                 const ov::element::Type& wei_dt,
+                 bool transposed_b);
+
+    dnnl::impl::cpu::x64::cpu_isa_t isa() const {
+        return m_isa;
+    }
+    bool is_amx() const;
+    bool with_wei_repacking() const {
+        return m_with_wei_repacking;
+    }
+    bool with_compensations() const {
+        return m_with_compensations;
+    }
+    bool with_scratchpad() const {
+        return is_amx() || with_compensations();
+    }
+
+private:
+    void validate() const;
+
+    static dnnl::impl::cpu::x64::cpu_isa_t get_prim_isa(const ov::element::Type& src_dt,
+                                                        const ov::element::Type& wei_dt);
+
+    dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
+    bool m_with_wei_repacking = false;
+    bool m_with_compensations = false;
 };
-
-dnnl::impl::cpu::x64::cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx);
-
-BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, bool transpose_b);
-
-inline bool stand_alone(BRGEMM_TYPE type) {
-    return type == BRGEMM_TYPE::STAND_ALONE;
-}
-
-inline bool with_amx(BRGEMM_TYPE type) {
-    return type == BRGEMM_TYPE::WITH_AMX;
-}
-
-inline bool with_compensations(BRGEMM_TYPE type) {
-    return type == BRGEMM_TYPE::WITH_COMPENSATIONS;
-}
-
-inline bool repacking_only(BRGEMM_TYPE type) {
-    return type == BRGEMM_TYPE::REPACKING_ONLY;
-}
-
-inline bool with_repacking(BRGEMM_TYPE type) {
-    return type != BRGEMM_TYPE::STAND_ALONE;
-}
-
-inline bool with_scratchpad(BRGEMM_TYPE type) {
-    return with_compensations(type) || with_amx(type);
-}
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision
 size_t compute_vnni_factor(const ov::element::Type& precision);
@@ -110,11 +108,14 @@ snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::Expres
 }  // namespace intel_cpu::brgemm_utils
 
 template <>
-class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>
-    : public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {
+class AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig> : public VisitorAdapter {
 public:
-    AttributeAdapter(intel_cpu::brgemm_utils::BRGEMM_TYPE& value)
-        : EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE>(value) {}
-    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>");
+    AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+    OPENVINO_RTTI("AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig>");
+
+protected:
+    intel_cpu::brgemm_utils::BrgemmConfig& m_ref;
 };
 }  // namespace ov
