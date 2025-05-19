@@ -42,14 +42,14 @@ struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
     }
 };
 namespace std {
-    template<>
-    struct hash<ov::Output<ov::Node>> {
-        inline size_t operator()(const ov::Output<ov::Node>& x) const {
-            // TODO: use a better hash function
-            return x.get_node()->get_instance_id() ^ (x.get_index() << 56);
-        }
-    };
-}
+template <>
+struct hash<ov::Output<ov::Node>> {
+    inline size_t operator()(const ov::Output<ov::Node>& x) const {
+        // TODO: use a better hash function
+        return x.get_node()->get_instance_id() ^ (x.get_index() << 56);
+    }
+};
+}  // namespace std
 namespace {
 
 class FuncallEverywhere {
@@ -572,7 +572,8 @@ void Partitioner::identifySubgraphs() {
                       }
                       // Sanity check
                       NPUW_ASSERT(p1.first != p2.first);
-                      return p1.first.get_node_shared_ptr()->get_friendly_name() < p2.first.get_node_shared_ptr()->get_friendly_name();
+                      return p1.first.get_node_shared_ptr()->get_friendly_name() <
+                             p2.first.get_node_shared_ptr()->get_friendly_name();
                   });
 
         // Now (after unknown slices/converts were introduced) params may be referred to
