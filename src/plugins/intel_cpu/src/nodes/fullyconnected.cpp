@@ -33,6 +33,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 using namespace dnnl;
 using namespace ov::element;
