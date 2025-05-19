@@ -2383,7 +2383,7 @@ struct MHAHelper {
             // This will only occur in prefill.
             auto q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
             auto q_start_idx_score_block = q_start_idx_score / _block_size;
-            auto q_end_idx_score_block = (q_len + _block_size - 1) / _block_size;
+            auto q_end_idx_score_block = div_up(q_len, _block_size);
             auto tmp_buf_num = score_win_len ? q_end_idx_score_block - q_start_idx_score_block : 0;
             auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
             // aligned to cache line to avoid false sharing
@@ -2498,8 +2498,9 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
-                    cvt_add(score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
-                            score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                    auto score_block_ptr = score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
+                    cvt_add(score_block_ptr,
+                            score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
                             1,
                             rnd_up(cur_kv_len, _block_size),
@@ -2669,8 +2670,9 @@ struct MHAHelper {
                 }
                 if (score_output && m >= q_start_idx_score) {
                     // TODO: add sve opt code
-                    cvt_add(score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
-                            score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num,
+                    auto score_block_ptr = score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
+                    cvt_add(score_block_ptr,
+                            score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
                             1,
                             cur_kv_len,
@@ -2783,7 +2785,9 @@ struct MHAHelper {
                                            ov::element::f32,
                                            alibi_slope);
                 if (score_output) {
-                    std::memcpy(score_output + h * rnd_up(cur_kv_len, 16),
+                    // aligned to cache line to avoid false sharing
+                    static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
+                    std::memcpy(score_output + h * rnd_up(cur_kv_len, cache_line_size / sizeof(float)),
                                 _weight.ptr<float>(ithr, h - hq_beg, pq),
                                 cur_kv_len * sizeof(float));
                 }
