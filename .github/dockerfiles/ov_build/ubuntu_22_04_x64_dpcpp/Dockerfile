@@ -49,7 +49,7 @@ RUN apt-get update && \
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache

@@ -152,7 +152,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
 }
 
 [[maybe_unused]] static inline bool noPostOps(const FCConfig& config) {
-    return config.postOps.empty();
+    return config.attrs.postOps.empty();
 }
 
 struct RequiresFallbackDefault {
@@ -228,7 +228,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // acceptsShapes
             []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
                const MemoryArgs& memory) -> bool {
                 const auto inRank = memory.at(ARG_SRC)->getShape().getRank();
                 const auto& inDims = memory.at(ARG_SRC)->getShape().getDims();
@@ -254,7 +253,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // create
             [](const FCAttrs& attrs,
-               const PostOps& postOps,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
                 struct ConvolutionInstantiator {
@@ -267,7 +265,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const bool fcSemantic = true;
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
                                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                                            false, false, fcSemantic, false, ZeroPointsType::None, {}};
+                                            false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
                         
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
@@ -287,7 +285,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return std::make_shared<
                     DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
                     attrs,
-                    postOps,
                     memory,
                     context,
                     false);
@@ -333,7 +330,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // acceptsShapes
             [](const FCAttrs& attrs,
-               const PostOps& postOps,
                const MemoryArgs& memory) -> bool {
                 const auto dequantizationScales = getDeQuantizedScales(memory);
                 bool isPerChannelQuantization = dequantizationScales.size() > 1;
@@ -407,7 +403,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             AcceptsAnyShape<FCAttrs>{},
             // create
             [](const FCAttrs& attrs,
-               const PostOps& postOps,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
                 struct MatMulInstantiator {
@@ -431,7 +426,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
                     attrs,
-                    postOps,
                     memory,
                     context,
                     false);
@@ -452,15 +446,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             AcceptsAnyShape<FCAttrs>{},
             // create
             [](const FCAttrs& attrs,
-               const PostOps& postOps,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) {
                 return std::make_shared<DnnlExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
-                                                                                                         postOps,
-                                                                                                         memory,
-                                                                                                         context,
-                                                                                                         false,
-                                                                                                         true);
+                                                                                                       memory,
+                                                                                                       context,
+                                                                                                       false,
+                                                                                                       true);
             })
     };
 

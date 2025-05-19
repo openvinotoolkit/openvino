@@ -18,7 +18,8 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -1103,8 +1104,8 @@ void BinaryConvolution::createPrimitive() {
     jcp.ow = dstDims[3];
 
     bool with_groups = group > 1;
-    jcp.kh = weiDims[with_groups + 2];
-    jcp.kw = weiDims[with_groups + 3];
+    jcp.kh = weiDims[static_cast<int>(with_groups) + 2];
+    jcp.kw = weiDims[static_cast<int>(with_groups) + 3];
 
     jcp.t_pad = paddingL[0];
     jcp.b_pad = paddingR[0];

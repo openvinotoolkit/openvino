@@ -22,6 +22,7 @@
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#include "gru_seq_inst.h"
 #include "non_max_suppression_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
@@ -44,6 +45,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <openvino/op/constant.hpp>
 
 #include "pass_manager.h"
 
@@ -255,8 +257,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             fmt_prev == format::bfyx &&
             (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
             next_output_layout.feature() >= 16 && prev_output_layout.feature() <= 4 &&
-            next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
-            next.as<convolution>().get_primitive()->weights_zero_points.empty())
+            !next.as<convolution>().get_primitive()->activations_zero_points.is_valid() &&
+            !next.as<convolution>().get_primitive()->weights_zero_points.is_valid())
             return true;
 
         if (next.is_type<convolution>() &&
@@ -689,7 +691,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
     if (int8_sup)
         correct_batch = input_layout.batch() >= 16;
     int8_sup &= (input_layout.batch() % 16 == 0 && weights_layout.data_type == data_types::i8 &&
-                 conv->activations_zero_points.empty() && conv->weights_zero_points.empty());
+                 !conv->activations_zero_points.is_valid() && !conv->weights_zero_points.is_valid());
     auto ks_x = weights_layout.spatial(0);
     auto ks_y = weights_layout.spatial(1);
     int8_sup &= (input_layout.spatial(2) == 1 && ((ks_x == 1 && ks_y == 1) || (ks_x == 3 && ks_y == 3) || (ks_x == 7 && ks_y == 7)) &&
@@ -1128,7 +1130,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
-        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>() || node.is_type<lstm_seq>()) {
+        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>() || node.is_type<lstm_seq>() || node.is_type<gru_seq>()) {
         return true;
     }
 
@@ -1283,11 +1285,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(node.get_input_layout(0).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             } else {
-                auto& fc_node = node.as<fully_connected>();
-                auto input_layout = fc_node.get_input_layout();
-                if (input_layout.format.dimension() > 4) {
-                    expected = format::bfyx;
-                    node.set_preferred_input_fmt(0, format::bfyx);
+                if (!use_onednn_impls) {
+                    auto& fc_node = node.as<fully_connected>();
+                    auto input_layout = fc_node.get_input_layout();
+                    if (input_layout.format.dimension() > 4) {
+                        expected = format::bfyx;
+                        node.set_preferred_input_fmt(0, format::bfyx);
+                    }
                 }
             }
         }
@@ -1370,6 +1374,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<fully_connected>();
     enable_onednn_for<gemm>();
     enable_onednn_for<lstm_seq>();
+    enable_onednn_for<gru_seq>();
     enable_onednn_for<pooling>();
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
@@ -1377,7 +1382,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
     return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() &&
+        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<gru_seq>() &&
         is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 

@@ -120,7 +120,6 @@ private:
     void needSplitMemoryForTensorParallel();
 
     FCAttrs attrs;
-    PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;

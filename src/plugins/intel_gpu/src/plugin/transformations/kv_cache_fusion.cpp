@@ -24,16 +24,10 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
-
-class KVCacheFusionMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("KVCacheFusionMatcher");
-    KVCacheFusionMatcher();
-};
 
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;
@@ -80,7 +74,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         }
 
         // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
-        auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
+        auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer->output(0), variable)
                                                         : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         new_read_value_node->set_friendly_name(past_node->get_friendly_name());
         ov::copy_runtime_info(past_node, new_read_value_node);

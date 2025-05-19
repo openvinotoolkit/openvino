@@ -312,7 +312,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
 
     if (is_output_precision_changed) {
         ops = f->get_ordered_ops();
-        is_changed = is_output_precision_changed || is_changed;
+        is_changed = true;
     }
 
     if (!is_subgraph) {

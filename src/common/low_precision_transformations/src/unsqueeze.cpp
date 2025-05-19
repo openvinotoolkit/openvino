@@ -8,11 +8,12 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {

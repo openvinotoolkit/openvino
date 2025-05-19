@@ -80,7 +80,7 @@ private:
         } else {
             segmentMax = std::make_shared<ov::op::v16::SegmentMax>(data, segmentIds, params.fillMode);
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{segmentMax}, parameters);
+        return std::make_shared<ov::Model>(ov::OutputVector{segmentMax}, parameters);
     }
 };
 

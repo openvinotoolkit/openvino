@@ -12,7 +12,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -41,7 +45,7 @@ TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
-        model = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data, filters});
 
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
@@ -55,7 +59,7 @@ TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
                                                           CoordinateDiff{1, 1},
                                                           Strides{2, 2},
                                                           op::PadType::EXPLICIT);
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data, filters});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -82,7 +86,7 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterPadsLessThanCrop
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
-        model = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data, filters});
 
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
@@ -108,7 +112,7 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
-        model = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data, filters});
 
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
@@ -134,7 +138,7 @@ TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
-        model = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data, filters});
 
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
@@ -148,7 +152,7 @@ TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
                                                                CoordinateDiff{1, 1},
                                                                Strides{2, 2},
                                                                op::PadType::EXPLICIT);
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data, filters});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

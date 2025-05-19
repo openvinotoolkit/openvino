@@ -156,6 +156,12 @@ TEST(F8E4M3Test, f8e4m3_num_limits_exp) {
     EXPECT_EQ(max_exp10, 2);
 }
 
+TEST(F8E4M3Test, f32_subnormal_rounding) {
+    const auto f8 = ov::float8_e4m3(0.0038014843f);
+
+    EXPECT_EQ(f8.to_bits(), 0x02);
+}
+
 TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
     const auto f8 = ov::float8_e4m3(0.0009765625f);
 

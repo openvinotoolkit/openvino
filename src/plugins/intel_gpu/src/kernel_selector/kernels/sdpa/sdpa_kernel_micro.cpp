@@ -62,7 +62,7 @@ Tensor::NDims normalize_dims(const DataTensor& qkv) {
 
 Tensor::Dim get_num_heads(const sdpa_params& params, const DataTensor& qkv, const std::vector<int64_t>& order) {
     if (params.conf.is_paged_attention)
-        return normalize_dims(qkv)[1].v / params.conf.head_size;
+        return normalize_dims(qkv)[1].v / params.conf.k_head_size;
 
     return normalize_dims(qkv)[order[1]];
 }
@@ -254,11 +254,12 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     const auto& V = params.inputs[2];
 
     auto& out = params.outputs[0];
-    const auto head_size = params.conf.head_size;
-    const auto d_max = get_d_max(head_size);
+    const auto k_head_size = params.conf.k_head_size;
+    const auto v_head_size = params.conf.v_head_size;
+    const auto d_max = get_d_max(k_head_size);
     const Tensor::Dim n_keys = get_seq_length(params, K, params.input1_order);
     const Tensor::Dim n_queries = get_seq_length(params, Q, params.input0_order);
-    const Tensor::Dim n_values = Tensor::Dim(head_size);
+    const Tensor::Dim n_values = Tensor::Dim(v_head_size);
     const auto batch = out.Batch().v * out.Feature().v;
 
     /* Retrieve pre-tuned kernel configuration */
@@ -269,13 +270,15 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
                         (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
+            config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(n_keys.v), thin_q,
+                is_quantized, params.conf.is_paged_attention);
             break;
         }
         case gpu_arch::xe_hpc:
         case gpu_arch::xe2:
         case gpu_arch::xe3: {
-            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
+            config = choose_config_xehpc(static_cast<int32_t>(k_head_size), static_cast<int32_t>(n_keys.v), thin_q,
+                is_quantized, params.conf.is_paged_attention);
             break;
         }
         default: break;
@@ -309,7 +312,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !kq_common_scales) {
         const auto scale_dt = convert_type(params.key_cache_comp_scale.GetDType());
         problem_kq.Ta_scale = scale_dt;
-        problem_kq.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_kq.A_scale.alignment = scale_dt.size();
 
         problem_kq.A_scale.layout = micro::MatrixLayout::T;
         problem_kq.aScale2D = true;
@@ -318,7 +321,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         const auto zp_dt = convert_type(params.key_cache_comp_zp.GetDType());
         problem_kq.Tao = zp_dt;
-        problem_kq.AO.alignment = micro::data_type_size(zp_dt);
+        problem_kq.AO.alignment = zp_dt.size();
         problem_kq.AO.layout = micro::MatrixLayout::T;
         problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
         problem_kq.aOffset = micro::ABOffset::Calc;
@@ -326,7 +329,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     if (params.conf.is_kv_compressed) {
         problem_kq.aqGroupM = 1;
-        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.head_size;
+        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.k_head_size;
     }
 
     opts_kq.scaleA = params.conf.is_kv_compressed && !kq_common_scales;
@@ -334,7 +337,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
     problem_kq.B.setAlignment(64); // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
     problem_kq.B.tileR = d_max;
@@ -344,7 +347,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     micro::SizeParams sizes;
     sizes.m = static_cast<int64_t>(n_keys.v);
     sizes.n = static_cast<int64_t>(n_queries.v);
-    sizes.k = static_cast<int64_t>(head_size);
+    sizes.k = static_cast<int64_t>(k_head_size);
     sizes.batch = static_cast<int64_t>(batch);
 
     /* Set up microkernel requirements */
@@ -375,7 +378,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !vs_common_scales) {
         auto scale_dt = convert_type(params.value_cache_comp_scale.GetDType());
         problem_vs.Ta_scale = scale_dt;
-        problem_vs.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_vs.A_scale.alignment = scale_dt.size();
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.aScale2D = true;
     }
@@ -383,14 +386,14 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         auto zp_dt = convert_type(params.value_cache_comp_zp.GetDType());
         problem_vs.Tao = zp_dt;
-        problem_vs.AO.alignment = micro::data_type_size(zp_dt);
+        problem_vs.AO.alignment = zp_dt.size();
         problem_vs.AO.layout = micro::MatrixLayout::N;
         problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
         problem_vs.aOffset = micro::ABOffset::Calc;
     }
 
     if (params.conf.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(params.conf.head_size);
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(v_head_size);
         problem_vs.aqGroupK = 1;
     }
 
@@ -399,7 +402,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
-    problem_vs.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
+    problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
     problem_vs.B.setAlignment(64); // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = static_cast<int64_t>(n_values.v);
@@ -471,7 +474,13 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
         return false;
 
-    if (params.conf.head_size > 256)
+    if (params.conf.k_head_size != params.conf.v_head_size)
+        return false;
+
+    if (params.conf.k_head_size > 256)
+        return false;
+
+    if (params.conf.v_head_size > 256)
         return false;
 
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
@@ -512,17 +521,18 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     const auto& K = prim_params.inputs[1];
     const auto& V = prim_params.inputs[2];
 
-    const auto head_size = prim_params.conf.head_size;
+    const auto k_head_size = prim_params.conf.k_head_size;
+    const auto v_head_size = prim_params.conf.v_head_size;
 
-    auto ldq = head_size * Q.ElementSize();
-    auto ldk = head_size * K.ElementSize();
-    auto ldv = head_size * V.ElementSize();
-    auto lda = head_size * prim_params.outputs[0].ElementSize();
+    auto ldq = k_head_size * Q.ElementSize();
+    auto ldk = k_head_size * K.ElementSize();
+    auto ldv = v_head_size * V.ElementSize();
+    auto lda = v_head_size * prim_params.outputs[0].ElementSize();
 
-    const auto d_max = get_d_max(head_size);
+    const auto d_max = get_d_max(k_head_size);
     const auto n_keys = get_seq_length(params, K, prim_params.input1_order);
     const auto n_queries = get_seq_length(params, Q, prim_params.input0_order);
-    const auto n_values = Tensor::Dim(head_size);
+    const auto n_values = Tensor::Dim(v_head_size);
 
     auto data_inputs = params.inputs.size();
     if (params.conf.is_paged_attention)
@@ -532,7 +542,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size(prim_params.engineInfo.arch)));
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", k_head_size));
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
@@ -598,8 +608,8 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
         int vs_scale_mask = (static_cast<int>(params.conf.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.AddConstant(MakeJitConstant("KEY_SCALES", kq_scale_mask));
         jit.AddConstant(MakeJitConstant("VAL_SCALES", vs_scale_mask));
-        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.head_size));
-        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.k_head_size));
+        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.k_head_size));
 
         if (params.conf.use_asymmetric_quantization) {
             int kq_zp_mask = (static_cast<int>(params.conf.use_asymmetric_quantization) << 1) | static_cast<int>(kq_common_zp);
@@ -615,8 +625,8 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     int tile_q = gemm_kq.getSetting("wg_tile_n");
     int tile_v = gemm_vs.getSetting("wg_tile_m");
 
-    bool d_full = (head_size == d_max);
-    bool v_full = (head_size == tile_v);
+    bool d_full = (k_head_size == d_max);
+    bool v_full = (v_head_size == tile_v);
     bool k_full = !n_keys.is_dynamic && (n_keys.v % tile_k) == 0;
     bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) == 0;
 
@@ -813,11 +823,11 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     const auto n_queries = get_seq_length(params, Q, params.input0_order);
     const auto n_keys = get_seq_length(params, K, params.input1_order);
 
-    auto head_size = params.conf.head_size;
+    auto v_head_size = params.conf.v_head_size;
 
     ScalarDescriptor s_d;
     s_d.t = ScalarDescriptor::Types::INT32;
-    s_d.v.s32 = static_cast<uint32_t>(head_size);
+    s_d.v.s32 = static_cast<uint32_t>(v_head_size);
 
     ScalarDescriptor s_k;
     s_k.t = ScalarDescriptor::Types::INT32;
@@ -889,11 +899,11 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const auto n_queries = get_seq_length(prim_params, Q, prim_params.input0_order);
         const auto n_keys = get_seq_length(prim_params, K, prim_params.input1_order);
 
-        auto head_size = prim_params.conf.head_size;
+        auto v_head_size = prim_params.conf.v_head_size;
 
         ScalarDescriptor s_d;
         s_d.t = ScalarDescriptor::Types::INT32;
-        s_d.v.s32 = static_cast<uint32_t>(head_size);
+        s_d.v.s32 = static_cast<uint32_t>(v_head_size);
 
         ScalarDescriptor s_k;
         s_k.t = ScalarDescriptor::Types::INT32;

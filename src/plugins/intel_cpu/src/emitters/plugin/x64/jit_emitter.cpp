@@ -173,6 +173,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
+        OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "No aux gprs available");
         p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
@@ -221,7 +222,7 @@ void jit_emitter::emit_data() const {
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (const auto& it : entry_map_) {

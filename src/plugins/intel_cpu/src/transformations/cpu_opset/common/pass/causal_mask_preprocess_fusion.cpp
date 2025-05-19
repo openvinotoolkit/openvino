@@ -10,9 +10,23 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -212,7 +226,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;
         config.type = "CausalMaskPreprocess";
 
-        auto triu = ov::as_type_ptr<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
+        auto const_triu_it = pattern_map.find(const_triu);
+        if (const_triu_it == pattern_map.end()) {
+            return false;
+        }
+        auto triu = ov::as_type_ptr<ov::opset1::Constant>(const_triu_it->second.get_node_shared_ptr());
+        if (!triu) {
+            return false;
+        }
 
         auto triu_shape = triu->get_output_shape(0);
         if (triu_shape.size() != 4) {
@@ -245,11 +266,21 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             }
         }
 
+        auto attention_mask_it = pattern_map.find(attention_mask);
+        auto batch_size_it = pattern_map.find(batch_size);
+        auto cache_positions_it = pattern_map.find(cache_positions);
+        auto kvLen_it = pattern_map.find(kvLen);
+
+        if (attention_mask_it == pattern_map.end() || batch_size_it == pattern_map.end() ||
+            cache_positions_it == pattern_map.end() || kvLen_it == pattern_map.end()) {
+            return false;
+        }
+
         ov::OutputVector inputs{
-            pattern_map.find(attention_mask)->second,
-            pattern_map.find(batch_size)->second,
-            pattern_map.find(cache_positions)->second,
-            pattern_map.find(kvLen)->second,
+            attention_mask_it->second,
+            batch_size_it->second,
+            cache_positions_it->second,
+            kvLen_it->second,
         };
         auto replacement = std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(inputs, config);
         ov::replace_node(root, replacement);

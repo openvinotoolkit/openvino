@@ -5,6 +5,7 @@
 #pragma once
 
 #include "executor_config.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 
@@ -30,6 +31,8 @@ struct ConvAttrs {
     bool nonConstantWeights;
     ZeroPointsType inputZeroPointsType;
     std::vector<float> dqScales;
+
+    PostOps postOps;
 };
 
 using ConvConfig = executor::Config<ConvAttrs>;

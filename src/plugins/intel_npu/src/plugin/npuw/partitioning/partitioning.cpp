@@ -558,6 +558,10 @@ void Partitioner::identifySubgraphs() {
         std::sort(input_mapping_sorted.begin(),
                   input_mapping_sorted.end(),
                   [](const PairNodePtr& p1, const PairNodePtr& p2) {
+                      // FIXME: some compilers could potentially compare element with itself
+                      if (p1.first.get() == p2.first.get()) {
+                          return false;
+                      }
                       // Sanity check
                       NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
                       return p1.first->get_friendly_name() < p2.first->get_friendly_name();
@@ -2027,6 +2031,10 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::patterns::opt::Context ctx;
     ctx.is_spatial = f._spatial.has_value();
     ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
+
+    ov::pass::GraphRewrite rewr0;
+    rewr0.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi_Transpose>(std::ref(ctx));
+    rewr0.run_on_model(f._model);
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>(std::ref(ctx));
