@@ -61,6 +61,8 @@ public:
      */
     std::vector<std::string> getVectorNames() const;
 
+    bool is_hashable() const override;
+
     ov::Any merge(const ov::NodeVector& nodes) const override;
 
     ov::Any init(const std::shared_ptr<ov::Node>& node) const override;

@@ -26,6 +26,12 @@ public:
     virtual ~RuntimeAttribute();
     virtual bool is_copyable() const;
     virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
+    /**
+     * @brief If attribute is hashable should be included in cache hash computation.
+     *
+     * @return true if hashable otherwise false.
+     */
+    virtual bool is_hashable() const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
     virtual Any merge(const ov::NodeVector& nodes) const;
     virtual Any merge(const ov::OutputVector& outputs) const;
