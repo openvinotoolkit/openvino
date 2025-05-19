@@ -37,7 +37,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
     if (attrs.dynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max())
         return false;
 
-    if (hasIntDotProductSupport()) {
+    if (!hasIntDotProductSupport()) {
         return false;
     }
 
