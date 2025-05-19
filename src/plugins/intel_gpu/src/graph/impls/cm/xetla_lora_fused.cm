@@ -1,0 +1,67 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+#include "include/batch_headers/cm_xetla.h"
+
+namespace KERNEL_NAME {
+
+#include "include/xetla_lora_fused.h"
+
+#define arch_tag gpu_arch::Xe
+
+_GENX_MAIN_ void KERNEL_NAME(
+        XETLA_SHAPE_INFO_ARG 
+        LORA_DTYPE_A *lora_input
+        [[type("svmptr_t")]],
+        LORA_DTYPE_B *state_a [[type("svmptr_t")]],
+        LORA_DTYPE_B *state_alpha [[type("svmptr_t")]],
+        LORA_DTYPE_B *state_b [[type("svmptr_t")]],
+        LORA_DTYPE_C *out [[type("svmptr_t")]],
+        LORA_DTYPE_A *lora_temp [[type("svmptr_t")]] LORA_POST_OP_KERNEL_ARGS) {
+
+    sycl::nd_item<3> item;
+
+    static constexpr uint32_t periodic_sync_interval_A = 0;
+    static constexpr uint32_t prefetch_distance_A
+            = (128 / (LORA_SG_K_A * sizeof(LORA_DTYPE_A)));
+
+    static constexpr uint32_t periodic_sync_interval_B = 0;
+    static constexpr uint32_t prefetch_distance_B
+            = (128 / (LORA_SG_K_B * sizeof(LORA_DTYPE_B)));
+
+    static constexpr mem_layout mem_layout_a = LORA_MEM_LAYOUT_A;
+    static constexpr mem_layout mem_layout_state_A = LORA_MEM_LAYOUT_STATE_A;
+    static constexpr mem_layout mem_layout_state_B = LORA_MEM_LAYOUT_STATE_B;
+    static constexpr mem_layout mem_layout_c = LORA_MEM_LAYOUT_C;
+
+    using gemm_t = lora::lora_gemm_fused<LORA_DTYPE_A, LORA_DTYPE_B,
+            LORA_DTYPE_C, LORA_DTYPE_ACC, LORA_WG_M, LORA_WG_N_A, LORA_WG_N_B,
+            LORA_SG_M, LORA_SG_N_A, LORA_SG_N_B, LORA_SG_K_A, LORA_SG_K_B,
+            LORA_WG_B_TOTAL, LORA_MEM_LAYOUT_A, LORA_MEM_LAYOUT_STATE_A,
+            LORA_MEM_LAYOUT_STATE_B, LORA_MEM_LAYOUT_C, LORA_MEM_SPACE_TEMP,
+            LORA_LOCAL_SLICING, LORA_MMA_ENGINE, periodic_sync_interval_A,
+            prefetch_distance_A, periodic_sync_interval_B, prefetch_distance_B,
+            arch_tag, LORA_UNALIGNED, LORA_TEMP_IN_REG>;
+
+    if constexpr (gemm_t::barrier_count != 0) {
+        cm_nbarrier_init(gemm_t::barrier_count);
+    }
+    if constexpr (gemm_t::slm_size != 0) { cm_slm_init(gemm_t::slm_size); }
+
+    gemm_t::run(item, LORA_SIZE_M, LORA_SIZE_K, LORA_SIZE_N, LORA_SIZE_RANK,
+            lora_input, state_a, state_alpha, state_b, out,
+            lora_temp LORA_POST_OP_ARGS_PASS);
+}
