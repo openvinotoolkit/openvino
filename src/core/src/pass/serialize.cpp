@@ -1072,17 +1072,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        const auto is_rt_info_deterministic = deterministic ? [](const ov::RuntimeAttribute& rt_attribute){
-            return rt_attribute.is_deterministic();
-            } : [](const ov::RuntimeAttribute&) {return true;};
-
-        auto append_runtime_info = [&is_rt_info_deterministic](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [&deterministic](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
-                    if (is_rt_info_deterministic(rt_attribute)) {
+                    if (!deterministic || rt_attribute.is_deterministic()) {
                         auto attribute_node = rt_node.append_child("attribute");
                         const auto& type_info = rt_attribute.get_type_info();
                         attribute_node.append_attribute("name").set_value(type_info.name);
