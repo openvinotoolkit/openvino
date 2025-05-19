@@ -1146,6 +1146,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
     params.engineInfo.supports_image = device_info.supports_image;
+    params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;

@@ -100,8 +100,6 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        size_t countZero = 0;
-
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
         for (size_t i = 1; i < vec_len - 1; i++) {
@@ -109,11 +107,8 @@ protected:
                 res[i] = static_cast<int8_t>(dist(gen));
             } else {
                 res[i] = 0;
-                countZero++;
             }
         }
-
-        std::cout << "Sparse rate = " << countZero * 100 / vec_len << "%" << std::endl;
 
         return res;
     }
