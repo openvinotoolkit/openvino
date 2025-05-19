@@ -95,9 +95,9 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Use Python 3.9 as default
-RUN python3.9 -m venv venv
+RUN python3.10 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.10 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
