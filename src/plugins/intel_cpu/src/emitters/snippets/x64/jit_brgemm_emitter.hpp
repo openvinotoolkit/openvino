@@ -40,6 +40,7 @@ private:
     std::optional<size_t> m_binary_postops_offset = std::nullopt;
 
     bool m_with_scratchpad = false;
+    size_t m_gemm_inputs_count = 0;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);

@@ -68,6 +68,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
+    m_gemm_inputs_count = brgemm_node->get_gemm_inputs_count();
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -112,9 +113,8 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    const size_t main_inputs_count = m_with_scratchpad ? 3 : 2;
-    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == main_inputs_count + 1, "invalid memory offsets size");
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() >= main_inputs_count && out.size() == 1,
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == m_gemm_inputs_count + 1, "invalid memory offsets size");
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() >= m_gemm_inputs_count && out.size() == 1,
                               "expects 3 inputs if there are compensations/wsp");
 }
 
