@@ -64,11 +64,12 @@ if(APPLE)
 
     # try to make in compatile with macos 15.4+
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_fixup_chains")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_weak_imports")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-bind_at_load")
+    # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_fixup_chains")
+    # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_weak_imports")
+    # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-bind_at_load")
 
-    list(APPEND setup_py_env "LDFLAGS=-Wl,-headerpad_max_install_names -Wl,-no_fixup_chains -Wl,-no_weak_imports -Wl,-bind_at_load")
+    list(APPEND setup_py_env "LDFLAGS=-Wl,-headerpad_max_install_names")
+    # list(APPEND setup_py_env "LDFLAGS=-Wl,-headerpad_max_install_names -Wl,-no_fixup_chains -Wl,-no_weak_imports -Wl,-bind_at_load")
     list(APPEND setup_py_env "ARCHFLAGS=-arch ${_arch}")
 
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
