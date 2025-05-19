@@ -319,7 +319,7 @@ public:
         }
 
         dnnl::memory::desc bias_md = nullptr;
-        if (impl_params->input_layouts.size() > 2) {
+        if (!zero_bias) {
             bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
         }
         auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
