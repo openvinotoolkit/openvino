@@ -65,9 +65,6 @@ if(APPLE)
     # try to make in compatile with macos 15.4+
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
 
-    # list(APPEND setup_py_env "LDFLAGS=-Wl,-headerpad_max_install_names")
-    # list(APPEND setup_py_env "ARCHFLAGS=-arch ${_arch}")
-
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
     if(_arch AND _macos_target_version)
         set(PLATFORM_TAG "macosx_${_macos_target_version}_${_arch}")
