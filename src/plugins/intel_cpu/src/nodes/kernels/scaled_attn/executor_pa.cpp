@@ -1744,6 +1744,7 @@ void transpose_16NxK(TDST* dst,
                      [[maybe_unused]] TDST* tmp,
                      const size_t N,
                      const size_t K,
+                     const size_t block_size,
                      const size_t dst_stride,
                      const size_t src_stride,
                      [[maybe_unused]] const size_t group_size,
@@ -1775,6 +1776,7 @@ static void transpose_16NxK(T* dst,
                             T* tmp,
                             const size_t N,
                             const size_t K,
+                            const size_t block_size,
                             const size_t dst_stride,
                             const size_t src_stride,
                             const size_t group_size,
@@ -1787,6 +1789,7 @@ static void transpose_16NxK(T* dst,
                                                 reinterpret_cast<uint32_t*>(0),
                                                 N,
                                                 K >> 1,
+                                                block_size,
                                                 dst_stride,
                                                 src_stride >> 1,
                                                 group_size,
@@ -1802,6 +1805,7 @@ void transpose_16NxK(TDST* dst,
                      TDST* tmp,
                      const size_t N,
                      const size_t K,
+                     const size_t block_size,
                      const size_t dst_stride,
                      const size_t src_stride,
                      const size_t group_size,
@@ -1837,11 +1841,15 @@ void transpose_16NxK(TDST* dst,
             t += src_stride;
         }
     }
+    for (size_t i = N; i < block_size; i++) {
+        memset(tmp + i * src_stride, 0, sizeof(TDST) * K);
+    }
     transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
                                                      tmp,
                                                      reinterpret_cast<TDST*>(0),
-                                                     N,
+                                                     block_size,
                                                      K,
+                                                     block_size,
                                                      dst_stride,
                                                      src_stride,
                                                      0,
@@ -1856,6 +1864,7 @@ static inline void dequant([[maybe_unused]] T* dst,
                            [[maybe_unused]] void* src,
                            [[maybe_unused]] const size_t N,
                            [[maybe_unused]] const size_t K,
+                           [[maybe_unused]] const size_t block_size,
                            [[maybe_unused]] const size_t group_size,
                            [[maybe_unused]] const bool quant_bychannel) {
     // never called
@@ -1866,6 +1875,7 @@ static inline void dequant(float* dst,
                            void* src,
                            const size_t N,
                            const size_t K,
+                           [[maybe_unused]] const size_t block_size,
                            [[maybe_unused]] const size_t group_size,
                            [[maybe_unused]] const bool quant_bychannel) {
     cvt_copy(dst, reinterpret_cast<ov::float16*>(src), 1, K * N, 0, 0);
@@ -1878,6 +1888,7 @@ void dequant(TDST* dst,
              void* src,
              const size_t N,
              const size_t K,
+             const size_t block_size,
              const size_t group_size,
              const bool quant_bychannel) {
     // The layout for per token per head:
@@ -1908,6 +1919,10 @@ void dequant(TDST* dst,
             s += src_offset;
             dst += K;
         }
+    }
+    for (size_t i = N; i < block_size; i++) {
+        memset(dst, 0, sizeof(TDST) * K);
+        dst += K;
     }
 }
 
@@ -1988,6 +2003,7 @@ static void pack_32NxK(TDST* dst,
                        TDST* tmp,
                        const size_t N,
                        const size_t K,
+                       const size_t block_size,
                        const size_t dst_stride,
                        const size_t src_stride,
                        const size_t group_size,
@@ -2021,6 +2037,7 @@ static void pack_32NxK(TDST* dst,
                        TDST* tmp,
                        const size_t N,
                        const size_t K,
+                       const size_t block_size,
                        const size_t dst_stride,
                        const size_t src_stride,
                        const size_t group_size,
@@ -2056,12 +2073,15 @@ static void pack_32NxK(TDST* dst,
             t += src_stride;
         }
     }
-
+    for (size_t i = N; i < block_size; i++) {
+        memset(tmp + i * src_stride, 0, sizeof(TDST) * (K));
+    }
     pack_32NxK<TDST, precision_of<TDST>::value>(dst,
                                                 tmp,
                                                 reinterpret_cast<TDST*>(0),
-                                                N,
+                                                block_size,
                                                 K,
+                                                block_size,
                                                 dst_stride,
                                                 src_stride,
                                                 group_size,
@@ -2077,6 +2097,7 @@ static void pack_32NxK([[maybe_unused]] TDST* dst,
                        [[maybe_unused]] TDST* tmp,
                        [[maybe_unused]] const size_t N,
                        [[maybe_unused]] const size_t K,
+                       [[maybe_unused]] const size_t block_size,
                        [[maybe_unused]] const size_t dst_stride,
                        [[maybe_unused]] const size_t src_stride,
                        [[maybe_unused]] const size_t group_size,
@@ -3013,6 +3034,7 @@ struct MHA {
         int32_t batch_in_seq;      // batch idx in sequence
         int32_t batch_in_reorder;  // which batch in reorder buffer will be used
         int32_t kv_block_id;       // block id in this kv cache seq
+        int32_t valid_block_len;
     };
     struct WorkItems {
     private:
@@ -3048,11 +3070,12 @@ struct MHA {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
-                        reorder_items.emplace_back(ReorderWorkItem{
-                            i,                     // batch_in_seq
-                            max_batch_in_reorder,  // batch_in_reorder
-                            block_id               // kv_block_id
-                        });
+                        int32_t valid_block_size =
+                            block_id == (reorder_sub_work_count - 1) ? kv_len - block_id * block_size : block_size;
+                        reorder_items.emplace_back(ReorderWorkItem{i,                     // batch_in_seq
+                                                                   max_batch_in_reorder,  // batch_in_reorder
+                                                                   block_id,              // kv_block_id
+                                                                   valid_block_size});    // valid_block_len
                     }
 
                     // workitems for attention
@@ -3140,15 +3163,19 @@ struct MHA {
             }
 
             auto ithr = parallel_get_thread_num();
+            size_t valid_len = _helper._block_size;
+            if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+                valid_len = item.valid_block_len;
+            }
             auto* k_ptr =
                 k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
-
             transpose_16NxK<DATA_TYPE, KEY_PREC>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
-                _helper._block_size,            // N
-                _helper.S,                      // K
+                valid_len,  // N
+                _helper.S,  // K
+                _helper._block_size,
                 _helper._block_size,            // dst_stride
                 _helper.S,                      // src_stride
                 _helper._key_group_size,        // group_size
@@ -3163,19 +3190,21 @@ struct MHA {
                     v_ptr,
                     _helper._block_size,
                     _helper.SV,
+                    _helper._block_size,
                     _helper._value_group_size,
                     _helper._quant_value_bychannel);
 #    else
-                pack_32NxK<DATA_TYPE, VALUE_PREC>(
-                    _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                    v_ptr,
-                    _helper._output.template ptr<DATA_TYPE>(ithr),
-                    _helper._block_size,
-                    _helper.SV,
-                    rnd_up(_helper.SV, _helper._block_size),
-                    _helper.SV,
-                    _helper._value_group_size,
-                    _helper._quant_value_bychannel);
+                    pack_32NxK<DATA_TYPE, VALUE_PREC>(
+                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                        v_ptr,                                          // quantized data
+                        _helper._output.template ptr<DATA_TYPE>(ithr),  // temp buffer hold dequantized data
+                        valid_len,                                      // N may be smaller than block_size
+                        _helper.SV,                                     // K
+                        _helper._block_size,                            // block_size
+                        rnd_up(_helper.SV, _helper._block_size),
+                        _helper.SV,
+                        _helper._value_group_size,
+                        _helper._quant_value_bychannel);
 #    endif
             } else {
                 // need to decompress
@@ -3183,11 +3212,16 @@ struct MHA {
                     auto* v_ptr =
                         v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number,
                                                                                                           hk);
+                    size_t valid_len = _helper._block_size;
+                    if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+                        valid_len = item.valid_block_len;
+                    }
                     dequant<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
-                        _helper._block_size,
+                        valid_len,
                         _helper.SV,
+                        _helper._block_size,
                         _helper._value_group_size,
                         _helper._quant_value_bychannel);
                 }
@@ -3619,7 +3653,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                        const PlainTensor& block_indices_begins) {
         auto B_token = k.size(0);
         _slot_mapping.resize<int32_t>({B_token});
-
         size_t idx = 0;
         for (size_t i = 0; i < past_lens.size(0); i++) {
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
@@ -3640,36 +3673,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
             //    zero.
             // for second token, the kernels have tails handling logic
-            if (q_len != 1 && kv_len % _helper._block_size != 0) {
-                // block no. which contains tails
-                auto block_number = block_indices.ptr<int32_t>()[block_number_start + kv_len / _helper._block_size];
-                // tails start position
-                auto block_offset = kv_len % _helper._block_size;
-                // tails number
-                auto zero_tokens = _helper._block_size - block_offset;
-                auto S = k_cache.m_dims[3];
-                auto SV = v_cache.m_dims[3];
-                auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
-                parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
-                    // zero out key cache
-                    auto* key_cache_ptr =
-                        k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number,
-                                                                                                      h,
-                                                                                                      block_offset + l);
-                    std::memset(key_cache_ptr,
-                                0,
-                                S * k_cache.m_element_size / get_sub_byte_multiplier(k_cache.get_precision()));
-                    // zero out value cache
-                    auto* value_cache_ptr =
-                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
-                            block_number,
-                            h,
-                            block_offset + l);
-                    std::memset(value_cache_ptr,
-                                0,
-                                SV * v_cache.m_element_size / get_sub_byte_multiplier(v_cache.get_precision()));
-                });
-            }
         }
 
         if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {

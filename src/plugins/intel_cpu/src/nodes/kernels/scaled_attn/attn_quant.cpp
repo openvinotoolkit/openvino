@@ -528,14 +528,22 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         size_t block_offset = block_number_start + past_len / block_size;
         auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
         parallel_for(total_blocks, [&](size_t block_id) {
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id;
+            bool is_first_block = block_id == 0;
+            size_t offset = 0;
+            // layout for blocked cache
+            // block_0  | block_1  | block_2
+            // pre_num  | new_data | new_data
+            // new_data | new_data | new_data
+            if (!is_first_block) {
+                offset = prev_nums;
+            }
+            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id - offset;
             auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
             auto p_data = base + params_offset;
             size_t valid_length = 0;
-            bool is_first_block = block_id == 0;
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             if (is_first_block) {
                 valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
