@@ -59,8 +59,8 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)
     //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
-    const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
-    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
+    const auto& precision = brgemm_expr->get_node()->get_input_element_type(1);
+    if (brgemm->get_config().with_wei_repacking() && precision != element::f32) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
@@ -80,8 +80,8 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             size_t n_block,
                                             size_t k_block) {
     const auto& brgemm_expr = *brgemm_it;
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    const auto type = brgemm->get_type();
+    const auto& brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    const auto& brgemm_config = brgemm->get_config();
 
     auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
                                                                                     brgemm_it,
@@ -89,7 +89,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                                                                     n_block,
                                                                                     k_block);
 
-    if (stand_alone(type)) {
+    if (!brgemm_config.with_wei_repacking()) {
         return res;
     }
 
@@ -99,14 +99,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
         copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
     }
-    if (with_amx(type)) {
+    if (brgemm_config.with_wsp()) {
         move_new_memory_buffer(linear_ir, brgemm_it);
         auto buffer_it = std::prev(brgemm_it);
         buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
     }
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    if (with_compensations(type)) {
+    if (brgemm_config.with_compensations()) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
         OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
         OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");

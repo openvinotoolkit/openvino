@@ -29,17 +29,14 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    const auto brgemm_type = brgemm_node->get_type();
-    m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
+    const auto& brgemm_config = brgemm_node->get_config();
+    m_is_with_amx = brgemm_config.is_amx();
     if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_config.isa());
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
-        BrgemmKernelConfig kernel_config(brg0Prc,
-                                         brg1Prc,
-                                         with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
+        BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_config.with_compensations(), brgemm_config.isa());
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }
@@ -54,7 +51,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                     utils::get_buffer_cluster_id(expr->get_input_port(1)),
                     utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    if (with_scratchpad(brgemm_type)) {
+    if (brgemm_config.with_scratchpad()) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
@@ -64,29 +61,26 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
-    using brgemm_utils::BRGEMM_TYPE;
-    switch (brgemm->get_type()) {
-    case BRGEMM_TYPE::STAND_ALONE:
-        return {{element::f32, element::f32}};
-    case BRGEMM_TYPE::REPACKING_ONLY: {
-        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
-                                                                {element::bf16, element::bf16},
-                                                                {element::f32, element::f32}};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert({element::i8, element::i8});
-        }
-        return supported_types;
-    }
-    case BRGEMM_TYPE::WITH_COMPENSATIONS:
+
+    const auto& config = brgemm->get_config();
+    if (config.with_compensations()) {
         return {{element::i8, element::i8, element::f32}};
-    case BRGEMM_TYPE::WITH_AMX:
+    }
+    if (config.is_amx()) {
         return {{element::i8, element::i8, element::u8},
                 {element::u8, element::i8, element::u8},
                 {element::bf16, element::bf16, element::u8},
                 {element::f16, element::f16, element::u8}};
-    default:
-        OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }
+    if (config.with_wei_repacking()) {
+        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
+                                                                {element::bf16, element::bf16},
+                                                                {element::f32, element::f32}};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+            supported_types.insert({element::i8, element::i8});
+        return supported_types;
+    }
+    return {{element::f32, element::f32}};
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
