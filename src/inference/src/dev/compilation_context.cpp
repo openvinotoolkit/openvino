@@ -70,7 +70,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
-        // Skip runtime attributes which are not cashable
+        // Skip runtime attributes which are not hash-able
         for (const auto& [name, attribute] : op->get_rt_info()) {
             if (!attribute.is<ov::RuntimeAttribute>() || attribute.as<ov::RuntimeAttribute>().is_hashable()) {
                 seed = hash_combine(seed, name);
