@@ -330,7 +330,6 @@ public:
 
     const layout& get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
     const layout& get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
-
     layout get_node_output_layout() const { return _node_output_layout; }
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
