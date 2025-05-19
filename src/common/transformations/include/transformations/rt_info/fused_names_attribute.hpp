@@ -61,7 +61,7 @@ public:
      */
     std::vector<std::string> getVectorNames() const;
 
-    bool is_hashable() const override;
+    bool is_deterministic() const override;
 
     ov::Any merge(const ov::NodeVector& nodes) const override;
 

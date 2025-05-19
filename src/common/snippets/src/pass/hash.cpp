@@ -319,7 +319,7 @@ void ovfunction_2_hash(uint64_t& hash,
             hash = hash_combine(hash, AttrType::rt_info);
             for (const auto& [name, attribute] : attributes) {
                 if (attribute.is<ov::RuntimeAttribute>()) {
-                    if (const auto& rt_attribute = attribute.as<ov::RuntimeAttribute>(); rt_attribute.is_hashable()) {
+                    if (const auto& rt_attribute = attribute.as<ov::RuntimeAttribute>(); rt_attribute.is_deterministic()) {
                         const auto& type_info = rt_attribute.get_type_info();
                         hash = hash_combine(hash, AttrType::attribute);
                         hash = hash_combine(hash_combine(hash, AttrType::name), type_info.name);

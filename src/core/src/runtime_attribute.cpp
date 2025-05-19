@@ -42,7 +42,7 @@ std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {
     return os << attrubute.to_string();
 }
 
-bool RuntimeAttribute::is_hashable() const {
+bool RuntimeAttribute::is_deterministic() const {
     return true;
 }
 

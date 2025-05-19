@@ -72,7 +72,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     for (const auto& op : model->get_ordered_ops()) {
         // Skip runtime attributes which are not hash-able
         for (const auto& [name, attribute] : op->get_rt_info()) {
-            if (!attribute.is<ov::RuntimeAttribute>() || attribute.as<ov::RuntimeAttribute>().is_hashable()) {
+            if (!attribute.is<ov::RuntimeAttribute>() || attribute.as<ov::RuntimeAttribute>().is_deterministic()) {
                 seed = hash_combine(seed, name);
                 std::stringstream strm;
                 attribute.print(strm);
