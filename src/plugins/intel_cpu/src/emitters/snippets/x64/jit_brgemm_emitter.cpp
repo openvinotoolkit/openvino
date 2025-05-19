@@ -32,7 +32,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brgemm_config = brgemm_node->get_config();
     m_is_with_amx = brgemm_config.is_amx();
     if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_config.isa());
+        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_config.wei_k_blk(), brgemm_config.isa());
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
@@ -76,8 +76,9 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
                                                                 {element::bf16, element::bf16},
                                                                 {element::f32, element::f32}};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert({element::i8, element::i8});
+        }
         return supported_types;
     }
     return {{element::f32, element::f32}};

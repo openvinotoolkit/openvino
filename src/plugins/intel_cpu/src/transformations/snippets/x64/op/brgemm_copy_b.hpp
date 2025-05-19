@@ -48,7 +48,7 @@ public:
     }
     size_t get_offset_compensations() const;
 
-    BrgemmConfig get_config() const {
+    const BrgemmConfig& get_config() const {
         return m_config;
     }
     element::Type get_src_element_type() const {

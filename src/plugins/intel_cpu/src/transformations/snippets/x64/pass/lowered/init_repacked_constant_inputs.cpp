@@ -65,10 +65,12 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         const auto& N = *planar_shape.rbegin();
         const auto& prc = param->get_node()->get_output_element_type(0);
 
-        BrgemmExternalRepackingAdjuster::update_kernel(executor, shape, layout, N, K, prc);
+        BrgemmExternalRepackingAdjuster::update_kernel(executor, shape, layout, N, K, prc.size());
 
-        const auto& blk_shape =
-            BrgemmExternalRepackingAdjuster::get_blk_shape(planar_shape, prc, BrgemmCopyB::is_transposed(layout));
+        const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
+        const auto& blk_shape = BrgemmExternalRepackingAdjuster::get_blk_shape(planar_shape,
+                                                                               config.get_wei_N_blk(),
+                                                                               config.get_wei_K_blk());
         const auto& order = BrgemmExternalRepackingAdjuster::get_blk_order(planar_shape.size());
         const auto& desc = std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), blk_shape, order);
 

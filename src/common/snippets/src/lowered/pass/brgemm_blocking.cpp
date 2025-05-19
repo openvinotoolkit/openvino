@@ -107,12 +107,9 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const
 
     // Ticket: 113745
     // TODO: extend block size selection heuristics
-    auto get_block_size = [](const size_t dim, const size_t default_blk) {
-        if (!utils::is_dynamic_value(dim) && dim <= default_blk)
-            return get_full_dim_value();
-        return default_blk;
-    };
-    return std::make_tuple(get_block_size(m, get_default_m_blk(m)), get_block_size(n, get_default_n_blk(n)), get_block_size(k, get_default_k_blk(k)));
+    return std::make_tuple(get_corrected_blk_size_by_dim(m, get_default_m_blk(m)),
+                           get_corrected_blk_size_by_dim(n, get_default_n_blk(n)),
+                           get_corrected_blk_size_by_dim(k, get_default_k_blk(k)));
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_brgemm_dimensions(const ExpressionPtr& brgemm_expr) {

@@ -17,6 +17,7 @@ struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
+                          dnnl_dim_t wei_K_blk,
                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmAMXKernelConfig() = delete;
 
@@ -25,7 +26,7 @@ public:
     }
 
     [[nodiscard]] dnnl_dim_t get_inner_K_blk() const {
-        return m_static_params->inner_k_blk;
+        return m_static_params->wei_K_blk;
     }
     [[nodiscard]] dnnl_dim_t get_vnni_factor() const {
         return m_static_params->vnni_factor;
@@ -37,9 +38,10 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
+                     dnnl_dim_t wei_K_blk,
                      dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
 
-        const dnnl_dim_t inner_k_blk{0};
+        const dnnl_dim_t wei_K_blk{0};
         const dnnl_dim_t vnni_factor{0};
 
         bool operator==(const StaticParams& rhs) const;
@@ -50,7 +52,7 @@ private:
         [[nodiscard]] std::string to_string() const override;
 #endif
     private:
-        static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
+        static size_t compute_hash(dnnl_dim_t wei_K_blk, dnnl_dim_t vnni_factor);
     };
 
     [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {

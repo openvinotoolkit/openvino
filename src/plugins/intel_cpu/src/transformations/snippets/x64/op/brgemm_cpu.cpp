@@ -23,7 +23,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_config(std::move(config)) {
+      m_config(config) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -46,7 +46,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_config(std::move(config)) {
+      m_config(config) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -67,7 +67,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_config(std::move(config)) {
+      m_config(config) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -87,7 +87,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_config(std::move(config)) {
+      m_config(config) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
@@ -128,7 +128,7 @@ void BrgemmCPU::validate_with_scratchpad() const {
     if (m_config.with_compensations()) {
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32,
                         "BRGEMM Scratch with compensations must have FP32 element type");
-    } else if (m_config.with_wsp()) {
+    } else if (m_config.is_amx()) {
         OPENVINO_ASSERT(get_input_partial_shape(2).is_static(), "BRGEMM Scratch must have static shape");
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::u8, "BRGEMM Scratch must have U8 element type");
     }
