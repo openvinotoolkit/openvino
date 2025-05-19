@@ -21,25 +21,25 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
     if (precisions[0] != ov::element::f32) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
     }
-    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
-                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                      b_row,
-                                                      std::vector<float>{0.1122});
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < 2; ++mm_count) {
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count});
+    auto mlp_layer = [&](size_t m, size_t n) {
+        auto b_shape = ov::Shape{m, n};
+        auto b_row = ov::Shape{m};
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        for (size_t i = 0; i < num_hidden_layers; ++i) {
-            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   b_row,
-                                                                   std::vector<float>{0.1122f + i});
-            current = std::make_shared<ov::op::v1::Add>(current, constant);
-        }
-        current = std::make_shared<ov::op::v0::Relu>(current);
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+            b_row,
+            std::vector<float>{0.1122f});
+        current = std::make_shared<ov::op::v1::Add>(current, constant);
+    };
+
+    mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
+    for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
+        mlp_layer(hidden_matmul_size, hidden_matmul_size);
     }
+    mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size);
+
     auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
     auto result = std::make_shared<ov::op::v0::Result>(softmax);
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{A_param});
