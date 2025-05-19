@@ -7,6 +7,7 @@
 #include <climits>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -24,6 +25,7 @@ OutputVector translate_slice_common(const NodeContext& context,
                                     const bool stop_dynamic_rank_unsqueeze = true) {
     // aten::slice.t(t[] l, int? start=None, int? end=None, int step=1) -> (t[])
     // aten::slice.Tensor(Tensor(a) self, int dim=0, int? start=None, int? end=None, int step=1) -> (Tensor(a))
+    auto data = context.get_input(0);
     ov::Output<ov::Node> dim;
     int start_idx;
     int end_idx;
@@ -88,7 +90,16 @@ OutputVector translate_slice_common(const NodeContext& context,
     } else {
         step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     }
-    return {context.mark_node(std::make_shared<v8::Slice>(context.get_input(0), start, end, step, dim))};
+
+    if (const auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr())) {
+        auto rank = std::get<1>(get_shape_rank(context, data, true));
+        dim = normalize_axis(context, dim, rank);
+        data = complex->get_input_source_output(0);
+        Output<Node> slice = context.mark_node(std::make_shared<v8::Slice>(data, start, end, step, dim));
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(slice, slice.get_element_type()))};
+    } else {
+        return {context.mark_node(std::make_shared<v8::Slice>(data, start, end, step, dim))};
+    }
 };
 
 OutputVector translate_slice(const NodeContext& context) {

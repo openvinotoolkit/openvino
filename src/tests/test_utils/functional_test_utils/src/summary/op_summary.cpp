@@ -237,7 +237,7 @@ void OpSummary::saveReport() {
     filename += ov::test::utils::REPORT_EXTENSION;
 
     if (!ov::util::directory_exists(outputFolder)) {
-        ov::util::create_directory_recursive(outputFolder);
+        ov::util::create_directory_recursive(std::filesystem::path{outputFolder});
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
