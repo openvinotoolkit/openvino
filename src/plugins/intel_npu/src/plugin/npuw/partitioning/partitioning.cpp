@@ -567,7 +567,7 @@ void Partitioner::identifySubgraphs() {
                   input_mapping_sorted.end(),
                   [](const PairNodePtr& p1, const PairNodePtr& p2) {
                       // FIXME: some compilers could potentially compare element with itself
-                      if (p1.first.get() == p2.first.get()) {
+                      if (p1.first == p2.first) {
                           return false;
                       }
                       // Sanity check
