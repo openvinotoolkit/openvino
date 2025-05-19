@@ -40,7 +40,7 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto& layout = in_desc->get_layout();
 
         // TODO [157340]: support external repacking for copyB with compensations
-        if (brgemm_utils::with_compensations(copy_b_node->get_type()) || transformation_callback(copy_b_node)) {
+        if (copy_b_node->get_config().with_compensations() || transformation_callback(copy_b_node)) {
             return false;
         }
 
