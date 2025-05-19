@@ -303,8 +303,7 @@ class LoraOptFirstTokenA : public LoraOptFirstTokenBase {
 public:
     explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n) : LoraOptFirstTokenBase("first_token_a_" + suffix, reg_m, reg_n) {}
 
-protected:
-    std::pair<size_t, size_t> get_subgroup_params(const RuntimeParams& params) const {
+    static std::pair<size_t, size_t> get_subgroup_params(const RuntimeParams& params, size_t reg_n) {
         size_t sg_m, sg_n;
 
         const auto& lora_input_lo = params.input_layouts[1];
@@ -320,6 +319,7 @@ protected:
         return {sg_m, sg_n};
     }
 
+protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = LoraOptFirstTokenBase::get_jit_constants(params);
 
@@ -354,7 +354,7 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[reg_m = reg_m, reg_n = reg_n](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
@@ -365,10 +365,10 @@ protected:
             const auto& state_alpha_lo = params.input_layouts[3];
             size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
 
-            size_t subgroup_size = get_subgroup_size(params);
+            size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
 
             size_t sg_m, sg_n;
-            std::tie(sg_m, sg_n) = get_subgroup_params(params);
+            std::tie(sg_m, sg_n) = LoraOptFirstTokenA::get_subgroup_params(params, reg_n);
 
             if (sg_n == 0) {
                 return;
@@ -425,25 +425,26 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
+        return DispatchDataFunc{
+            [reg_m = reg_m, reg_n = reg_n, sg_m = sg_m, sg_n = sg_n](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+                assert(!params.is_dynamic());
+                auto& wgs = kd.params.workGroups;
 
-            const auto& lora_input_lo = params.input_layouts[1];
-            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
-            size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
+                const auto& lora_input_lo = params.input_layouts[1];
+                size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+                size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
-            const auto& state_b_lo = params.input_layouts[4];
-            size_t N = extract_channel(ChannelName::BATCH, state_b_lo);
+                const auto& state_b_lo = params.input_layouts[4];
+                size_t N = extract_channel(ChannelName::BATCH, state_b_lo);
 
-            size_t subgroup_size = get_subgroup_size(params);
+                size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
 
-            size_t bm = reg_m * sg_m;
-            size_t bn = reg_n * sg_n * subgroup_size;
+                size_t bm = reg_m * sg_m;
+                size_t bn = reg_n * sg_n * subgroup_size;
 
-            wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(N, bn) / reg_n, 1};
-            wgs.local = {sg_m, sg_n * subgroup_size, 1};
-        }};
+                wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(N, bn) / reg_n, 1};
+                wgs.local = {sg_m, sg_n * subgroup_size, 1};
+            }};
     }
 
     size_t sg_m;
