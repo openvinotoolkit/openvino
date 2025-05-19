@@ -318,25 +318,17 @@ public:
             _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _wzp_data_type);
         }
 
-        if (zero_bias) {
-            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
-                                    ib.get_engine().get_onednn_engine(),
-                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
-                                    input_md, weights_md, output_md,
-                                    strides, dilates, padding_l, padding_r,
-                                    *_attrs.get());
-            _pd = *prim_desc;
-        } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
-            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
-                                    ib.get_engine().get_onednn_engine(),
-                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
-                                    input_md, weights_md, bias_md, output_md,
-                                    strides, dilates, padding_l, padding_r,
-                                    *_attrs.get());
-            _pd = *prim_desc;
+        dnnl::memory::desc bias_md = nullptr;
+        if (impl_params->input_layouts.size() > 2) {
+            bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
         }
-
+        auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+                                ib.get_engine().get_onednn_engine(),
+                                dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
+                                input_md, weights_md, bias_md, output_md,
+                                strides, dilates, padding_l, padding_r,
+                                *_attrs.get());
+        _pd = *prim_desc;
         _scratchpad_md = _pd.scratchpad_desc();
 
         std::vector<uint8_t> prim_cache;
