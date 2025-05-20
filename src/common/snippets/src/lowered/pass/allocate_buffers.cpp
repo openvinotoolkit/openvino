@@ -40,8 +40,6 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     }
     pipeline.register_pass<PropagateBufferOffset>();
     pipeline.run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
-    // kai gemm reapck input with padding, but shape should not change for matmul semantic
-    buffer_scratchpad_size += 100000;
 
     linear_ir.set_static_buffer_scratchpad_size(buffer_scratchpad_size);
 

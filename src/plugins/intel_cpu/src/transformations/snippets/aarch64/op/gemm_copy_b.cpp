@@ -83,6 +83,10 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
+std::vector<size_t> GemmCopyB::get_pad_size() {
+    return std::vector<size_t>{1, 8};
+}
+
 bool GemmCopyB::is_transposed(const std::vector<size_t>& layout) {
     const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
     // OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),

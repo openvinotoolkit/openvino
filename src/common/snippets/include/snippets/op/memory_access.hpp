@@ -67,6 +67,13 @@ public:
     bool is_memory_access_input_port(size_t idx) const;
     bool is_memory_access_output_port(size_t idx) const;
 
+    virtual bool is_padded() {
+        return false;
+    }
+    virtual std::vector<size_t> get_pad_size() {
+        return std::vector<size_t>();
+    }
+
     /**
      * @brief Checks if the provided operation memory access on all ports
      */

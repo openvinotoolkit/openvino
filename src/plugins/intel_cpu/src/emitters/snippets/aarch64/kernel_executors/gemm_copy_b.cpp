@@ -91,7 +91,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     size_t dst_offset = 0;
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
-        size_t n_end = std::min(n_start + n_blk_size, static_cast<size_t>(N));
+        size_t n_end = std::min(n_start + n_blk_size, N);
         size_t n_step = n_end - n_start;
         int8_t* src_ptr = static_cast<int8_t*>(in0) + n_start * sizeof(int32_t);
         int8_t* dst_ptr = static_cast<int8_t*>(out0) + dst_offset;
