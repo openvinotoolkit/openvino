@@ -112,6 +112,9 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         const auto& concat = pattern_value_map.at(concat_label).get_node_shared_ptr();
 
         const auto first_conv = as_type_ptr<ov::op::v1::Convolution>(concat->get_input_node_shared_ptr(0));
+        if (!first_conv)
+            return false;
+
         const auto split = first_conv->get_input_node_shared_ptr(0);
         const bool is_split = is_type<ov::op::v1::Split>(split);
         const bool is_variadic_split = is_type<ov::op::v1::VariadicSplit>(split);
