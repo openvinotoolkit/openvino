@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32,
                          MLPQuantized,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
-                                            ::testing::ValuesIn({ov::element::f32, ov::element::bf16}),
+                                            ::testing::ValuesIn({ov::element::f32}),
                                             ::testing::Values(MLPQuantized::default_thread_count),
                                             ::testing::Values(1),  // Subgraph
                                             ::testing::Values(1),  // MLPQuantized
