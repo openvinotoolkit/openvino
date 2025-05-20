@@ -57,7 +57,7 @@ void scaled_dot_product_attention(const T* query,
                                   const Shape& valueShape,
                                   const Shape& maskShape,
                                   const Shape& outputShape) {
-    static_assert(std::is_same<T, TMask>::value || std::is_same<TMask, char>::value,
+    static_assert(std::is_same_v<T, TMask> || std::is_same_v<TMask, char>,
                   "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
 
     const T* bias = nullptr;
