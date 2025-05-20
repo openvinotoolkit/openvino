@@ -214,6 +214,9 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
 
         if (params.outputs.size() > 1) {
             jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
+            if (params.conf.has_score_aggregation) {
+                jit.AddConstant(MakeJitConstant("HAS_SCORE_AGGREGATION", 1));
+            }
         }
     } else {
         size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
@@ -376,12 +379,16 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
 
         if (prim_params.conf.is_paged_attention && prim_params.outputs.size() > 1) {
             // Intermediate buffers for PagedAttention scores calculation:
-            // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
+            // softmax_results, subsequence_offsets, (cumulative_score_aggregation_sum), exp_sums, max_logits, tmp_out
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});
+
+            if (prim_params.conf.has_score_aggregation) {
+                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 8});
+            }
 
             // Scalar used for proper offset calculation of intermediate data buffers
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});

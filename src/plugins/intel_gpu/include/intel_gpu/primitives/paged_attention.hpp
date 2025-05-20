@@ -13,6 +13,26 @@ namespace cldnn {
 struct paged_attention : public primitive_base<paged_attention> {
     CLDNN_DECLARE_PRIMITIVE(paged_attention)
 
+    enum PagedAttentionInputIdx {
+        QUERY = 0,
+        KEY = 1,
+        VALUE = 2,
+        KEY_CACHE = 3,
+        VALUE_CACHE = 4,
+        PAST_LENS = 5,
+        SUBSEQUENCE_BEGINS = 6,
+        BLOCK_INDICES = 7,
+        BLOCK_INDICES_BEGINS = 8,
+        SCALE = 9,
+        SLIDING_WINDOW = 10,
+        ALIBI = 11,
+        MAX_CONTEXT_LEN = 12,
+        SCORE_AGGREGATION = 13,
+        ROTATED_BLOCK_INDICES = 14,
+        ROTATION_DELTAS = 15,
+        ROTATION_TRIG_LUT = 16,
+    };
+
     static constexpr size_t block_size = 16;
 
     paged_attention() : primitive_base("", {}) {}
@@ -56,6 +76,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_score_aggregation;
         ob << has_rotated_blocks;
         ob << sliding_window;
+        ob << has_score_aggregation;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -75,6 +96,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_score_aggregation;
         ib >> has_rotated_blocks;
         ib >> sliding_window;
+        ib >> has_score_aggregation;
 
         bool has_scale;
         ib >> has_scale;
@@ -94,7 +116,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     size_t kv_heads_num = 0;
     size_t sliding_window = 0;
     bool has_alibi = false;
-    bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
+    bool has_score_aggregation = false;
 };
 }  // namespace cldnn
