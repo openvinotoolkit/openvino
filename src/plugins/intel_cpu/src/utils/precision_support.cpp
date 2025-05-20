@@ -63,4 +63,12 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
+bool hasIntDotProductSupport() {
+#if defined(OV_CPU_WITH_ACL)
+    return arm_compute::CPUInfo::get().has_dotprod();
+#else
+    return false;
+#endif
+}
+
 }  // namespace ov::intel_cpu

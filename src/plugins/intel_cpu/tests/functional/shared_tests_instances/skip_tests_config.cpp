@@ -563,6 +563,9 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)");
+    }
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
