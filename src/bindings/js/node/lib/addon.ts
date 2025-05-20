@@ -167,7 +167,7 @@ interface Core {
    * @param model A string with model in IR / ONNX / PDPD / TF
    * and TFLite format.
    * @param weights Tensor with weights. Reading ONNX / PDPD / TF
-   * and TFLite models doesn’t support loading weights from weights tensors.
+   * and TFLite models doesn't support loading weights from weights tensors.
    */
   readModel(model: string, weights: Tensor): Promise<Model>;
   /**
@@ -273,7 +273,7 @@ interface Model {
    */
   input(index: number): Output;
   /**
-   * It returns true if any of the op’s defined in the model contains a partial
+   * It returns true if any of the op's defined in the model contains a partial
    * shape.
    */
   isDynamic(): boolean;
@@ -423,6 +423,11 @@ interface Tensor {
    * Reports whether the tensor is continuous or not.
    */
   isContinuous(): boolean;
+  /**
+   * Copies the data from this tensor to another tensor
+   * @param tensor The target tensor to copy data to
+   */
+  copyTo(tensor: Tensor): void;
 }
 
 /**

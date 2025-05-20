@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("copyTo", &TensorWrap::copyTo)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -190,4 +191,29 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+void TensorWrap::copyTo(const Napi::CallbackInfo& info) {
+    try {
+        if (info.Length() != 1) {
+            reportError(info.Env(), "Invalid number of arguments");
+            return;
+        }
+
+        if (!info[0].IsObject()) {
+            reportError(info.Env(), "Argument must be a Tensor object");
+            return;
+        }
+
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (!obj.InstanceOf(TensorWrap::get_class(info.Env()))) {
+            reportError(info.Env(), "Argument must be a Tensor object");
+            return;
+        }
+
+        TensorWrap* other = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
+        _tensor.copy_to(other->_tensor);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+    }
 }

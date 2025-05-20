@@ -65,6 +65,12 @@ public:
     */
     Napi::Value is_continuous(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Copies the data from this tensor to another tensor
+     * @param info Contains information about the target tensor to copy data to
+     */
+    void copyTo(const Napi::CallbackInfo& info);
+
 private:
     ov::Tensor _tensor;
 };
