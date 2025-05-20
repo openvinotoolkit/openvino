@@ -642,7 +642,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
     cl_context ctx = gpu_context;
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
 
-    ov::Shape output_shape_allocated{1, 4, 32, 32};
+    ov::Shape output_shape_allocated{1, 3, 32, 32};
     auto user_output_tensor = gpu_context.create_tensor(output->get_element_type(), output_shape_allocated);
     ov::Tensor output_tensor_copy_0(output->get_element_type(), output_shape_allocated);
     ov::Tensor output_tensor_copy_1(output->get_element_type(), output_shape_allocated);
@@ -674,8 +674,8 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
             // Keep same output, but use larger input
             // In that case user tensor is not enough to store the result and set shape will be called on the user
             // tensor
-            ov::Shape input_shape{1, 6, 32, 32};
-            ov::Shape output_shape_actual{1, 6, 32, 32};
+            ov::Shape input_shape{1, 4, 32, 32};
+            ov::Shape output_shape_actual{1, 4, 32, 32};
             auto input_tensor = gpu_context.create_tensor(input->get_element_type(), input_shape);
 
             infer_request.set_tensor(input, input_tensor);
@@ -687,8 +687,8 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
         {
             // Now try to increase buffer size comparing to the 1st run
             // User output buffer is supposed to be the same
-            ov::Shape input_shape{1, 4, 32, 32};
-            ov::Shape output_shape_actual{1, 4, 32, 32};
+            ov::Shape input_shape{1, 3, 32, 32};
+            ov::Shape output_shape_actual{1, 3, 32, 32};
             auto input_tensor_1 = gpu_context.create_tensor(input->get_element_type(), input_shape);
             auto data = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input_shape);
             ASSERT_TRUE(input_tensor_1.is<ov::intel_gpu::ocl::ClBufferTensor>());

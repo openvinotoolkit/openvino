@@ -432,6 +432,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
         manager.register_pass<ov::pass::BroadcastTransition>();
 
+        const bool keep_precision_sensitive_in_fp32_1 = true;
+        const bool convert_input_output_precision = false;
+        const bool store_original_precision_as_rt_attribute = true;
+
+        manager.register_pass<ov::pass::KeepDequantizationPrecision>(
+            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
+
+        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                          empty_fuse_map,
+                                                          keep_precision_sensitive_in_fp32_1,
+                                                          convert_input_output_precision,
+                                                          store_original_precision_as_rt_attribute);
+
+        manager.register_pass<ov::pass::CommonOptimizations>();
+
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
             [](const_node_ptr& node) -> bool {
@@ -441,8 +456,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
-
-        manager.register_pass<ov::pass::CommonOptimizations>();
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
@@ -462,19 +475,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false);
-
-        const bool keep_precision_sensitive_in_fp32_1 = true;
-        const bool convert_input_output_precision = false;
-        const bool store_original_precision_as_rt_attribute = true;
-
-        manager.register_pass<ov::pass::KeepDequantizationPrecision>(
-            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
-
-        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                          empty_fuse_map,
-                                                          keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision,
-                                                          store_original_precision_as_rt_attribute);
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
