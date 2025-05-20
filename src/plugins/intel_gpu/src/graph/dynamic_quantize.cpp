@@ -37,9 +37,9 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (input_batch <= 1) {
+    if (input_batch <= 64)
         return true;
-    }
+
     return false;
 }
 
