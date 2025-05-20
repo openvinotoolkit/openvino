@@ -158,10 +158,18 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 
     devices_list = sort_devices(devices_list);
 
-    const bool initialize_device = user_context != nullptr || user_device != nullptr || initialize_devices;
     std::map<std::string, device::ptr> ret;
     uint32_t idx = 0;
     for (auto& dptr : devices_list) {
+        bool initialize_device = initialize_devices;
+        // Unconditionally initialize the device when the user provides either cl_device or cl_context
+        // Additionally, for Intel GPUs, there may be cases where device is not clearly identifiable due to
+        // driver issues - to maintain compatibility, initialize them immediately
+        // For other vendors, allow deferred initialization to optimize power consumption
+        if (user_context != nullptr || user_device != nullptr || dptr->get_info().vendor_id == cldnn::INTEL_VENDOR_ID) {
+            initialize_device = true;
+        }
+
         auto root_device = std::dynamic_pointer_cast<ocl_device>(dptr);
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
 

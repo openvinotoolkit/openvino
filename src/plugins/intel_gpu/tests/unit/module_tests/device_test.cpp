@@ -195,9 +195,10 @@ TEST(devices_test, on_demand_initialization) {
     // Check that devices are not initialized, but have their descriptions configured
     for (const auto& device : devices) {
         auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(device.second);
-        ASSERT_FALSE(ocl_device->is_initialized());
-        ASSERT_FALSE(ocl_device->get_device().get());
-        ASSERT_FALSE(ocl_device->get_context().get());
+        auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
+        ASSERT_EQ(ocl_device->is_initialized(), should_be_initialized);
+        ASSERT_EQ(ocl_device->get_device().get() != nullptr, should_be_initialized);
+        ASSERT_EQ(ocl_device->get_context().get() != nullptr, should_be_initialized);
         ASSERT_FALSE(ocl_device->get_info().execution_units_count == 0);
         ASSERT_FALSE(ocl_device->get_info().vendor_id == 0);
         ASSERT_TRUE(ocl_device->get_info().sub_device_idx == std::numeric_limits<uint32_t>::max() /* root devices only */);

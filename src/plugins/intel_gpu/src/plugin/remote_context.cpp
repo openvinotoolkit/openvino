@@ -28,6 +28,11 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices) : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
+
+    // Initialize RemoteContext if corresponding device is initialized
+    if (m_device->is_initialized()) {
+        initialize();
+    }
 }
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params) {
