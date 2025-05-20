@@ -77,7 +77,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
             // Issue: Disabled due to LPT precision matching issue
-            R"(.*smoke_LPT.*ReshapeTransformation.*)",
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
