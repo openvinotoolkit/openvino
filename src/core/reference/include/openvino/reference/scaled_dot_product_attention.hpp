@@ -15,8 +15,8 @@ namespace helpers {
 template <typename T>
 std::vector<T> CreateCausalAttentionMask(const ov::Shape& shape) {
     std::vector<T> maskData(shape_size(shape), std::numeric_limits<T>::lowest());
-    auto L = shape[shape.size() - 2];
-    auto S = shape[shape.size() - 1];
+    const auto L = shape[shape.size() - 2];
+    const auto S = shape[shape.size() - 1];
     for (size_t i = 0; i < L; ++i) {
         size_t j = 0;
         while (i >= j && j < S) {
