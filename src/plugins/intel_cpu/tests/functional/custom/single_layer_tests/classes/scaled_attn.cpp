@@ -102,12 +102,6 @@ void ScaledAttnLayerCPUTest::SetUp() {
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("mha");
     function = makeNgraphFunction(inType, inputParams, sdp, "SDP");
-
-    functionRefs = function->clone();
-    ov::pass::Manager manager;
-    // decompose ScaledDotProductAttention
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-    manager.run_passes(functionRefs);
 }
 
 void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
