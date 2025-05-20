@@ -100,8 +100,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (use_micro_sdpa)
-                return kernel_selector::SDPAKernelMicro::GetTileQSize(_kernels_data[_kernels_data.size() - 1]);
+            if (use_micro_sdpa) {
+                auto sdpa_micro_idx = has_additional_sdpa_micro() ? _kernels_data.size() - 1 : Stage::SDPA;
+                return kernel_selector::SDPAKernelMicro::GetTileQSize(_kernels_data[sdpa_micro_idx]);
+            }
 #endif
             return default_block_size;
         } else {
@@ -135,7 +137,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 kv_cache_rotate_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[Stage::KV_CACHE_ROTATE]);
             }
 
-            if (has_sdpa_micro()) {
+            if (has_additional_sdpa_micro()) {
                 auto sdpa_micro_idx = _kernels_data.size() - 1;
                 auto sdpa_micro_kernel_impl = sdpa_kernel_selector.GetImplementation(_kernels_data[sdpa_micro_idx].kernelName);
                 sdpa_micro_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[sdpa_micro_idx]);
@@ -202,8 +204,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         add_internal_buffers(internal_buffers, _kernels_data[Stage::KV_CACHE_UPDATE]);
         add_internal_buffers(internal_buffers, _kernels_data[Stage::PA_SDPA]);
 
-        if (use_micro_sdpa)
-            add_internal_buffers(internal_buffers, _kernels_data[_kernels_data.size() - 1]);
+        if (use_micro_sdpa) {
+            auto sdpa_micro_idx = has_additional_sdpa_micro() ? _kernels_data.size() - 1 : Stage::SDPA;
+            add_internal_buffers(internal_buffers, _kernels_data[sdpa_micro_idx]);
+        }
 
         return internal_buffers;
     }
@@ -473,7 +477,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
 
         size_t stage_idx = stage;
-        if (stage == Stage::SDPA && use_micro_sdpa) {
+        if (stage == Stage::SDPA && use_micro_sdpa && has_additional_sdpa_micro()) {
             stage_idx = _kernels_data.size() - 1;  // sdpa_micro kernel data
             kernel_offset = _kernels.size() - _kernels_data[stage_idx].kernels.size(); // offset for sdpa_micro kernels
         }
@@ -982,6 +986,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (stage == PagedAttentionStage::PREFILL) {
             auto sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, get_query_block_size(stage), impl_param.is_dynamic());
+            (_kernels_data[Stage::SDPA].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[Stage::SDPA]);
 
             auto can_use_micro = [&sdpa_kernel_params]() -> bool {
                 return sdpa_kernel_params.conf.paged_attention_sliding_window == 0 ||
@@ -990,13 +995,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     static_cast<int64_t>(sdpa_kernel_params.conf.paged_attention_sliding_window));
             };
 
-            if (has_sdpa_micro() && can_use_micro()) {
-                const auto sdpa_micro_idx = _kernels_data.size() - 1;
-                (_kernels_data[sdpa_micro_idx].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[sdpa_micro_idx]);
-                use_micro_sdpa = true;
-            } else {
-                (_kernels_data[Stage::SDPA].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[Stage::SDPA]);
-                use_micro_sdpa = false;
+            if (has_additional_sdpa_micro()) {
+                if (can_use_micro()) {
+                    const auto sdpa_micro_idx = _kernels_data.size() - 1;
+                    (_kernels_data[sdpa_micro_idx].update_dispatch_data_func)(sdpa_kernel_params, _kernels_data[sdpa_micro_idx]);
+                    use_micro_sdpa = true;
+                } else {
+                    use_micro_sdpa = false;
+                }
             }
         }
 
@@ -1033,6 +1039,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             kernels_data.push_back(kv_cache_rotate_kernel_selector.get_best_kernel(kv_cache_rotate_kernel_params));
         }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
         auto is_sdpa_micro = [](const kernel_selector::kernel_data& kd) -> bool {
             OPENVINO_ASSERT(kd.kernels.size() != 0);
             return !kd.kernels[0].micro_kernels.empty();
@@ -1040,14 +1047,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         // If sdpa_micro kernel is supported, create both sdpa and sdpa_micro kernels
         // And add sdpa_micro kernel to the end of the kernels_data vector
-#ifdef ENABLE_ONEDNN_FOR_GPU
         if (impl_param.get_device_info().supports_immad) {
-            if (sdpa_kernel_params.conf.paged_attention_sliding_window == 0 && is_sdpa_micro(kernels_data[Stage::SDPA])) {
-                sdpa_kernel_params.should_use_sdpa_opt = true;
-                kernels_data.push_back(sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params));
-                OPENVINO_ASSERT(kernels_data.size() > 1);
-                std::swap(kernels_data[Stage::SDPA], kernels_data[kernels_data.size() - 1]); // Move sdpa_micro to the end of the vector.
-            } else if (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 && !is_sdpa_micro(kernels_data[Stage::SDPA])) {
+            if (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 && !is_sdpa_micro(kernels_data[Stage::SDPA])) {
                 sdpa_kernel_params.conf.paged_attention_sliding_window = 0;
                 auto sdpa_micro = sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params);
                 if (is_sdpa_micro(sdpa_micro)) {
@@ -1062,11 +1063,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         impl->has_score_aggregation = desc->has_score_aggregation;
         impl->has_rotated_blocks = desc->has_rotated_blocks;
 
+        if (!kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()) {
+            impl->use_micro_sdpa = true;
+        }
+
         return impl;
     }
 
 private:
-    bool has_sdpa_micro() const {
+    bool has_additional_sdpa_micro() const {
         size_t expected_size = Stage::PA_SDPA + 1 + (has_rotated_blocks ? 1 : 0);
         const auto sdpa_micro_index = _kernels_data.size() - 1;
         return _kernels_data.size() > expected_size &&
