@@ -139,6 +139,7 @@ public:
 
     size_t get_inputs_num() const override;
     size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -147,6 +148,7 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 };
 
 class jit_mul_add_emitter : public jit_emitter {
