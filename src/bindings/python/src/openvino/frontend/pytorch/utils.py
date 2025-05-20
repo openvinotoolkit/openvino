@@ -8,6 +8,7 @@ import inspect
 import logging
 import torch
 import numpy as np
+from contextlib import contextmanager
 
 from openvino import op, Type as OVType, Shape, Tensor, OVAny
 from openvino import opset11 as ops
@@ -395,3 +396,17 @@ def patch_none_example(model: torch.nn.Module, example):
                         "with None will be removed from the resulting model.")
             return wrapped_model, new_example
     return model, example
+
+
+@contextmanager
+def no_jit_trace():
+    """Context manager to disable JIT tracing.
+
+    Note: using this function on large models consume a lot of memory.
+    """
+    state = torch._C._get_tracing_state()
+    torch._C._set_tracing_state(None)
+    try:
+        yield
+    finally:
+        torch._C._set_tracing_state(state)
