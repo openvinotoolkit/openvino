@@ -180,11 +180,11 @@ void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequ
     LOG_DEBUG("LLMInferRequest::subscribe_subrequest - [" << idx << "]");
     
     // lets rely on only 2 inferrequests are existed, so at the moment we have to start third one - lets wait for the first one to complete
-    if (!tasks_in_progress.empty() && idx > 1) {
-        auto clearing_idx = idx - 2;        
+    if (!tasks_in_progress.empty()) {
+        auto clearing_idx = idx;        
         for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end(); ) {
-            if (task_it->index <= clearing_idx) {
-                LOG_DEBUG("LLMInferRequest::subscribe_subrequest  completing copy request:" << task_it->index);
+            if (task_it->index == clearing_idx) {
+                LOG_DEBUG("LLMInferRequest::subscribe_subrequest  completing copy request: " << task_it->index);
                 task_it->future.wait();
                 task_it = tasks_in_progress.erase(task_it);
             } else {

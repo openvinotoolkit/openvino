@@ -65,7 +65,9 @@ void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
 
 ov::npuw::FuncMemMgr::FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : m_sim(compiled_model),
-      m_model(compiled_model) {}
+      m_model(compiled_model) {
+     
+}
 
 void ov::npuw::FuncMemMgr::set_alloc(AllocFcn&& fcn) {
     m_alloc = std::move(fcn);
@@ -76,6 +78,7 @@ void ov::npuw::FuncMemMgr::assign_memory() {
     LOG_BLOCK();
 
     const auto num_submodels = m_model->m_compiled_submodels.size();
+
 
     // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
     // outputs.
@@ -138,7 +141,7 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     //   - Output index: taken from `from`
     //     - A vector of resident tensors
 
-    LOG_VERB("Assinging tensor for Subgraph[" << from.first << "]/" << from.second << "...");
+    LOG_VERB("Assigning tensor for Subgraph[" << from.first << "]/" << from.second << "...");
     LOG_BLOCK();
 
     const auto& comp_model_desc = m_model->m_compiled_submodels[from.first];
@@ -153,21 +156,61 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     });
     if (asgn_iter != assigned_memory.end()) {
         // Reassign this memory slot to the new "from"
+        LOG_DEBUG("reassigning from link: ");
         asgn_iter->from = from;
         m_table[from] = asgn_iter->ptr;
     } else {
-        // No free space at this point - allocate a new tensor
-        const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
-        const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+        // TODO: es - move all logic for tensor reuse here
+        // we might need what
+        // 1. identify that tensor no longer used as part of pipelining of subrequests - can this be done by sim ???
+        // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into account
 
-        const auto& oport = proto_comp_model->outputs()[from.second];
-        ov::Shape oshape = oport.get_shape();
+        auto allocate_case = false;
 
-        if (proto_comp_model_desc.spatial) {
-            oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+        // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests 
+        // created to servs subgraps chain - same constant appeared in JustInferRequest during subreqs creation
+        const size_t max_simultanenous_subs = m_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>() ? 2 : 0;
+
+        if (max_simultanenous_subs) {
+            // get ouput_proto 
+            if (from.first - real_idx > max_simultanenous_subs)  {
+            } else {
+                // not yet created enough outputs
+                allocate_case = true;
+            }
+        } else {
+            // for unrestricted case always allocate all outputs
+            allocate_case = true;
         }
-        const auto& device = m_model->funcall_mem_device(real_idx);
-        TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+
+        
+        TensorPtr new_tensor;
+
+        if (allocate_case) {
+            // No free space at this point - allocate a new tensor
+            const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+            const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+
+            const auto& oport = proto_comp_model->outputs()[from.second];
+            ov::Shape oshape = oport.get_shape();
+
+            if (proto_comp_model_desc.spatial) {
+                oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+            }
+            LOG_DEBUG("allocating output for: " << oport.get_any_name()); 
+
+            const auto& device = m_model->funcall_mem_device(real_idx);
+
+            new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+        } else {
+            // TODO: have a map here
+            // take output pro output_proto
+            auto actual_outputs_proto = (from.first - real_idx);
+            new_tensor = m_table[{actual_outputs_proto, from.second}];
+            LOG_DEBUG("reusing output tensor allocated for submodel: " << actual_outputs_proto << "->" << from.first); 
+        }
+        
+        
         NPUW_ASSERT(new_tensor);
 
         assigned_memory.push_back(Assignment{new_tensor, from});
@@ -249,6 +292,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
+                LOG_DEBUG("FuncMemMgr::get_tensor :" << i << "-" << out_idx);
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
             }
             if (real_idx != i) {
@@ -354,9 +398,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 }
 
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+    LOG_INFO("JustInferRequest::alloc_global_out");
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
     if (funcall_result_iter != m_funcall_result.end()) {
+        LOG_INFO("found funcall result for output " << out_idx);
         return funcall_result_iter->second;
     }
     return IBaseInferRequest::alloc_global_out(out_idx);

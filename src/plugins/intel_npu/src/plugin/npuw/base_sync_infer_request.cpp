@@ -241,6 +241,7 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
+    LOG_DEBUG("alloc mem: " <<type << ", shape: " << shape << " device: "<< device);
     if (device == "CPU" || ov::shape_size(shape) == 0) {
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }

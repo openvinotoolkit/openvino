@@ -53,6 +53,9 @@ class FuncMemMgr {
     std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
     std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
 
+    // maps actual index to actual index this subgraphs outputs gets reused despite of simulator
+    std::map<size_t, std::list<size_t>> replaced_by_count;
+
 public:
     explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 

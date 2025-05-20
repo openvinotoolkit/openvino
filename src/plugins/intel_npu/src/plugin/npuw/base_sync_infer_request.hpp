@@ -35,9 +35,11 @@ public:
     using Completed = std::function<void(std::exception_ptr)>;
 
     virtual ~IInferRequestSubmissionListener() = default;
+    // subscribe subrequest used currently as an indicator what subrequest is being inferred
+    // also it might be used as sync point if on_output_ready respective tensor gets used asynhronously
     virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
     virtual void complete_subrequest(std::size_t idx) = 0;
-    // output or node - ???
+
     // also having idx, or returning future here, might be helpfull to track copy completion time
     // maybe merge it with complete subrequest???
     virtual void on_output_ready(std::size_t idx, std::string , ov::SoPtr<ITensor>) = 0;
