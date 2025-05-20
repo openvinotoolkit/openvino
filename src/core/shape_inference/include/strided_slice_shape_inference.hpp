@@ -20,7 +20,7 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     using DimType = typename T::value_type;
-    static constexpr std::array<char const*, 3> shape_names{"Begin", "End", "Strides"};
+    static constexpr std::array<const char*, 3> shape_names{"Begin", "End", "Strides"};
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
 

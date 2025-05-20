@@ -575,7 +575,14 @@ const std::vector<ShapeRelatedParams> IS_Dynamic = {
             {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
         },
         {false, false}
-    }
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{}, {{64, 64}}}, // input 0
+            {{-1, 128, 33, 64, 1}, {{1, 128, 33, 64, 1}}}  // input 1
+        },
+        {false, false}
+    },
 };
 
 const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {

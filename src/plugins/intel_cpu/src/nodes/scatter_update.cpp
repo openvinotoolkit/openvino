@@ -462,7 +462,7 @@ struct ScatterElementsUpdateDispatcher {
     }
 
 private:
-    void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
+    void scatterElementsUpdate_dispatch([[maybe_unused]] ScatterElementsUpdateContext& ctx) {
         using namespace scatter_reductions;
         using DT_NONE = std::pair<DataType, ReduceNone>;
         using DT_SUM = std::pair<DataType, ReduceAdd>;
@@ -519,7 +519,7 @@ struct ScatterNDUpdateDispatcher {
     }
 
 private:
-    void scatterNDUpdate_dispatch(ScatterNDUpdateContext& ctx) {
+    void scatterNDUpdate_dispatch([[maybe_unused]] ScatterNDUpdateContext& ctx) {
         using namespace scatter_reductions;
         // ReduceNone does not depend on DataType.
         using DT_NONE = ReduceNone;
@@ -840,7 +840,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr,
               OV_CASE(ov::element::u8, uint8_t));
 }
 
-void ScatterUpdate::execute(const dnnl::stream& strm) {
+void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
@@ -861,7 +861,7 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
         auto updateDims = updateMemPtr->getStaticDims();
         if (updateDims.size() <= 1) {
             DEBUG_LOG(getName(), " exec1DCase");
-            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto updateCnt = (updateDims.empty()) ? 1 : updateDims[0];
             auto srcLength = srcMemPtr->getStaticDims()[0];
             auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
             auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
@@ -1030,7 +1030,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& dstMemPtr,
 void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
-                                    const scatter_reductions::ReduceNone& kernel) {
+                                    [[maybe_unused]] const scatter_reductions::ReduceNone& kernel) {
     auto* indices = mem_indices->getDataAs<uint8_t>();
     auto* update = mem_updates->getDataAs<uint8_t>();
     auto* dstData = mem_data->getDataAs<uint8_t>();

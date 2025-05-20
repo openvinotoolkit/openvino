@@ -34,7 +34,7 @@ std::shared_ptr<ov::Node> ov::descriptor::Output::get_node() const {
 }
 
 ov::Output<ov::Node> ov::descriptor::Output::get_output() const {
-    return get_node()->output(m_index);
+    return m_node->output(m_index);
 }
 
 ov::descriptor::Tensor& ov::descriptor::Output::get_tensor() const {

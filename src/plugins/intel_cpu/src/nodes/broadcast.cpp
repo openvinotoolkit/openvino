@@ -13,7 +13,8 @@
 #include "dnnl_types.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -207,7 +208,7 @@ void Broadcast::execute(const dnnl::stream& strm) {
     }
 }
 
-void Broadcast::plainExecute(const dnnl::stream& strm) {
+void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getShape().getRank();
@@ -220,7 +221,7 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
     if (!dataSrcRank) {
         srcDims = VectorDims(1, 1);
     }
-    if (!srcStrides.size()) {
+    if (srcStrides.empty()) {
         srcStrides = VectorDims(1, 1);
     }
 

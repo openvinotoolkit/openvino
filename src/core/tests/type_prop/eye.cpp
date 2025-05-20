@@ -7,12 +7,16 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/squeeze.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace testing;
-using namespace ov::opset10;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v0::Squeeze;
+using ov::op::v3::ShapeOf;
+using ov::op::v9::Eye;
 
 TEST(type_prop, eye_constant) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});

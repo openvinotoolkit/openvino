@@ -12,7 +12,8 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/extractimagepatches.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -456,7 +457,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(const dnnl::stream& strm) {
+void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
         auto src = getSrcDataAtPort(0);
         auto dst = getDstDataAtPort(0);

@@ -457,6 +457,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_COMPILER_DYNAMIC_QUANTIZATION",
             ((True, True),),
         ),
+        (
+            intel_npu.run_inferences_sequentially,
+            "NPU_RUN_INFERENCES_SEQUENTIALLY",
+            ((True, True),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -552,6 +557,7 @@ def test_properties_memory_type_gpu():
 
 def test_properties_capability_gpu():
     assert intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+    assert intel_gpu.CapabilityGPU.USM_MEMORY == "GPU_USM_MEMORY"
 
 
 def test_properties_hint_model():

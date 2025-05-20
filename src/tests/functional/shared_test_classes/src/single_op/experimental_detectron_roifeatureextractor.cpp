@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/experimental_detectron_roifeatureextractor.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 namespace ov {
 namespace test {

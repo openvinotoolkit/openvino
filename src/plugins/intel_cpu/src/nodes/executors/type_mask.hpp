@@ -47,7 +47,7 @@ struct TypeMask {
     }
     // match
     bool operator&(const ov::element::Type precision) const {
-        return value & TypeMask(precision);
+        return (value & TypeMask(precision)) != 0u;
     }
 
     const uint64_t value;
@@ -116,6 +116,7 @@ DEFINE_TYPE_ALIAS(_string);
 DEFINE_TYPE_ALIAS(_f4e2m1);
 DEFINE_TYPE_ALIAS(_f8e8m0);
 constexpr auto _any_float = _f64 | _f32 | _f16 | _bf16;
+constexpr auto _hw_float = _f32 | _f16 | _bf16;
 constexpr auto _half_float = _f16 | _bf16;
 constexpr auto _quant = _u8 | _i8;
 constexpr auto _any = std::numeric_limits<uint64_t>::max();

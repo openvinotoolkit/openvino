@@ -38,22 +38,22 @@ public:
 
 SchedulingCoreTypeTestCase _2sockets_ALL = {
     ov::hint::SchedulingCoreType::ANY_CORE,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
     ov::hint::SchedulingCoreType::ANY_CORE,
 };
 
 SchedulingCoreTypeTestCase _2sockets_P_CORE_ONLY = {
     ov::hint::SchedulingCoreType::PCORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
 };
 
 SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
     ov::hint::SchedulingCoreType::ECORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
+    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     // ov::hint::scheduling_core_type returns ANY_CORE because the platform has no Ecores available to satisfy the
     // user's request.
@@ -61,22 +61,22 @@ SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
 
 SchedulingCoreTypeTestCase _1sockets_ALL = {
     ov::hint::SchedulingCoreType::ANY_CORE,
-    {{20, 6, 8, 6}},
-    {{20, 6, 8, 6}},
+    {{20, 6, 8, 0, 6}},
+    {{20, 6, 8, 0, 6}},
     ov::hint::SchedulingCoreType::ANY_CORE,
 };
 
 SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
     ov::hint::SchedulingCoreType::PCORE_ONLY,
-    {{20, 6, 8, 6}},
-    {{12, 6, 0, 6}},
+    {{20, 6, 8, 0, 6}},
+    {{12, 6, 0, 0, 6}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
 };
 
 SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY_1 = {
     ov::hint::SchedulingCoreType::PCORE_ONLY,
-    {{8, 0, 8, 0}},
-    {{8, 0, 8, 0}},
+    {{8, 0, 8, 0, 0}},
+    {{8, 0, 8, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     // ov::hint::scheduling_core_type returns ANY_CORE because the platform has no Pcore available to satisfy the
     // user's request.
@@ -84,8 +84,8 @@ SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY_1 = {
 
 SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
     ov::hint::SchedulingCoreType::ECORE_ONLY,
-    {{20, 6, 8, 6}},
-    {{8, 0, 8, 0}},
+    {{20, 6, 8, 0, 6}},
+    {{8, 0, 8, 0, 0}},
     ov::hint::SchedulingCoreType::ECORE_ONLY,
 };
 

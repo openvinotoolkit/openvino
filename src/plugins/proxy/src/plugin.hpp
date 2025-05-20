@@ -61,7 +61,7 @@ private:
     mutable std::mutex m_plugin_mutex;
     mutable std::mutex m_init_devs_mutex;
     mutable std::vector<std::vector<std::string>> m_hidden_devices;
-    mutable bool m_init_devs{false};
+    mutable std::atomic_bool m_init_devs{false};
 };
 
 }  // namespace proxy

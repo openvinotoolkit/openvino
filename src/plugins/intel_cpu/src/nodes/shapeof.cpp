@@ -4,7 +4,7 @@
 
 #include "shapeof.h"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
 namespace ov::intel_cpu::node {
@@ -75,7 +75,7 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     selected_pd->setConfig(config);
 }
 
-void ShapeOf::execute(const dnnl::stream& strm) {
+void ShapeOf::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inPtr = getSrcMemoryAtPort(0);
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();

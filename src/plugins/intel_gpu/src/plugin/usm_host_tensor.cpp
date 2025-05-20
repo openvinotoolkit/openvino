@@ -15,7 +15,7 @@ USMHostTensor::USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const e
 USMHostTensor::USMHostTensor(std::shared_ptr<RemoteTensorImpl> tensor)
     : m_impl(tensor) {}
 
-void* USMHostTensor::data(const element::Type& element_type) const {
+const void* USMHostTensor::data(const element::Type& element_type) const {
     return m_impl->get_original_memory()->buffer_ptr();
 }
 

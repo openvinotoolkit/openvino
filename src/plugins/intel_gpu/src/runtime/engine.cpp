@@ -216,11 +216,9 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     const auto add_stat = [&](allocation_type type) {
         auto idx = static_cast<size_t>(type);
         auto value = _memory_usage_data[idx].load();
-        if (value != 0) {
-            std::ostringstream oss;
-            oss << type;
-            statistics[oss.str()] = value;
-        }
+        std::ostringstream oss;
+        oss << type;
+        statistics[oss.str()] = value;
     };
 
     add_stat(allocation_type::unknown);

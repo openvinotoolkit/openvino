@@ -5,6 +5,8 @@
 #include "openvino/reference/embedding_segments_sum.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace embedding_offsets_sum_v3 {
 template <ov::element::Type_t t1, ov::element::Type_t t2>

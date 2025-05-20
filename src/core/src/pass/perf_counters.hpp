@@ -12,16 +12,16 @@
 namespace ov {
 namespace pass {
 class PerfCounters {
-    PerfCounters(PerfCounters const&) = delete;
-    PerfCounters& operator=(PerfCounters const&) = delete;
+    PerfCounters(const PerfCounters&) = delete;
+    PerfCounters& operator=(const PerfCounters&) = delete;
 
 public:
     PerfCounters() = default;
 
-    openvino::itt::handle_t operator[](ov::Node::type_info_t const& type_inf);
+    openvino::itt::handle_t operator[](const ov::Node::type_info_t& type_inf);
 
 private:
-    using key = ov::Node::type_info_t const*;
+    using key = const ov::Node::type_info_t*;
     using value = openvino::itt::handle_t;
     using counters_map = std::unordered_map<key, value>;
 

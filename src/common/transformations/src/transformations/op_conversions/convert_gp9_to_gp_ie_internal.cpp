@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/generate_proposals.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

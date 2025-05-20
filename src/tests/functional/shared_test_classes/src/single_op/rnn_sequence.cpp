@@ -8,6 +8,7 @@
 #include "shared_test_classes/single_op/rnn_sequence.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;

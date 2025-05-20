@@ -9,6 +9,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {

@@ -4,6 +4,7 @@
 
 #pragma once
 #include "evaluate_node.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/rms_norm.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -562,3 +563,7 @@ extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::No
 extern template bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> node,
+                                                                     ov::TensorVector& outputs,
+                                                                     const ov::TensorVector& inputs);

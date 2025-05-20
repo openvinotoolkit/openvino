@@ -363,6 +363,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_LPT/MatMulTransformation.*)");
         // Ticket: 162260
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
+        // Ticket: 166771
+        retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -567,10 +569,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Prc=f16.*)");
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*HasShapeOf=1.*)");
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
-    } else {
-        // Issue 117407
-        retVector.emplace_back(
-            R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
 #endif
 #if defined(OPENVINO_ARCH_ARM)
@@ -613,6 +611,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToStaticInput.*)");
     retVector.emplace_back(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)");
     retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 164799
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*)");
+    // Issue 167685
+    retVector.emplace_back(R"(.*importExportModelWithTypeRelaxedExt.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&
@@ -670,6 +672,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
+        // Issue: 165178
+        retVector.emplace_back(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\[\]_TS=\(\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*IS\[0\]=\[\]_\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\[0\]=\[\]_TS\[0\]=\(\(.*)");
+    }
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
