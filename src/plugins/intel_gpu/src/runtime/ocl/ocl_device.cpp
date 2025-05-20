@@ -424,7 +424,9 @@ bool ocl_device::is_same(const device::ptr other) {
     if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device)
         return true;
 
-    // Check other device attributes
+    // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
+    // where the UUID may be missing or incorrectly generated
+    // Therefore, we also validate other attributes
     if (_info.uuid.uuid != casted->_info.uuid.uuid)
         return false;
 
