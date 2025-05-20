@@ -4,11 +4,26 @@
 
 #include "brgemm_cpu_blocking.hpp"
 
-#include "snippets/itt.hpp"
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <tuple>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/brgemm_blocking.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"

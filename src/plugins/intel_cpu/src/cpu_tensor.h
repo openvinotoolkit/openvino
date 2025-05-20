@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <mutex>
+
 #include "cpu_memory.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 
 namespace ov {

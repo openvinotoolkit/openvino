@@ -4,7 +4,19 @@
 
 #include "ref_opt_transpose.hpp"
 
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/ref_opt_transpose.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace {

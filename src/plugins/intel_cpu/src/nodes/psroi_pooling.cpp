@@ -4,18 +4,33 @@
 
 #include "psroi_pooling.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
-#include "nodes/common/blocked_desc_creator.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
 #include "openvino/op/psroi_pooling.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/ngraph_utils.hpp"
 
@@ -32,8 +47,8 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto psroi = ov::as_type_ptr<const ov::opset1::PSROIPooling>(op);
-        const auto defPsroi = ov::as_type_ptr<const ov::opset1::DeformablePSROIPooling>(op);
+        const auto psroi = ov::as_type_ptr<const ov::op::v0::PSROIPooling>(op);
+        const auto defPsroi = ov::as_type_ptr<const ov::op::v1::DeformablePSROIPooling>(op);
         if (!psroi && !defPsroi) {
             errorMessage = "Only opset1 PSROIPooling and DeformablePSROIPooling operations are supported";
             return false;
@@ -66,8 +81,8 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto psroi = ov::as_type_ptr<const ov::opset1::PSROIPooling>(op);
-    const auto defPsroi = ov::as_type_ptr<const ov::opset1::DeformablePSROIPooling>(op);
+    const auto psroi = ov::as_type_ptr<const ov::op::v0::PSROIPooling>(op);
+    const auto defPsroi = ov::as_type_ptr<const ov::op::v1::DeformablePSROIPooling>(op);
 
     noTrans = op->get_input_size() == 2;
     if (op->get_input_shape(0).size() != 4) {

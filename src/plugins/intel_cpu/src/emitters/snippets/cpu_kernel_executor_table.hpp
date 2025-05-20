@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
 #include "cache/multi_cache.h"
+#include "openvino/core/except.hpp"
 #include "snippets/kernel_executor_table.hpp"
 
 namespace ov::intel_cpu {

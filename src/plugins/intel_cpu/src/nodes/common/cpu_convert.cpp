@@ -4,8 +4,35 @@
 
 #include "cpu_convert.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <tuple>
+#include <type_traits>
+
 #include "cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "onednn/dnnl.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
+#include "openvino/core/type/float8_e8m0.hpp"
 #include "openvino/core/type/nf4.hpp"
+#include "selective_build.h"
 #include "utils/bfloat16.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -14,7 +41,6 @@
 #else
 #    include "cpu_memory.h"
 #    include "openvino/core/type/element_type_traits.hpp"
-#    include "selective_build.h"
 #    include "utils/general_utils.h"
 #endif
 
@@ -44,7 +70,7 @@ template <typename src_t, typename dst_t>
 void convert_vec(jit_generator& gen, const RegExp& src, const RegExp& dst);
 
 template <>
-void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f16vec = gen.xmm3;
     const auto& f32vec = gen.ymm4;
 
@@ -54,7 +80,7 @@ void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, cons
 }
 
 template <>
-void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f16vec = gen.xmm3;
     const auto& f32vec = gen.ymm4;
 
@@ -202,7 +228,7 @@ private:
 };
 
 template <>
-void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -214,7 +240,7 @@ void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -226,7 +252,9 @@ void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
 
@@ -238,7 +266,9 @@ void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
 
@@ -250,7 +280,9 @@ void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.zmm4;
 
@@ -263,7 +295,9 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
     const auto& f32vec = gen.zmm4;
@@ -278,7 +312,7 @@ void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -290,7 +324,7 @@ void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -302,7 +336,9 @@ void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
 
@@ -314,7 +350,9 @@ void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
 
@@ -326,7 +364,9 @@ void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.zmm4;
 
@@ -339,7 +379,9 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
     const auto& f32vec = gen.zmm4;
@@ -841,7 +883,7 @@ struct ConvertFrom4BitContext {
     bool converted;
 };
 
-static int8_t get_i4(const uint8_t& val, bool high) {
+[[maybe_unused]] static int8_t get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
@@ -855,7 +897,7 @@ static int8_t get_i4(const uint8_t& val, bool high) {
     return static_cast<int8_t>(val & 0xF);
 }
 
-static int8_t get_u4(const uint8_t& val, bool high) {
+[[maybe_unused]] static int8_t get_u4(const uint8_t& val, bool high) {
     return high ? (val >> 4) : (val & 0xF);
 }
 

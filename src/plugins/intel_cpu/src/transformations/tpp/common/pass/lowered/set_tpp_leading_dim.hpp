@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov::intel_cpu::tpp::pass {

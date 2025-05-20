@@ -4,13 +4,22 @@
 
 #pragma once
 
+#include <cassert>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <set>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "node.h"
-#include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

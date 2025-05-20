@@ -4,24 +4,31 @@
 
 #include "paged_attn.h"
 
-#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "dnnl_extension_utils.h"
-#include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/attn_quant.hpp"
+#include "config.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/scaled_attn/executor_pa.hpp"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
-#include "openvino/core/parallel.hpp"
-#include "openvino/util/common_util.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::Extensions::Cpu;
 using namespace ov::Extensions::Cpu::XARCH;

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "executor_config.hpp"
 #include "post_ops.hpp"
 

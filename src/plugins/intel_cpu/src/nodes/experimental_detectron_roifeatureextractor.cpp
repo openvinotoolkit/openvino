@@ -5,14 +5,28 @@
 #include "experimental_detectron_roifeatureextractor.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -272,7 +286,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
                                                                     std::string& errorMessage) noexcept {
     try {
         const auto roiFeatureExtractor =
-            ov::as_type_ptr<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+            ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -291,7 +305,7 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto roiFeatureExtractor = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto roiFeatureExtractor = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;

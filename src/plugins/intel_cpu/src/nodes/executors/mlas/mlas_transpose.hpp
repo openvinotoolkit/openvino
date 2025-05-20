@@ -4,7 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 class MlasTransposeExecutor : public TransposeExecutor {

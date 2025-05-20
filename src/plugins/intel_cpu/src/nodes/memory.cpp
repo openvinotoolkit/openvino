@@ -4,16 +4,46 @@
 
 #include "memory.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "allocation_context.hpp"
 #include "common/arbitrary_order_desc_creator.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "edge.h"
+#include "graph.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_state.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/input.h"
+#include "nodes/memory_state_base.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/util/common_util.hpp"
+#include "proxy_mem_blk.h"
 #include "scaled_attn.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"

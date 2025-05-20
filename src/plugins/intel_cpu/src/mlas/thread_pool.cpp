@@ -4,6 +4,9 @@
 
 #include "thread_pool.hpp"
 
+#include <cstddef>
+#include <functional>
+
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 

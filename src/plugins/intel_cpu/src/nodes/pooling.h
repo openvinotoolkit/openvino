@@ -4,10 +4,19 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "common/dnnl_executor.h"
-#include "executors/pooling_list.hpp"
+#include "cpu_shape.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/executors/pooling.hpp"
+#include "nodes/node_config.h"
 #include "oneapi/dnnl/dnnl.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -1,12 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cpu/platform.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
+#include <memory>
 #include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -16,14 +25,15 @@
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
-#include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"

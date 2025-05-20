@@ -5,16 +5,35 @@
 #include "space_to_depth.h"
 
 #include <cmath>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <vector>
 
 #include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/space_to_depth.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/util/pp.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -49,9 +68,9 @@ bool SpaceToDepth::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) c
 
 bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
+        const auto spaceToDepth = ov::as_type_ptr<const ov::op::v0::SpaceToDepth>(op);
         if (!spaceToDepth) {
-            errorMessage = "Only opset1 SpaceToDepth operation is supported";
+            errorMessage = "Only v0 SpaceToDepth operation is supported";
             return false;
         }
         const auto mode = spaceToDepth->get_mode();
@@ -77,9 +96,9 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
-    auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
+    auto spaceToDepth = ov::as_type_ptr<const ov::op::v0::SpaceToDepth>(op);
     if (!spaceToDepth) {
-        THROW_CPU_NODE_ERR("supports only opset1");
+        THROW_CPU_NODE_ERR("supports only v0");
     }
 
     const auto modeNgraph = spaceToDepth->get_mode();

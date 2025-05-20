@@ -5,12 +5,18 @@
 #include "embedding_bag.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
-#include <vector>
 
-#include "common/cpu_memcpy.h"
-#include "dnnl_types.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace ov::intel_cpu::node {
 

@@ -4,6 +4,10 @@
 
 #include "blocked_memory_desc.h"
 
+#include <cctype>
+#include <cstddef>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 
 #include "utils/general_utils.h"

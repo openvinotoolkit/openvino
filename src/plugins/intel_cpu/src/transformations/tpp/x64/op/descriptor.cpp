@@ -4,6 +4,12 @@
 
 #include "descriptor.hpp"
 
+#include <libxsmm_typedefs.h>
+
+#include <ostream>
+
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 std::ostream& operator<<(std::ostream& os, const OpDescTPP& od) {

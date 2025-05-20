@@ -4,7 +4,12 @@
 
 #include "async_infer_request.h"
 
-#include "openvino/runtime/threading/cpu_message.hpp"
+#include <memory>
+#include <vector>
+
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,

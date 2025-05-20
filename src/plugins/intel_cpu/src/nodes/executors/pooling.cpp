@@ -6,6 +6,8 @@
 
 #include <utility>
 
+#include "nodes/executors/executor.hpp"
+
 namespace ov::intel_cpu {
 
 PoolingExecutor::PoolingExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}

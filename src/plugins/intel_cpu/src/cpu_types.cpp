@@ -7,6 +7,7 @@
 #include <string>
 
 #include "cpu_shape.h"
+#include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
 

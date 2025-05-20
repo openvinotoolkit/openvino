@@ -4,23 +4,41 @@
 
 #include "cum_sum.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/cum_sum.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset3_decl.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
+        const auto cumsum = ov::as_type_ptr<const ov::op::v0::CumSum>(op);
         if (!cumsum) {
-            errorMessage = "Only opset3 CumSum operation is supported";
+            errorMessage = "Only v0 CumSum operation is supported";
             return false;
         }
     } catch (...) {
@@ -47,7 +65,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
-    const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
+    const auto cumsum = ov::as_type_ptr<const ov::op::v0::CumSum>(op);
     if (cumsum == nullptr) {
         THROW_CPU_NODE_ERR("is not an instance of CumSum from opset3.");
     }

@@ -3,6 +3,7 @@
 //
 
 #include "jit_uni_eltwise_generic.hpp"
+#include "selective_build.h"
 
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 

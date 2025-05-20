@@ -4,11 +4,27 @@
 
 #pragma once
 
+#include <algorithm>
+#include <bitset>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
-#include "common/primitive_attr.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_postops_composer_legacy.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
