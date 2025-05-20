@@ -92,7 +92,7 @@ public:
     }
 
     layout get_per_last_dim_layout(lora_test_params& p) {
-        return layout{ ov::PartialShape{1, *p.main_input_pshape.rbegin() }, p.input_type, p.planar_format };
+        return layout{ ov::PartialShape{1, 1, *p.main_input_pshape.rbegin()}, p.input_type, p.planar_format };
     }
 
     size_t get_fc_input_rank(lora_test_params& p) {
@@ -113,6 +113,7 @@ public:
 #define CASE_LORA_F32_DEFAULT_OPT { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 16, 128 }, { 1, 16 }, { 256, 16 }}, data_types::f32, format::bfyx, format::oiyx
 #define CASE_LORA_F32_DEFAULT_REF { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 15, 128 }, { 1, 15 }, { 256, 15 }}, data_types::f32, format::bfyx, format::oiyx
 #define CASE_LORA_F32_EMPTY { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 0, 128 }, { 1, 0 }, { 256, 0 }}, data_types::f32, format::bfyx, format::oiyx
+#define CASE_LORA_F16_DEFAULT_OPT { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 32, 128 }, { 1, 32 }, { 256, 32 }}, data_types::f16, format::bfyx, format::oiyx
 
 class lora_act_eltw : public LoraFusingsTest {};
 TEST_P(lora_act_eltw, basic) {
@@ -130,18 +131,19 @@ TEST_P(lora_act_eltw, basic) {
         read_value{"rv_b", { input_info("state_b") }, "var_b", { get_lora_state_layout(p, 2) }},
         lora("lora", { input_info("fc_prim"), input_info("input"), input_info("rv_a"), input_info("rv_alpha"), input_info("rv_b") }, true),
 
-        activation("act", input_info("lora"), activation_func::swish),
+        activation("act", input_info("lora"), activation_func::swish, { 1.f, 0.f }),
         data("eltw_data", get_mem(get_per_last_dim_layout(p), 1, 9)),
         eltwise("eltw", { input_info("act"), input_info("eltw_data") }, eltwise_mode::sum, p.input_type),
         reorder("reorder_bfyx", input_info("eltw"), p.planar_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.input_type == data_types::f16 ? 1e-2f : 1e-5f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, lora_act_eltw, ::testing::ValuesIn(std::vector<lora_test_params>{
     lora_test_params{ CASE_LORA_F32_DEFAULT_OPT, 6, 11 },
     lora_test_params{ CASE_LORA_F32_DEFAULT_REF, 6, 11 },
-    lora_test_params{ CASE_LORA_F32_EMPTY, 6, 10 }
+    lora_test_params{ CASE_LORA_F32_EMPTY, 6, 10 },
+    lora_test_params{ CASE_LORA_F16_DEFAULT_OPT, 6, 11 }
 }));

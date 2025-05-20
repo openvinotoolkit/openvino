@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "xetla_lora.hpp"
+
 #include "common_utils/kernel_generator_base.hpp"
 #include "impls/ocl_v2/utils/jitter.hpp"
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "utils/kernel_generator.hpp"
-#include "xetla_lora.hpp"
 #include "xetla_postops.hpp"
 
 namespace ov::intel_gpu::cm {
@@ -30,13 +31,20 @@ public:
     }
 
 protected:
-    enum MemLayout { row_major, col_major };
+    enum class MemLayout { row_major, col_major };
+
+    struct Layouts {
+        static constexpr MemLayout mem_layout_a = MemLayout::row_major;
+        static constexpr MemLayout mem_layout_state_a = MemLayout::col_major;
+        static constexpr MemLayout mem_layout_state_b = MemLayout::row_major;
+        static constexpr MemLayout mem_layout_c = MemLayout::row_major;
+    };
 
     std::string get_xetla_mem_layout(MemLayout layout) const {
         switch (layout) {
-        case row_major:
+        case MemLayout::row_major:
             return "mem_layout::row_major";
-        case col_major:
+        case MemLayout::col_major:
             return "mem_layout::col_major";
         default:
             assert(false, "Unsupported memory layout!");
@@ -125,7 +133,7 @@ protected:
         auto size_in_bits = size * dtype_size;
         return size_in_bits >= min_size && size_in_bits % multiple_of == 0;
     }
-    
+
     struct Tiling {
         const size_t wg_m;
         const size_t wg_n;
@@ -134,26 +142,48 @@ protected:
         const size_t sg_k;
         const size_t num_global_kslicing;
         const size_t num_local_kslicing;
-        
+
         Tiling(const RuntimeParams& params) : wg_m{256}, wg_n{128}, sg_m{32}, sg_n{32}, sg_k{32}, num_global_kslicing{1}, num_local_kslicing{1} {}
     };
 
-    public:
-        struct LoraShape {
-            const size_t total_tokens;  // batch * feature
-            const size_t lora_rank;
-            const size_t hidden_size_input;
-            const size_t hidden_size_output;
-            LoraShape(const RuntimeParams& params)
-                : total_tokens{extract_channel(ChannelName::BATCH, params.output_layouts[0]) * extract_channel(ChannelName::FEATURE, params.output_layouts[0])},
-                  hidden_size_output{extract_channel(ChannelName::Y, params.output_layouts[0]) * extract_channel(ChannelName::X, params.output_layouts[0])},
-                  lora_rank{extract_channel(ChannelName::FEATURE, params.input_layouts[3])},
-                  hidden_size_input{extract_channel(ChannelName::Y, params.input_layouts[1]) * extract_channel(ChannelName::X, params.input_layouts[1])} {}
-    
-            std::tuple<size_t, size_t, size_t, size_t> get_lora_gemm_shape() const {
-                return {total_tokens, lora_rank, hidden_size_input, hidden_size_output};
-            }
-        };
+public:
+    struct LoraShape {
+        const size_t total_tokens;  // batch * feature
+        const size_t lora_rank;
+        const size_t hidden_size_input;
+        const size_t hidden_size_output;
+        LoraShape(const RuntimeParams& params)
+            : total_tokens{extract_channel(ChannelName::BATCH, params.output_layouts[0]) * extract_channel(ChannelName::FEATURE, params.output_layouts[0])},
+              hidden_size_output{extract_channel(ChannelName::Y, params.output_layouts[0]) * extract_channel(ChannelName::X, params.output_layouts[0])},
+              lora_rank{extract_channel(ChannelName::FEATURE, params.input_layouts[3])},
+              hidden_size_input{extract_channel(ChannelName::Y, params.input_layouts[1]) * extract_channel(ChannelName::X, params.input_layouts[1])} {}
+
+        std::tuple<size_t, size_t, size_t, size_t> get_lora_gemm_shape() const {
+            return {total_tokens, lora_rank, hidden_size_input, hidden_size_output};
+        }
+
+        auto get_total_tokens_jit(const RuntimeParams& params) const {
+            ov::intel_gpu::ocl::LayoutJitter jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
+            const auto jit_val = "(" + jit.dim(ChannelName::BATCH) + " * " + jit.dim(ChannelName::FEATURE) + ")";
+            return jit_val;
+        }
+        auto get_lora_rank_jit(const RuntimeParams& params) const {
+            ov::intel_gpu::ocl::LayoutJitter jit(params.input_layouts[3], params.in_port_to_shape_info_offset.at(3));
+            const auto jit_val = jit.dim(ChannelName::FEATURE);
+            return jit_val;
+        }
+
+        auto get_hidden_size_input_jit(const RuntimeParams& params) const {
+            ov::intel_gpu::ocl::LayoutJitter jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
+            const auto jit_val = "(" + jit.dim(ChannelName::Y) + " * " + jit.dim(ChannelName::X) + ")";
+            return jit_val;
+        }
+        auto get_hidden_size_output_jit(const RuntimeParams& params) const {
+            ov::intel_gpu::ocl::LayoutJitter jit(params.output_layouts[0], params.out_port_to_shape_info_offset.at(0));
+            const auto jit_val = "(" + jit.dim(ChannelName::Y) + " * " + jit.dim(ChannelName::X) + ")";
+            return jit_val;
+        }
+    };
 };
 
 class XetlaLoRAFusedGenerator : public XeTLALoraBaseGenerator {
@@ -164,22 +194,16 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
 
-        ov::intel_gpu::ocl::LayoutJitter lora_input_jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
-        const auto M_JIT = "(" + lora_input_jit.dim(ChannelName::BATCH) + " * " + lora_input_jit.dim(ChannelName::FEATURE) + ")";
-
-        ov::intel_gpu::ocl::LayoutJitter lora_rank_jit(params.input_layouts[3], params.in_port_to_shape_info_offset.at(3));
-        const auto LORA_RANK_JIT = lora_rank_jit.dim(ChannelName::FEATURE);
-
         const LoraShape shape{params};
         const auto M = shape.total_tokens;
         const auto N = shape.hidden_size_output;
         const auto K = shape.hidden_size_input;
         const auto lora_rank = shape.lora_rank;
 
-        const auto mem_layout_a = MemLayout::row_major;
-        const auto mem_layout_state_a = MemLayout::col_major;
-        const auto mem_layout_state_b = MemLayout::col_major;
-        const auto mem_layout_c = MemLayout::row_major;
+        const auto mem_layout_a = Layouts::mem_layout_a;
+        const auto mem_layout_state_a = Layouts::mem_layout_state_a;
+        const auto mem_layout_state_b = Layouts::mem_layout_state_b;
+        const auto mem_layout_c = Layouts::mem_layout_c;
 
         const auto lda = mem_layout_a == MemLayout::col_major ? M : K;
         const auto ld_state_a = mem_layout_state_a == MemLayout::col_major ? K : lora_rank;
@@ -210,7 +234,7 @@ protected:
                  make_jit_constant("LORA_DTYPE_B", ov_to_xetla_dtype(params.input_layouts[2].data_type)),
                  make_jit_constant("LORA_DTYPE_C", ov_to_xetla_dtype(params.output_layouts[0].data_type)),
                  make_jit_constant("LORA_DTYPE_ACC", ov_to_xetla_dtype(ov::element::Type_t::f32)),
-                 make_jit_constant("LORA_SIZE_RANK", LORA_RANK_JIT),
+                 make_jit_constant("LORA_SIZE_RANK", shape.get_lora_rank_jit(params)),
                  make_jit_constant("LORA_WG_M", fused_wg_m),
                  make_jit_constant("LORA_WG_N_A", fusedA_wg_n),
                  make_jit_constant("LORA_WG_N_B", fusedB_wg_n),
@@ -229,10 +253,9 @@ protected:
                  make_jit_constant("LORA_MEM_SPACE_TEMP", "mem_space::global"),
                  make_jit_constant("LORA_UNALIGNED", !is_aligned),
                  make_jit_constant("DLORA_TEMP_IN_REG", temp_in_reg),
-                 make_jit_constant("LORA_SIZE_M", M_JIT),
-                 make_jit_constant("LORA_SIZE_K", K),
-                 make_jit_constant("LORA_SIZE_N", N)
-        });
+                 make_jit_constant("LORA_SIZE_M", shape.get_total_tokens_jit(params)),
+                 make_jit_constant("LORA_SIZE_K", shape.get_hidden_size_input_jit(params)),
+                 make_jit_constant("LORA_SIZE_N", shape.get_hidden_size_output_jit(params))});
 
         if (params.is_dynamic()) {
             jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "int *shape_info,")});
@@ -306,18 +329,13 @@ protected:
             uint32_t fusedB_sg_k = 32;
 
             uint32_t local_range_m = (fused_wg_m + fused_sg_m - 1) / fused_sg_m;
-            uint32_t local_range_nA
-                    = (fusedA_wg_n + fusedA_sg_n - 1) / fusedA_sg_n;
-            uint32_t local_range_nB
-                    = (fusedB_wg_n + fusedB_sg_n - 1) / fusedB_sg_n;
-            uint32_t local_range_n = local_range_nA > local_range_nB
-                    ? local_range_nA
-                    : local_range_nB;
+            uint32_t local_range_nA = (fusedA_wg_n + fusedA_sg_n - 1) / fusedA_sg_n;
+            uint32_t local_range_nB = (fusedB_wg_n + fusedB_sg_n - 1) / fusedB_sg_n;
+            uint32_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
 
-           assert(local_range_m * local_range_n * fused_local_kslicing <= 32);
+            assert(local_range_m * local_range_n * fused_local_kslicing <= 32);
             uint32_t group_range_m = (shape.total_tokens + fused_wg_m - 1) / fused_wg_m;
-            uint32_t group_range_n
-                    = (shape.hidden_size_output + fusedB_total_wg_n - 1) / fusedB_total_wg_n;
+            uint32_t group_range_n = (shape.hidden_size_output + fusedB_total_wg_n - 1) / fusedB_total_wg_n;
 
             auto [subgroup_range, group_range] = get_nd_range(shape.total_tokens,
                                                               shape.lora_rank,
@@ -341,20 +359,14 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
 
-        ov::intel_gpu::ocl::LayoutJitter lora_input_jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
-        const auto M_JIT = "(" + lora_input_jit.dim(ChannelName::BATCH) + " * " + lora_input_jit.dim(ChannelName::FEATURE) + ")";
-
-        ov::intel_gpu::ocl::LayoutJitter lora_rank_jit(params.input_layouts[3], params.in_port_to_shape_info_offset.at(3));
-        const auto N_JIT = lora_rank_jit.dim(ChannelName::FEATURE);
-
         const LoraShape shape{params};
         const auto M = shape.total_tokens;
         const auto N = shape.lora_rank;
         const auto K = shape.hidden_size_input;
 
-        const auto mem_layout_a = MemLayout::row_major;
-        const auto mem_layout_b = MemLayout::col_major;
-        const auto mem_layout_c = MemLayout::row_major;
+        const auto mem_layout_a = Layouts::mem_layout_a;
+        const auto mem_layout_b = Layouts::mem_layout_state_a;
+        const auto mem_layout_c = Layouts::mem_layout_c;
 
         const auto lda = mem_layout_a == MemLayout::col_major ? M : K;
         const auto ldb = mem_layout_b == MemLayout::col_major ? K : N;
@@ -380,9 +392,9 @@ protected:
                  make_jit_constant("LORA_MEM_LAYOUT_A", get_xetla_mem_layout(mem_layout_a)),
                  make_jit_constant("LORA_MEM_LAYOUT_B", get_xetla_mem_layout(mem_layout_b)),
                  make_jit_constant("LORA_MEM_LAYOUT_C", get_xetla_mem_layout(mem_layout_c)),
-                 make_jit_constant("LORA_SIZE_M", M_JIT),
-                 make_jit_constant("LORA_SIZE_K", K),
-                 make_jit_constant("LORA_SIZE_N", N_JIT),
+                 make_jit_constant("LORA_SIZE_M", shape.get_total_tokens_jit(params)),
+                 make_jit_constant("LORA_SIZE_K", shape.get_hidden_size_input_jit(params)),
+                 make_jit_constant("LORA_SIZE_N", shape.get_lora_rank_jit(params)),
                  make_jit_constant("LORA_UNALIGNED", !is_aligned)});
 
         if (params.is_dynamic()) {
@@ -447,20 +459,14 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
 
-        ov::intel_gpu::ocl::LayoutJitter lora_input_jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
-        const auto M_JIT = "(" + lora_input_jit.dim(ChannelName::BATCH) + " * " + lora_input_jit.dim(ChannelName::FEATURE) + ")";
-
-        ov::intel_gpu::ocl::LayoutJitter lora_rank_jit(params.input_layouts[3], params.in_port_to_shape_info_offset.at(3));
-        const auto K_JIT = lora_rank_jit.dim(ChannelName::FEATURE);
-
         const LoraShape shape{params};
         const auto M = shape.total_tokens;
         const auto N = shape.hidden_size_output;
         const auto K = shape.lora_rank;
 
-        const auto mem_layout_a = MemLayout::row_major;
-        const auto mem_layout_b = MemLayout::col_major;
-        const auto mem_layout_c = MemLayout::row_major;
+        const auto mem_layout_a = Layouts::mem_layout_a;
+        const auto mem_layout_b = Layouts::mem_layout_state_b;
+        const auto mem_layout_c = Layouts::mem_layout_c;
 
         const auto lda = mem_layout_a == MemLayout::col_major ? M : K;
         const auto ldb = mem_layout_b == MemLayout::col_major ? K : N;
@@ -486,9 +492,9 @@ protected:
                  make_jit_constant("LORA_MEM_LAYOUT_A", get_xetla_mem_layout(mem_layout_a)),
                  make_jit_constant("LORA_MEM_LAYOUT_B", get_xetla_mem_layout(mem_layout_b)),
                  make_jit_constant("LORA_MEM_LAYOUT_C", get_xetla_mem_layout(mem_layout_c)),
-                 make_jit_constant("LORA_SIZE_M", M_JIT),
-                 make_jit_constant("LORA_SIZE_K", K_JIT),
-                 make_jit_constant("LORA_SIZE_N", N),
+                 make_jit_constant("LORA_SIZE_M", shape.get_total_tokens_jit(params)),
+                 make_jit_constant("LORA_SIZE_K", shape.get_lora_rank_jit(params)),
+                 make_jit_constant("LORA_SIZE_N", shape.get_hidden_size_output_jit(params)),
                  make_jit_constant("LORA_UNALIGNED", !is_aligned)});
 
         if (params.is_dynamic()) {

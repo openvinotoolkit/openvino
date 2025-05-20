@@ -64,12 +64,17 @@ struct LoRAImplementationManager : public ImplementationManager {
             if (is_activation) {
                 const auto activation_desc = std::static_pointer_cast<const activation>(prim.desc);
                 const auto xetla_activation_func = get_xetla_activation_op(activation_desc->activation_function);
+
                 if (Activation::ActivationOp::none == xetla_activation_func) {
                     return false;
                 }
-                if (activation_desc->activation_function == activation_func::swish && prim.deps.size() != 0) {
+                if (activation_desc->additional_params.a != 1.0f && activation_desc->additional_params.b != 0.0f) {
                     return false;
                 }
+                if (prim.deps.size() != 0) {
+                    return false;
+                }
+
             } else if (is_eltwise) {
                 const auto eltwise_desc = std::static_pointer_cast<const eltwise>(prim.desc);
                 const auto xetla_eltwise_mode = get_xetla_eltwise_op(eltwise_desc->mode);

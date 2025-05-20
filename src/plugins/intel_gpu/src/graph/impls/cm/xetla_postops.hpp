@@ -72,7 +72,7 @@ public:
 
 class Eltwise : public XeTLAPostOP {
 public:
-    enum EltwiseOp { none, sum, prod };
+    enum class EltwiseOp { none, sum, prod };
 
 private:
     EltwiseOp op;
@@ -105,7 +105,7 @@ public:
 
 class Activation : public XeTLAPostOP {
 public:
-    enum ActivationOp { none, ReLU, Tanh, Sigmoid, SiLU, GeLU };
+    enum class ActivationOp { none, ReLU, Tanh, Sigmoid, SiLU, GeLU };
 
 private:
     ActivationOp op;
