@@ -3150,7 +3150,6 @@ struct MHA {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
@@ -3160,6 +3159,7 @@ struct MHA {
 
         // packed k, v
         parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
+            constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
             const auto& item = _workitems.get_reorder_work_item(w);
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_reorder = item.batch_in_reorder;
