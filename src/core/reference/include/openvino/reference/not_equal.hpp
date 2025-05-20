@@ -35,4 +35,18 @@ void not_equal(const T* arg0,
         autobroadcast_binop(arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, func::not_equal<T>);
     }
 }
+
+template <typename U>
+void not_equal(const std::string* arg0,
+               const std::string* arg1,
+               U* out,
+               const Shape& arg0_shape,
+               const Shape& arg1_shape,
+               const op::AutoBroadcastSpec& broadcast_spec) {
+    std::string to_compare = arg1[0];
+    for (size_t i = 0; i < shape_size(arg0_shape); ++i) {
+        out[i] = static_cast<U>(arg0[i] != to_compare);
+    }
+}
+
 }  // namespace ov::reference
