@@ -1751,6 +1751,10 @@ void transpose_16NxK(TDST* dst,
                      [[maybe_unused]] const bool quant_key_bychannel) {
     size_t k = 0;
     auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
+    // zero padding unsued blocks before packing
+    for (size_t n = N; n < block_size; n++) {
+        memset(src_ptr + n * src_stride, 0, K * sizeof(typename ov::element_type_traits<SRC_PREC>::value_type));
+    }
     for (; k + 16 <= K; k += 16) {
         for (size_t n = 0; n < N; n += 16) {
             transpose_16x16_kernel(dst + n, src_ptr + n * src_stride, dst_stride, src_stride);
@@ -1841,8 +1845,8 @@ void transpose_16NxK(TDST* dst,
             t += src_stride;
         }
     }
-    for (size_t i = N; i < block_size; i++) {
-        memset(tmp + i * src_stride, 0, sizeof(TDST) * K);
+    for (size_t n = N; n < block_size; n++) {
+        memset(tmp + n * src_stride, 0, sizeof(TDST) * K);
     }
     transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
                                                      tmp,
@@ -1920,7 +1924,7 @@ void dequant(TDST* dst,
             dst += K;
         }
     }
-    for (size_t i = N; i < block_size; i++) {
+    for (size_t n = N; n < block_size; n++) {
         memset(dst, 0, sizeof(TDST) * K);
         dst += K;
     }
@@ -2009,6 +2013,10 @@ static void pack_32NxK(TDST* dst,
                        const size_t group_size,
                        const bool quant_bychannel) {
     auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
+    // zero padding unsued blocks before packing
+    for (size_t n = N; n < block_size; n++) {
+        memset(src_ptr + n * src_stride, 0, sizeof(TDST) * (K));
+    }
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
@@ -2073,8 +2081,8 @@ static void pack_32NxK(TDST* dst,
             t += src_stride;
         }
     }
-    for (size_t i = N; i < block_size; i++) {
-        memset(tmp + i * src_stride, 0, sizeof(TDST) * (K));
+    for (size_t n = N; n < block_size; n++) {
+        memset(tmp + n * src_stride, 0, sizeof(TDST) * (K));
     }
     pack_32NxK<TDST, precision_of<TDST>::value>(dst,
                                                 tmp,
@@ -3163,10 +3171,7 @@ struct MHA {
             }
 
             auto ithr = parallel_get_thread_num();
-            size_t valid_len = _helper._block_size;
-            if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
-                valid_len = item.valid_block_len;
-            }
+            const size_t valid_len = item.valid_block_len;
             auto* k_ptr =
                 k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
             transpose_16NxK<DATA_TYPE, KEY_PREC>(
@@ -3208,14 +3213,10 @@ struct MHA {
 #    endif
             } else {
                 // need to decompress
-                if (!q_cache_is_same) {
+                if constexpr (!q_cache_is_same) {
                     auto* v_ptr =
                         v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number,
                                                                                                           hk);
-                    size_t valid_len = _helper._block_size;
-                    if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
-                        valid_len = item.valid_block_len;
-                    }
                     dequant<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
@@ -3224,6 +3225,12 @@ struct MHA {
                         _helper._block_size,
                         _helper._value_group_size,
                         _helper._quant_value_bychannel);
+                } else {
+                    // zero padding unsued blocks
+                    for (size_t n = valid_len; n < _helper._block_size; n++) {
+                        auto* v_ptr = v_cache.ptr<DATA_TYPE>(block_number, hk, n, 0);
+                        memset(v_ptr, 0, sizeof(DATA_TYPE) * v_cache.m_dims[3]);
+                    }
                 }
             }
         });
