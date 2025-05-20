@@ -31,7 +31,6 @@ public:
 protected:
     void SetUp() override;
     void compile_model() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 

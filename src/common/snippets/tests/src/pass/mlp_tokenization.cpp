@@ -9,7 +9,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/pass/common_optimizations.hpp"
-#include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
 namespace ov {

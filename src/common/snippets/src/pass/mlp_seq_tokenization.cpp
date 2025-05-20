@@ -176,8 +176,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
 
             // Move counts
-            potential_body_params_count = possible_param_count;
-            potential_body_params_count = possible_potential_body_params_count;
+            potential_body_params_count = possible_param_count + possible_potential_body_params_count;
         }
 
         // Currently, sequence of MLP should contain 2 MatMuls at least
