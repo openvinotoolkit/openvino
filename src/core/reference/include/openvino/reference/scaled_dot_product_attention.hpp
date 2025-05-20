@@ -13,25 +13,25 @@
 namespace ov::reference {
 namespace helpers {
 template <typename T>
-std::vector<T> CreateCausalAttentionMask(const ov::Shape& shape) {
-    std::vector<T> maskData(shape_size(shape), std::numeric_limits<T>::lowest());
+std::vector<T> create_causal_attention_mask(const ov::Shape& shape) {
+    std::vector<T> mask_data(shape_size(shape), std::numeric_limits<T>::lowest());
     const auto L = shape[shape.size() - 2];
     const auto S = shape[shape.size() - 1];
     for (size_t i = 0; i < L; ++i) {
         size_t j = 0;
         while (i >= j && j < S) {
-            maskData[i * S + j] = 0;
+            mask_data[i * S + j] = 0;
             ++j;
         }
     }
-    return maskData;
+    return mask_data;
 }
 
 template <typename T>
-std::vector<T> CreateAttentionMaskFromOvBoolean(const char* maskBool, const ov::Shape& shape) {
-    std::vector<T> maskData(shape_size(shape));
+std::vector<T> create_attention_mask_from_ov_boolean(const char* mask_bool, const ov::Shape& shape) {
+    std::vector<T> mask_data(shape_size(shape));
 
-    std::transform(maskBool, maskBool + shape_size(shape), maskData.begin(), [](char val) {
+    std::transform(mask_bool, mask_bool + shape_size(shape), mask_data.begin(), [](char val) {
         if (val == 0) {
             return std::numeric_limits<T>::lowest();
         } else {
@@ -39,9 +39,11 @@ std::vector<T> CreateAttentionMaskFromOvBoolean(const char* maskBool, const ov::
         }
     });
 
-    return maskData;
+    return mask_data;
 }
 }  // namespace helpers
+}  // namespace ov::reference
+
 namespace ov {
 namespace reference {
 template <typename T, typename TMask>
@@ -51,60 +53,60 @@ void scaled_dot_product_attention(const T* query,
                                   const TMask* mask,
                                   const T* scale,
                                   T* output,
-                                  bool isCausal,
-                                  const Shape& queryShape,
-                                  const Shape& keyShape,
-                                  const Shape& valueShape,
-                                  const Shape& maskShape,
-                                  const Shape& outputShape) {
+                                  bool is_causal,
+                                  const Shape& query_shape,
+                                  const Shape& key_shape,
+                                  const Shape& value_shape,
+                                  const Shape& mask_shape,
+                                  const Shape& output_shape) {
     static_assert(std::is_same_v<T, TMask> || std::is_same_v<TMask, char>,
                   "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
 
     const T* bias = nullptr;
-    Shape biasShape = {};
+    Shape bias_shape = {};
 
-    std::vector<T> attentionMaskData;
-    if (mask && !isCausal) {
-        biasShape = maskShape;
+    std::vector<T> attention_mask_data;
+    if (mask && !is_causal) {
+        bias_shape = mask_shape;
         if constexpr (std::is_same<TMask, char>::value) {
-            attentionMaskData = helpers::CreateAttentionMaskFromOvBoolean<T>(mask, biasShape);
-            bias = attentionMaskData.data();
+            attention_mask_data = helpers::create_attention_mask_from_ov_boolean<T>(mask, bias_shape);
+            bias = attention_mask_data.data();
         } else {
             bias = mask;
         }
     }
 
-    if (isCausal) {
-        const auto L = queryShape[queryShape.size() - 2];
-        const auto S = keyShape[keyShape.size() - 2];
-        biasShape = {L, S};
-        attentionMaskData = helpers::CreateCausalAttentionMask<T>(biasShape);
-        bias = attentionMaskData.data();
+    if (is_causal) {
+        const auto L = query_shape[query_shape.size() - 2];
+        const auto S = key_shape[key_shape.size() - 2];
+        bias_shape = {L, S};
+        attention_mask_data = helpers::create_causal_attention_mask<T>(bias_shape);
+        bias = attention_mask_data.data();
     }
 
-    const float defaultScaleVal = 1.0f / static_cast<float>(std::sqrt(queryShape[queryShape.size() - 1]));
-    const T scaleVal = scale ? *scale : static_cast<T>(defaultScaleVal);
+    const float default_scale_val = 1.0f / static_cast<float>(std::sqrt(query_shape[query_shape.size() - 1]));
+    const T scale_val = scale ? *scale : static_cast<T>(default_scale_val);
 
-    auto qkShape = queryShape;
-    qkShape[qkShape.size() - 1] = keyShape[keyShape.size() - 2];
+    auto qk_shape = query_shape;
+    qk_shape[qk_shape.size() - 1] = key_shape[key_shape.size() - 2];
 
-    std::vector<T> qkData(shape_size(qkShape), 0);
-    ov::reference::matmul<T>(query, key, qkData.data(), queryShape, keyShape, qkShape, false, true);
+    std::vector<T> qk_data(shape_size(qk_shape), 0);
+    ov::reference::matmul<T>(query, key, qk_data.data(), query_shape, key_shape, qk_shape, false, true);
 
-    ov::reference::multiply<T>(qkData.data(),
-                               &scaleVal,
-                               qkData.data(),
-                               qkShape,
+    ov::reference::multiply<T>(qk_data.data(),
+                               &scale_val,
+                               qk_data.data(),
+                               qk_shape,
                                Shape{1},
                                ov::op::AutoBroadcastType::NUMPY);
 
     if (bias) {
-        ov::reference::add<T>(qkData.data(), bias, qkData.data(), qkShape, biasShape, ov::op::AutoBroadcastType::NUMPY);
+        ov::reference::add<T>(qk_data.data(), bias, qk_data.data(), qk_shape, bias_shape, ov::op::AutoBroadcastType::NUMPY);
     }
 
-    std::vector<T> qkDataSoftmax(qkData.size(), 0);
-    ov::reference::softmax<T>(qkData.data(), qkDataSoftmax.data(), qkShape, ov::AxisSet{qkShape.size() - 1});
-    ov::reference::matmul<T>(qkDataSoftmax.data(), value, output, qkShape, valueShape, outputShape, false, false);
+    std::vector<T> qk_data_softmax(qk_data.size(), 0);
+    ov::reference::softmax<T>(qk_data.data(), qk_data_softmax.data(), qk_shape, ov::AxisSet{qk_shape.size() - 1});
+    ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }
 
 }  // namespace reference
