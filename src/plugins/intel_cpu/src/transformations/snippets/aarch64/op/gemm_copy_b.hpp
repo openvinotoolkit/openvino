@@ -52,6 +52,11 @@ public:
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    virtual bool is_padded() override {
+        return true;
+    }
+    virtual std::vector<size_t> get_pad_size() override;
+
     class ShapeInfer : public snippets::IShapeInferSnippets {
         std::vector<size_t> m_layout{};
         size_t m_num_outs = 1;
