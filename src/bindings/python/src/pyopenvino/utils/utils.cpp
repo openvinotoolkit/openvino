@@ -322,6 +322,15 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
+        } else if (property.first == ov::intel_auto::devices_utilization_threshold.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            std::map<std::string, double> thresholds;
+            for (const auto& item : py::cast<py::dict>(property.second)) {
+                std::string device_name = py::cast<std::string>(item.first);
+                double threshold = py::cast<double>(item.second);
+                thresholds[device_name] = threshold;
+            }
+            properties_to_cpp[property.first] = thresholds;
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

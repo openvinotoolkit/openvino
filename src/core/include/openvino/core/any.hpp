@@ -127,6 +127,11 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
 };
 
 template <>
+struct OPENVINO_API Read<std::map<std::string, double>> {
+    void operator()(std::istream& is, std::map<std::string, double>& map) const;
+};
+
+template <>
 struct OPENVINO_API Read<AnyMap> {
     void operator()(std::istream& is, AnyMap& map) const;
 };

@@ -729,17 +729,16 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                     if (device_utilization.empty() || (device_luid.empty() && device_utilization.count("Total") == 0) ||
                         (!device_luid.empty() && device_utilization.count(device_luid) == 0)) {
                         LOG_DEBUG_TAG("Cannot get utilization for %s", device->device_name.c_str());
-                        continue;
-                    }
-                    if (device_luid.empty()) {
-                        device_luid = "Total";
-                    }
-                    if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {
                         is_excluded = true;
-                        LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                                      device->device_name.c_str(),
-                                      std::to_string(device_utilization[device_luid]).c_str(),
-                                      std::to_string(utilization_thresholds.at(parsed.get_device_name())).c_str());
+                    } else {
+                        device_luid = device_luid.empty() ? "Total" : device_luid;
+                        if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {
+                            is_excluded = true;
+                            LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
+                                          device->device_name.c_str(),
+                                          std::to_string(device_utilization[device_luid]).c_str(),
+                                          std::to_string(utilization_thresholds.at(parsed.get_device_name())).c_str());
+                        }
                     }
                 } catch (const ov::Exception&) {
                     LOG_DEBUG_TAG("Failed to get luid for %s", device->device_name.c_str());

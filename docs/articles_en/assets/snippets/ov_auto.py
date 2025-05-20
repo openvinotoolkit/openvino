@@ -181,14 +181,27 @@ def part7():
     #! [part7]
 
 
+def part8():
+    #! [part8]
+    core = ov.Core()
+
+    # compile a model on AUTO and set utilization threshold
+    compiled_model = core.compile_model(
+        model=model,
+        device_name="AUTO",
+        config={intel_auto.devices_utilization_threshold: {'CPU': 78.5, 'GPU': 55}},
+    )
+    #! [part8]
+
+
 def main():
     part3()
     part4()
     part5()
     part6()
     part7()
+    part8()
     core = ov.Core()
     if "GPU" not in core.available_devices:
         return 0
     part0()
-    part1()
