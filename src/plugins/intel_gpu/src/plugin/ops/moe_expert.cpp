@@ -70,9 +70,9 @@ static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOEExpert
     for (size_t i = 0; i < op->get_consts().size(); i++) {
         auto current_consts = op->get_consts()[i];
         for (size_t j = 0; j < 3; j++) {
-            weights_size += get_size(current_consts.gate[j]);
-            weights_size += get_size(current_consts.up[j]);
-            weights_size += get_size(current_consts.down[j]);
+            weights_size += get_size(current_consts.gates[j]);
+            weights_size += get_size(current_consts.ups[j]);
+            weights_size += get_size(current_consts.downs[j]);
         }
         // 9*4 = 36 bytes for gate/up/down weight/scale/zp offsets
         // 64-36 = 28 bytes for padding
@@ -132,9 +132,9 @@ static void fill_weights_memory(ProgramBuilder& p, const std::shared_ptr<ov::op:
         fill(current_consts.src_name[2], params[i].param[dst_idx].zp, true);                                                 \
         offsets.push_back(reinterpret_cast<uint8_t*>(params[i].param[dst_idx].zp->buffer_ptr()) - weights_base_ptr);
 
-        SET_BUF(gate, 0)
-        SET_BUF(up, 1)
-        SET_BUF(down, 2)
+        SET_BUF(gates, 0)
+        SET_BUF(ups, 1)
+        SET_BUF(downs, 2)
 #undef SET_BUF
         // padding
         for (size_t j = 0; j < EACH_EXPERT_WEIGHTS_OFFSET_SIZE / sizeof(uint32_t) - 9; j++) {

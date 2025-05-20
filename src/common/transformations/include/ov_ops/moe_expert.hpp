@@ -38,24 +38,28 @@ public:
 
     // 0: weight, 1: scale, 2: zp
     struct ConstsPerExpert {
-        std::array<std::shared_ptr<ov::Node>, 3> gate;
-        std::array<std::shared_ptr<ov::Node>, 3> up;
-        std::array<std::shared_ptr<ov::Node>, 3> down;
+        std::array<std::shared_ptr<ov::Node>, 3> gates;
+        std::array<std::shared_ptr<ov::Node>, 3> ups;
+        std::array<std::shared_ptr<ov::Node>, 3> downs;
+    };
+    struct Attributes {
+        // expert config
+        Config config;
+        // expert weight/scale/zp
+        std::vector<ConstsPerExpert> consts;
     };
 
-    MOEExpert(const OutputVector& args, const Config& config, const std::vector<ConstsPerExpert>& consts);
+    MOEExpert(const OutputVector& args, const Attributes& attrs);
 
     const Config& get_config() const;
     void set_config(const Config& config);
-    const std::vector<ConstsPerExpert> get_consts() const {
-        return m_consts;
+    const std::vector<ConstsPerExpert>& get_consts() const {
+        return m_attrs.consts;
     }
-    std::vector<ConstsPerExpert> get_consts() {
-        return m_consts;
-    }
+
     void add_consts(int expert_no, const ConstsPerExpert& consts) {
-        OPENVINO_ASSERT(expert_no == static_cast<int>(m_consts.size()));
-        m_consts.push_back(consts);
+        OPENVINO_ASSERT(expert_no == static_cast<int>(m_attrs.consts.size()));
+        m_attrs.consts.push_back(consts);
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -63,8 +67,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
 private:
-    Config m_config{};
-    std::vector<ConstsPerExpert> m_consts;
+    Attributes m_attrs;
 };
 
 }  // namespace ov::op::internal

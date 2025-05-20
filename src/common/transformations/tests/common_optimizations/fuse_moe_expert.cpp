@@ -251,17 +251,17 @@ static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, cons
     std::vector<op::internal::MOEExpert::ConstsPerExpert> all_consts;
     for (int i = 0; i < expert_num; i++) {
         op::internal::MOEExpert::ConstsPerExpert consts;
-        consts.gate[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.gate[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.gate[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        consts.gates[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
+        consts.gates[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
+        consts.gates[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
 
-        consts.up[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.up[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.up[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        consts.ups[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
+        consts.ups[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
+        consts.ups[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
 
-        consts.down[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.down[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.down[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        consts.downs[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
+        consts.downs[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
+        consts.downs[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
 
         all_consts.push_back(consts);
     }
@@ -281,7 +281,9 @@ static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, cons
     new_args[0] = hidden_states_;
     new_args[1] = router_logits;
 
-    auto new_node = std::make_shared<op::internal::MOEExpert>(new_args, config, all_consts);
+    op::internal::MOEExpert::Attributes attrs = {config,
+                                                 std::vector<op::internal::MOEExpert::ConstsPerExpert>{all_consts}};
+    auto new_node = std::make_shared<op::internal::MOEExpert>(new_args, attrs);
 
     new_node->set_friendly_name(std::string("moe_expert"));
     return std::make_shared<ov::Model>(new_node,

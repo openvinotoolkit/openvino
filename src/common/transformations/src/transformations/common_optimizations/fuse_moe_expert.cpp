@@ -10,14 +10,28 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/opsets/opset13.hpp"
-#include "openvino/opsets/opset15.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -49,77 +63,80 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
     auto expert_no = ov::gen_pattern::Symbol("expert_no");
 
     // TODO(MOE): more patterns
-#define WEIGHT_PATTERN(idx)                                                                                           \
-    auto weight_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                              \
-    auto weight_const_convert##idx = makePattern<opset1::Convert>({weight_const##idx});                               \
-    auto zp_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                                  \
-    auto zp_const_convert##idx = makePattern<opset1::Convert>({zp_const##idx});                                       \
-    auto weight_sub_zp##idx =                                                                                         \
-        makePattern<opset1::Subtract>({weight_const_convert##idx, zp_const_convert##idx | zp_const##idx},             \
-                                      {{"auto_broadcast", "numpy"}});                                                 \
-    auto scale_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                               \
-    auto weight_zp##idx = weight_sub_zp##idx | weight_const_convert##idx; /* with zp | w/o zp */                      \
-    auto weight_mul_scale##idx =                                                                                      \
-        makePattern<opset1::Multiply>({weight_sub_zp##idx, scale_const##idx}, {{"auto_broadcast", "numpy"}});         \
-    auto weight_mul_scale_reshape##idx = makePattern<opset1::Reshape>({weight_mul_scale##idx, pattern::any_input()}); \
-    auto weight_mul_scale_reshape_convert##idx = makePattern<opset1::Convert>({weight_mul_scale_reshape##idx});       \
-    /* i4+zp+group+convert | i4+zp+group | i4+zp | f16+convert | f32 */                                               \
-    auto final_weight##idx = weight_mul_scale_reshape_convert##idx |                                                  \
+#define WEIGHT_PATTERN(idx)                                                                                         \
+    auto weight_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                            \
+    auto weight_const_convert##idx = makePattern<ov::op::v0::Convert>({weight_const##idx});                         \
+    auto zp_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                                \
+    auto zp_const_convert##idx = makePattern<ov::op::v0::Convert>({zp_const##idx});                                 \
+    auto weight_sub_zp##idx =                                                                                       \
+        makePattern<ov::op::v1::Subtract>({weight_const_convert##idx, zp_const_convert##idx | zp_const##idx},       \
+                                          {{"auto_broadcast", "numpy"}});                                           \
+    auto scale_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                             \
+    auto weight_zp##idx = weight_sub_zp##idx | weight_const_convert##idx; /* with zp | w/o zp */                    \
+    auto weight_mul_scale##idx =                                                                                    \
+        makePattern<ov::op::v1::Multiply>({weight_sub_zp##idx, scale_const##idx}, {{"auto_broadcast", "numpy"}});   \
+    auto weight_mul_scale_reshape##idx =                                                                            \
+        makePattern<ov::op::v1::Reshape>({weight_mul_scale##idx, pattern::any_input()});                            \
+    auto weight_mul_scale_reshape_convert##idx = makePattern<ov::op::v0::Convert>({weight_mul_scale_reshape##idx}); \
+    /* i4+zp+group+convert | i4+zp+group | i4+zp | f16+convert | f32 */                                             \
+    auto final_weight##idx = weight_mul_scale_reshape_convert##idx |                                                \
                              weight_mul_scale_reshape##idx;  // weight_mul_scale##idx | weight_mul_scale##idx |
                                                              // weight_const_convert##idx | weight_const##idx;
 
     // expert_mask[expert_idx]
-    auto select_Gather_2 = makePattern<opset8::Gather>({expert_mask, expert_no, 0}, {{"batch_dims", 0}});
+    auto select_Gather_2 = makePattern<ov::op::v8::Gather>({expert_mask, expert_no, 0}, {{"batch_dims", 0}});
     // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
-    auto ListUnpack_NonZero_2 = makePattern<opset3::NonZero>({select_Gather_2}, {{"output_type", "i64"}});
+    auto ListUnpack_NonZero_2 = makePattern<ov::op::v3::NonZero>({select_Gather_2}, {{"output_type", "i64"}});
     // topk, batch = torch.where(expert_mask[expert_idx])
-    auto ListUnpack_Split_2 = makePattern<opset1::Split>({ListUnpack_NonZero_2, 0}, {{"num_splits", 2}});
+    auto ListUnpack_Split_2 = makePattern<ov::op::v1::Split>({ListUnpack_NonZero_2, 0}, {{"num_splits", 2}});
     ListUnpack_Split_2->set_output_size(2);
     // batch
-    auto ListUnpack_Squeeze_0_2_0 = makePattern<opset1::Squeeze>({ListUnpack_Split_2->output(1), 0});
+    auto ListUnpack_Squeeze_0_2_0 = makePattern<ov::op::v0::Squeeze>({ListUnpack_Split_2->output(1), 0});
     auto ListUnpack_Squeeze_0_2_1 =
-        makePattern<opset1::Reshape>({ListUnpack_Split_2->output(1), {-1}}, {{"special_zero", false}});
+        makePattern<ov::op::v1::Reshape>({ListUnpack_Split_2->output(1), {-1}}, {{"special_zero", false}});
     auto ListUnpack_Squeeze_0_2 = ListUnpack_Squeeze_0_2_0 | ListUnpack_Squeeze_0_2_1;
     auto index_add__Convert_2_org =
-        makePattern<opset1::Convert>({ListUnpack_Squeeze_0_2}, {{"destination_type", "i32"}});
+        makePattern<ov::op::v0::Convert>({ListUnpack_Squeeze_0_2}, {{"destination_type", "i32"}});
     auto index_add__Convert_2 = index_add__Convert_2_org | ListUnpack_Squeeze_0_2;
     auto index_add__Reshape_2 =
-        makePattern<opset1::Reshape>({index_add__Convert_2, {-1, 1}}, {{"special_zero", false}});
+        makePattern<ov::op::v1::Reshape>({index_add__Convert_2, {-1, 1}}, {{"special_zero", false}});
     auto index_add__Broadcast_25 =
-        makePattern<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
-    auto index_Gather_4 = makePattern<opset8::Gather>({hidden_states, index_add__Convert_2, 1}, {{"batch_dims", 0}});
+        makePattern<ov::op::v3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
+    auto index_Gather_4 =
+        makePattern<ov::op::v8::Gather>({hidden_states, index_add__Convert_2, 1}, {{"batch_dims", 0}});
     auto reshape_Reshape_2 =
-        makePattern<opset1::Reshape>({index_Gather_4, {-1, hidden_size}}, {{"special_zero", true}});
+        makePattern<ov::op::v1::Reshape>({index_Gather_4, {-1, hidden_size}}, {{"special_zero", true}});
     WEIGHT_PATTERN(0)
-    auto gate_linear_MatMul = makePattern<opset1::MatMul>({reshape_Reshape_2, final_weight0},
-                                                          {{"transpose_a", false}, {"transpose_b", true}});
-    auto silu_Swish = makePattern<opset4::Swish>({gate_linear_MatMul});
+    auto gate_linear_MatMul = makePattern<ov::op::v0::MatMul>({reshape_Reshape_2, final_weight0},
+                                                              {{"transpose_a", false}, {"transpose_b", true}});
+    auto silu_Swish = makePattern<ov::op::v4::Swish>({gate_linear_MatMul});
     WEIGHT_PATTERN(1)
-    auto up_linear_MatMul = makePattern<opset1::MatMul>({reshape_Reshape_2, final_weight1},
-                                                        {{"transpose_a", false}, {"transpose_b", true}});
-    auto mul_Multiply = makePattern<opset1::Multiply>({silu_Swish, up_linear_MatMul}, {{"auto_broadcast", "numpy"}});
+    auto up_linear_MatMul = makePattern<ov::op::v0::MatMul>({reshape_Reshape_2, final_weight1},
+                                                            {{"transpose_a", false}, {"transpose_b", true}});
+    auto mul_Multiply =
+        makePattern<ov::op::v1::Multiply>({silu_Swish, up_linear_MatMul}, {{"auto_broadcast", "numpy"}});
     WEIGHT_PATTERN(2)
     auto down_linear_MatMul =
-        makePattern<opset1::MatMul>({mul_Multiply, final_weight2}, {{"transpose_a", false}, {"transpose_b", true}});
-    auto ListUnpack_Squeeze_2_0 = makePattern<opset1::Squeeze>({ListUnpack_Split_2->output(0), 0});
+        makePattern<ov::op::v0::MatMul>({mul_Multiply, final_weight2}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto ListUnpack_Squeeze_2_0 = makePattern<ov::op::v0::Squeeze>({ListUnpack_Split_2->output(0), 0});
     auto ListUnpack_Squeeze_2_1 =
-        makePattern<opset1::Reshape>({ListUnpack_Split_2->output(0), {-1}}, {{"special_zero", false}});
+        makePattern<ov::op::v1::Reshape>({ListUnpack_Split_2->output(0), {-1}}, {{"special_zero", false}});
     auto ListUnpack_Squeeze_2 = ListUnpack_Squeeze_2_0 | ListUnpack_Squeeze_2_1;
-    auto index_Convert_6 = makePattern<opset1::Convert>({ListUnpack_Squeeze_2}, {{"destination_type", "i32"}});
+    auto index_Convert_6 = makePattern<ov::op::v0::Convert>({ListUnpack_Squeeze_2}, {{"destination_type", "i32"}});
     // self.topk * batch, index_split=shapeof(routing_weights), shape: [batch, self.topk, 1]
-    auto index_Multiply_2 = makePattern<opset1::Multiply>({index_add__Convert_2, routing_weights_shapeof_split},
-                                                          {{"auto_broadcast", "numpy"}});
+    auto index_Multiply_2 = makePattern<ov::op::v1::Multiply>({index_add__Convert_2, routing_weights_shapeof_split},
+                                                              {{"auto_broadcast", "numpy"}});
     // self.topk * batch + topk
-    auto index_Add_2 = makePattern<opset1::Add>({index_Convert_6 | ListUnpack_Squeeze_2, index_Multiply_2},
-                                                {{"auto_broadcast", "numpy"}});
+    auto index_Add_2 = makePattern<ov::op::v1::Add>({index_Convert_6 | ListUnpack_Squeeze_2, index_Multiply_2},
+                                                    {{"auto_broadcast", "numpy"}});
     // routing_weights', shape[self.topk * batch, 1]
-    auto index_Gather_5 = makePattern<opset8::Gather>({routing_weights, index_Add_2, 0}, {{"batch_dims", 0}});
-    auto index_Reshape_8_2 = makePattern<opset1::Reshape>({index_Gather_5, {0, 1}}, {{"special_zero", true}});
-    auto mul_Multiply_3 = makePattern<opset1::Multiply>({down_linear_MatMul, index_Gather_5 | index_Reshape_8_2},
-                                                        {{"auto_broadcast", "numpy"}});
+    auto index_Gather_5 = makePattern<ov::op::v8::Gather>({routing_weights, index_Add_2, 0}, {{"batch_dims", 0}});
+    auto index_Reshape_8_2 = makePattern<ov::op::v1::Reshape>({index_Gather_5, {0, 1}}, {{"special_zero", true}});
+    auto mul_Multiply_3 = makePattern<ov::op::v1::Multiply>({down_linear_MatMul, index_Gather_5 | index_Reshape_8_2},
+                                                            {{"auto_broadcast", "numpy"}});
     auto index_add__Broadcast_26 =
-        makePattern<opset3::Broadcast>({mul_Multiply_3, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
-    auto index_add__ScatterElementsUpdate_8 = makePattern<opset12::ScatterElementsUpdate>(
+        makePattern<ov::op::v3::Broadcast>({mul_Multiply_3, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
+    auto index_add__ScatterElementsUpdate_8 = makePattern<ov::op::v12::ScatterElementsUpdate>(
         {final_hidden_states, index_add__Broadcast_25, index_add__Broadcast_26, 0},
         {{"reduction", "sum"}, {"use_init_val", true}});
 
@@ -157,14 +174,14 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
         mat[2] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_const##idx).get_node_shared_ptr());    \
     }
 
-        GET_MATMUL_PARAM(consts.gate, 0)
-        GET_MATMUL_PARAM(consts.up, 1)
-        GET_MATMUL_PARAM(consts.down, 2)
+        GET_MATMUL_PARAM(consts.gates, 0)
+        GET_MATMUL_PARAM(consts.ups, 1)
+        GET_MATMUL_PARAM(consts.downs, 2)
 #undef GET_MATMUL_PARAM
 
-        auto gate_shape = consts.gate[0]->get_shape();
-        auto up_shape = consts.up[0]->get_shape();
-        auto down_shape = consts.down[0]->get_shape();
+        auto gate_shape = consts.gates[0]->get_shape();
+        auto up_shape = consts.ups[0]->get_shape();
+        auto down_shape = consts.downs[0]->get_shape();
         auto intermediate_size = gate_shape[0];
         size_t group_size = 0;
         // checking weight should be enough, scale/zp should be checked in the pattern
@@ -193,42 +210,42 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
         config.intermediate_size = intermediate_size;
         config.group_size = group_size;
         config.topk = topk;
-        config.weight_type = consts.gate[0]->get_element_type();
-        OPENVINO_ASSERT(consts.up[0]->get_element_type() == config.weight_type,
+        config.weight_type = consts.gates[0]->get_element_type();
+        OPENVINO_ASSERT(consts.ups[0]->get_element_type() == config.weight_type,
                         "precision of up wight must be same with gate, gate: ",
                         config.weight_type,
                         ", up: ",
-                        consts.up[0]->get_element_type());
-        OPENVINO_ASSERT(consts.down[0]->get_element_type() == config.weight_type,
+                        consts.ups[0]->get_element_type());
+        OPENVINO_ASSERT(consts.downs[0]->get_element_type() == config.weight_type,
                         "precision of down wight must be same with gate, gate: ",
                         config.weight_type,
                         ", down: ",
-                        consts.down[0]->get_element_type());
-        if (consts.gate[1]) {
-            config.scale_type = consts.gate[1]->get_element_type();
-            OPENVINO_ASSERT(consts.up[1] && consts.up[1]->get_element_type() == config.scale_type,
+                        consts.downs[0]->get_element_type());
+        if (consts.gates[1]) {
+            config.scale_type = consts.gates[1]->get_element_type();
+            OPENVINO_ASSERT(consts.ups[1] && consts.ups[1]->get_element_type() == config.scale_type,
                             "precision of up scale must be same with gate, gate: ",
                             config.scale_type,
                             ", up: ",
-                            consts.up[1]->get_element_type());
-            OPENVINO_ASSERT(consts.down[1] && consts.down[1]->get_element_type() == config.scale_type,
+                            consts.ups[1]->get_element_type());
+            OPENVINO_ASSERT(consts.downs[1] && consts.downs[1]->get_element_type() == config.scale_type,
                             "precision of down scale must be same with gate, gate:",
                             config.scale_type,
                             ", down: ",
-                            consts.down[1]->get_element_type());
+                            consts.downs[1]->get_element_type());
         }
-        if (consts.gate[2]) {
-            config.zp_type = consts.gate[2]->get_element_type();
-            OPENVINO_ASSERT(consts.up[2] && consts.up[2]->get_element_type() == config.zp_type,
+        if (consts.gates[2]) {
+            config.zp_type = consts.gates[2]->get_element_type();
+            OPENVINO_ASSERT(consts.ups[2] && consts.ups[2]->get_element_type() == config.zp_type,
                             "precision of up zp must be same with gate, gate: ",
                             config.zp_type,
                             ", up: ",
-                            consts.up[2]->get_element_type());
-            OPENVINO_ASSERT(consts.down[2] && consts.down[2]->get_element_type() == config.zp_type,
+                            consts.ups[2]->get_element_type());
+            OPENVINO_ASSERT(consts.downs[2] && consts.downs[2]->get_element_type() == config.zp_type,
                             "precision of down zp must be same with gate, gate:",
                             config.zp_type,
                             ", down: ",
-                            consts.down[2]->get_element_type());
+                            consts.downs[2]->get_element_type());
         }
 
         OutputVector new_args(4);
@@ -245,10 +262,9 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
             ov::replace_node(last_node, moe);
             register_new_node(moe);
         } else {
-            auto new_node = std::make_shared<op::internal::MOEExpert>(
-                new_args,
-                config,
-                std::vector<op::internal::MOEExpert::ConstsPerExpert>{consts});
+            op::internal::MOEExpert::Attributes attrs = {config,
+                                                         std::vector<op::internal::MOEExpert::ConstsPerExpert>{consts}};
+            auto new_node = std::make_shared<op::internal::MOEExpert>(new_args, attrs);
             // check whether the plugin accepts the config
             if (transformation_callback(new_node)) {
                 return false;
@@ -274,30 +290,31 @@ ov::pass::FuseMoeExpertRouter::FuseMoeExpertRouter() {
     auto final_hidden_states = makePattern(ov::Rank(2));
     auto router_logits = makePattern(ov::Rank(2));
     // f32[?,128]
-    auto softmax_Softmax = makePattern<opset8::Softmax>({router_logits}, {{"axis", 1}});
-    auto topk_TopK = makePattern<opset11::TopK>({softmax_Softmax, pattern::any_input()});
+    auto softmax_Softmax = makePattern<ov::op::v8::Softmax>({router_logits}, {{"axis", 1}});
+    auto topk_TopK = makePattern<ov::op::v11::TopK>({softmax_Softmax, pattern::any_input()});
     topk_TopK->set_output_size(2);
-    auto sum_ReduceSum = makePattern<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});
-    auto div__Divide = makePattern<opset1::Divide>({topk_TopK->output(0), sum_ReduceSum},
-                                                   {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto one_hot_OneHot = makePattern<opset1::OneHot>(
+    auto sum_ReduceSum = makePattern<ov::op::v1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});
+    auto div__Divide = makePattern<ov::op::v1::Divide>({topk_TopK->output(0), sum_ReduceSum},
+                                                       {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto one_hot_OneHot = makePattern<ov::op::v1::OneHot>(
         {topk_TopK->output(1), pattern::any_input(), pattern::any_input(), pattern::any_input()},
         {{"axis", 2}});
     // param2: expert_mask: [128, 8, batch]
-    auto permute_Transpose = makePattern<opset1::Transpose>({one_hot_OneHot, {2, 1, 0}});
+    auto permute_Transpose = makePattern<ov::op::v1::Transpose>({one_hot_OneHot, {2, 1, 0}});
 
     // hidden_states_2d: f32[-1, 2048]
     auto view_Reshape = makePattern(ov::Rank(2));
     // param1: hidden_states: f32[1, -1, 2048]
-    auto unsqueeze_Unsqueeze = makePattern<opset1::Unsqueeze>({view_Reshape, 0});
+    auto unsqueeze_Unsqueeze = makePattern<ov::op::v0::Unsqueeze>({view_Reshape, 0});
 
-    auto unsqueeze_Unsqueeze_1 = makePattern<opset1::Unsqueeze>({div__Divide, 2});
-    auto index_ShapeOf_1 = makePattern<opset3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});
-    auto index_Slice = makePattern<opset8::Slice>({index_ShapeOf_1, {0}, {2}, {1}, {0}});
-    auto index_ReduceProd = makePattern<opset1::ReduceProd>({index_Slice, 0}, {{"keep_dims", true}});
-    auto index_Concat = makePattern<opset1::Concat>({index_ReduceProd, {-1}}, {{"axis", 0}});
+    auto unsqueeze_Unsqueeze_1 = makePattern<ov::op::v0::Unsqueeze>({div__Divide, 2});
+    auto index_ShapeOf_1 = makePattern<ov::op::v3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});
+    auto index_Slice = makePattern<ov::op::v8::Slice>({index_ShapeOf_1, {0}, {2}, {1}, {0}});
+    auto index_ReduceProd = makePattern<ov::op::v1::ReduceProd>({index_Slice, 0}, {{"keep_dims", true}});
+    auto index_Concat = makePattern<ov::op::v0::Concat>({index_ReduceProd, {-1}}, {{"axis", 0}});
     // param4: routing weights: [self.topk * batch, 1]
-    auto index_Reshape = makePattern<opset1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});
+    auto index_Reshape =
+        makePattern<ov::op::v1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});
 
     auto moe_expert03 = makePattern<ov::op::internal::MOEExpert>(
         {final_hidden_states, unsqueeze_Unsqueeze, permute_Transpose, index_Reshape});
