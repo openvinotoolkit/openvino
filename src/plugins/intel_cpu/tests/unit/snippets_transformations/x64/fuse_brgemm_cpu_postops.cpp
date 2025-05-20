@@ -193,7 +193,10 @@ public:
         auto input1 = std::make_shared<ov::opset1::Parameter>(input_precisions.first, brgemm_a_shape);
         auto input2 = std::make_shared<ov::opset1::Parameter>(input_precisions.second, brgemm_b_shape);
         BrgemmCPU::PostopsConfig postops;
-        postops.forced_output_type = ov::element::f32;
+        if (ov::snippets::op::Brgemm::get_output_type(input_precisions.first, input_precisions.second) !=
+            ov::element::f32) {
+            postops.forced_output_type = ov::element::f32;
+        }
 
         if (scalar_op_type == ov::opset1::Multiply::get_type_info_static()) {
             postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 2.0f, 0.0f);
@@ -275,7 +278,10 @@ public:
         }
 
         BrgemmCPU::PostopsConfig postops;
-        postops.forced_output_type = ov::element::f32;
+        if (ov::snippets::op::Brgemm::get_output_type(input_precisions.first, input_precisions.second) !=
+            ov::element::f32) {
+            postops.forced_output_type = ov::element::f32;
+        }
         postops.binary_postops_offset = 0;
 
         const auto OC_dim = *postop_input_shape.rbegin();

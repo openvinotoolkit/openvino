@@ -9,6 +9,7 @@
 
 #include "brgemm_copy_b.hpp"
 #include "brgemm_utils.hpp"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 
@@ -63,19 +64,30 @@ public:
     ov::OutputVector get_postop_inputs() const;
 
     /**
-     * @brief Sets the post ops configuration for the BrgemmCPU operation
-     * and resets the output type since it can be forced by postops config.
+     * @brief Forces the output type of the BrgemmCPU operation via postops.
      */
-    void set_postops_config(const PostopsConfig& post_ops);
+    void force_output_type(const ov::element::Type& type);
 
     /**
-     * @brief Adds a new post op input to the BrgemmCPU operation. It also does the following:
-     *       - Adds the new input to input Memory Access PortMap
-     *       - Adds the new input to input port descriptors if they are already initialized
-     *       - Validates the new input
-     * @param postop_input The new input node to be added as a post-operation.
+     * @brief Adds a scalar unary, binary, and ternary post-operation (such as relu, round, linear, clip, etc.) to the
+     * BrgemmCPU.
+     * @param alg_kind The DNNL algorithm kind for the eltwise operation.
+     * @param alpha The alpha parameter for the eltwise operation.
+     * @param beta The beta parameter for the eltwise operation.
      */
-    void add_postop_input(const ov::Output<Node>& postop_input);
+    void add_scalar_eltwise_postop(dnnl::impl::alg_kind_t alg_kind, float alpha, float beta);
+
+    /**
+     * @brief Adds a binary eltwise post-operation (such as add, mul, max, min, etc.) to the BrgemmCPU.
+     * @param alg_kind The DNNL algorithm kind for the binary operation.
+     * @param desc The memory descriptor for the binary input.
+     * @param postop_input The input node to be used in the binary operation.
+     * @param binary_postop_offset The offset from base ptr of external ptr indices.
+     */
+    void add_binary_eltwise_postop(dnnl::impl::alg_kind_t alg_kind,
+                                   const dnnl::memory::desc& desc,
+                                   const ov::Output<Node>& postop_input,
+                                   const size_t binary_postop_offset);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -90,6 +102,15 @@ private:
     void validate_inputs_size() const;
     void validate_postop_inputs() const;
     ov::element::Type get_output_type() const override;
+
+    /**
+     * @brief Adds a new post op input to the BrgemmCPU operation. It also does the following:
+     *       - Adds the new input to input Memory Access PortMap
+     *       - Adds the new input to input port descriptors if they are already initialized
+     *       - Validates the new input
+     * @param postop_input The new input node to be added as a post-operation.
+     */
+    void add_postop_input(const ov::Output<Node>& postop_input);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 

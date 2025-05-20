@@ -12,25 +12,6 @@
 
 namespace ov::intel_cpu {
 
-namespace {
-// <original ptr idx, postprocessed ptr idx>
-using PtrMapping = std::pair<size_t, size_t>;
-
-inline void precompute_ptr_mappings(const std::set<size_t>& external_ptrs_idces,
-                                    size_t total_size,
-                                    std::vector<PtrMapping>& src_ptr_mappings,
-                                    std::vector<PtrMapping>& external_ptr_mappings) {
-    size_t external_idx = 0, src_idx = 0;
-    for (size_t i = 0; i < total_size; i++) {
-        if (external_ptrs_idces.count(i)) {
-            external_ptr_mappings.push_back({i, external_idx++});
-        } else {
-            src_ptr_mappings.push_back({i, src_idx++});
-        }
-    }
-}
-}  // namespace
-
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<snippets::op::Subgraph> snippet;
@@ -118,12 +99,42 @@ protected:
     std::vector<ptrdiff_t> m_start_offset_out = {};
 };
 
-// Class for Subgraphs with static shapes
-class SubgraphStaticBaseExecutor {
+class SubgraphSpecializedBaseExecutor {
 public:
-    SubgraphStaticBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num) {
+    SubgraphSpecializedBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num) {
         precompute_ptr_mappings(external_ptrs_idces, in_num, m_src_ptr_mappings, m_external_ptr_mappings);
     };
+
+protected:
+    struct PtrMapping {
+        size_t original_idx;
+        size_t postprocessed_idx;
+    };
+
+    inline void precompute_ptr_mappings(const std::set<size_t>& external_ptrs_idces,
+                                        size_t total_size,
+                                        std::vector<PtrMapping>& src_ptr_mappings,
+                                        std::vector<PtrMapping>& external_ptr_mappings) {
+        size_t external_idx = 0, src_idx = 0;
+        for (size_t i = 0; i < total_size; i++) {
+            if (external_ptrs_idces.count(i)) {
+                external_ptr_mappings.push_back({i, external_idx++});
+            } else {
+                src_ptr_mappings.push_back({i, src_idx++});
+            }
+        }
+    }
+
+    // Mappings are needed to map original ptrs to the kernel and external ptrs based on external ptrs indices
+    std::vector<PtrMapping> m_src_ptr_mappings;
+    std::vector<PtrMapping> m_external_ptr_mappings;
+};
+
+// Class for Subgraphs with static shapes
+class SubgraphStaticBaseExecutor : public SubgraphSpecializedBaseExecutor {
+public:
+    SubgraphStaticBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num)
+        : SubgraphSpecializedBaseExecutor(external_ptrs_idces, in_num) {}
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
@@ -136,35 +147,30 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_out) {
         call_args.init_external_ptrs(m_external_ptr_mappings.size());
         for (const auto& mapping : m_src_ptr_mappings) {
-            call_args.src_ptrs[mapping.second] =
-                srcMemPtrs[mapping.first]->getDataAs<const uint8_t>() + start_offset_in[mapping.first];
+            call_args.src_ptrs[mapping.postprocessed_idx] =
+                srcMemPtrs[mapping.original_idx]->getDataAs<const uint8_t>() + start_offset_in[mapping.original_idx];
         }
         for (const auto& mapping : m_external_ptr_mappings) {
-            call_args.external_ptrs[mapping.second] =
-                srcMemPtrs[mapping.first]->getDataAs<const uint8_t>() + start_offset_in[mapping.first];
+            call_args.external_ptrs[mapping.postprocessed_idx] =
+                srcMemPtrs[mapping.original_idx]->getDataAs<const uint8_t>() + start_offset_in[mapping.original_idx];
         }
         for (size_t i = 0; i < dstMemPtrs.size(); i++) {
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
         }
     }
-
-private:
-    // Mappings are needed to map original ptrs to the kernel and external ptrs based on external ptrs indices
-    std::vector<PtrMapping> m_src_ptr_mappings;
-    std::vector<PtrMapping> m_external_ptr_mappings;
 };
 
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
-class SubgraphDynamicSpecializedBaseExecutor {
+class SubgraphDynamicSpecializedBaseExecutor : public SubgraphSpecializedBaseExecutor {
 public:
     SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                            const std::set<size_t>& external_ptrs_idces,
                                            size_t in_num)
-        : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
+        : SubgraphSpecializedBaseExecutor(external_ptrs_idces, in_num),
+          m_buffer_offsets(snippet_config->buffer_cluster_offsets),
           m_data_offsets(snippet_config->io_data_offsets),
           m_loop_args(snippet_config->loop_args) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
-        precompute_ptr_mappings(external_ptrs_idces, in_num, m_src_ptr_mappings, m_external_ptr_mappings);
     }
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
@@ -202,19 +208,19 @@ protected:
                             const std::vector<uint8_t*>& dst_ptrs,
                             const std::vector<size_t>& indexes) const {
         for (const auto& mapping : m_src_ptr_mappings) {
-            auto i_ptr = src_ptrs[mapping.first];
+            auto i_ptr = src_ptrs[mapping.original_idx];
             for (size_t j = 0; j < indexes.size(); j++) {
-                i_ptr += m_data_offsets[mapping.first][j] * indexes[j];
+                i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
             }
-            call_args.src_ptrs[mapping.second] = i_ptr;
+            call_args.src_ptrs[mapping.postprocessed_idx] = i_ptr;
         }
 
         for (const auto& mapping : m_external_ptr_mappings) {
-            auto i_ptr = src_ptrs[mapping.first];
+            auto i_ptr = src_ptrs[mapping.original_idx];
             for (size_t j = 0; j < indexes.size(); j++) {
-                i_ptr += m_data_offsets[mapping.first][j] * indexes[j];
+                i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
             }
-            call_args.external_ptrs[mapping.second] = i_ptr;
+            call_args.external_ptrs[mapping.postprocessed_idx] = i_ptr;
         }
 
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
@@ -230,11 +236,6 @@ protected:
     std::vector<std::vector<size_t>> m_data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> m_loop_args = {};
     std::function<void()> m_reset_exec_table_state;
-
-private:
-    // Mappings are needed to map original ptrs to the kernel and external ptrs based on external ptrs indices
-    std::vector<PtrMapping> m_src_ptr_mappings;
-    std::vector<PtrMapping> m_external_ptr_mappings;
 };
 
 }  // namespace ov::intel_cpu

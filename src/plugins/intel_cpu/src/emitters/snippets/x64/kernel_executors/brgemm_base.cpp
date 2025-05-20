@@ -82,6 +82,7 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     PRINT(dt_in1);
     PRINT(dt_out);
     PRINT(isa);
+    PRINT(post_ops.len());
     return ss.str();
 }
 

@@ -170,10 +170,31 @@ ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     return {input_values.begin() + m_gemm_inputs_count, input_values.end()};
 }
 
-void BrgemmCPU::set_postops_config(const PostopsConfig& post_ops) {
-    m_post_ops_config = post_ops;
+void BrgemmCPU::force_output_type(const ov::element::Type& type) {
+    m_post_ops_config.forced_output_type = type;
     // Since postops config may force output type, need to reset it
     set_output_type(0, get_output_type(), get_output_partial_shape(0));
+}
+
+void BrgemmCPU::add_scalar_eltwise_postop(dnnl::impl::alg_kind_t alg_kind, float alpha, float beta) {
+    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
+                    "Failed to append scalar eltwise to brgemm postops. Alpha = ",
+                    alpha,
+                    " Beta = ",
+                    beta);
+}
+
+void BrgemmCPU::add_binary_eltwise_postop(dnnl::impl::alg_kind_t alg_kind,
+                                          const dnnl::memory::desc& desc,
+                                          const ov::Output<Node>& postop_input,
+                                          const size_t binary_postop_offset) {
+    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_binary(alg_kind, desc.get()) == dnnl_success,
+                    "Failed to append binary eltwise input to brgemm postops: ",
+                    postop_input);
+    if (!m_post_ops_config.binary_postops_offset) {
+        m_post_ops_config.binary_postops_offset = binary_postop_offset;
+    }
+    add_postop_input(postop_input);
 }
 
 void BrgemmCPU::add_postop_input(const ov::Output<Node>& postop_input) {

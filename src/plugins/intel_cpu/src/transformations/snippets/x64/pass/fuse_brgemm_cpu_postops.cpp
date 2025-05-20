@@ -95,9 +95,7 @@ pass::FuseConvert::FuseConvert() {
             }
         }
 
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = convert->get_output_element_type(0);
-        brgemm->set_postops_config(postops_config);
+        brgemm->force_output_type(convert->get_output_element_type(0));
         brgemm->set_friendly_name(convert->get_friendly_name());
         ov::copy_runtime_info({brgemm, convert}, brgemm);
         ov::replace_node(convert, brgemm);
@@ -121,13 +119,8 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
 
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = post_op->get_output_element_type(0);
-
-        auto append_eltwise = [&postops_config, &post_op](alg_kind_t alg_kind) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, 0.f, 0.f) == dnnl_success,
-                            "Failed to append unary eltwise ",
-                            post_op);
+        auto append_eltwise = [&brgemm](alg_kind_t alg_kind) {
+            brgemm->add_scalar_eltwise_postop(alg_kind, 0.f, 0.f);
         };
 
         if (pattern_map.count(m_round)) {
@@ -148,7 +141,6 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
             OPENVINO_THROW("Unsupported unary operation: ", post_op);
         }
 
-        brgemm->set_postops_config(postops_config);
         brgemm->set_friendly_name(post_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, brgemm);
         ov::replace_node(post_op, brgemm);
@@ -208,17 +200,8 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         const auto scalar = ov::as_type_ptr<Scalar>(pattern_map.at(m_scalar).get_node_shared_ptr());
         const auto scalar_value = scalar->get_value<float>();
 
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = post_op->get_output_element_type(0);
-
-        auto append_eltwise = [&postops_config, &post_op](alg_kind_t alg_kind, float alpha, float beta) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
-                            "Failed to append scalar eltwise ",
-                            post_op,
-                            " to brgemm postops. Alpha = ",
-                            alpha,
-                            " Beta = ",
-                            beta);
+        auto append_eltwise = [&brgemm](alg_kind_t alg_kind, float alpha, float beta) {
+            brgemm->add_scalar_eltwise_postop(alg_kind, alpha, beta);
         };
 
         if (pattern_map.count(m_mul)) {
@@ -234,7 +217,6 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
-        brgemm->set_postops_config(postops_config);
         brgemm->set_friendly_name(post_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, brgemm);
         ov::replace_node(post_op, brgemm);
@@ -283,21 +265,10 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             return false;
         }
 
-        VectorDims per_channel_shape = {1, OC};
-        DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
-
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = post_op->get_output_element_type(0);
-        if (!postops_config.binary_postops_offset) {
-            postops_config.binary_postops_offset = m_fused_postops_count;
-        }
-
-        auto append_binary = [&postops_config, &post_op, &memory_desc](alg_kind_t alg_kind) {
-            OPENVINO_ASSERT(
-                postops_config.post_ops.append_binary(alg_kind, memory_desc.getDnnlDesc().get()) == dnnl_success,
-                "Failed to append binary eltwise ",
-                post_op,
-                " to brgemm postops.");
+        const DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape({1, OC}));
+        const auto& postop_input = pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out;
+        auto append_binary = [&](alg_kind_t alg_kind) {
+            brgemm->add_binary_eltwise_postop(alg_kind, memory_desc.getDnnlDesc(), postop_input, m_fused_postops_count);
         };
 
         if (pattern_map.count(m_mul)) {
@@ -314,8 +285,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
 
-        brgemm->set_postops_config(postops_config);
-        brgemm->add_postop_input(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
         brgemm->set_friendly_name(post_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, brgemm);
         ov::replace_node(post_op, brgemm);
@@ -359,17 +328,7 @@ pass::FuseScaleShift::FuseScaleShift() {
         const auto alpha = ov::as_type_ptr<Scalar>(pattern_map.at(m_alpha).get_node_shared_ptr())->get_value<float>();
         const auto beta = ov::as_type_ptr<Scalar>(pattern_map.at(m_beta).get_node_shared_ptr())->get_value<float>();
 
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = shift->get_output_element_type(0);
-
-        OPENVINO_ASSERT(
-            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_linear, alpha, beta) == dnnl_success,
-            "Failed to append scale-shift eltwise to brgemm postops. Alpha = ",
-            alpha,
-            ", Beta = ",
-            beta);
-
-        brgemm->set_postops_config(postops_config);
+        brgemm->add_scalar_eltwise_postop(alg_kind_t::dnnl_eltwise_linear, alpha, beta);
         brgemm->set_friendly_name(shift->get_friendly_name());
         ov::copy_runtime_info({brgemm, scale, shift}, brgemm);
         ov::replace_node(shift, brgemm);
@@ -401,18 +360,7 @@ pass::FuseClip::FuseClip() {
         const auto clip_max =
             ov::as_type_ptr<Scalar>(pattern_map.at(m_in_high).get_node_shared_ptr())->get_value<float>();
 
-        auto postops_config = brgemm->get_postops_config();
-        postops_config.forced_output_type = min_op->get_output_element_type(0);
-
-        OPENVINO_ASSERT(
-            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max) ==
-                dnnl_success,
-            "Failed to append clip eltwise to brgemm postops. in_low = ",
-            clip_min,
-            ", in_high = ",
-            clip_max);
-
-        brgemm->set_postops_config(postops_config);
+        brgemm->add_scalar_eltwise_postop(alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max);
         brgemm->set_friendly_name(min_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, max_op, min_op}, brgemm);
         ov::replace_node(min_op, brgemm);
