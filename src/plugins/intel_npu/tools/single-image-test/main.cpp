@@ -210,10 +210,10 @@ std::string to_string(const std::vector<std::string>& c) {
     return ret;
 }
 
-std::map<std::string, std::string> parseArgMap(std::string argMap) {
+std::map<std::string, std::string> parseArgMap(std::string argMap, char delimiter = ';') {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
-    const auto pairs = splitStringList(argMap, ';');
+    const auto pairs = splitStringList(argMap, delimiter);
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
@@ -734,50 +734,68 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
  * @throws               Throws an assertion if duplicate or incomplete input specifications are found.
  */
 std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputInfo, const std::string& inputFiles) {
-    // Parse input string into key-value pairs
-    std::map<std::string, std::string> inputFileMap = parseArgMap(inputFiles);
+    // Splits input files into test cases (delimited by ';')
+    std::vector<std::string> inputFileList = splitStringList(inputFiles, ';');
 
-    // Create vector to store matched values for each input
-    std::vector<std::string> inputValues(inputInfo.size());
+    std::vector<std::string> processedInputFiles(inputFileList.size());
 
-    // Iterate through inputInfo and find matches
-    for (size_t i = 0; i < inputInfo.size(); ++i) {
-        const auto& input = inputInfo[i];
-        const auto& inputNames = input.get_names();
+    for (size_t testCaseIndex = 0; testCaseIndex < inputFileList.size(); ++testCaseIndex) {
+        const auto& inputFile = inputFileList[testCaseIndex];
+        std::cout << "TEST CASE " << testCaseIndex << " --> " << inputFile << std::endl;
+        std::map<std::string, std::string> newInputFileMap = parseArgMap(inputFile, ',');
+        std::vector<std::string> processedInputFilesPerCase(inputInfo.size());
 
-        for (const auto& name : inputNames) {
-            auto it = inputFileMap.find(name);
-            if (it != inputFileMap.end()) {
-                inputValues[i] = it->second;
-                break;
+        for (size_t i = 0; i < inputInfo.size(); ++i) {
+            const auto& input = inputInfo[i];
+            const auto& inputNames = input.get_names();
+
+            for (const auto& name : inputNames) {
+                auto it = newInputFileMap.find(name);
+                if (it != newInputFileMap.end()) {
+                    processedInputFilesPerCase[i] = it->second;
+                    break;
+                }
             }
         }
-    }
 
-    size_t valueCount = std::count_if(inputValues.begin(), inputValues.end(),
-                                    [](const std::string& s) { return !s.empty(); });
-
-    // All inputs must have values or none must have values
-    if (valueCount > 0 && valueCount < inputInfo.size()) {
-        OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none. "
-                               "Check if there are duplicate input names in the input file map.");
-    }
-    // If there are no matches, valueCount will be 0. Hence we directly return the inputFiles string.
-    if (valueCount == 0) {
-        std::cout << "No input files specified. Using default input files -->" << inputFiles << std::endl;
-        return inputFiles;
-    }
-
-    // Concatenate results with ; delimiter
-    std::string result;
-    for (size_t i = 0; i < inputValues.size(); ++i) {
-        if (i > 0) {
-            result += ";";
+        size_t valueCount = std::count_if(processedInputFilesPerCase.begin(), processedInputFilesPerCase.end(),
+                                        [](const std::string& s) { return !s.empty(); });
+        // All inputs must have values or none must have values
+        if (valueCount > 0 && valueCount < inputInfo.size()) {
+            OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none. "
+                                "Check if there are duplicate input names in the input file map.");
         }
-        result += inputValues[i];
+        if (valueCount == 0) {
+            std::cout << "No input files specified. Using default input file -->" << inputFile << std::endl;
+            processedInputFiles[testCaseIndex] = inputFile;
+            continue;
+        }
+        // Log what is in processedInputFilesPerCase
+        std::cout << " ---------- " << std::endl;
+        std::cout << "Processed input file map for test case " << testCaseIndex << ": " << std::endl;
+        for (const auto& pair : processedInputFilesPerCase) {
+            std::cout << "  " << pair << std::endl;
+        }
+        // Concatenate processedInputFilesPerCase results with , delimiter, then store in processedInputFiles at index
+        std::string result;
+        for (size_t i = 0; i < processedInputFilesPerCase.size(); ++i) {
+            if (i > 0) {
+                result += ",";
+            }
+            result += processedInputFilesPerCase[i];
+        }
+        processedInputFiles[testCaseIndex] = std::move(result);
     }
-    std::cout << "Input files: " << result << std::endl;
-    return result;
+
+    // Concatenate processedInputFiles results with ; delimiter
+    std::string inputFilesConcatenated;
+    for (size_t i = 0; i < processedInputFiles.size(); ++i) {
+        if (i > 0) {
+            inputFilesConcatenated += ";";
+        }
+        inputFilesConcatenated += processedInputFiles[i];
+    }
+    return inputFilesConcatenated;
 }
 
 template <class T>
