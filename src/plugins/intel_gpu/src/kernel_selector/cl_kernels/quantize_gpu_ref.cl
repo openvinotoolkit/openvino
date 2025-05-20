@@ -153,10 +153,15 @@ KERNEL(quantize_ref)(
 #if OUTPUT_IS_FP
        output[output_offset] = TO_OUTPUT_TYPE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
-#else
+#else //OUTPUT_IS_FP
        // TODO: the outer round should be deleted once output range is correct
+#if INPUT0_IS_FP
         output[output_offset] = TO_OUTPUT_TYPE(round(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
                               * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
-#endif
+#else //INPUT0_IS_FP
+    output[output_offset] = TO_OUTPUT_TYPE(round(round((float)(val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
+#endif //INPUT0_IS_FP
+#endif //OUTPUT_IS_FP
     }
 }

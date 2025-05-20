@@ -972,8 +972,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
         auto input = engine.allocate_memory(in_layout);
-        fill_random(input);
-
+        if (params.input_type == data_types::i8) {
+            fill_random_typed<int8_t>(input, 0, 40, 1);
+        } else {
+            fill_random(input);
+        }    
         auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
         auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
         auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
@@ -988,7 +991,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         set_values(input_low,  { 0.0f });
         set_values(input_high, { 40.0f });
         set_values(output_low,  { 0.0f });
-        set_values(output_high, { 255.0f });
+        if (params.input_type == data_types::i8) {
+            set_values(output_high, { 127.0f });
+        } else {
+            set_values(output_high, { 255.0f });
+        }
 
         set_values(input_scale, { 2.0f });
         set_values(input_shift, { 4.0f });
@@ -1084,6 +1091,16 @@ struct quantize_random_test_param_generator : std::vector<quantize_random_test_p
         push_back(quantize_random_test_params{ input_type, output_type, {1, 1, 81, 5}, input_format, output_format, inputs_num});
         return *this;
     }
+
+    
+    static std::string ParamNameGenerator(const ::testing::TestParamInfo<quantize_random_test_params>& info) {
+        auto tensor_str = info.param.input_size.to_string();
+        tensor_str.erase(remove_if(tensor_str.begin(), tensor_str.end(), [](const char c) {return c == ' ' || c == ':';}), tensor_str.end());
+        std::ostringstream result;
+        result << ov::element::Type(info.param.input_type) << "_" << ov::element::Type(info.param.output_type) << "_" << tensor_str <<
+        "_" << info.param.inputs_num << "_" << format(info.param.in_format) << "_" << format(info.param.out_format);
+        return result.str();
+    }
 };
 
 TEST_P(quantize_random_test, random) {
@@ -1098,8 +1115,10 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             .simple_params(data_types::f32, data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5)
                             .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
                             .simple_params(data_types::f32, data_types::u8, format::bfyx, format::bfyx, 5)
+                            .simple_params(data_types::i8, data_types::u8, format::bfyx, format::bfyx, 5)
                             .simple_params(data_types::f16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
-                        ));
+                        ),
+                        quantize_random_test_param_generator::ParamNameGenerator);
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(quantize_random_test, random_cached) {
