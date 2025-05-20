@@ -37,7 +37,6 @@ void MLPBase::SetUp() {
 
     inType = outType = prc;
     setInferenceType(prc);
-    init_thresholds();
 }
 
 std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj) {

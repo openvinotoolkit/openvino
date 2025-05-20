@@ -60,7 +60,8 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     auto mlp_layer = [&](size_t m, size_t n) {
         auto b_shape = ov::Shape{m, n};
         auto b_row = ov::Shape{m};
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, const_value);
+        std::shared_ptr<Node> B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, const_value);
+        B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);
         current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
         auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
