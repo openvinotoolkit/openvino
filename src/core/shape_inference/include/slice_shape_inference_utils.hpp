@@ -163,6 +163,27 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
 
     return {lb, ub};
 }
+
+/**
+ * \brief Computes the size of the default strides ([1, 1, ..., 1]) of a StridedSlice.
+ *
+ * \param begin  Begin argument of a StridedSlice.
+ * \param end    End argument of a StridedSlice.
+ *
+ * \return The static size of the strides or a negative value if the size is dynamic.
+ */
+template <typename TShape>
+int64_t default_stride_size(const TShape& begin_shape, const TShape& end_shape) {
+    if (begin_shape.rank().is_static() && begin_shape.rank().get_length() == 1 && begin_shape[0].is_static()) {
+        return begin_shape[0].get_length();
+    }
+    if (end_shape.rank().is_static() && end_shape.rank().get_length() == 1 && end_shape[0].is_static()) {
+        return end_shape[0].get_length();
+    }
+
+    return std::numeric_limits<int64_t>::lowest();  // dynamic rank
+}
+
 }  // namespace slice
 }  // namespace op
 }  // namespace ov
