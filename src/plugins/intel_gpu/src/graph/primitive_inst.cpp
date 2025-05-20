@@ -493,6 +493,7 @@ void primitive_inst::update_shape() {
                         *output_shape.begin() = 0;
                         new_layouts[i].set_partial_shape(output_shape);
                     }
+                    break;
                 }
             }
         }
