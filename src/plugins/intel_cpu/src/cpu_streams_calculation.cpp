@@ -605,9 +605,10 @@ int get_model_prefer_threads(const int num_streams,
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+        auto is_llm = ov::op::util::is_large_language_model(*model.get());
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
-        if (num_streams != 1) {
+        if (num_streams > sockets || num_streams == 0) {
             config.modelPreferThreads = 4;
             if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
                 if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
@@ -620,7 +621,7 @@ int get_model_prefer_threads(const int num_streams,
             }
         }
 #    elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
-        if (num_streams == 1) {
+        if (num_streams <= sockets && num_streams > 0) {
             if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
                 model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
                                    ? proc_type_table[0][MAIN_CORE_PROC]
@@ -650,38 +651,60 @@ int get_model_prefer_threads(const int num_streams,
             }
         }
 #    else
-        if (num_streams == 1) {
+        if (num_streams <= sockets && num_streams > 0) {
             if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-                if (ov::op::util::is_large_language_model(*model.get())) {
-                    config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
-                } else {
-                    config.modelPreferThreads =
-                        proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-                    if (config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::DEFAULT) {
-                        config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::AUTO;
-                        if (networkToleranceForLowCache.max_mem_tolerance == 0) {
-                            config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                        } else {
-                            if (networkToleranceForLowCache.ratio_mem_limited_gemms > 0) {
-                                if (networkToleranceForLowCache.ratio_compute_convs == 0) {
-                                    config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                                }
+                if (ov::get_number_of_blocked_cores() || (isa == dnnl::cpu_isa::avx2_vnni_2)) {
+                    if (is_llm) {
+                        config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
+                    } else {
+                        config.modelPreferThreads =
+                            proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+                        if (config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::DEFAULT) {
+                            config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::AUTO;
+                            if (networkToleranceForLowCache.max_mem_tolerance == 0) {
+                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                             } else {
-                                if (networkToleranceForLowCache.ratio_mem_limited_deconvs == 0 &&
-                                    networkToleranceForLowCache.ratio_compute_convs < 1) {
-                                    if (networkToleranceForLowCache.total_gemms > 10) {
+                                if (networkToleranceForLowCache.ratio_mem_limited_gemms > 0) {
+                                    if (networkToleranceForLowCache.ratio_compute_convs == 0) {
                                         config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                                    } else {
-                                        if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
-                                            networkToleranceForLowCache.total_convs > 0) {
+                                    }
+                                } else {
+                                    if (networkToleranceForLowCache.ratio_mem_limited_deconvs == 0 &&
+                                        networkToleranceForLowCache.ratio_compute_convs < 1) {
+                                        if (networkToleranceForLowCache.total_gemms > 10) {
                                             config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                                        } else {
+                                            if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
+                                                networkToleranceForLowCache.total_convs > 0) {
+                                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                } else {
+                    bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || is_llm;
+                    const int int8_threshold =
+                        4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+                    const int fp32_threshold =
+                        2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+                    // By default the latency case uses (faster) Big cores only, depending on the compute ratio
+                    // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in
+                    // Big cores only cases except LLM.
+                    config.modelPreferThreads =
+                        proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                              (int8_intensive ? int8_threshold : fp32_threshold))
+                            ? ((!is_llm && ov::get_number_of_blocked_cores())
+                                   ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
+                                   : proc_type_table[0][MAIN_CORE_PROC])
+                            : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                 }
+            } else {
+                config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC] > 0
+                                                ? proc_type_table[0][MAIN_CORE_PROC]
+                                                : proc_type_table[0][EFFICIENT_CORE_PROC];
             }
         } else {
             config.modelPreferThreads = 0;
