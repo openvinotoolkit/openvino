@@ -166,7 +166,7 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
         const auto& src_mem_ptr = in_mem_ptrs[idx];
 
         auto create = [&]() {
-            const auto& dst_mem_ptr = std::make_shared<Memory>(context->getEngine(), repacked_input.desc());
+            const auto& dst_mem_ptr = std::make_shared<Memory>(repacked_input.desc());
             separately_repack_input(src_mem_ptr, dst_mem_ptr, repacked_input, dst_mem_ptr->getShape().getDims().size());
             return dst_mem_ptr;
         };
@@ -206,7 +206,7 @@ void SubgraphExecutor::segfault_detector() {
 }
 #endif
 
-std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::stream& strm,
+std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs([[maybe_unused]] const dnnl::stream& strm,
                                                                   const std::vector<MemoryPtr>& src_mem_ptrs) {
     auto reordered_in_ptrs = src_mem_ptrs;
     size_t offset = m_internal_buffer_size;
@@ -216,7 +216,7 @@ std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::st
 
         OPENVINO_ASSERT(in_idx < src_mem_ptrs.size(), "Incorrect index of input repacked mem ptr");
         const auto& src_mem = src_mem_ptrs[in_idx];
-        const auto& dst_mem = std::make_shared<Memory>(strm.get_engine(), desc, data_ptr, false);
+        const auto& dst_mem = std::make_shared<Memory>(desc, data_ptr, false);
         separately_repack_input(src_mem, dst_mem, repacked_input, m_tensor_rank);
 
         reordered_in_ptrs[in_idx] = dst_mem;

@@ -12,6 +12,7 @@
 #include <string>
 
 #include "common/c_types_map.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
@@ -126,6 +127,8 @@ public:
      */
     static std::string computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
+    static dnnl::memory createMemoryPrimitive(const MemoryPtr& mem, const dnnl::engine& eng);
+    static dnnl::memory createMemoryPrimitive(const IMemory& mem, const dnnl::engine& eng);
 };
 
 }  // namespace ov::intel_cpu

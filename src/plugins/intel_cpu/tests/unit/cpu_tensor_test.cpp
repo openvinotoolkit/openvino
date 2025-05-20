@@ -74,7 +74,6 @@ public:
     MOCK_METHOD(void, load, (const IMemory&, bool, bool), (const, override));
     MOCK_METHOD(MemoryBlockPtr, getMemoryBlock, (), (const, override));
 
-    MOCK_METHOD(dnnl::memory, getPrimitive, (), (const, override));
     MOCK_METHOD(void, nullify, (), (override));
     MOCK_METHOD(void*, getData, (), (const, override));
 

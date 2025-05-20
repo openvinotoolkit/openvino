@@ -353,7 +353,8 @@ public:
 
     static void appendPostOpArgs(const dnnl::primitive_attr& attr,
                                  std::unordered_map<int, dnnl::memory>& primArgs,
-                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs);
+                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs,
+                                 const dnnl::engine& eng);
 
     bool isFusedWith(Type type) const;
 
@@ -860,10 +861,7 @@ protected:
 
     void execute(const dnnl::stream& stream, int numaId);
     virtual void execute(const dnnl::stream& strm) = 0;
-    // TODO [DS] : make pure after all nodes support dynamic shapes
-    virtual void executeDynamicImpl(const dnnl::stream& strm) {
-        OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
-    }
+    virtual void executeDynamicImpl(const dnnl::stream& strm) = 0;
 
     virtual bool needPrepareParams() const;
     // TODO [mandrono]: add description

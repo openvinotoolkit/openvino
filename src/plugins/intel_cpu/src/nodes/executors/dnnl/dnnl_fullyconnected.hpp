@@ -59,12 +59,14 @@ public:
     }
 
     void execute(const MemoryArgs& memory) override {
-        if (resetSrcMemoryDataHandle) {
-            m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
+        m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
+        m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
+
+        if (m_attrs.nonConstantWeights) {
+            m_primArgs[DNNL_ARG_WEIGHTS].set_data_handle(memory.at(ARG_WEI)->getData());
         }
-        if (resetDstMemoryDataHandle) {
-            m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
-        }
+
+        m_primArgs[DNNL_ARG_SCRATCHPAD].set_data_handle(m_scratchPadMemory->getData());
 
         m_primitive->execute(m_primArgs);
     }
@@ -92,7 +94,8 @@ public:
         }
         const auto newPrimMemDesc = m_primitive->scratchPadDesc();
         m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
-        m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
+        m_primArgs[DNNL_ARG_SCRATCHPAD] =
+            DnnlExtensionUtils::createMemoryPrimitive(m_scratchPadMemory, m_context->getEngine());
 
         if (auto it = m_primArgs.find(DNNL_ARG_WEIGHTS); it != m_primArgs.end()) {
             if (!mbind_move(it->second, numaNodeID)) {
@@ -112,9 +115,8 @@ private:
     void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->srcDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
-            m_primArgs[DNNL_ARG_SRC] = memory->getPrimitive();
+            m_primArgs[DNNL_ARG_SRC] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
         } else {
-            resetSrcMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_SRC] =
                 dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
@@ -124,9 +126,8 @@ private:
     void updateDstMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->dstDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
-            m_primArgs[DNNL_ARG_DST] = memory->getPrimitive();
+            m_primArgs[DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
         } else {
-            resetDstMemoryDataHandle = true;
             // create 2D memory without underlying buffer and reset to the actual memory in scope of 'execute' call
             m_primArgs[DNNL_ARG_DST] =
                 dnnl::memory(primMemDesc->getDnnlDesc(), m_context->getEngine(), DNNL_MEMORY_NONE);
@@ -138,7 +139,7 @@ private:
                              const PrimitivePtr newPrimitive,
                              const MemoryPtr& memory) {
         if (m_attrs.nonConstantWeights) {  // non constant weights are handled by the primitive
-            m_primArgs[DNNL_ARG_WEIGHTS] = memory->getPrimitive();
+            m_primArgs[DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
             return;
         }
 
@@ -152,18 +153,18 @@ private:
             Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
-        m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();
+        m_primArgs[DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(weiMemory, m_context->getEngine());
     }
 
     void updateBiasMemory(const MemoryPtr& memory) {
-        m_primArgs[DNNL_ARG_BIAS] = memory->getPrimitive();
+        m_primArgs[DNNL_ARG_BIAS] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
     }
 
     void updatePostOpsMemory(const MemoryArgs& memory) {
         auto update = [&memory, this](int cpuMemoryArg, int dnnlMemoryArg) {
             if (const auto arg = memory.find(cpuMemoryArg); arg != memory.end()) {
                 const auto& memory = arg->second;
-                m_primArgs[dnnlMemoryArg] = memory->getPrimitive();
+                m_primArgs[dnnlMemoryArg] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
             }
         };
 
@@ -187,7 +188,8 @@ private:
         }
 
         m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
-        m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
+        m_primArgs[DNNL_ARG_SCRATCHPAD] =
+            DnnlExtensionUtils::createMemoryPrimitive(m_scratchPadMemory, m_context->getEngine());
     }
 
     void updateMemory(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive, const MemoryArgs& memory) {
@@ -199,8 +201,10 @@ private:
             updateSrcMemory(srcDesc, newPrimitive, memory.at(ARG_SRC));
             updateDstMemory(dstDesc, newPrimitive, memory.at(ARG_DST));
         } else {
-            m_primArgs[DNNL_ARG_SRC] = memory.at(ARG_SRC)->getPrimitive();
-            m_primArgs[DNNL_ARG_DST] = memory.at(ARG_DST)->getPrimitive();
+            m_primArgs[DNNL_ARG_SRC] =
+                DnnlExtensionUtils::createMemoryPrimitive(memory.at(ARG_SRC), m_context->getEngine());
+            m_primArgs[DNNL_ARG_DST] =
+                DnnlExtensionUtils::createMemoryPrimitive(memory.at(ARG_DST), m_context->getEngine());
         }
 
         updateWeightsMemory(weiDesc, currentPrimitive, newPrimitive, memory.at(ARG_WEI));
@@ -217,8 +221,6 @@ private:
     const ExecutorContext::CPtr m_context;
     std::shared_ptr<ShapeAgnosticData> m_shapeAgnosticData;
     dnnl_primitive_args& m_primArgs;
-    bool resetSrcMemoryDataHandle = false;
-    bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
     int curNumaNode = -1;
