@@ -201,7 +201,27 @@ TEST(NetworkContext, HashWithFusedNames) {
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
         rtInfo[ov::FusedNames::get_type_info_static()] = ov::FusedNames(name);
     };
-    checkCustomRt(setFusedEmpty, setFused);
+
+    auto model1 = create_simple_model();
+    auto model2 = create_simple_model();
+    auto& op1 = model1->get_ops().front()->get_rt_info();
+    auto& op2 = model2->get_ops().front()->get_rt_info();
+
+    // Fused names are excluded from hash
+    setFusedEmpty(op2);
+    EXPECT_EQ(ov::ModelCache::compute_hash(model1, {}), ov::ModelCache::compute_hash(model2, {}));
+
+    setFusedEmpty(op1);
+    EXPECT_EQ(ov::ModelCache::compute_hash(model1, {}), ov::ModelCache::compute_hash(model2, {}));
+
+    setFused(op1, "test");
+    EXPECT_EQ(ov::ModelCache::compute_hash(model1, {}), ov::ModelCache::compute_hash(model2, {}));
+
+    setFused(op2, "test");
+    EXPECT_EQ(ov::ModelCache::compute_hash(model1, {}), ov::ModelCache::compute_hash(model2, {}));
+
+    setFused(op1, "test2");
+    EXPECT_EQ(ov::ModelCache::compute_hash(model1, {}), ov::ModelCache::compute_hash(model2, {}));
 }
 
 TEST(NetworkContext, HashWithPrimitivesPriorityType) {
