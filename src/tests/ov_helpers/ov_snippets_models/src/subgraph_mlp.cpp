@@ -18,17 +18,18 @@ namespace snippets {
 std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     std::shared_ptr<Node> current = A_param;
+    float const_value = 0.1122f;
 
     auto mlp_layer = [&](size_t m, size_t n) {
         auto b_shape = ov::Shape{m, n};
         auto b_row = ov::Shape{m};
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f});
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, const_value);
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-            b_row,
-            std::vector<float>{0.1122f});
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
         current = std::make_shared<ov::op::v1::Add>(current, constant);
         current = std::make_shared<ov::op::v0::Relu>(current);
+
+        const_value += 0.1122f;
     };
 
     mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
@@ -54,18 +55,19 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+    float const_value = 0.1122f;
 
     auto mlp_layer = [&](size_t m, size_t n) {
         auto b_shape = ov::Shape{m, n};
         auto b_row = ov::Shape{m};
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f});
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, const_value);
         current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-            b_row,
-            std::vector<float>{0.1122f});
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
         current = std::make_shared<ov::op::v1::Add>(current, constant);
         current = std::make_shared<ov::op::v0::Relu>(current);
+
+        const_value += 0.1122f;
     };
 
     mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
@@ -91,12 +93,13 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A_param;
+    float const_value = 0.1122f;
 
     auto mlp_layer = [&](size_t m, size_t n) {
         auto b_shape = ov::Shape{m, n};
         auto b_row = ov::Shape{m};
         current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
-        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, const_value);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
             std::vector<element::Type>{element::f32, element::f32},
@@ -106,22 +109,22 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
             false,
             true);
 
-        auto dq_scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122});
+        auto dq_scale = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(dq_scale, element::f32).get());
-        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                b_row,
-                                                                std::vector<float>{0.1122f});
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
         current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
         current = std::make_shared<ov::op::v0::Relu>(current);
+
+        const_value += 0.1122f;
     };
 
     mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
@@ -145,9 +148,6 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
 std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     std::shared_ptr<Node> A = A_param;
-    if (precisions[0] != ov::element::u8) {
-        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
-    }
     auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
                              static_cast<unsigned long>(input_shapes[0][1].get_length())};
     auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
