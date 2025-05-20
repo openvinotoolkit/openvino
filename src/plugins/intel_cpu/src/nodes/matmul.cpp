@@ -135,6 +135,13 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
+    // could go to optimized and not fused.
+    auto src_shape = getInputShapeAtPort(0).getDims();
+    auto wei_shape = getInputShapeAtPort(0).getDims();
+    if (canOptimize(src_shape, wei_shape)) {
+        return false;
+    }
+
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
     if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
@@ -578,6 +585,24 @@ void MatMul::prepareParams() {
         THROW_CPU_NODE_ERR("has undefined input memory");
     }
 
+    auto src_shape = src0MemPtr->getDesc().getShape().getDims();
+    auto wei_shape = src1MemPtr->getDesc().getShape().getDims();
+    // Now the shape is static and set m_optimize deterministically.
+    // same leading dimension
+
+    if (canOptimize(src_shape, wei_shape)) {
+        const size_t b_src =
+            std::accumulate(src_shape.begin(), src_shape.end() - 2, static_cast<size_t>(1), std::multiplies<>());
+        const size_t b_wei =
+            std::accumulate(wei_shape.begin(), wei_shape.end() - 2, static_cast<size_t>(1), std::multiplies<>());
+        m_optimize = (b_src == b_wei);
+    } else {
+        m_optimize = false;
+    }
+    if (m_optimize) {
+        return;
+    }
+
     // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
     // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
     // consequently C has shape [10, 20]. In this scenario C is a null matrix (a matrix filled with zeroes)
@@ -699,7 +724,45 @@ void MatMul::prepareParams() {
 }
 
 void MatMul::execute(const dnnl::stream& strm) {
-    if (execPtr) {
+    if (m_optimize) {
+        // todo: support tranpose_a and tranpose_a and bias
+        auto src0MemPtr = getSrcMemoryAtPort(0);
+        auto src1MemPtr = getSrcMemoryAtPort(1);
+        auto dstMemPtr = getDstMemoryAtPort(0);
+
+        auto src_shape = src0MemPtr->getDesc().getShape().getDims();
+        auto wei_shape = src1MemPtr->getDesc().getShape().getDims();
+
+        auto* src_data = src0MemPtr->getDataAs<float>();
+        auto* wei_data = src1MemPtr->getDataAs<float>();
+        auto* dst_data = dstMemPtr->getDataAs<float>();
+        const auto& M = src_shape[src_shape.size() - 2];
+        const auto& K = src_shape[src_shape.size() - 1];
+        const auto& N = wei_shape[wei_shape.size() - 1];
+        const auto& src_spatial_size = M * K;
+        const auto& wei_spatial_size = K * N;
+        const auto& dst_spatial_size = M * N;
+        const size_t threads_num = parallel_get_max_threads();
+        const size_t wa =
+            std::accumulate(src_shape.begin(), src_shape.end() - 2, static_cast<size_t>(1), std::multiplies<>());
+        parallel_nt(threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(wa, nthr, ithr, start, end);
+            for (size_t i = start; i < end; i++) {
+                auto* src_ptr = src_data + i * src_spatial_size;
+                auto* wei_ptr = wei_data + i * wei_spatial_size;
+                auto* dst_ptr = dst_data + i * dst_spatial_size;
+                for (size_t m = 0; m < M; m++) {
+                    for (size_t n = 0; n < N; n++) {
+                        dst_ptr[m * N + n] = 0;
+                        for (size_t k = 0; k < K; k++) {
+                            dst_ptr[m * N + n] += src_ptr[m * K + k] * wei_ptr[k * N + n];
+                        }
+                    }
+                }
+            }
+        });
+    } else if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else if (hasEmptyInputTensors()) {
         // this is a degenerate case, fill output with zeroes
@@ -741,6 +804,34 @@ bool MatMul::neverExecute() const {
 
 bool MatMul::isExecutable() const {
     return !hasEmptyOutputTensors();
+}
+
+// optimized pass handle small spatial dimension with large batch dimension
+bool MatMul::canOptimize(const VectorDims& src_shape, const VectorDims& wei_shape) const {
+    auto in0_prec = getOriginalInputPrecisionAtPort(0);
+    auto in1_prec = getOriginalInputPrecisionAtPort(1);
+    auto out_prec = getOriginalOutputPrecisionAtPort(0);
+    // todo: extend precision, transpose and bias limitation.
+    if (!everyone_is(ov::element::f32, in0_prec, in1_prec, out_prec)) {
+        return false;
+    }
+    if (transposeIn[0] || transposeIn[1]) {
+        return false;
+    }
+    if (withBiases) {
+        return false;
+    }
+
+    auto src_rank = src_shape.size();
+    auto wei_rank = wei_shape.size();
+    if (src_rank > 2 && src_rank == wei_rank &&
+        (src_shape[src_rank - 1] <= 2 || src_shape[src_rank - 1] == Shape::UNDEFINED_DIM) &&
+        (src_shape[src_rank - 2] <= 2 || src_shape[src_rank - 2] == Shape::UNDEFINED_DIM) &&
+        (wei_shape[wei_rank - 1] <= 2 || wei_shape[wei_rank - 1] == Shape::UNDEFINED_DIM) &&
+        (wei_shape[wei_rank - 1] <= 2 || wei_shape[wei_rank - 1] == Shape::UNDEFINED_DIM)) {
+        return true;
+    }
+    return false;
 }
 
 }  // namespace ov::intel_cpu::node
