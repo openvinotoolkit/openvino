@@ -77,12 +77,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
             // Issue: Disabled due to LPT precision matching issue
-            R"(.*smoke_.*FakeQuantizeTransformation.*)",
             R"(.*smoke_LPT.*ReshapeTransformation.*)",
-            R"(.*smoke_LPT.*ConvolutionTransformation.*)",
-            R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
-            R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
