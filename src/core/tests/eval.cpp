@@ -42,6 +42,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_min.hpp"
@@ -4243,6 +4244,36 @@ TEST(eval, evaluate_reshape_string_2D_to_4D) {
 
     const auto result_const = ov::op::v0::Constant(out_vector.at(0));
     EXPECT_EQ(input_values, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_not_equal_string_basic) {
+    std::vector<std::string> input_values_a = {"Abc", "", "x", "", "", "", "", "", ".", "...", "....", "4"};
+    std::vector<std::string> input_values_b = {""};
+    std::vector<char> out_expected = {1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1};
+
+    const auto input_a_shape = Shape{3, 4};
+    const auto input_b_shape = Shape{1};
+
+    const auto exp_out_shape = Shape{3, 4};
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::string, input_a_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::string, input_b_shape);
+
+    auto op = make_shared<op::v1::NotEqual>(data_a, data_b);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data_a, data_b});
+
+    auto result = ov::Tensor(element::boolean, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::string, input_a_shape, input_values_a.data());
+    auto in_tensor_b = ov::Tensor(element::string, input_b_shape, input_values_b.data());
+
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::boolean);
+    EXPECT_EQ(result.get_shape(), exp_out_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(out_expected, result_const.get_vector<char>());
 }
 
 TEST(eval, evaluate_concat_string_basic) {
