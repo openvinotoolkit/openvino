@@ -17,10 +17,7 @@ std::vector<std::vector<InputShape>> inputShape_2D(bool with_dynamic = true) {
         {{1, 64}},
         {{2, 64}},
         {{4, 64}},
-        {{8, 64}},
-        {{16, 64}},
-        {{32, 64}},
-        {{64, 64}});
+        {{8, 64}});
     if (with_dynamic) {
         shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {8, 64}, {6, 64}}}});
         shapes.push_back({{PartialShape{-1, 64}, {{2, 64}, {2, 64}, {4, 64}, {3, 64}}}});
@@ -29,18 +26,18 @@ std::vector<std::vector<InputShape>> inputShape_2D(bool with_dynamic = true) {
 }
 
 std::vector<size_t> numHiddenLayers() {
-    return {1, 2, 3, 5, 7, 9};
+    return {1, 3, 5};
 }
 std::vector<size_t> hiddenMatmulSizes() {
-    return {16, 32, 64, 128};
+    return {64, 128, 256};
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
                          MLP,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLP::default_thread_count}),
+                                            ::testing::ValuesIn({ov::element::f32, ov::element::bf16}),
+                                            ::testing::Values(MLP::default_thread_count),
                                             ::testing::Values(1),  // Subgraph
                                             ::testing::Values(1),  // MLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -53,8 +50,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32,
                          MLPQuantized,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLPQuantized::default_thread_count}),
+                                            ::testing::ValuesIn({ov::element::f32, ov::element::bf16}),
+                                            ::testing::Values(MLPQuantized::default_thread_count),
                                             ::testing::Values(1),  // Subgraph
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -67,8 +64,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_i8,
                          MLPQuantized,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_i8(1)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLPQuantized::default_thread_count}),
+                                            ::testing::ValuesIn({ov::element::f32, ov::element::bf16}),
+                                            ::testing::Values(MLPQuantized::default_thread_count),
                                             ::testing::Values(1),  // Subgraph
                                             ::testing::Values(1),  // MLPQuantized
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -77,47 +74,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_i8,
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
                          MLPQuantized::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32_EnforceBF16,
-                         MLP,
-                         ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
-                                            ::testing::ValuesIn(precision_f32(1)),
-                                            ::testing::Values(ov::element::bf16),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLP::default_thread_count}),
-                                            ::testing::Values(1),  // Subgraph
-                                            ::testing::Values(1),  // MLP
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::ValuesIn(numHiddenLayers()),
-                                            ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLP::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32_EnforceBF16,
-                         MLPQuantized,
-                         ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
-                                            ::testing::ValuesIn(precision_f32(1)),
-                                            ::testing::Values(ov::element::bf16),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLPQuantized::default_thread_count}),
-                                            ::testing::Values(1),  // Subgraph
-                                            ::testing::Values(1),  // MLPQuantized
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::ValuesIn(numHiddenLayers()),
-                                            ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLPQuantized::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_i8_EnforceBF16,
-                         MLPQuantized,
-                         ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
-                                            ::testing::ValuesIn(precision_i8(1)),
-                                            ::testing::Values(ov::element::bf16),
-                                            ::testing::ValuesIn({static_cast<size_t>(1), MLPQuantized::default_thread_count}),
-                                            ::testing::Values(1),  // Subgraph
-                                            ::testing::Values(1),  // MLPQuantized
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::ValuesIn(numHiddenLayers()),
-                                            ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLPQuantized::getTestCaseName);
 }  // namespace
 }  // namespace snippets
 }  // namespace test

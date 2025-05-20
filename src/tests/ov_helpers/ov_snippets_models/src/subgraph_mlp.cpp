@@ -191,19 +191,15 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122f});
         auto dq_scales = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_row);
         auto dq_scales_const =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.0f});
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, std::vector<float>{0.1122f});
 
         auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, b_shape_trans);
-        auto B_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.0f});
+        auto B_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, std::vector<float>{0.1122f});
         auto B_const_trans =
             std::make_shared<ov::op::v1::Transpose>(B_const,
                                                     ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 0}));
         subgraph_params.push_back(B);
         subgraph_nodes.push_back(B_const_trans);
-        subgraph_params.push_back(dq_shifts);
-        subgraph_nodes.push_back(dq_shifts_const);
-        subgraph_params.push_back(dq_scales);
-        subgraph_nodes.push_back(dq_scales_const);
 
         current = decomposed_fq(current,
                                 ov::element::u8,
@@ -220,11 +216,16 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
             false,
             trans);
 
+        subgraph_params.push_back(dq_scales);
+        subgraph_nodes.push_back(dq_scales_const);
         current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
             std::vector<ov::element::Type>{ov::element::f32},
             ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(dq_scales, ov::element::f32).get());
+
+        subgraph_params.push_back(dq_shifts);
+        subgraph_nodes.push_back(dq_shifts_const);
         current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
             std::vector<ov::element::Type>{ov::element::f32},

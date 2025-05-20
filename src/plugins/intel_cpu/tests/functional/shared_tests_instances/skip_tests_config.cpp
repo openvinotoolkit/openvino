@@ -640,7 +640,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MLP.*EnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
         // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
