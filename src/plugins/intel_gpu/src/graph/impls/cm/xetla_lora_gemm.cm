@@ -32,7 +32,7 @@ _GENX_MAIN_ void KERNEL_NAME(
         LORA_POST_OP_KERNEL_ARGS) {
 
 //     if (cm_linear_global_id() == 0) {
-//         printf("%d | %d | %d\n", LORA_SIZE_M, LORA_SIZE_K, LORA_SIZE_N);
+//         printf("KERNEL: MxKxN %d | %d | %d\n", LORA_SIZE_M, LORA_SIZE_K, LORA_SIZE_N);
 //     }
 
     sycl::nd_item<3> item;
