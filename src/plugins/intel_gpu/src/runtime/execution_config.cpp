@@ -12,6 +12,7 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
+#include "openvino/op/istft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -46,8 +47,8 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // HACK: SearchSorted has specific shape requirements.
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    // Similar case for STFT.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
+    // Similar case for STFT and ISTFT
+    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op) || ov::is_type<ov::op::v16::ISTFT>(op))
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
@@ -126,6 +127,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     }
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
+    apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
     // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not

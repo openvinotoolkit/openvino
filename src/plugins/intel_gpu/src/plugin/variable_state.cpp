@@ -20,6 +20,7 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
+    , m_transpose_required(info.transpose_required)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
@@ -58,13 +59,15 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
     cldnn::padding::DynamicDimsMask dynamic_pad_dims;
-    for (size_t i = 0; i < src_rank; i++) dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
+    for (size_t i = 0; i < src_rank; i++) {
+        dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
+    }
     m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
                                            std::vector<int32_t>(src_rank, 0),
                                            dynamic_pad_dims);
     auto src_stride = state->get_strides();
     for (size_t i = 0; i < src_rank; ++i) {
-        src_stride[i] = src_stride[i] / (state->get_element_type().bitwidth()/8);
+        src_stride[i] /= state->get_element_type().bitwidth() / 8;
     }
     m_layout.set_partial_shape(src_shape);
     update_device_buffer();
@@ -93,7 +96,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_fmt = cldnn::format::get_default_format(src_rank);
     auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
 
-    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout);
+    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout, m_transpose_required);
     set();
 }
 

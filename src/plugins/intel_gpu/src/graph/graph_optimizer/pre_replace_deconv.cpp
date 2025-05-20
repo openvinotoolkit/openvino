@@ -75,15 +75,12 @@ void pre_replace_deconv::run(program& p) {
                 // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
                 p.remove_connection(input_node, deconv_node);
                 std::vector<std::shared_ptr<program_node>> weight_connections;
-                for (auto& weights_id : weights_nodes_id) {
-                    auto weights_iter = p.nodes_map.find(weights_id);
-                    if (weights_iter == p.nodes_map.end())
-                        continue;
+                auto weights_iter = p.nodes_map.find(weights_nodes_id.pid);
+                OPENVINO_ASSERT(weights_iter != p.nodes_map.end());
 
-                    auto weights_node_ptr = weights_iter->second;
-                    weight_connections.push_back(weights_node_ptr);
-                    p.remove_connection(*weights_node_ptr, deconv_node);
-                }
+                auto weights_node_ptr = weights_iter->second;
+                weight_connections.push_back(weights_node_ptr);
+                p.remove_connection(*weights_node_ptr, deconv_node);
 
                 ov::CoordinateDiff pad_begin(spatial_rank, 0);
                 ov::CoordinateDiff pad_end(spatial_rank, 0);
@@ -98,8 +95,8 @@ void pre_replace_deconv::run(program& p) {
                 }
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
-                for (auto& bias_id : biases_nodes_id) {
-                    auto bias_iter = p.nodes_map.find(bias_id);
+                if (biases_nodes_id.is_valid()) {
+                    auto bias_iter = p.nodes_map.find(biases_nodes_id.pid);
                     if (bias_iter == p.nodes_map.end())
                         continue;
 
@@ -119,8 +116,8 @@ void pre_replace_deconv::run(program& p) {
                 // create convolution primitive
                 auto conv_prim = std::make_shared<convolution>(deconv_node_id,
                                                                input_node_id,
-                                                               weights_nodes_id[0],
-                                                               biases_nodes_id.empty() ? "" : biases_nodes_id[0],
+                                                               weights_nodes_id.pid,
+                                                               biases_nodes_id.is_valid() ? biases_nodes_id.pid : "",
                                                                groups,
                                                                stride,
                                                                dilation,
@@ -169,17 +166,16 @@ void pre_replace_deconv::run(program& p) {
                deconv_prim->stride[deconv_prim->stride.size() - 1] == 2 && deconv_prim->stride[deconv_prim->stride.size() - 2] == 2 &&
                filter_layout.spatial(0) == 9 && filter_layout.spatial(1) == 9 &&
                deconv_prim->pad[deconv_prim->pad.size() - 1] == 4 && deconv_prim->pad[deconv_prim->pad.size() - 2]  == 4 &&
-               weights_nodes_id.size() == 1 && biases_nodes_id.size() == 1 &&
                input_node.get_output_layout().format == format::bfyx) {
                 const auto scale_factor = deconv_prim->stride[deconv_prim->stride.size() - 1];
                 auto spatial_rank = deconv_node.get_output_layout().get_spatial_rank();
 
-                const auto& weight_node_id = weights_nodes_id.front();
+                const auto& weight_node_id = weights_nodes_id.pid;
                 auto weights_node_ptr = p.nodes_map.find(weight_node_id)->second;
                 const auto& weights_layout = weights_node_ptr->get_output_layout();
                 const auto& weights_data_type = weights_layout.data_type;
 
-                const auto& bias_node_id = biases_nodes_id.front();
+                const auto& bias_node_id = biases_nodes_id.pid;
                 auto bias_id_node_ptr = p.nodes_map.find(bias_node_id)->second;
                 const auto bias_data_type = bias_id_node_ptr->get_output_layout().data_type;
 

@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import random
+import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -41,6 +41,7 @@ class TestExpand(PytorchLayerTest):
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(dims, op_type), ie_device, precision, ir_version)
 
+
 class TestExpandCopy(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
@@ -65,6 +66,7 @@ class TestExpandCopy(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_expand_copy(self, dims, ie_device, precision, ir_version):
         self._test(*self.create_model(dims), ie_device, precision, ir_version)
+
 
 class TestExpandList(PytorchLayerTest):
     def _prepare_input(self, broadcast_shape):
@@ -139,6 +141,7 @@ class TestExpandAs(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision,
                    ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
 
+
 class TestDynamicExpand(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
@@ -164,4 +167,36 @@ class TestDynamicExpand(PytorchLayerTest):
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
     @pytest.mark.precommit_fx_backend
     def test_dynamic_expand(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)
+
+
+class TestComplexExpand(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 2).astype(np.float32),)
+
+    def create_model(self, dim):
+        import torch
+
+        class aten_expand(torch.nn.Module):
+            def __init__(self, dims):
+                super().__init__()
+                self.dims = dims
+
+            def forward(self, x):
+                x = torch.view_as_complex(x)
+                x = x.expand(self.dims)
+                return torch.view_as_real(x)
+
+        return aten_expand(dim), None, "aten::expand"
+
+    @pytest.mark.parametrize("dims", [(4, 3),
+                                      (-1, -1),
+                                      (1, 2, 3),
+                                      (1, 2, 2, 3)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_complex_expand(self, dims, ie_device, precision, ir_version):
         self._test(*self.create_model(dims), ie_device, precision, ir_version)

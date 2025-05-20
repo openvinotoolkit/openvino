@@ -11,8 +11,13 @@
 
 ## How to run the tests locally
 ## C++ tests
-1. Build OpenVINO with the `-DENABLE_TESTS=ON` flag.
-2. Run `<OV_REPO_DIR>/bin/intel64/<OV_BUILD_TYPE>/ov_onnx_frontend_tests`, where <OV_REPO_DIR> is your workspace folder, and `OV_BUILD_TYPE` can be `Debug` or `Release`, depending on the `-DCMAKE_BUILD_TYPE` CMake build option.
+1. Install Python dependencies:
+```
+pip install -r <OV_REPO_DIR>/src/frontends/onnx/tests/requirements.txt
+```
+After that CMake will produce test models from existin [*.prototxt files](../tests/models)
+2. Build OpenVINO with the `-DENABLE_TESTS=ON` flag.
+3. Run `<OV_REPO_DIR>/bin/intel64/<OV_BUILD_TYPE>/ov_onnx_frontend_tests`, where <OV_REPO_DIR> is your workspace folder, and `OV_BUILD_TYPE` can be `Debug` or `Release`, depending on the `-DCMAKE_BUILD_TYPE` CMake build option.
 You can filter tests using the `--gtest_filter` flag like any other gtest-based tests.
 
 For example:
