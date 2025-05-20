@@ -10,7 +10,6 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 OPS = {
     "aten::abs": torch.abs,
     "aten::abs_": torch.abs_,
-    "aten::absolute": torch.absolute,
     "aten::rsqrt": torch.rsqrt,
     "aten::rsqrt_": torch.rsqrt_,
     "aten::sqrt": torch.sqrt,
@@ -150,7 +149,6 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("op_type",
                              [
                                  "aten::abs",
-                                 "aten::absolute",
                                  "aten::rsqrt",
                                  "aten::sqrt",
                                  "aten::erf",
@@ -241,7 +239,6 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("op_type",
                              [
                                  "aten::abs",
-                                 "aten::absolute",
                                  "aten::rsqrt",
                                  "aten::sqrt",
                                  "aten::erf",
