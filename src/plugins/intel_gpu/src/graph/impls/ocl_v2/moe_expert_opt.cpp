@@ -18,6 +18,7 @@
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_expert.hpp"
+#    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
 #    include "intel_gpu/runtime/utils.hpp"
 #    include "moe_expert_inst.h"
@@ -993,12 +994,13 @@ public:
             return std::hash<T1>()(p.first) ^ std::hash<T2>()(p.second);
         }
     };
-    std::unordered_map<std::pair<int, int>, onednn_kernel, PairHash> _kernels;
 
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_expert>& instance) {
         auto key = std::make_pair(n_token, expert_no);
-        if (_kernels.count(key))
-            return _kernels[key];
+        static LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash> _kernels(1024);
+        if (_kernels.has(key)) {
+            return *_kernels.get(key);
+        }
 
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
@@ -1008,50 +1010,50 @@ public:
         auto& dnn_stream = stream.get_onednn_stream();
         auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(0)->get_layout().data_type);
         auto& dnnl_weights = _dnnl_weights[expert_no];
-        onednn_kernel kernel;
+        auto kernel = std::make_shared<onednn_kernel>();
         // up
         auto up_weight_layout = mlp_params.param[1].weight->get_layout();
-        kernel.up = onednn_linear::create(dnn_stream.get_engine(),
-                                          hidden_states_layout_dt,
-                                          convert_data_type(up_weight_layout.data_type),
-                                          n_token,
-                                          dnnl_weights[1].ic,
-                                          dnnl_weights[1].oc,
-                                          dnnl_weights[1].ic_group_size,
-                                          onednn_matmul::type::none,
-                                          dnnl_weights[1].weight,
-                                          dnnl_weights[1].scale,
-                                          dnnl_weights[1].zp);
+        kernel->up = onednn_linear::create(dnn_stream.get_engine(),
+                                           hidden_states_layout_dt,
+                                           convert_data_type(up_weight_layout.data_type),
+                                           n_token,
+                                           dnnl_weights[1].ic,
+                                           dnnl_weights[1].oc,
+                                           dnnl_weights[1].ic_group_size,
+                                           onednn_matmul::type::none,
+                                           dnnl_weights[1].weight,
+                                           dnnl_weights[1].scale,
+                                           dnnl_weights[1].zp);
 
         // gate
         auto gate_weight_layout = mlp_params.param[0].weight->get_layout();
-        kernel.gate = onednn_linear::create(dnn_stream.get_engine(),
-                                            hidden_states_layout_dt,
-                                            convert_data_type(gate_weight_layout.data_type),
-                                            n_token,
-                                            dnnl_weights[0].ic,
-                                            dnnl_weights[0].oc,
-                                            dnnl_weights[0].ic_group_size,
-                                            onednn_matmul::type::with_silu_bin_mul,
-                                            dnnl_weights[0].weight,
-                                            dnnl_weights[0].scale,
-                                            dnnl_weights[0].zp);
+        kernel->gate = onednn_linear::create(dnn_stream.get_engine(),
+                                             hidden_states_layout_dt,
+                                             convert_data_type(gate_weight_layout.data_type),
+                                             n_token,
+                                             dnnl_weights[0].ic,
+                                             dnnl_weights[0].oc,
+                                             dnnl_weights[0].ic_group_size,
+                                             onednn_matmul::type::with_silu_bin_mul,
+                                             dnnl_weights[0].weight,
+                                             dnnl_weights[0].scale,
+                                             dnnl_weights[0].zp);
 
         // down
         auto down_weight_layout = mlp_params.param[2].weight->get_layout();
-        kernel.down = onednn_linear::create(dnn_stream.get_engine(),
-                                            hidden_states_layout_dt,
-                                            convert_data_type(down_weight_layout.data_type),
-                                            n_token,
-                                            dnnl_weights[2].ic,
-                                            dnnl_weights[2].oc,
-                                            dnnl_weights[2].ic_group_size,
-                                            onednn_matmul::type::with_bin_mul_per_row,
-                                            dnnl_weights[2].weight,
-                                            dnnl_weights[2].scale,
-                                            dnnl_weights[2].zp);
-        _kernels[key] = kernel;
-        return _kernels[key];
+        kernel->down = onednn_linear::create(dnn_stream.get_engine(),
+                                             hidden_states_layout_dt,
+                                             convert_data_type(down_weight_layout.data_type),
+                                             n_token,
+                                             dnnl_weights[2].ic,
+                                             dnnl_weights[2].oc,
+                                             dnnl_weights[2].ic_group_size,
+                                             onednn_matmul::type::with_bin_mul_per_row,
+                                             dnnl_weights[2].weight,
+                                             dnnl_weights[2].scale,
+                                             dnnl_weights[2].zp);
+        _kernels.add(key, kernel);
+        return *_kernels.get(key);
     }
 
     //  inputs 0 is hidden_states, inputs 1 is router_logits[num_tokens, NUM_EXPERTS=128]
@@ -1086,13 +1088,13 @@ public:
 
         // softmax+topk
         auto lws_size = moe->_config.expert_num;
-        execute_stage(events,
-                      instance,
-                      *softmax_topk,
-                      {instance.input_memory_ptr(1)},
-                      {scratch.topk_id, scratch.topk_weights},
-                      {static_cast<size_t>(batch), lws_size},
-                      {1, lws_size});
+        auto topk_event = execute_stage(events,
+                                        instance,
+                                        *softmax_topk,
+                                        {instance.input_memory_ptr(1)},
+                                        {scratch.topk_id, scratch.topk_weights},
+                                        {static_cast<size_t>(batch), lws_size},
+                                        {1, lws_size});
 
         // Single batch is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1107,11 +1109,11 @@ public:
         // onednn path will accumulate to the output
         final_hidden_states_mem_ptr->fill(stream, false);
 
-        expert_mask_cpu expert_mask;
         // Wait for topk is ready
-        stream.finish();
+        topk_event->wait();
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
+        expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
 
         auto& dnn_stream = stream.get_onednn_stream();
