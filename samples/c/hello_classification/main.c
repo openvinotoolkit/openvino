@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <opencv_c_wrapper.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "samples_util/path_util.h"
+// Uses windows.h must be before openvino/c/openvino.h
 #include "infer_result_util.h"
+#include "opencv_c_wrapper.h"
 #include "openvino/c/openvino.h"
 
 void print_model_input_output_info(ov_model_t* model) {
@@ -49,9 +51,10 @@ int main(int argc, char** argv) {
     struct infer_result* results = NULL;
     ov_layout_t* input_layout = NULL;
     ov_layout_t* model_layout = NULL;
-    ov_shape_t input_shape;
+    ov_shape_t input_shape = {.rank = 0, .dims = NULL};
     ov_output_const_port_t* output_port = NULL;
     ov_output_const_port_t* input_port = NULL;
+    c_mat_t img = {0};
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -63,7 +66,10 @@ int main(int argc, char** argv) {
 
     // -------- Parsing and validation of input arguments --------
     const char* input_model = argv[1];
-    const char* input_image_path = argv[2];
+    char input_image_path[PATH_MAX];
+    if (!sanitize_path(argv[2], input_image_path, sizeof(input_image_path))) {
+        goto err;
+    }
     const char* device_name = argv[3];
 
     // -------- Step 1. Initialize OpenVINO Runtime Core --------
@@ -87,7 +93,7 @@ int main(int argc, char** argv) {
     }
 
     // -------- Step 3. Set up input
-    c_mat_t img;
+
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
     int64_t dims[4] = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
