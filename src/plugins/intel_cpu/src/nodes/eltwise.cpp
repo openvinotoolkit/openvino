@@ -811,6 +811,7 @@ public:
                     Algorithm::EltwiseFloor,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
+                    Algorithm::EltwiseNegative,
                     Algorithm::EltwisePowerStatic,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,

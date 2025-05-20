@@ -458,6 +458,42 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
     return {{element::f32, element::f32}};
 }
 
+/// NEGATIVE ///
+jit_negative_emitter::jit_negative_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
+    jit_emitter(host, host_isa, exec_prc) {}
+
+jit_negative_emitter::jit_negative_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node) :
+    jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+size_t jit_negative_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_negative_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel for NEGATIVE");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    VReg aux = VReg(aux_vec_idxs[0]);
+
+    h->vmv_v_v(aux, src);                
+    h->vfneg_vv(dst, aux);               
+}
+
+std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
 /// PReLU ///
 jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
