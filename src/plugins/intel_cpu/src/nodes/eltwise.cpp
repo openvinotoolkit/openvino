@@ -1304,6 +1304,10 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
                 return false;
             }
         }
+        if (const auto binOp = ov::as_type_ptr<const ov::op::v1::NotEqual>(op);
+            binOp->get_output_element_type(0) == element::string) {
+            return false;
+        }
         if (const auto select = ov::as_type_ptr<const ov::op::v1::Select>(op)) {
             if (select->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NONE &&
                 select->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NUMPY) {
