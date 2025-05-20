@@ -309,7 +309,7 @@ jobs:
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
-                -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+                -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
 
