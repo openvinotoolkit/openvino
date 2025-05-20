@@ -10,7 +10,7 @@
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/softmax.hpp"
-
+namespace ov::reference {
 namespace helpers {
 template <typename T>
 std::vector<T> CreateCausalAttentionMask(const ov::Shape& shape) {
