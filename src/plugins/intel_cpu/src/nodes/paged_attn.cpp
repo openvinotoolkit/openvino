@@ -162,8 +162,10 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
-    bool byChannel = precision.is_integral() && isKey;
-    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
+    const bool isIntegral =
+        ov::intel_cpu::one_of(precision, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8);
+    bool byChannel = isIntegral && isKey;
+    if (!isIntegral || mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
