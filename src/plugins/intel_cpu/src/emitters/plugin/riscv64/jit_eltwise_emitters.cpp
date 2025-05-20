@@ -520,7 +520,6 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, cons
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
-    
     h->vfmul_vv(dst, src0, src1);
 }
 
