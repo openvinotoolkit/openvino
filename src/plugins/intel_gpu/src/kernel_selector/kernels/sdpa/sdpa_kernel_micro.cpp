@@ -499,7 +499,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     }
 
     // Scores output is not supported
-    if (params.conf.is_paged_attention && params.outputs.size() > 1)
+    if (params.conf.is_paged_attention && (params.outputs.size() > 1 || params.conf.has_score_aggregation))
         return false;
 
     if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
