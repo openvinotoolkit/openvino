@@ -317,19 +317,17 @@ void ovfunction_2_hash(uint64_t& hash,
         hash = hash_combine(hash, AttrType::data);
         auto append_runtime_info = [&](uint64_t& hash, ov::RTMap& attributes) {
             hash = hash_combine(hash, AttrType::rt_info);
-            for (auto& item : attributes) {
-                if (item.second.is<ov::RuntimeAttribute>()) {
-                    auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
-                    const auto& type_info = rt_attribute.get_type_info();
-                    if (!strcmp(type_info.name, "fused_names")) {
-                        continue;
-                    }
-                    hash = hash_combine(hash, AttrType::attribute);
-                    hash = hash_combine(hash_combine(hash, AttrType::name), type_info.name);
-                    hash = hash_combine(hash_combine(hash, AttrType::version), type_info.get_version());
+            for (const auto& [name, attribute] : attributes) {
+                if (attribute.is<ov::RuntimeAttribute>()) {
+                    if (const auto& rt_attribute = attribute.as<ov::RuntimeAttribute>(); rt_attribute.is_deterministic()) {
+                        const auto& type_info = rt_attribute.get_type_info();
+                        hash = hash_combine(hash, AttrType::attribute);
+                        hash = hash_combine(hash_combine(hash, AttrType::name), type_info.name);
+                        hash = hash_combine(hash_combine(hash, AttrType::version), type_info.get_version());
 
-                    rt_info::RTInfoHasher rt_info_visitor(hash);
-                    rt_attribute.visit_attributes(rt_info_visitor);
+                        rt_info::RTInfoHasher rt_info_visitor(hash);
+                        rt_attribute.visit_attributes(rt_info_visitor);
+                    }
                 }
             }
         };

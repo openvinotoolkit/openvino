@@ -81,3 +81,9 @@ bool FusedNames::visit_attributes(AttributeVisitor& visitor) {
 std::string FusedNames::to_string() const {
     return getNames();
 }
+
+bool FusedNames::is_deterministic() const {
+    // the names stored by this attribute can be auto generated which are not deterministic
+    // and should not impact on cache hash
+    return false;
+}

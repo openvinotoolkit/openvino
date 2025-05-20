@@ -1072,21 +1072,23 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [&deterministic](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
-                    auto attribute_node = rt_node.append_child("attribute");
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
-                    const auto& type_info = rt_attribute.get_type_info();
-                    attribute_node.append_attribute("name").set_value(type_info.name);
-                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
-                    rt_info::RTInfoSerializer serializer(attribute_node);
-                    if (!rt_attribute.visit_attributes(serializer)) {
-                        rt_node.remove_child(attribute_node);
-                    } else {
-                        has_attrs = true;
+                    if (!deterministic || rt_attribute.is_deterministic()) {
+                        auto attribute_node = rt_node.append_child("attribute");
+                        const auto& type_info = rt_attribute.get_type_info();
+                        attribute_node.append_attribute("name").set_value(type_info.name);
+                        attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
+                        rt_info::RTInfoSerializer serializer(attribute_node);
+                        if (!rt_attribute.visit_attributes(serializer)) {
+                            rt_node.remove_child(attribute_node);
+                        } else {
+                            has_attrs = true;
+                        }
                     }
                 }
             }
@@ -1253,26 +1255,22 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     }
 }
 
-std::string valid_xml_path(const std::string& path) {
-    OPENVINO_ASSERT(path.length() > 4, "Path for xml file is too short: \"" + path + "\"");
-
-    const char* const extension = ".xml";
-    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    OPENVINO_ASSERT(has_xml_extension,
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"" + path + "\"");
+const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
+    OPENVINO_ASSERT(path.extension() == ".xml",
+                    "Path for xml file doesn't contains file name with 'xml' extension: \"",
+                    path,
+                    "\"");
     return path;
 }
 
-std::string provide_bin_path(const std::string& xmlPath, const std::string& binPath) {
-    if (!binPath.empty()) {
-        return binPath;
+std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
+    if (bin_path.empty()) {
+        auto path = xml_path;
+        path.replace_extension(".bin");
+        return path;
+    } else {
+        return bin_path;
     }
-    assert(xmlPath.size() > 4);  // should be check by valid_xml_path
-    std::string bestPath = xmlPath;
-    const char* const extension = "bin";
-    const auto ext_size = std::strlen(extension);
-    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
-    return bestPath;
 }
 
 void serializeFunc(std::ostream& xml_file,
@@ -1327,27 +1325,14 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
-        const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
-        std::string message_bin = "Can't open bin file.";
-        std::string message_xml = "Can't open xml file.";
-#else
-        const auto& xmlPath_ref = m_xmlPath;
-        const auto& binPath_ref = m_binPath;
-        std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
-        std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
-#endif
-        auto xmlDir = ov::util::get_directory(xmlPath_ref);
-        if (xmlDir != xmlPath_ref)
-            ov::util::create_directory_recursive(xmlDir);
+        ov::util::create_directory_recursive(m_xmlPath);
 
-        std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, message_bin);
+        std::ofstream bin_file(m_binPath, std::ios::binary);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_binPath, "\"");
 
         // create xml file
-        std::ofstream xml_file(xmlPath_ref, std::ios::out);
-        OPENVINO_ASSERT(xml_file, message_xml);
+        std::ofstream xml_file(m_xmlPath);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xmlPath, "\"");
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);
@@ -1357,8 +1342,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // hence we need to delete it here in case of failure
             xml_file.close();
             bin_file.close();
-            std::ignore = std::remove(m_xmlPath.c_str());
-            std::ignore = std::remove(m_binPath.c_str());
+            std::ignore = std::filesystem::remove(m_xmlPath);
+            std::ignore = std::filesystem::remove(m_binPath);
             throw;
         }
     }
@@ -1374,7 +1359,7 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_binPath{},
       m_version{version} {}
 
-pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
+pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::filesystem::path& binPath, Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
