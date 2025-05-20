@@ -90,9 +90,14 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+    std::shared_ptr<Node> A = A_param;
+    if (precisions[0] != ov::element::u8) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
+    }
+
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
-    std::shared_ptr<Node> current = A_param;
+    std::shared_ptr<Node> current = A;
     float const_value = 0.1122f;
 
     auto mlp_layer = [&](size_t m, size_t n) {
@@ -148,6 +153,9 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
 std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     std::shared_ptr<Node> A = A_param;
+    if (precisions[0] != ov::element::u8) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
+    }
     auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
                              static_cast<unsigned long>(input_shapes[0][1].get_length())};
     auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
