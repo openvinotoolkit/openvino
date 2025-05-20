@@ -40,13 +40,13 @@ public:
         return m_hash;
     }
 
-    [[nodiscard]] dnnl_dim_t get_N() const {
+    [[nodiscard]] size_t get_N() const {
         return m_N;
     }
-    [[nodiscard]] dnnl_dim_t get_K() const {
+    [[nodiscard]] size_t get_K() const {
         return m_K;
     }
-    [[nodiscard]] dnnl_dim_t get_n() const {
+    [[nodiscard]] size_t get_n() const {
         return m_n_blk_size;
     }
 
