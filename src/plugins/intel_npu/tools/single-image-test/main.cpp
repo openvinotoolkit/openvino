@@ -719,19 +719,25 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
 }
 
 /**
- * @brief Parses input file specifications and matches them to model input names.
+ * @brief Parses and processes input files and matches them to model input names.
  *
- * This function takes a vector of model input information and a string representing
- * input file specifications (in key-value format), then matches each model input
- * to its corresponding file value. It ensures that all inputs are specified or none,
- * and detects duplicate specifications for the same input.
- * The final returned string is semicolon-delimited and ordered to match the inputInfo.
+ * This function processes input file specifications for multiple test cases. It supports both 
+ * the simple format (same file for all inputs) and the mapped format (specific files for specific inputs).
  *
- * @param inputInfo      A vector of OpenVINO output objects representing model inputs.
- * @param inputFiles     A string containing input file specifications, typically as key-value pairs.
- * @return               A semicolon-delimited string of input file values, ordered to match inputInfo.
+ * The input format supports:
+ * - Multiple test cases separated by semicolons (';')
+ * - Within each test case, input mappings separated by commas (',')
+ * - Optional batched inputs separated by pipe ('|') are ignored
+ * - Each mapping in the format "input_name:file_path1|file_path2"
  *
- * @throws               Throws an assertion if duplicate or incomplete input specifications are found.
+ * @param inputInfo     Vector of model input information objects
+ * @param inputFiles    String containing input file specifications
+ *
+ * @return A string with processed input files, maintaining the test case structure (semicolon-separated)
+ *         with each test case containing comma-separated input files.
+ *
+ * @throws OpenVINO::AssertionFailure If input specification is incomplete or contains duplicates within the
+ *         same test case.
  */
 std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputInfo, const std::string& inputFiles) {
     // Splits input files into test cases (delimited by ';')
