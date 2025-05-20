@@ -288,7 +288,8 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
 
         dequantizationOnWeights = NetworkHelper::getDequantization(parent, defaultPrecisions, 0, true);
     } else if (ov::is_type<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1))) {
-        const std::shared_ptr<ov::opset1::FakeQuantize> fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+        const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+        OPENVINO_ASSERT(fq != nullptr, "FakeQuantize on weights is nullptr");
         return NetworkHelper::isQuantizeSupported(fq);
     } else {
         // TODO: update NetworkHelper API later
