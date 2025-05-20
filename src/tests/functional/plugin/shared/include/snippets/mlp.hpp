@@ -15,11 +15,9 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    std::vector<ov::element::Type>,  // Input Element types
                    ov::element::Type,               // Inference precision
                    size_t,                          // Thread count
-                   size_t,                          // Expected num nodes
-                   size_t,                          // Expected num subgraphs
                    std::string,                     // Target Device
                    ov::AnyMap,                      // Config
-                   size_t,                          // Expected num hidden layers
+                   std::pair<size_t, size_t>,       // Expected num hidden layers
                    size_t                           // hidden matmul layers size
                    >
     MLPParams;
