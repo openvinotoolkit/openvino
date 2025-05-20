@@ -1072,21 +1072,23 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [&deterministic](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
-                    auto attribute_node = rt_node.append_child("attribute");
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
-                    const auto& type_info = rt_attribute.get_type_info();
-                    attribute_node.append_attribute("name").set_value(type_info.name);
-                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
-                    rt_info::RTInfoSerializer serializer(attribute_node);
-                    if (!rt_attribute.visit_attributes(serializer)) {
-                        rt_node.remove_child(attribute_node);
-                    } else {
-                        has_attrs = true;
+                    if (!deterministic || rt_attribute.is_deterministic()) {
+                        auto attribute_node = rt_node.append_child("attribute");
+                        const auto& type_info = rt_attribute.get_type_info();
+                        attribute_node.append_attribute("name").set_value(type_info.name);
+                        attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
+                        rt_info::RTInfoSerializer serializer(attribute_node);
+                        if (!rt_attribute.visit_attributes(serializer)) {
+                            rt_node.remove_child(attribute_node);
+                        } else {
+                            has_attrs = true;
+                        }
                     }
                 }
             }
