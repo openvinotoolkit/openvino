@@ -747,7 +747,6 @@ std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputI
 
     for (size_t testCaseIndex = 0; testCaseIndex < inputFileList.size(); ++testCaseIndex) {
         const auto& inputFile = inputFileList[testCaseIndex];
-        std::cout << "TEST CASE " << testCaseIndex << " --> " << inputFile << std::endl;
         std::map<std::string, std::string> newInputFileMap = parseArgMap(inputFile, ',');
         std::vector<std::string> processedInputFilesPerCase(inputInfo.size());
 
@@ -775,12 +774,6 @@ std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputI
             std::cout << "No input files specified. Using default input file -->" << inputFile << std::endl;
             processedInputFiles[testCaseIndex] = inputFile;
             continue;
-        }
-        // Log what is in processedInputFilesPerCase
-        std::cout << " ---------- " << std::endl;
-        std::cout << "Processed input file map for test case " << testCaseIndex << ": " << std::endl;
-        for (const auto& pair : processedInputFilesPerCase) {
-            std::cout << "  " << pair << std::endl;
         }
         // Concatenate processedInputFilesPerCase results with , delimiter, then store in processedInputFiles at index
         std::string result;
@@ -2220,20 +2213,10 @@ static int runSingleImageTest() {
             compiledModel = core.import_model(file, FLAGS_device);
         }
 
-        // Debug
-        std::cout << "[Debug] Compiled model:" << std::endl;
-        auto modelInputs = compiledModel.inputs();
-        std::cout << "[Debug] Model inputs:" << std::endl;
-        for (const auto& input : modelInputs) {
-            std::cout << " - " << input.get_any_name() << ": " << input.get_element_type() << " " << input.get_shape() << std::endl;
-        }
-
         auto inputInfo = compiledModel.inputs();
 
         // Parse input files string (matching of node names - if given)
         std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
-        std::cout << "--- Parsed input files: " << fileMatch << std::endl;
-
         inputFilesPerCase = splitStringList(fileMatch, ';');
         for (const auto& images : inputFilesPerCase) {
             std::vector<std::string> filesPerModel = splitStringList(images, ',');
