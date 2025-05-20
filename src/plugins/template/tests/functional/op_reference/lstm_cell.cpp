@@ -50,7 +50,6 @@ struct Builder : ParamsBuilder<LSTMCellParams> {
 class ReferenceLSTMCellTest : public testing::TestWithParam<LSTMCellParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.X.data, params.H_t.data, params.C_t.data, params.W.data, params.R.data, params.B.data};
@@ -110,7 +109,6 @@ private:
 class ReferenceLSTMCellTestBiasDefaultAttrs : public ReferenceLSTMCellTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
@@ -144,7 +142,6 @@ private:
 class ReferenceLSTMCellTestBiasClip : public ReferenceLSTMCellTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
@@ -243,7 +240,6 @@ private:
 class ReferenceLSTMCellV1TestBiasClip : public ReferenceLSTMCellTestBiasClip {
 public:
     void SetUp() override {
-        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
@@ -364,8 +360,8 @@ std::vector<LSTMCellParams> generateCombinedParams() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
@@ -432,7 +428,7 @@ std::vector<LSTMCellParams> generateParamsBiasDefaultAttrs() {
                                                        0.82509011030197144,
                                                        0.6479143500328064,
                                                        0.66586339473724365,
-                                                       0.74838578701019287}))
+                                                       0.82566708585649973}))
             .Co(reference_tests::Tensor(ET,
                                         {2, 3},
                                         std::vector<T>{1.6800162792205811,
@@ -455,8 +451,8 @@ std::vector<LSTMCellParams> generateCombinedParamsBiasDefaultAttrs() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
@@ -546,8 +542,8 @@ std::vector<LSTMCellParams> generateCombinedParamsBiasClip() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
@@ -630,8 +626,8 @@ std::vector<LSTMCellParams> generateCombinedParamsV1() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
@@ -698,7 +694,7 @@ std::vector<LSTMCellParams> generateParamsBiasDefaultAttrsV1() {
                                                        0.82509011030197144,
                                                        0.6479143500328064,
                                                        0.66586339473724365,
-                                                       0.74838578701019287}))
+                                                       0.82566708585649973}))
             .Co(reference_tests::Tensor(ET,
                                         {2, 3},
                                         std::vector<T>{1.6800162792205811,
@@ -721,8 +717,8 @@ std::vector<LSTMCellParams> generateCombinedParamsBiasDefaultAttrsV1() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
@@ -812,8 +808,8 @@ std::vector<LSTMCellParams> generateCombinedParamsBiasClipV1() {
     };
     std::vector<LSTMCellParams> combinedParams;
 
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     }
     return combinedParams;
 }
