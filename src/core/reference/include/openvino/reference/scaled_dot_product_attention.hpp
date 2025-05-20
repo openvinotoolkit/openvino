@@ -101,7 +101,12 @@ void scaled_dot_product_attention(const T* query,
                                ov::op::AutoBroadcastType::NUMPY);
 
     if (bias) {
-        ov::reference::add<T>(qk_data.data(), bias, qk_data.data(), qk_shape, bias_shape, ov::op::AutoBroadcastType::NUMPY);
+        ov::reference::add<T>(qk_data.data(),
+                              bias,
+                              qk_data.data(),
+                              qk_shape,
+                              bias_shape,
+                              ov::op::AutoBroadcastType::NUMPY);
     }
 
     std::vector<T> qk_data_softmax(qk_data.size(), 0);
