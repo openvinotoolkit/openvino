@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Supported types: opsetX.OpName or opsetX::OpName
@@ -1014,6 +1015,9 @@ inline void reg_predicates(py::module m) {
     m.def("type_matches", &ov::pass::pattern::type_matches);
     m.def("type_matches_any", &ov::pass::pattern::type_matches_any);
     m.def("shape_matches", &ov::pass::pattern::shape_matches);
+    m.def("attrs_match", [](py::object& attrs) {
+        return ov::pass::pattern::attrs_match(Common::utils::py_object_to_unordered_any_map(attrs));
+    });
 }
 
 void reg_passes_pattern_ops(py::module m) {

@@ -5,7 +5,6 @@
 #include "roll.h"
 
 #include <cmath>
-#include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
 
@@ -13,6 +12,8 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/roll.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -131,7 +132,7 @@ void Roll::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Roll::execute(const dnnl::stream& strm) {
+void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }

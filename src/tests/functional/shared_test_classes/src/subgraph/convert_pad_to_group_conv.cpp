@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace ov {
 namespace test {

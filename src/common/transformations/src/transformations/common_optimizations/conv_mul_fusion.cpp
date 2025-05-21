@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"

@@ -22,21 +22,8 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     endif()
 endif()
 
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
-
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
-endif()
-
-if(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

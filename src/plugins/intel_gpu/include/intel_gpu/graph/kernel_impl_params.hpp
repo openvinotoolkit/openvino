@@ -25,11 +25,12 @@ struct program;
 struct network;
 
 
-struct ExecutionFlags : public std::bitset<4> {
+struct ExecutionFlags : public std::bitset<5> {
     static const size_t SHAPE_CHANGED = 0;
     static const size_t IMPL_CHANGED = 1;
     static const size_t MEMORY_CHANGED = 2;
-    static const size_t SKIP = 3;
+    static const size_t ARG_UPDATE_REQUIRED = 3;
+    static const size_t SKIP = 4;
 };
 
 struct kernel_impl_params final {
@@ -122,7 +123,7 @@ struct kernel_impl_params final {
     const layout& get_output_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ",",
+                        "Requested index is ", idx, ", ",
                         "but the size of output layouts is ", output_layouts.size());
         return output_layouts[idx];
     }
@@ -130,7 +131,7 @@ struct kernel_impl_params final {
     layout& get_output_layout(size_t idx = 0) {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ",",
+                        "Requested index is ", idx, ", ",
                         "but the size of output layouts is ", output_layouts.size());
         return output_layouts[idx];
     }

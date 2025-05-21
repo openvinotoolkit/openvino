@@ -26,7 +26,9 @@ const auto combine = [](const std::vector<std::vector<ov::Shape>>& inputShapes,
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
                             testing::ValuesIn(opTypes),
-                            testing::Values(ov::test::utils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU),
+                            testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                            testing::Values(ov::test::utils::InputLayerType::CONSTANT));
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,

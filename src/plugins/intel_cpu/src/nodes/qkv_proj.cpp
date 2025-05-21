@@ -148,7 +148,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -252,7 +252,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);
@@ -326,8 +326,7 @@ void QKVProjection::createPrimitive() {
     }
 }
 
-void QKVProjection::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void QKVProjection::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
@@ -443,7 +442,8 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
 
-            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
                 errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }

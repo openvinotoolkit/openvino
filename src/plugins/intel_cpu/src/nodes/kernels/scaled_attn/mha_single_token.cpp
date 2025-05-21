@@ -208,7 +208,7 @@ attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scal
         svst1_f16(pg, _out + i, v_out);
         i += inc;
     }
-#    else
+#    elif defined(HAVE_NEON_FP16)
     auto attn_w_vec_fp16 = vdupq_n_f16(weight);
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto v_value = vld1q_f16(_v + i);
@@ -216,6 +216,9 @@ attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scal
         v_out = vfmaq_f16(v_out, attn_w_vec_fp16, v_value);
         vst1q_f16(_out + i, v_out);
     }
+#    else
+    (void)_v;
+    (void)_out;
 #    endif
     for (; i < S; i++) {
         out[i] += weight * v[i];
@@ -553,7 +556,8 @@ void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
 }
 
 template <typename TA, typename TB>
-static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
+static float
+dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, [[maybe_unused]] size_t group_size) {
     size_t i = 0;
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
@@ -821,7 +825,7 @@ static ov::float16 dot_product_fp16(ov::float16* a,
     float16_t sum_2 = svaddv_f16(pg, sum2);
     float16_t sum_3 = svaddv_f16(pg, sum3);
     sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     auto vsum0 = vdupq_n_f16(0.0f);
     auto vsum1 = vdupq_n_f16(0.0f);
     auto vsum2 = vdupq_n_f16(0.0f);
@@ -866,7 +870,11 @@ static ov::float16 dot_product_fp16(ov::float16* a,
     vsum0 = vaddq_f16(vsum0, vsum2);
 
     sum = hsum(vsum0);
+#    else
+    (void)_a;
+    (void)_b;
 #    endif
+
     for (; i < n; i++) {
         sum += a[i] * b[i];
     }
@@ -875,7 +883,12 @@ static ov::float16 dot_product_fp16(ov::float16* a,
 #endif
 
 template <typename TA>
-static float dot_product_by_channel(TA* a, uint8_t* b, size_t n, float* scale, float* zp, size_t group_size) {
+static float dot_product_by_channel(TA* a,
+                                    uint8_t* b,
+                                    size_t n,
+                                    float* scale,
+                                    float* zp,
+                                    [[maybe_unused]] size_t group_size) {
     float sum = 0.0f;
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -1348,7 +1361,7 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
         }
         svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), result_vec_fp16);
     }
-#    else
+#    elif defined(HAVE_NEON_FP16)
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto* src = temp + i;
         auto result_vec_fp16 = vdupq_n_f16(0.0f);

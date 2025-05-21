@@ -33,15 +33,18 @@ dnnl::memory::dims get_strides(dnnl::memory::dims dims);
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt);
 dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
+dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, bool flatten = false);
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
+                        dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef,
+                        bool flatten = false, bool use_strides = false);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
-int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
+int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc);
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
 size_t get_post_ops_count(const program_node& node);
 bool is_supported_post_ops(const program_node& node);

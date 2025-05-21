@@ -109,9 +109,9 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
 #endif
 
 template <class CT>
-inline static void rotate_kv_cache_block_opt(CT* cache_block_ptr,
-                                             float* block_rotation_coefficients_ptr,
-                                             size_t num_heads,
+inline static void rotate_kv_cache_block_opt([[maybe_unused]] CT* cache_block_ptr,
+                                             [[maybe_unused]] float* block_rotation_coefficients_ptr,
+                                             [[maybe_unused]] size_t num_heads,
                                              size_t block_size,
                                              size_t embedding_size) {
 #if !defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
@@ -225,10 +225,10 @@ inline static void rotate_kv_cache_block(CT* cache_block_ptr,
 }
 
 template <>
-inline void rotate_kv_cache_block(uint8_t* cache_block_ptr,
-                                  float* block_rotation_coefficients_ptr,
-                                  size_t num_heads,
-                                  size_t block_size,
-                                  size_t embedding_size) {
-    OPENVINO_THROW("cache rotation is not implemented for INT8");
+inline void rotate_kv_cache_block([[maybe_unused]] uint8_t* cache_block_ptr,
+                                  [[maybe_unused]] float* block_rotation_coefficients_ptr,
+                                  [[maybe_unused]] size_t num_heads,
+                                  [[maybe_unused]] size_t block_size,
+                                  [[maybe_unused]] size_t embedding_size) {
+    OPENVINO_THROW("cache rotation is not implemented for quantized u8/u4 key cache");
 }
