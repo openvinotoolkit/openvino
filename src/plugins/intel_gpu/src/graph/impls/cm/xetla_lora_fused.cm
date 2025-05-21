@@ -47,7 +47,7 @@ _GENX_MAIN_ void KERNEL_NAME(
     static constexpr mem_layout mem_layout_state_B = LORA_MEM_LAYOUT_STATE_B;
     static constexpr mem_layout mem_layout_c = LORA_MEM_LAYOUT_C;
 
-    using gemm_t = lora::lora_gemm_fused<LORA_DTYPE_A, LORA_DTYPE_B,
+    using gemm_t = lora_gemm_fused<LORA_DTYPE_A, LORA_DTYPE_B,
             LORA_DTYPE_C, LORA_DTYPE_ACC, LORA_WG_M, LORA_WG_N_A, LORA_WG_N_B,
             LORA_SG_M, LORA_SG_N_A, LORA_SG_N_B, LORA_SG_K_A, LORA_SG_K_B,
             LORA_WG_B_TOTAL, LORA_MEM_LAYOUT_A, LORA_MEM_LAYOUT_STATE_A,
@@ -64,4 +64,5 @@ _GENX_MAIN_ void KERNEL_NAME(
     gemm_t::run(item, LORA_SIZE_M, LORA_SIZE_K, LORA_SIZE_N, LORA_SIZE_RANK,
             lora_input, state_a, state_alpha, state_b, out,
             lora_temp LORA_POST_OP_ARGS_PASS);
+}
 }

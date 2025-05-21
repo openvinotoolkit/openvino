@@ -76,7 +76,6 @@ protected:
                 auto eltwise_layout = params.input_layouts[post_op_arg_index++];
                 auto eltwise_dtype = ov_to_xetla_dtype(eltwise_layout.data_type);
 
-                // const bool broadcast = eltwise->broadcast_spec.m_type != ov::op::AutoBroadcastType::NONE;
                 bool broadcast = false;
                 if (params.is_dynamic()) {
                     broadcast = !eltwise_layout.get_partial_shape()[0].is_dynamic();
@@ -226,10 +225,11 @@ protected:
         const uint32_t temp_in_reg = 1;
 
         uint32_t fused_wg_m = 64;
-        uint32_t fusedA_wg_n = 64;
         uint32_t fused_sg_m = 8;
+        
+        uint32_t fusedA_wg_n = 64;
         uint32_t fusedA_sg_n = 64;
-        uint32_t fusedA_sg_k = 16;
+        uint32_t fusedA_sg_k = 32;
         uint32_t fused_local_kslicing = 1;
 
         uint32_t fusedB_total_wg_n = 128;
@@ -260,7 +260,7 @@ protected:
                  make_jit_constant("LORA_MEM_LAYOUT_C", get_xetla_mem_layout(mem_layout_c)),
                  make_jit_constant("LORA_MEM_SPACE_TEMP", "mem_space::global"),
                  make_jit_constant("LORA_UNALIGNED", "false"),
-                 make_jit_constant("DLORA_TEMP_IN_REG", temp_in_reg),
+                 make_jit_constant("LORA_TEMP_IN_REG", temp_in_reg),
                  make_jit_constant("LORA_SIZE_M", LoraShapeUtils::get_total_tokens_jit(params)),
                  make_jit_constant("LORA_SIZE_K", LoraShapeUtils::get_hidden_size_input_jit(params)),
                  make_jit_constant("LORA_SIZE_N", LoraShapeUtils::get_hidden_size_output_jit(params))});
@@ -557,17 +557,18 @@ protected:
 class LoRAImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LoRAImpl)
-    // Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
-    Stage::Ptr lora_gemm_a = make_stage<XetlaLoRAGEMMAGenerator>(true);
+    Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
+    // Stage::Ptr lora_gemm_a = make_stage<XetlaLoRAGEMMAGenerator>(true);
     // Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false);
 
-    Stage::Ptr lora_gemm_b = make_stage<XetlaLoRAGEMMBGenerator>(true);
+    // Stage::Ptr lora_gemm_b = make_stage<XetlaLoRAGEMMBGenerator>(true);
     // Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false);
 
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {
-        add_stage(lora_gemm_a, params);
-        add_stage(lora_gemm_b, params);
+        add_stage(lora_fused, params);
+        // add_stage(lora_gemm_a, params);
+        // add_stage(lora_gemm_b, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {

@@ -326,9 +326,10 @@ public:
                 for (int j = 0; j < matA_t::tile_desc::tile_size_y
                                 / matA_in_t::tile_desc::block_size_y;
                         j++) {
-                    matA.reg.template xetla_select<block_size * copy_n_blocks,
+                                
+                    matA.reg.select<block_size * copy_n_blocks,
                             1>(j * block_size * copy_n_blocks)
-                            = matA_in.reg.template xetla_select<
+                            = matA_in.reg.select<
                                     block_size * copy_n_blocks, 1>(j
                                             * block_size
                                             * matA_in_t::tile_desc::tile_size_x
