@@ -21,6 +21,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
@@ -41,9 +42,10 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
         return false;
 
     auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
-    static const std::vector<std::vector<int64_t>> allowed_orders = {
+    static const std::vector<std::vector<size_t>> allowed_orders = {
         {0, 1, 2, 3},
         {0, 1, 3, 2},
+        {1, 2, 3, 0},
         {0, 2, 1, 3},
         {0, 3, 1, 2},
         {1, 2, 0, 3},
@@ -52,13 +54,20 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     };
 
     const auto expected_dims_num = 4;
-    const auto original_dims_num = transpose_order.size();
-    if (original_dims_num < expected_dims_num) {
-        transpose_order.resize(expected_dims_num);
-        std::iota(transpose_order.begin() + original_dims_num, transpose_order.end(), original_dims_num);
-    }
 
-    if (!cldnn::one_of(transpose_order, allowed_orders))
+    std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
+    if (expected_dims_num > order.size()) {
+        size_t orders_to_add = expected_dims_num - order.size();
+        for (size_t i = 0; i < orders_to_add; ++i)
+            order.insert(order.begin(), i);
+        for (size_t i = orders_to_add; i < order.size(); ++i)
+            order[i] = order[i] + orders_to_add;
+    }
+    auto target_permute_order = order;
+    for (size_t i = 0; i < order.size(); ++i) {
+        target_permute_order[order[i]] = i;
+    }
+    if (!cldnn::one_of(target_permute_order, allowed_orders))
         return false;
 
     return true;

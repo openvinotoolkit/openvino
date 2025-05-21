@@ -66,7 +66,7 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void StringTensorUnpack::execute(const dnnl::stream& strm) {
+void StringTensorUnpack::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
     ov::reference::string_tensor_unpack(getSrcDataAtPortAs<const std::string>(0),
                                         getDstDataAtPortAs<int32_t>(0),

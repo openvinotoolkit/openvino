@@ -12,7 +12,9 @@
 #include "dnnl_types.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/psroi_pooling.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/ngraph_utils.hpp"
@@ -284,37 +286,38 @@ void PSROIPooling::executeAverage(const inputType* srcData,
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
 
-    auto avgPsroi = [&](int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
-        float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-        float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+    auto avgPsroi =
+        [&]([[maybe_unused]] int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
+            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-        auto hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
-        auto hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
+            auto hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
+            auto hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
 
-        hStart = std::min<int>(std::max<int>(hStart, 0), height);
-        hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
-        auto wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
-        auto wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
+            hStart = std::min<int>(std::max<int>(hStart, 0), height);
+            hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
+            auto wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
+            auto wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
 
-        wStart = std::min<int>(std::max<int>(wStart, 0), width);
-        wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
+            wStart = std::min<int>(std::max<int>(wStart, 0), width);
+            wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
 
-        const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
+            const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
-        size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
-        dstData[dstIndex] = 0;
-        if (binArea) {
-            float outSum = 0.0f;
-            const int heightIndexBound = hEnd * hInputStride;
-            const int widthIndexBound = wEnd * wInputStride;
-            for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
-                for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
-                    outSum += srcData[binOffIn + hh + ww + inBlkRes];
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+            dstData[dstIndex] = 0;
+            if (binArea) {
+                float outSum = 0.0f;
+                const int heightIndexBound = hEnd * hInputStride;
+                const int widthIndexBound = wEnd * wInputStride;
+                for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
+                    for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
+                        outSum += srcData[binOffIn + hh + ww + inBlkRes];
+                    }
                 }
+                dstData[dstIndex] = outSum / binArea;
             }
-            dstData[dstIndex] = outSum / binArea;
-        }
-    };
+        };
     if (srcDesc.hasLayoutType(LayoutType::nspc)) {
         parallel_for2d(nh, nw, [&](int h, int w) {
             const int binOffsetOutput = n * nc * nh * nw;
@@ -614,7 +617,7 @@ struct PSROIPooling::PSROIPoolingExecute {
     }
 };
 
-void PSROIPooling::execute(const dnnl::stream& strm) {
+void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 

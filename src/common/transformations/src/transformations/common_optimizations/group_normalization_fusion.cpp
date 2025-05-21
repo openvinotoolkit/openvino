@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -72,8 +73,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         const auto& pre_mvn_reshape_out_ps = pattern_map.at(pre_mvn_reshape_m).get_partial_shape();
 
-        const size_t num_channels = static_cast<size_t>(input_ps[1].get_max_length());
-        const size_t num_groups = static_cast<size_t>(pre_mvn_reshape_out_ps[1].get_max_length());
+        const auto num_channels = input_ps[1].get_max_length();
+        const auto num_groups = pre_mvn_reshape_out_ps[1].get_max_length();
 
         // we expect to reshape input in a way that would merge all spatial dimensions
         // but leave batch and channel dimensions untouched
@@ -142,13 +143,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& group_norm_gamma = pattern_map.at(group_norm_gamma_m);
         if (group_norm_gamma.get_element_type() != T)
             return false;
-        if (ov::shape_size(group_norm_gamma.get_shape()) != num_channels)
+        if (ov::shape_size(group_norm_gamma.get_shape()) != static_cast<size_t>(num_channels))
             return false;
 
         const auto& group_norm_beta = pattern_map.at(group_norm_beta_m);
         if (group_norm_beta.get_element_type() != T)
             return false;
-        if (ov::shape_size(group_norm_beta.get_shape()) != num_channels)
+        if (ov::shape_size(group_norm_beta.get_shape()) != static_cast<size_t>(num_channels))
             return false;
 
         ov::NodeVector nodes;
@@ -157,7 +158,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         nodes.push_back(group_norm_gamma_1d_m);
         const auto& group_norm_gamma_1d_out_ps = group_norm_gamma_1d_m->get_output_partial_shape(0);
 
-        auto expected_param_shape = ov::PartialShape({static_cast<ov::Dimension>(num_channels)});
+        auto expected_param_shape = ov::PartialShape({num_channels});
         if (group_norm_gamma_1d_out_ps != expected_param_shape)
             return false;
 
@@ -171,16 +172,17 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         auto gather_axis_const_m = op::v0::Constant::create(element::i64, Shape{1}, {0});
         nodes.push_back(gather_axis_const_m);
         auto gather_indices_vals = std::vector<int64_t>();
-        for (auto i = 0ull; i < num_groups; i++)
+        for (auto i = 0; i < num_groups; i++)
             gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
-        auto gather_indices_const_m = op::v0::Constant::create(element::i64, Shape{num_channels}, gather_indices_vals);
+        auto gather_indices_const_m =
+            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
         nodes.push_back(gather_indices_const_m);
 
         if (pattern_map.count(instance_norm_beta_m) > 0) {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
             if (instance_norm_beta.get_element_type() != T)
                 return false;
-            if (ov::shape_size(instance_norm_beta.get_shape()) != num_groups)
+            if (ov::shape_size(instance_norm_beta.get_shape()) != static_cast<size_t>(num_groups))
                 return false;
 
             // ensure that instance_norm_beta will have shape compatible
@@ -219,7 +221,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             const auto& instance_norm_gamma = pattern_map.at(instance_norm_gamma_m);
             if (instance_norm_gamma.get_element_type() != T)
                 return false;
-            if (ov::shape_size(instance_norm_gamma.get_shape()) != num_groups)
+            if (ov::shape_size(instance_norm_gamma.get_shape()) != static_cast<size_t>(num_groups))
                 return false;
 
             // ensure that instance_norm_gamma will have shape compatible

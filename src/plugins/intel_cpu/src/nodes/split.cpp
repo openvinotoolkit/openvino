@@ -300,7 +300,7 @@ bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
 
-void Split::execute(const dnnl::stream& strm) {
+void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -334,7 +334,7 @@ void Split::initOptimalPrimitiveDescriptor() {
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
-    CPU_NODE_ASSERT(config.inConfs.size() > 0, "Incorrect number of input configurations");
+    CPU_NODE_ASSERT(!config.inConfs.empty(), "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;

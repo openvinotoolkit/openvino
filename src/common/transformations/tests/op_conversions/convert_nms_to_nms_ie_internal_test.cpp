@@ -12,10 +12,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
@@ -42,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertNMS3ToNMSIEInternal) {
                                                                true,
                                                                element::i32);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
         manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
@@ -64,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertNMS3ToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -84,7 +85,7 @@ TEST_F(TransformationTestsF, ConvertNMS4ToNMSIEInternal) {
                                                                true,
                                                                element::i32);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
         manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
@@ -106,7 +107,7 @@ TEST_F(TransformationTestsF, ConvertNMS4ToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -128,7 +129,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEInternal) {
                                                                true,
                                                                element::i32);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<pass::ConstantFolding>();
@@ -151,6 +152,6 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

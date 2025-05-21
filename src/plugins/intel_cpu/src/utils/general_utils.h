@@ -13,6 +13,15 @@
 namespace ov {
 namespace intel_cpu {
 
+#if defined(__clang__) || defined(__GNUC__)
+#    define OV_CPU_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#    define OV_CPU_FUNCTION_NAME __FUNCSIG__
+#else
+// Fallback
+#    define OV_CPU_FUNCTION_NAME __func__
+#endif
+
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
     assert(b);

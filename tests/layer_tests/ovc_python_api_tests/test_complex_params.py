@@ -6,9 +6,9 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import PartialShape, Type, Dimension
+from openvino import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
@@ -89,7 +89,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_legacy_frontend):
+                                                     temp_dir):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
 
         test_params = params['params_test']
@@ -140,8 +140,8 @@ class TestComplexParams(CommonMOConvertTest):
 
     @staticmethod
     def create_ref_graph_with_comma_in_names():
-        from openvino.runtime.opset12 import relu, concat
-        from openvino.runtime.op import Parameter
+        from openvino.opset12 import relu, concat
+        from openvino.op import Parameter
         import openvino as ov
 
         parameter1 = Parameter(ov.Type.f32, ov.Shape([1, 3, 2, 2]))
@@ -198,7 +198,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_ovc_convert_model_with_comma_in_names(self, ie_device, precision, ir_version,
-                                                  temp_dir, use_legacy_frontend):
+                                                  temp_dir):
         onnx_net_path = self.create_onnx_model_with_comma_in_names(temp_dir)
         ref_model = self.create_ref_graph_with_comma_in_names()
         test_params = {'input_model': onnx_net_path, 'output': 'relu_1,relu_2'}
@@ -208,7 +208,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_ovc_convert_model_with_several_output(self, ie_device, precision, ir_version,
-                                                  temp_dir, use_legacy_frontend):
+                                                  temp_dir):
         onnx_net_path = self.create_onnx_model_with_several_outputs(temp_dir)
         convert_model_params = {'input_model': onnx_net_path, 'output': ['Relu_1_data', 'concat']}
         cli_tool_params = {'input_model': onnx_net_path, 'output': 'Relu_1_data,concat'}
@@ -218,7 +218,7 @@ class TestComplexParams(CommonMOConvertTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_non_numpy_types(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_non_numpy_types(self, ie_device, precision, ir_version, temp_dir):
         import tensorflow as tf
         def func(a, b):
             return [a, b]

@@ -12,7 +12,15 @@
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
 
@@ -60,11 +68,10 @@ static std::shared_ptr<Model> create_conv(element::Type in_type, const PartialSh
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-template <int N>
-static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(int N, element::Type type, const PartialShape& shape) {
     ResultVector res;
     ParameterVector params;
-    for (size_t i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         auto index_str = std::to_string(i);
         auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
         data1->set_friendly_name("input" + index_str);
@@ -77,6 +84,21 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
         params.push_back(data1);
         res.push_back(res1);
     }
+    return std::make_shared<Model>(res, params);
+}
+
+static std::shared_ptr<Model> create_no_inputs(element::Type type) {
+    ResultVector res;
+    ParameterVector params;
+    auto index_str = std::to_string(0);
+    auto data1 = std::make_shared<op::v0::Constant>(type, Shape{}, 1);
+    data1->set_friendly_name("input" + index_str);
+    data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+    auto res1 = std::make_shared<op::v0::Result>(data1);
+    res1->set_friendly_name("Result" + index_str);
+    res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+    res.push_back(res1);
+
     return std::make_shared<Model>(res, params);
 }
 
@@ -108,6 +130,70 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
     p.input("tensor_input1").preprocess().mean(1).scale(2);
     f = p.build();
     EXPECT_EQ(f->get_output_element_type(0), element::f64);
+}
+
+TEST(pre_post_process, clamp_operation_on_input_preprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
+    }
+    auto p = PrePostProcessor(model);
+    p.input().preprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
+    }
+}
+
+TEST(pre_post_process, clamp_operation_on_input_preprocess_throw_no_input) {
+    auto model = create_no_inputs(element::f32);
+
+    {
+        auto input_node = model->get_ordered_ops().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Result");
+    }
+
+    auto p = PrePostProcessor(model);
+
+    EXPECT_ANY_THROW(p.input().preprocess().clamp(0.0, 1.0); model = p.build());
+}
+
+TEST(pre_post_process, clamp_operation_on_input_preprocess_throw_more_than_one_input) {
+    auto model = create_n_inputs(2, element::f32, Shape{1, 3, 2, 2});
+
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
+    }
+
+    auto p = PrePostProcessor(model);
+
+    EXPECT_ANY_THROW(p.input().preprocess().clamp(0.0, 1.0); model = p.build());
+}
+
+TEST(pre_post_process, clamp_operation_on_output_postprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    {
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
+    }
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
+    }
 }
 
 TEST(pre_post_process, convert_element_type_and_scale) {
@@ -198,7 +284,7 @@ TEST(pre_post_process, empty_preprocess) {
 }
 
 TEST(pre_post_process, preprocess_assert_input_without_index) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 2, 2});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
     EXPECT_ANY_THROW(p.input().preprocess().mean(0.f); f = p.build());
     EXPECT_ANY_THROW(p.input("some_non_existing_name").preprocess().mean(0.f); f = p.build());
@@ -612,7 +698,7 @@ TEST(pre_post_process, convert_color_incorrect_subnames) {
 }
 
 TEST(pre_post_process, convert_color_duplicate_subnames) {
-    auto f = create_n_inputs<2>(element::f32, PartialShape{1, 2, 2, 3});
+    auto f = create_n_inputs(2, element::f32, PartialShape{1, 2, 2, 3});
     f->get_parameters()[0]->get_output_tensor(0).set_names({"tensor_input1"});
     f->get_parameters()[1]->get_output_tensor(0).set_names({"tensor_input1/CustomUV"});
     auto p = PrePostProcessor(f);
@@ -670,7 +756,7 @@ TEST(pre_post_process, convert_layout_implicit_several_time) {
 }
 
 TEST(pre_post_process, tensor_set_layout) {
-    auto f = create_n_inputs<6>(element::f32, Shape{1, 3, 480, 640});
+    auto f = create_n_inputs(6, element::f32, Shape{1, 3, 480, 640});
     PrePostProcessor preprocessor(f);
     preprocessor.input(0).tensor().set_layout("NCHW");
     preprocessor.input(0).preprocess().mean({1.0, 2.0, 3.0});
@@ -709,7 +795,7 @@ TEST(pre_post_process, tensor_set_layout) {
 }
 
 TEST(pre_post_process, postprocess_set_model_layout) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 224, 224});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 224, 224});
     PrePostProcessor p(f);
     p.output(0).model().set_layout("NCHW");
     p.output(0).postprocess().convert_layout("NHWC");
@@ -790,7 +876,7 @@ TEST(pre_post_process, custom_preprocessing) {
 }
 
 TEST(pre_post_process, test_2_inputs_basic) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 1});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 1});
     auto p = PrePostProcessor(f);
     p.input(1).preprocess().mean(1.f).scale(2.0f);
     f = p.build();
@@ -1196,7 +1282,7 @@ TEST(pre_post_process, preprocess_convert_layout_invalid_dims_dyn_shape) {
 }
 
 TEST(pre_post_process, preprocess_convert_layout_partially_defined) {
-    auto f = create_n_inputs<8>(element::f32, Shape{1, 2, 3, 4, 5});
+    auto f = create_n_inputs(8, element::f32, Shape{1, 2, 3, 4, 5});
 
     auto p = PrePostProcessor(f);
     p.input(0).tensor().set_layout("nc???");
@@ -1235,7 +1321,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined) {
 }
 
 TEST(pre_post_process, preprocess_convert_layout_partially_defined_trivial) {
-    auto f = create_n_inputs<4>(element::f32, Shape{1, 2, 3, 4, 5});
+    auto f = create_n_inputs(4, element::f32, Shape{1, 2, 3, 4, 5});
     auto ops_num = f->get_ordered_ops().size();
 
     auto p = PrePostProcessor(f);
@@ -1261,7 +1347,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_trivial) {
 }
 
 TEST(pre_post_process, preprocess_convert_layout_squeeze) {
-    auto f = create_n_inputs<3>(element::f32, Shape{1, 3, 1, 480, 640});
+    auto f = create_n_inputs(3, element::f32, Shape{1, 3, 1, 480, 640});
     auto p = PrePostProcessor(f);
 
     p.input(0).tensor().set_layout("HWC");
@@ -1283,7 +1369,7 @@ TEST(pre_post_process, preprocess_convert_layout_squeeze) {
 }
 
 TEST(pre_post_process, preprocess_convert_layout_squeeze_dynamic) {
-    auto f = create_n_inputs<2>(element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
+    auto f = create_n_inputs(2, element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
     auto p = PrePostProcessor(f);
 
     p.input(0).tensor().set_layout("HWC");
@@ -1300,7 +1386,7 @@ TEST(pre_post_process, preprocess_convert_layout_squeeze_dynamic) {
 }
 
 TEST(pre_post_process, preprocess_convert_layout_squeeze_unsupported) {
-    auto f = create_n_inputs<1>(element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
+    auto f = create_n_inputs(1, element::f32, PartialShape{Dimension::dynamic(), 3, 1, 480, 640});
     EXPECT_THROW(
         {
             auto p = PrePostProcessor(f);
@@ -1490,7 +1576,7 @@ TEST(pre_post_process, preprocess_from) {
 }
 
 TEST(pre_post_process, preprocess_crop) {
-    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto model = create_n_inputs(1, element::f32, PartialShape::dynamic());
     auto p = PrePostProcessor(model);
 
     p.input().tensor().set_shape(Shape{1, 3, 200, 400});
@@ -1513,7 +1599,7 @@ TEST(pre_post_process, preprocess_crop) {
 }
 
 TEST(pre_post_process, preprocess_crop_wrong_dims) {
-    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto model = create_n_inputs(1, element::f32, PartialShape::dynamic());
     auto p = PrePostProcessor(model);
 
     p.input().tensor().set_shape(Shape{1, 3, 200, 400});
@@ -1533,7 +1619,7 @@ TEST(pre_post_process, preprocess_crop_wrong_dims) {
 }
 
 TEST(pre_post_process, preprocess_crop_wrong_dims_not_aligned) {
-    auto model = create_n_inputs<1>(element::f32, PartialShape{1, 3, 100, 200});
+    auto model = create_n_inputs(1, element::f32, PartialShape{1, 3, 100, 200});
     auto p = PrePostProcessor(model);
 
     p.input().tensor().set_shape(Shape{1, 3, 200});
@@ -1611,7 +1697,7 @@ TEST(pre_post_process, trivial_model_convert_element_type_explicit) {
 }
 
 TEST(pre_post_process, postprocess_convert_element_type_default) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 2, 2});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 2, 2});
     auto name = f->output(1).get_node_shared_ptr()->get_friendly_name();
     auto name_last_op = f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
     auto tensor_names = f->output(1).get_tensor().get_names();
@@ -1657,7 +1743,7 @@ TEST(pre_post_process, postprocess_convert_element_type_implicit) {
 }
 
 TEST(pre_post_process, preprocess_keep_params_order) {
-    auto f = create_n_inputs<3>(element::f32, Shape{1, 2, 2, 3});
+    auto f = create_n_inputs(3, element::f32, Shape{1, 2, 2, 3});
     auto p = PrePostProcessor(f);
 
     p.input(1).tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"Y", "UV"});
@@ -1726,7 +1812,7 @@ TEST(pre_post_process, postprocess_set_model_layout_when_already_exists) {
 }
 
 TEST(pre_post_process, postprocess_convert_layout_explicit_no_target) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 2, 2});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
 
     p.output(1).model().set_layout("NCHW");
@@ -2033,14 +2119,14 @@ TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
 }
 
 TEST(pre_post_process, postprocess_assert_output_without_index) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 2, 2});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
     EXPECT_ANY_THROW(p.output().tensor().set_element_type(element::f32); p.build());
     EXPECT_ANY_THROW(p.output("some_non_existing_name").tensor().set_element_type(element::f32); p.build());
 }
 
 TEST(pre_post_process, postprocess_keep_results_order) {
-    auto f = create_n_inputs<3>(element::f32, Shape{1, 3, 2, 2});
+    auto f = create_n_inputs(3, element::f32, Shape{1, 3, 2, 2});
     auto names0 = f->output(0).get_tensor().get_names();
     auto names1 = f->output(1).get_tensor().get_names();
     auto names2 = f->output(2).get_tensor().get_names();
@@ -2096,8 +2182,8 @@ TEST(pre_post_process, postprocess_many) {
 
 TEST(pre_post_process, postprocess_one_node_many_outputs) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {
@@ -2134,8 +2220,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
 
 TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_model) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     op->output(0).set_names({"tensor_Split0"});
     auto r1 = std::make_shared<op::v0::Result>(op->output(0));
@@ -2175,8 +2261,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_mode
 
 TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_or_added_by_model) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     for (size_t i = 0; i < op->get_output_size(); ++i) {
         op->output(i).set_names({"tensor_Split" + std::to_string(i)});
@@ -2214,8 +2300,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_or_adde
 
 TEST(pre_post_process, postprocess_nothing_applied) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 10, 20});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {1});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {1});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {
@@ -2244,7 +2330,7 @@ TEST(pre_post_process, postprocess_nothing_applied) {
 }
 
 TEST(pre_post_process, exception_safety) {
-    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 224, 224});
+    auto f = create_n_inputs(2, element::f32, Shape{1, 3, 224, 224});
     auto name0 = f->input(0).get_node_shared_ptr()->get_friendly_name();
     auto tensor_names0 = f->input(0).get_tensor().get_names();
     auto name1 = f->input(1).get_node_shared_ptr()->get_friendly_name();

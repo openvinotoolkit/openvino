@@ -161,7 +161,7 @@ private:
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
-        std::shared_ptr<ov::Model> model = nullptr;
+        std::shared_ptr<const ov::Model> model{};
         bool mmap_enabled = false;
     };
 
@@ -242,6 +242,8 @@ private:
         }
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
+
+    std::vector<ov::Extension::Ptr> get_extensions_copy() const;
 
 public:
     CoreImpl();

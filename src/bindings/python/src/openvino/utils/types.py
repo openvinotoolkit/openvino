@@ -161,7 +161,7 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
     return const
 
 
-def as_node(input_value: NodeInput, name: Optional[str] = None) -> Node:
+def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, Output]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
         return input_value

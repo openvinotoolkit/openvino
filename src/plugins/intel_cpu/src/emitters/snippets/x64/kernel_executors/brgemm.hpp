@@ -40,7 +40,7 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        [[nodiscard]] std::string to_string() const;
+        [[nodiscard]] std::string to_string() const override;
 #endif
     private:
         static size_t compute_hash(bool is_with_comp);

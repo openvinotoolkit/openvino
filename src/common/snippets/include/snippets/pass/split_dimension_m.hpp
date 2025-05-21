@@ -82,9 +82,14 @@ private:
 
     void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim);
 
+    static size_t get_dim_M(const ov::Shape& shape) {
+        return *(shape.rbegin() + dim_M_index);
+    }
+
     size_t m_concurrency;
 
     static const size_t min_kernel_m;
+    static const size_t dim_M_index;
 };
 } // namespace pass
 } // namespace snippets

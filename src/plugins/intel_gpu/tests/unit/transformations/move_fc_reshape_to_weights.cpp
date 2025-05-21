@@ -10,13 +10,17 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include <intel_gpu/op/fully_connected.hpp>
 #include <intel_gpu/op/placeholder.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -75,7 +79,7 @@ public:
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto fully_connected = std::make_shared<op::FullyConnected>(data, weights_path, no_bias);
-        return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(ov::OutputVector{fully_connected}, ov::ParameterVector{data});
     }
 
 protected:

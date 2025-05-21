@@ -4,14 +4,15 @@
 
 #include "matmul.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {
 
 Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                           [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& shapeA = input_shapes[0].get();
     const VectorDims& shapeB = input_shapes[1].get();
     const size_t rankA = shapeA.size();

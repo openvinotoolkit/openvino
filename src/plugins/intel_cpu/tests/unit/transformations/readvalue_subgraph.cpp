@@ -38,7 +38,7 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
 
     auto func_output = std::make_shared<ov::op::v0::Result>(matmul);
 
-    auto func = std::make_shared<ov::Model>(ov::NodeVector({func_output}),
+    auto func = std::make_shared<ov::Model>(ov::OutputVector({func_output}),
                                             ov::ParameterVector{func_input},
                                             "state_init_submodel");
 
@@ -141,7 +141,7 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
 
     auto func_output = std::make_shared<ov::op::v0::Result>(add5);
 
-    auto func = std::make_shared<ov::Model>(ov::NodeVector({func_output}), func_inputs, "state_init_submodel");
+    auto func = std::make_shared<ov::Model>(ov::OutputVector({func_output}), func_inputs, "state_init_submodel");
 
     auto readvalue = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(variable, func);
     for (size_t i = 0; i < inputs.size(); i++) {

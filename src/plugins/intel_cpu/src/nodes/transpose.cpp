@@ -183,7 +183,8 @@ void Transpose::prepareParams() {
     }
 
     auto engine = getEngine();
-    auto builder = [&srcDesc, &dstDesc, this](const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
+    auto builder =
+        [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
         auto selectedPD = getSelectedPrimitiveDescriptor();
         auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,

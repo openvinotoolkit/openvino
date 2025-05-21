@@ -31,7 +31,7 @@ void jit_emitter::emit_data() const {
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
@@ -211,13 +211,17 @@ std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vec
     gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
         const int i = static_cast<int>(j);
-        if (std::find(exclude_gpr_regs.cbegin(), exclude_gpr_regs.cend(), i) != exclude_gpr_regs.cend())
+        if (std::find(exclude_gpr_regs.cbegin(), exclude_gpr_regs.cend(), i) != exclude_gpr_regs.cend()) {
             continue;
-        if (std::find_if(std::begin(h->abi_save_gpr_regs), std::end(h->abi_save_gpr_regs),
-                        [i](const Reg& r) { return r.getIdx() == i; }) != std::end(h->abi_save_gpr_regs))
+        }
+        if (std::find_if(std::begin(h->abi_save_gpr_regs), std::end(h->abi_save_gpr_regs), [i](const Reg& r) {
+                return r.getIdx() == i;
+            }) != std::end(h->abi_save_gpr_regs)) {
             continue;
-        if (i == zero.getIdx() || i == sp.getIdx() || i == gp.getIdx() || i == tp.getIdx())
+        }
+        if (i == zero.getIdx() || i == sp.getIdx() || i == gp.getIdx() || i == tp.getIdx()) {
             continue;
+        }
         gprs.push_back(i);
     }
     return gprs;
@@ -227,11 +231,14 @@ std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::
     fp_gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
         const int i = static_cast<int>(j);
-        if (std::find(exclude_fp_gpr_regs.cbegin(), exclude_fp_gpr_regs.cend(), i) != exclude_fp_gpr_regs.cend())
+        if (std::find(exclude_fp_gpr_regs.cbegin(), exclude_fp_gpr_regs.cend(), i) != exclude_fp_gpr_regs.cend()) {
             continue;
-        if (std::find_if(std::begin(h->abi_save_fp_gpr_regs), std::end(h->abi_save_fp_gpr_regs),
-                        [i](const FReg& r) { return r.getIdx() == i; }) != std::end(h->abi_save_fp_gpr_regs))
+        }
+        if (std::find_if(std::begin(h->abi_save_fp_gpr_regs), std::end(h->abi_save_fp_gpr_regs), [i](const FReg& r) {
+                return r.getIdx() == i;
+            }) != std::end(h->abi_save_fp_gpr_regs)) {
             continue;
+        }
         fp_gprs.push_back(i);
     }
     return fp_gprs;
@@ -241,8 +248,9 @@ std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h, const std:
     vecs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
         const int i = static_cast<int>(j);
-        if (std::find(exclude_vec_regs.cbegin(), exclude_vec_regs.cend(), i) != exclude_vec_regs.cend())
+        if (std::find(exclude_vec_regs.cbegin(), exclude_vec_regs.cend(), i) != exclude_vec_regs.cend()) {
             continue;
+        }
         vecs.push_back(i);
     }
     return vecs;

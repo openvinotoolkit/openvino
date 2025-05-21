@@ -1,6 +1,6 @@
 # Hello Reshape SSD C++ Sample
 
-This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](https://docs.openvino.ai/2025/openvino-workflow/running-inference/changing-input-shape.html).
+This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-input-output/changing-input-shape.html).
 Models with only one input and output are supported.
 
 For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-reshape-ssd.html)

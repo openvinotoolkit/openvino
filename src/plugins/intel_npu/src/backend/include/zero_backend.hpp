@@ -14,7 +14,7 @@
 namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
-    ZeroEngineBackend(const Config& config);
+    ZeroEngineBackend();
     virtual ~ZeroEngineBackend();
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
@@ -25,7 +25,6 @@ public:
     uint32_t getDriverVersion() const override;
     uint32_t getGraphExtVersion() const override;
 
-    bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
 
