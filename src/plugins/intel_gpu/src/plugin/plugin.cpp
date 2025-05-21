@@ -591,6 +591,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_lora_operation.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
@@ -655,7 +656,9 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
     uint64_t occupied_device_mem = 0;
     auto statistic_result = get_metric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
-    auto occupied_usm_dev = statistic_result.find("usm_device_current");
+    std::ostringstream usm_device_oss;
+    usm_device_oss << cldnn::allocation_type::usm_device;
+    auto occupied_usm_dev = statistic_result.find(usm_device_oss.str());
     if (occupied_usm_dev != statistic_result.end()) {
         occupied_device_mem = occupied_usm_dev->second;
     }
