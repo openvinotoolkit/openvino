@@ -4,7 +4,6 @@
 
 #include "gemm.hpp"
 
-// #include "emitters/tpp/common/utils.hpp"
 #include "openvino/core/parallel.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
@@ -14,7 +13,7 @@
 namespace ov::intel_cpu::aarch64 {
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmKernelKaiConfig, GemmKaiCompiledKernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
 
 void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -27,14 +26,10 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     const auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
     config.update(M, N, K, LDA, LDB, LDC, beta);
-
-    // allocate
-    biasMem.resize(N * sizeof(float), 0);
 }
 
 void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    // std::cout << "GemmKaiKernelExecutor in1:" << reinterpret_cast<size_t>(in1) << std::endl;
     // matmul for input1 and slices of repacked input2
     const auto& config = static_cast<const GemmKernelKaiConfig&>(executor->get_config());
     const auto& M = config.get_M();
@@ -44,20 +39,19 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
     const auto& ldc = config.get_LDC();
     const size_t BLOCK_SIZE = 8;
     size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const size_t lhs_stride = lda * sizeof(float);  // if K not split, it's K * sizeof(float)
+    const size_t lhs_stride = lda * sizeof(float);  // K not split, it's also K * sizeof(float)
     const size_t dst_stride_row = ldc * sizeof(float);
     const size_t dst_stride_col = sizeof(float);
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * BLOCK_SIZE;
         size_t n_end = std::min(n_start + BLOCK_SIZE, static_cast<size_t>(N));
         size_t n_block_size = n_end - n_start;
-        const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(
-            n_start,
-            K);  // result is n_start*k. should be K, as packed mem as 8*K blocks. If k blocked, then lda.
-        const size_t dst_offset =
-            ukernel.get_dst_offset(0, n_start, dst_stride_row);  // m_idx is 0 as dst already point current block
+        // rhs_packed_offset is n_start*(k+1), as packed mem as 8*(K+1) blocks. If k blocked, then lda.
+        const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K);
+        // m_idx is 0 as dst already point current block.
+        const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
         // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and
-        // end emitters(adjust copyb loop info after repack outside block loops).
+        // end emitters(adjusted copyb loop info as repack outside block loops).
         float* rhs_ptr = static_cast<float*>(in1) + rhs_packed_offset / sizeof(float);
         float* dst_ptr = (static_cast<float*>(out0) + dst_offset / (sizeof(float)));
         ukernel.run_matmul(M,
