@@ -77,17 +77,14 @@ protected:
                 auto eltwise_dtype = ov_to_xetla_dtype(eltwise_layout.data_type);
 
                 bool broadcast = false;
-                if (params.is_dynamic()) {
-                    broadcast = !eltwise_layout.get_partial_shape()[0].is_dynamic() || !eltwise_layout.get_partial_shape()[1].is_dynamic();
-                } else {
+                bool is_M_dynamic = eltwise_layout.get_partial_shape()[0].is_dynamic() || eltwise_layout.get_partial_shape()[1].is_dynamic();
+                if (!is_M_dynamic) {
                     const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
                     broadcast = eltwise_M == 1;
                 }
+                assert(eltwise->broadcast_spec.m_axis == 0);
 
-                const bool broadcast_start_0 = eltwise->broadcast_spec.m_axis == 0;
-                assert(broadcast == broadcast_start_0);
-
-                if (broadcast && broadcast_start_0) {
+                if (broadcast) {
                     if (eltwise->mode == eltwise_mode::sum) {
                         xetla_postops.push_back(std::make_unique<ShiftChannels>(post_op_index++, eltwise_dtype));
                     } else if (eltwise->mode == eltwise_mode::prod) {

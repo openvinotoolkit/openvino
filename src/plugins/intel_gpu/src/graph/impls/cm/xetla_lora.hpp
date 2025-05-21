@@ -83,17 +83,7 @@ struct LoRAImplementationManager : public ImplementationManager {
                     return false;
                 }
 
-                const bool broadcast_start_0 = eltwise_desc->broadcast_spec.m_axis == 0;
-
-                bool broadcast = true;
-                if(eltwise_in_layout.is_dynamic()){
-                    broadcast = !eltwise_in_layout.get_partial_shape()[0].is_dynamic() || !eltwise_in_layout.get_partial_shape()[1].is_dynamic();
-                } else {
-                    const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_in_layout) * extract_channel(ChannelName::FEATURE, eltwise_in_layout);
-                    broadcast = eltwise_M == 1;
-                }
-
-                if (!(broadcast == broadcast_start_0)) {
+                if(eltwise_desc->broadcast_spec.m_axis != 0) {
                     return false;
                 }
 
