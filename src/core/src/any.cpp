@@ -293,39 +293,6 @@ void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
     Read<unsigned int>{}(is, std::get<2>(tuple));
 }
 
-void Read<std::map<std::string, double>>::operator()(std::istream& is, std::map<std::string, double>& map) const {
-    char c;
-
-    is >> c;
-    OPENVINO_ASSERT(c == '{', "Failed to parse ov::AnyMap. Starting symbols is not '{', it's ", c);
-
-    while (c != '}') {
-        std::string key, value;
-        std::getline(is, key, ':');
-        size_t enclosed_container_level = 0;
-
-        while (is.good()) {
-            is >> c;
-            if (c == ',') {                         // delimiter between map's pairs
-                if (enclosed_container_level == 0)  // we should interrupt after delimiter
-                    break;
-            }
-            if (c == '{' || c == '[')  // case of enclosed maps / arrays
-                ++enclosed_container_level;
-            if (c == '}' || c == ']') {
-                if (enclosed_container_level == 0)
-                    break;  // end of map
-                --enclosed_container_level;
-            }
-
-            value += c;  // accumulate current value
-        }
-        map.emplace(std::move(key), std::stod(std::move(value)));
-    }
-
-    OPENVINO_ASSERT(c == '}', "Failed to parse ov::AnyMap. Ending symbols is not '}', it's ", c);
-}
-
 void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
     char c;
 

@@ -127,11 +127,6 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
 };
 
 template <>
-struct OPENVINO_API Read<std::map<std::string, double>> {
-    void operator()(std::istream& is, std::map<std::string, double>& map) const;
-};
-
-template <>
 struct OPENVINO_API Read<AnyMap> {
     void operator()(std::istream& is, AnyMap& map) const;
 };
@@ -726,6 +721,28 @@ class OPENVINO_API Any {
         }
     }
 
+    template <class T,
+              typename std::enable_if<std::is_same<T, std::map<std::string, double>>::value, void>::type* = nullptr>
+    T& as_impl(int) {
+        impl_check();
+        if (is<T>()) {
+            return _impl->as<T>();
+        } else if (is<AnyMap>()) {
+            const auto& amap = _impl->as<AnyMap>();
+            auto temp_map = std::make_shared<Impl<T>>();
+            for (const auto& kv : amap) {
+                temp_map->value[kv.first] = kv.second.as<double>();
+            }
+            _temp = temp_map;
+            return _temp->as<T>();
+        } else if (_impl->is<std::string>()) {
+            _temp = std::make_shared<Impl<decay_t<T>>>();
+            _impl->read_to(*_temp);
+            return _temp->as<T>();
+        }
+        OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+    }
+
     template <
         class T,
         typename std::enable_if<std::is_convertible<T, std::shared_ptr<RuntimeAttribute>>::value>::type* = nullptr>
@@ -769,8 +786,8 @@ class OPENVINO_API Any {
     template <class T,
               typename std::enable_if<
                   (util::Istreamable<T>::value || util::Readable<T>::value) && !std::is_same<T, std::string>::value &&
-                  (!std::is_arithmetic<T>::value || std::is_same<typename std::decay<T>::type, bool>::value)>::type* =
-                  nullptr>
+                  (!std::is_arithmetic<T>::value || std::is_same<typename std::decay<T>::type, bool>::value) &&
+                  !std::is_same<T, std::map<std::string, double>>::value>::type* = nullptr>
     T& as_impl(int) {
         impl_check();
 
