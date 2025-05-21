@@ -126,6 +126,12 @@ static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Ty
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
     case ov::element::Type_t::nf4:
         return ZE_GRAPH_ARGUMENT_PRECISION_NF4;
+    case ov::element::Type_t::f8e4m3:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3;
+    case ov::element::Type_t::f8e5m2:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2;
+    case ov::element::Type_t::f8e8m0:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP8_E8M0;
     case ov::element::Type_t::bf16:
         return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
     case ov::element::Type_t::f16:

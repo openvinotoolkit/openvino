@@ -19,22 +19,23 @@ namespace ov::Extensions::Cpu {
 
 struct PagedAttentionExecutor {
     // PagedAttention input index
-    static const size_t ID_Q = 0;                       // [B_token, H * S], float
-    static const size_t ID_K = 1;                       // [B_token, Hk * S], float
-    static const size_t ID_V = 2;                       // [B_token, Hk * S], float
-    static const size_t ID_KCACHE = 3;                  // [block_number, H, block_size, S], float
-    static const size_t ID_VCACHE = 4;                  // [block_number, H, block_size, S], float
-    static const size_t ID_PAST_LENS = 5;               // [B_seq]
-    static const size_t ID_SUBSEQUENCE_BEGINS = 6;      // [B_seq+1]
-    static const size_t ID_BLOCK_INDICES = 7;           // [num_blocks]
-    static const size_t ID_BLOCK_INDICES_BEGINS = 8;    // [B_seq+1]
-    static const size_t ID_SCALE = 9;                   // [], float
-    static const size_t ID_SLIDING_WINDOW = 10;         // []
-    static const size_t ID_ALIBI_SLOPES = 11;           // [H|0], float
-    static const size_t ID_MAX_CONTEXT_LEN = 12;        // []
-    static const size_t ID_ROTATED_BLOCK_INDICES = 13;  // [num_rotated_blocks || 0], int32
-    static const size_t ID_ROTATION_DELTAS = 14;        // [num_rotated_blocks * block_size || 0], int32
-    static const size_t ID_ROTATION_TRIG_LUT = 15;      // [max_context_length * S || 0], f32
+    static const size_t ID_Q = 0;                          // [B_token, H * S], float
+    static const size_t ID_K = 1;                          // [B_token, Hk * S], float
+    static const size_t ID_V = 2;                          // [B_token, Hk * S], float
+    static const size_t ID_KCACHE = 3;                     // [block_number, H, block_size, S], float
+    static const size_t ID_VCACHE = 4;                     // [block_number, H, block_size, S], float
+    static const size_t ID_PAST_LENS = 5;                  // [B_seq]
+    static const size_t ID_SUBSEQUENCE_BEGINS = 6;         // [B_seq+1]
+    static const size_t ID_BLOCK_INDICES = 7;              // [num_blocks]
+    static const size_t ID_BLOCK_INDICES_BEGINS = 8;       // [B_seq+1]
+    static const size_t ID_SCALE = 9;                      // [], float
+    static const size_t ID_SLIDING_WINDOW = 10;            // []
+    static const size_t ID_ALIBI_SLOPES = 11;              // [H|0], float
+    static const size_t ID_MAX_CONTEXT_LEN = 12;           // []
+    static const size_t ID_SCORE_AGGREGATION_WINDOW = 13;  // [B_seq || 0], i32
+    static const size_t ID_ROTATED_BLOCK_INDICES = 14;     // [num_rotated_blocks || 0], int32
+    static const size_t ID_ROTATION_DELTAS = 15;           // [num_rotated_blocks * block_size || 0], int32
+    static const size_t ID_ROTATION_TRIG_LUT = 16;         // [max_context_length * S || 0], f32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
                          const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;

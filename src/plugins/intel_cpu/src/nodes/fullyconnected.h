@@ -72,7 +72,7 @@ public:
                                                size_t IC,
                                                size_t OC,
                                                size_t G,
-                                               ov::element::Type inferencePrecision) noexcept;
+                                               const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
@@ -120,7 +120,6 @@ private:
     void needSplitMemoryForTensorParallel();
 
     FCAttrs attrs;
-    PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;

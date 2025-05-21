@@ -8,6 +8,9 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {
@@ -92,7 +95,7 @@ protected:
         auto k_proj = std::make_shared<ov::op::v0::MatMul>(src, k_proj_weight, false, true);
         auto v_proj = std::make_shared<ov::op::v0::MatMul>(src, v_proj_weight, false, true);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{q_proj, k_proj, v_proj}, ov::ParameterVector{src});
+        function = std::make_shared<ov::Model>(ov::OutputVector{q_proj, k_proj, v_proj}, ov::ParameterVector{src});
     }
     void check_results() {
         auto exec_model = compiledModel.get_runtime_model();

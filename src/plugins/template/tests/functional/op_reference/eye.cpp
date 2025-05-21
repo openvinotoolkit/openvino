@@ -100,7 +100,7 @@ private:
             std::make_shared<op::v0::Parameter>(diagonal_index.type,
                                                 set_dynamic_shape ? PartialShape::dynamic() : diagonal_index.shape);
         const auto Eye = std::make_shared<op::v9::Eye>(in1, in2, in3, output_type);
-        return std::make_shared<Model>(NodeVector{Eye}, ParameterVector{in1, in2, in3});
+        return std::make_shared<Model>(OutputVector{Eye}, ParameterVector{in1, in2, in3});
     }
 };
 
@@ -145,7 +145,7 @@ private:
             std::make_shared<op::v0::Parameter>(batch_shape.type,
                                                 set_dynamic_shape ? PartialShape::dynamic() : batch_shape.shape);
         const auto Eye = std::make_shared<op::v9::Eye>(in1, in2, in3, in4, output_type);
-        return std::make_shared<Model>(NodeVector{Eye}, ParameterVector{in1, in2, in3, in4});
+        return std::make_shared<Model>(OutputVector{Eye}, ParameterVector{in1, in2, in3, in4});
     }
 };
 

@@ -16,7 +16,6 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -45,14 +44,14 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicShape) {
             std::make_shared<ov::op::v1::ReduceMax>(concat,
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
-        model = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto maximum = std::make_shared<ov::op::v1::Maximum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(NodeVector{maximum}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -77,7 +76,7 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionKeepDimsDynamicShape) {
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}),
                                                     true);
 
-        model = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
@@ -91,7 +90,7 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionKeepDimsDynamicShape) {
             std::make_shared<ov::op::v0::Unsqueeze>(right_input,
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
         auto maximum = std::make_shared<ov::op::v1::Maximum>(left_unsqueeze, right_unsqueeze);
-        model_ref = std::make_shared<Model>(NodeVector{maximum}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -115,14 +114,14 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicRank) {
             std::make_shared<ov::op::v1::ReduceMax>(concat,
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
-        model = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto maximum = std::make_shared<ov::op::v1::Maximum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(NodeVector{maximum}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -146,14 +145,14 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicShape) {
             std::make_shared<ov::op::v1::ReduceMin>(concat,
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
-        model = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto maximum = std::make_shared<ov::op::v1::Minimum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(NodeVector{maximum}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -177,14 +176,14 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicRank) {
             std::make_shared<ov::op::v1::ReduceMin>(concat,
                                                     ov::op::v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
 
-        model = std::make_shared<Model>(NodeVector{reduce_max}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
         auto left_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
         auto maximum = std::make_shared<ov::op::v1::Minimum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(NodeVector{maximum}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -206,7 +205,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseStaticShape) {
         auto squeeze =
             std::make_shared<ov::op::v0::Squeeze>(add, ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
 
-        model = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{squeeze}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::PullSqueezeThroughEltwise>();
     }
     {
@@ -229,7 +228,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseStaticShape) {
 
         auto add = std::make_shared<ov::op::v1::Add>(left_squeeze, right_squeeze);
 
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -251,7 +250,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationStaticSh
         auto squeeze =
             std::make_shared<ov::op::v0::Squeeze>(add, ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
 
-        model = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{squeeze}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
@@ -260,7 +259,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationStaticSh
 
         auto add = std::make_shared<ov::op::v1::Add>(left_input, right_input);
 
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -282,7 +281,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicS
         auto squeeze =
             std::make_shared<ov::op::v0::Squeeze>(add, ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
 
-        model = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{squeeze}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
@@ -291,7 +290,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicS
 
         auto add = std::make_shared<ov::op::v1::Add>(left_input, right_input);
 
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -313,7 +312,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
         auto squeeze =
             std::make_shared<ov::op::v0::Squeeze>(add, ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
 
-        model = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
+        model = std::make_shared<Model>(OutputVector{squeeze}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
     {
@@ -322,6 +321,6 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
 
         auto add = std::make_shared<ov::op::v1::Add>(left_input, right_input);
 
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{left_input, right_input});
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }

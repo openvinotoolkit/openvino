@@ -9,7 +9,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestPooling(CommonTFLayerTest):
     def create_pooling_net(self, kernel_size, strides, pads, in_shape, out_shape, method,
-                           ir_version, use_legacy_frontend):
+                           ir_version):
         """
             Tensorflow net                 IR net
 
@@ -146,11 +146,9 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_pooling_net(**params, ir_version=ir_version,
-                                            use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_5D = []
     for method in ['max', 'avg']:
@@ -229,10 +227,8 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
-        self._test(*self.create_pooling_net(**params, ir_version=ir_version,
-                                            use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

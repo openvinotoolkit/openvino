@@ -23,12 +23,9 @@ public:
 
     using RequiresFallbackPredicate =
         std::function<std::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
-    using AcceptsShapePredicate =
-        std::function<bool(const Attrs& attrs, const PostOps& postOps, const MemoryArgs& memory)>;
-    using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
-                                                     const PostOps& postOps,
-                                                     const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr& context)>;
+    using AcceptsShapePredicate = std::function<bool(const Attrs& attrs, const MemoryArgs& memory)>;
+    using CreateFunction =
+        std::function<ExecutorPtr(const Attrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)>;
 
     ExecutorImplementation(const char* name,
                            const ExecutorType type,
@@ -82,22 +79,19 @@ public:
         return {};
     }
 
-    [[nodiscard]] bool acceptsShapes(const Attrs& attrs, const PostOps& postOps, const MemoryArgs& memory) const {
+    [[nodiscard]] bool acceptsShapes(const Attrs& attrs, const MemoryArgs& memory) const {
         if (m_acceptsShape) {
-            return m_acceptsShape(attrs, postOps, memory);
+            return m_acceptsShape(attrs, memory);
         }
 
         return false;
     }
 
-    ExecutorPtr create(const Attrs& attrs,
-                       const PostOps& postOps,
-                       const MemoryArgs& memory,
-                       const ExecutorContext::CPtr context) const {
+    ExecutorPtr create(const Attrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) const {
         DEBUG_LOG("Creating executor using implementation: ", m_name);
 
         if (m_create) {
-            return m_create(attrs, postOps, memory, context);
+            return m_create(attrs, memory, context);
         }
         return nullptr;
     }

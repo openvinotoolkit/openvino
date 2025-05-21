@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/split.hpp"
 
 namespace {
 using ov::test::InputShape;

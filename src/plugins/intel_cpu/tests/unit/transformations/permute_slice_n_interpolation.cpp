@@ -42,7 +42,7 @@ TEST_F(PermuteSliceInterpolateTest, 3D) {
                                                                      interpolate_axes,
                                                                      intp_attr);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{interpolate}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{interpolate}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::PermuteSliceAndInterpolation>();
     }
     {
@@ -72,7 +72,7 @@ TEST_F(PermuteSliceInterpolateTest, 3D) {
                                                          slice_step,
                                                          slice_axes);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{slice}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{input});
     }
 }
 
@@ -105,7 +105,7 @@ TEST_F(PermuteSliceInterpolateTest, 4D) {
                                                                      interpolate_axes,
                                                                      intp_attr);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{interpolate}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{interpolate}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::PermuteSliceAndInterpolation>();
     }
     {
@@ -135,7 +135,7 @@ TEST_F(PermuteSliceInterpolateTest, 4D) {
                                                          slice_step,
                                                          slice_axes);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{slice}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{input});
     }
 }
 
@@ -171,7 +171,7 @@ TEST_F(PermuteSliceInterpolateTest, 5D_Add) {
         auto add_val = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1});
         auto add = std::make_shared<ov::op::v1::Add>(interpolate, add_val);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::PermuteSliceAndInterpolation>();
     }
     {
@@ -204,6 +204,6 @@ TEST_F(PermuteSliceInterpolateTest, 5D_Add) {
         auto add_val = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1});
         auto add = std::make_shared<ov::op::v1::Add>(slice, add_val);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
     }
 }
