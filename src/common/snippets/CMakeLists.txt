@@ -25,6 +25,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
+    PCH "src/precomp.hpp"
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
