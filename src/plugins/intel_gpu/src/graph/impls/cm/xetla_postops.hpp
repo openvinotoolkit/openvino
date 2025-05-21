@@ -145,7 +145,7 @@ public:
         case ActivationOp::Sigmoid:
             return "sigmoid_op_t";
         case ActivationOp::SiLU:
-            return "silu_op_t";
+            return "silu_precise_op_t";
         case ActivationOp::GeLU:
             return "gelu_fwd_op_t";
         default:

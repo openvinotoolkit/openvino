@@ -307,6 +307,37 @@ struct silu_op_t {
     }
 };
 
+/// @brief Is the element-wise silu op functor.
+/// Get the silu input from matAcc, update the the silu output in place,
+/// Used in epilogue::tile_op or chained_tile_op.
+struct silu_precise_op_t {
+    struct arguments_t {};
+    template <typename matAcc_t, typename coord_t>
+    __XETLA_API KERNEL_FUNC void operator()(matAcc_t &matAcc,
+            const coord_t &coord, const arguments_t &args,
+            uint32_t slm_base = 0, uint32_t nbarrier_base = 0) {
+        constexpr int elems = matAcc_t::tile_desc::block_elems;
+        constexpr int rounds = matAcc_t::tile_desc::tile_elems / elems;
+#pragma unroll
+        for (int i = 0; i < rounds; ++i) {
+            auto sub_vec = matAcc.reg.xetla_select<elems, 1>(elems * i);
+            xetla_vector<typename matAcc_t::dtype, elems> sigmoid_value
+                    = xetla_sigmoid_precise<typename matAcc_t::dtype, elems>(sub_vec);
+            sub_vec = sub_vec * sigmoid_value;
+        }
+        constexpr int remaining_elems = matAcc_t::tile_desc::tile_elems % elems;
+        if constexpr (remaining_elems != 0) {
+            auto sub_vec = matAcc.reg.xetla_select<remaining_elems, 1>(
+                    elems * (matAcc_t::tile_elems / elems));
+            xetla_vector<typename matAcc_t::dtype, remaining_elems>
+                    sigmoid_value
+                    = xetla_sigmoid_precise<typename matAcc_t::dtype, remaining_elems>(
+                            sub_vec);
+            sub_vec = sub_vec * sigmoid_value;
+        }
+    }
+};
+
 /// @brief Is the element-wise gelu inference forward op functor.
 /// Get the gelu input from matAcc, update the the gelu output in place,
 /// Used in epilogue::tile_op or chained_tile_op.

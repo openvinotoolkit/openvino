@@ -78,7 +78,7 @@ protected:
 
                 bool broadcast = false;
                 if (params.is_dynamic()) {
-                    broadcast = !eltwise_layout.get_partial_shape()[0].is_dynamic();
+                    broadcast = !eltwise_layout.get_partial_shape()[0].is_dynamic() || !eltwise_layout.get_partial_shape()[1].is_dynamic();
                 } else {
                     const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
                     broadcast = eltwise_M == 1;
@@ -224,15 +224,15 @@ protected:
 
         const uint32_t temp_in_reg = 1;
 
-        uint32_t fused_wg_m = 64;
+        uint32_t fused_wg_m = 8;
         uint32_t fused_sg_m = 8;
-        
+
         uint32_t fusedA_wg_n = 64;
         uint32_t fusedA_sg_n = 64;
         uint32_t fusedA_sg_k = 32;
         uint32_t fused_local_kslicing = 1;
 
-        uint32_t fusedB_total_wg_n = 128;
+        uint32_t fusedB_total_wg_n = 256;
         uint32_t fusedB_wg_n = 128;
         uint32_t fusedB_sg_n = 32;
         uint32_t fusedB_sg_k = 32;
@@ -323,14 +323,15 @@ protected:
 
             const Tiling tiling{params};
 
-            uint32_t fused_wg_m = 64;
-            uint32_t fusedA_wg_n = 64;
+            uint32_t fused_wg_m = 8;
             uint32_t fused_sg_m = 8;
+
+            uint32_t fusedA_wg_n = 64;
             uint32_t fusedA_sg_n = 64;
-            uint32_t fusedA_sg_k = 16;
+            uint32_t fusedA_sg_k = 32;
             uint32_t fused_local_kslicing = 1;
 
-            uint32_t fusedB_total_wg_n = 128;
+            uint32_t fusedB_total_wg_n = 256;
             uint32_t fusedB_wg_n = 128;
             uint32_t fusedB_sg_n = 32;
             uint32_t fusedB_sg_k = 32;

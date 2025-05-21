@@ -45,7 +45,7 @@ struct LoRAImplementationManager : public ImplementationManager {
 
         static constexpr std::array supported_fmts = {format::bfyx};
 
-        static constexpr std::array supported_types = {ov::element::f16};
+        static constexpr std::array supported_types = {ov::element::f16, ov::element::bf16};
 
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             std::cout << "LoRA validate_impl failed in0_layout.format or out_layout.format" << std::endl;
@@ -77,6 +77,7 @@ struct LoRAImplementationManager : public ImplementationManager {
 
             } else if (is_eltwise) {
                 const auto eltwise_desc = std::static_pointer_cast<const eltwise>(prim.desc);
+                const auto& eltwise_in_layout = prim.input_layout;
                 const auto xetla_eltwise_mode = get_xetla_eltwise_op(eltwise_desc->mode);
                 if (Eltwise::EltwiseOp::none == xetla_eltwise_mode) {
                     return false;
@@ -85,12 +86,12 @@ struct LoRAImplementationManager : public ImplementationManager {
                 const bool broadcast_start_0 = eltwise_desc->broadcast_spec.m_axis == 0;
 
                 bool broadcast = true;
-                // if(node.is_dynamic()){
-                //     broadcast = !eltwise_desc->.get_partial_shape()[0].is_dynamic();
-                // } else {
-                //     const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
-                //     broadcast = eltwise_M == 1;
-                // }
+                if(eltwise_in_layout.is_dynamic()){
+                    broadcast = !eltwise_in_layout.get_partial_shape()[0].is_dynamic() || !eltwise_in_layout.get_partial_shape()[1].is_dynamic();
+                } else {
+                    const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_in_layout) * extract_channel(ChannelName::FEATURE, eltwise_in_layout);
+                    broadcast = eltwise_M == 1;
+                }
 
                 if (!(broadcast == broadcast_start_0)) {
                     return false;
