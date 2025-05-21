@@ -7,7 +7,6 @@
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
-#include <openvino/pass/serialize.hpp>
 #include <transformations/common_optimizations/sdpa_fusion.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -367,7 +366,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
 
         model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
-        manager.register_pass<ov::pass::Serialize>(std::string("sdpa_fusion_test_9.xml"), "sdpa_fusion_test_9.bin");
     }
 
     {
@@ -424,7 +422,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
 
         model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
-        manager.register_pass<ov::pass::Serialize>(std::string("sdpa_fusion_test_10.xml"), "sdpa_fusion_test_10.bin");
     }
 
     {
@@ -492,7 +489,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
 
         model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
-        manager.register_pass<ov::pass::Serialize>(std::string("sdpa_fusion_test_11.xml"), "sdpa_fusion_test_11.bin");
     }
 
     {
@@ -570,7 +566,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
 
         model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
-        manager.register_pass<ov::pass::Serialize>(std::string("sdpa_fusion_test_12.xml"), "sdpa_fusion_test_12.bin");
     }
 
     {
