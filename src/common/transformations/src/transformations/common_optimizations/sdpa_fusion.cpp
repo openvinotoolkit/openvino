@@ -310,7 +310,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
                 return false;
             }
 
-            int diff = 4 - pshape.size();
+            int diff = 4 - static_cast<int>(pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
