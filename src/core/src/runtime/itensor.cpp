@@ -189,4 +189,8 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     }
 }
 
+void* ITensor::data(const element::Type& type) {
+    return const_cast<void*>(static_cast<const ITensor*>(this)->data(type));
+}
+
 }  // namespace ov

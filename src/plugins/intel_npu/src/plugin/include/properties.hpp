@@ -61,6 +61,10 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
+    // internal registration functions basd on client object
+    void registerPluginProperties();
+    void registerCompiledModelProperties();
+
     const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
                                                               ov::intel_npu::compilation_mode_params.name(),
                                                               ov::intel_npu::compiler_dynamic_quantization.name(),

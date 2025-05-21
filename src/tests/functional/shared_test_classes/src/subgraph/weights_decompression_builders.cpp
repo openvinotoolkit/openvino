@@ -3,10 +3,14 @@
 //
 
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
-
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {

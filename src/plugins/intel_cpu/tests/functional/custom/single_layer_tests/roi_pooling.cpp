@@ -10,6 +10,7 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/bfloat16.hpp"
+#include "openvino/op/roi_pooling.hpp"
 
 using namespace CPUTestUtils;
 

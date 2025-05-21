@@ -342,7 +342,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
-        weight_score.resize<float>({m_threads_num, H, m_block_size, kv_len});
+
+        weight_score.resize<float>({m_threads_num, 1, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size_v});
         } else {
@@ -387,7 +388,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
-            auto* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
+            auto* c_ptr = weight_score.ptr<float>(ithr, 0, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
@@ -423,7 +424,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                auto score = weight_score.ptr<float>(ithr, h, m - m_start);
+                auto score = weight_score.ptr<float>(ithr, 0, m - m_start);
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
@@ -437,7 +438,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value,
                              precision_of<T>::value);
             }
-            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, h, 0, 0));
+            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr;
             if (is_xf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0})
@@ -1777,9 +1778,15 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     // beam order is like [0, 1, 2,...]
     bool no_reorder = true;
     for (size_t i = 0; i < B; i++) {
-        if (beam_idx.ptr<int32_t>()[i] != static_cast<int32_t>(i)) {
+        const auto index = beam_idx.ptr<int32_t>()[i];
+        CPU_NODE_ASSERT(index >= 0 && index < static_cast<int32_t>(B),
+                        "beam_idx ",
+                        index,
+                        " is outside of the allowed interval [0,  ",
+                        B,
+                        ")");
+        if (index != static_cast<int32_t>(i)) {
             no_reorder = false;
-            break;
         }
     }
     if (!no_reorder && m_key_quant_param.isByChannel) {

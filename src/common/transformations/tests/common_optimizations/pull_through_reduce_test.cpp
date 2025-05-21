@@ -11,7 +11,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -33,7 +39,7 @@ std::shared_ptr<Model> generate_unsqueeze_model(element::Type in_type,
     const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
     const auto reduce_mean = std::make_shared<ReduceType>(unsqueeze, reduce_axes_const, keep_dims);
 
-    return std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input});
 }
 
 template <typename ReduceType>
@@ -48,7 +54,7 @@ std::shared_ptr<Model> generate_unsqueeze_ref_model(element::Type in_type,
     const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, keep_dims);
     const auto unsqueeze = std::make_shared<Unsqueeze>(reduce_mean, unsqueeze_axes_const);
 
-    return std::make_shared<Model>(NodeVector{unsqueeze}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{unsqueeze}, ParameterVector{input});
 }
 
 template <typename ReduceType>
@@ -65,7 +71,7 @@ std::shared_ptr<Model> generate_reshape_model(element::Type in_type,
     const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
     const auto reduce_mean = std::make_shared<ReduceType>(reshape, reduce_axes_const, keep_dims);
 
-    return std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input});
 }
 
 template <typename ReduceType>
@@ -82,7 +88,7 @@ std::shared_ptr<Model> generate_reshape_ref_model(element::Type in_type,
         Constant::create(element::i64, Shape{reshape_target_shape.size()}, reshape_target_shape);
     const auto reshape = std::make_shared<Reshape>(reduce_mean, reshape_target_shape_const, reshape_special_zero);
 
-    return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
 }
 }  // namespace
 
@@ -202,7 +208,7 @@ TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceSkipIfNotConstAxes) {
     const auto reduce_axes = Constant::create(element::i64, Shape{}, {2});
     const auto reduce_mean = std::make_shared<ReduceMean>(unsqueeze, reduce_axes);
 
-    model = std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input, unsqueeze_axes});
+    model = std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input, unsqueeze_axes});
     manager.register_pass<pass::PullUnsqueezeThroughReduce>();
 }
 
@@ -214,7 +220,7 @@ TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceMeanSkipIfMoreThanOneUnsq
     const auto reduce_mean = std::make_shared<ReduceMean>(unsqueeze, reduce_axes);
     const auto add = std::make_shared<Add>(unsqueeze, Constant::create(element::f32, Shape{}, {1}));
 
-    model = std::make_shared<Model>(NodeVector{reduce_mean, add}, ParameterVector{input});
+    model = std::make_shared<Model>(OutputVector{reduce_mean, add}, ParameterVector{input});
     manager.register_pass<pass::PullUnsqueezeThroughReduce>();
 }
 
@@ -372,7 +378,7 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfNonConstAxes) {
     const auto reduce_axes = std::make_shared<Parameter>(element::i64, PartialShape{});
     const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
 
-    model = std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input, reduce_axes});
+    model = std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input, reduce_axes});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
@@ -383,7 +389,7 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfDynamicReshapeOut
     const auto reduce_axes = Constant::create(element::i64, Shape{}, {2});
     const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
 
-    model = std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input, target_shape});
+    model = std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input, target_shape});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
@@ -395,6 +401,6 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfMoreThanOneReshap
     const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
     const auto add = std::make_shared<Add>(reshape, Constant::create(element::f32, Shape{}, {1}));
 
-    model = std::make_shared<Model>(NodeVector{reduce_mean, add}, ParameterVector{input});
+    model = std::make_shared<Model>(OutputVector{reduce_mean, add}, ParameterVector{input});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }

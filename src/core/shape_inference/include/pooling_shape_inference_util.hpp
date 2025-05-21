@@ -5,6 +5,10 @@
 #pragma once
 
 #include "dimension_util.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 
 namespace ov {

@@ -75,11 +75,11 @@ private:
 
         if (!scale.data) {
             const auto rms_norm = std::make_shared<op::internal::RMSNorm>(in, axes, eps);
-            return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, axes});
+            return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, axes});
         }
         const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
         const auto rms_norm = std::make_shared<op::internal::RMSNorm>(in, axes, scale_param, eps);
-        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, axes, scale_param});
+        return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, axes, scale_param});
     }
 };
 

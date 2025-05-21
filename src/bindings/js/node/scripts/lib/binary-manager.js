@@ -3,7 +3,7 @@ const tar = require('tar-fs');
 const path = require('node:path');
 const gunzip = require('gunzip-maybe');
 const fs = require('node:fs/promises');
-const { createReadStream } = require('node:fs');
+const { createReadStream, existsSync } = require('node:fs');
 
 const { downloadFile, checkIfPathExists, removeDirectory } = require('./utils');
 
@@ -32,7 +32,7 @@ class BinaryManager {
       package_name: packageNameTemplate,
       remote_path: remotePathTemplate,
     } = this.binaryConfig;
-    const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`
+    const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`;
     const fullPath = fullPathTemplate
       .replace(new RegExp('{version}', 'g'), this.version)
       .replace(new RegExp('{platform}', 'g'), this.getPlatformLabel())
@@ -49,18 +49,24 @@ class BinaryManager {
   }
 
   /**
-   * Prepares the binary by downloading and extracting the OpenVINO runtime archive.
+   * Prepares the binary by downloading and extracting the OpenVINO runtime
+   * archive.
    *
    * @param {string} packageRoot - The root directory of the package.
    * @param {string} version - The version of the binary.
    * @param {Object} binaryConfig - The configuration object for the binary.
    * @param {Object} options - The options for preparing the binary.
-   * @param {boolean} options.force - Whether to force the download if the directory already exists.
-   * @param {boolean} options.ignoreIfExists - Whether to ignore the download if the directory already exists.
-   * @param {string} [options.proxy] - The proxy to use for downloading the file.
-   * @throws {Error} If the directory already exists and the force option is not set.
+   * @param {boolean} options.force - Whether to force the download if the
+   * directory already exists.
+   * @param {boolean} options.ignoreIfExists - Whether to ignore the download
+   * if the directory already exists.
+   * @param {string} [options.proxy] - The proxy to use for downloading the
+   * file.
+   * @throws {Error} If the directory already exists and the force option
+   * is not set.
    * @throws {Error} If the download or extraction fails.
-   * @returns {Promise<void>} A promise that resolves when the binary is prepared.
+   * @returns {Promise<void>} A promise that resolves when the binary is
+   * prepared.
    */
   static async prepareBinary(packageRoot, version, binaryConfig, options) {
     const binaryManager = new this(packageRoot, version, binaryConfig);
@@ -83,6 +89,25 @@ class BinaryManager {
       );
     }
 
+    // Install binaries from directories if possible
+    if (process.env.npm_package_resolved.startsWith('file:')) {
+      const binDir = path.join(
+        path.dirname(process.env.npm_package_resolved),
+        'bin'
+      ).replace('file:', '');
+      if (existsSync(path.join(binDir, 'libopenvino.so')) ||
+        existsSync(path.join(binDir, 'openvino.dll'))) {
+        try {
+          await fs.cp(binDir, destinationPath, {'recursive': true});
+
+          return;
+        } catch(error) {
+          console.error(`Failed to copy bin directory: ${error}.`);
+        }
+      }
+      console.log('Do not find bin directory with openvino library.');
+    }
+
     const archiveUrl = binaryManager.getArchiveUrl();
     let tempDirectoryPath = null;
 
@@ -99,7 +124,7 @@ class BinaryManager {
         tempDirectoryPath,
         filename,
         options.proxy,
-      )
+      );
       console.log('OpenVINO runtime archive downloaded.');
 
       await removeDirectory(destinationPath);
@@ -119,9 +144,11 @@ class BinaryManager {
    * Supported platforms: 'win32', 'linux', 'darwin'.
    * Supported architectures: 'arm64', 'armhf', 'x64'.
    *
-   * If the platform or architecture is not supported, an error message is logged to the console.
+   * If the platform or architecture is not supported, an error message
+   * is logged to the console.
    *
-   * @returns {boolean} Returns true if the platform and architecture are compatible, otherwise false.
+   * @returns {boolean} Returns true if the platform and architecture are
+   * compatible, otherwise false.
    */
   static isCompatible() {
     const missleadings = [];
@@ -140,6 +167,7 @@ class BinaryManager {
 
     if (missleadings.length) {
       console.error(missleadings.join(' '));
+
       return false;
     }
 

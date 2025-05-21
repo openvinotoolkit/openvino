@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
@@ -13,6 +14,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
@@ -41,7 +43,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
         makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

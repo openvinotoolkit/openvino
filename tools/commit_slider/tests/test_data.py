@@ -72,7 +72,10 @@ class TestData():
         MultiConfig = 16,
         ConfigMultiplicator = 17,
         MultiConfigWithKey = 18,
-        AcModeDataBitwise = 19
+        AcModeDataBitwise = 19,
+        CompareBlobsData = 20,
+        MulOutput = 21,
+        CmpBlobsAutomatch = 22
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -210,6 +213,45 @@ class BenchmarkFirstFixedAppData(TestData):
 
     def getTestName(self):
         return "BmFirstFixed"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class CompareBlobsData(TestData):
+    def getTestCase():
+        return TestData.TestCase.CompareBlobsData
+
+    def getTestName(self):
+        return "CompareBlobsData"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class CompareBlobsMulOutputData(TestData):
+    def getTestCase():
+        return TestData.TestCase.CompareBlobsData
+
+    def getTestName(self):
+        return "CompareBlobsDataMulOutput"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class CompareBlobsAutomatchData(TestData):
+    def getTestCase():
+        return TestData.TestCase.CmpBlobsAutomatch
+
+    def getTestName(self):
+        return "CompareBlobsAutomatchData"
 
     def __init__(self):
         from test_util import requireBinarySearchData

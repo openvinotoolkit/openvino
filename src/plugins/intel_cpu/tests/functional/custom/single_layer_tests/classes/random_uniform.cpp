@@ -4,6 +4,7 @@
 
 #include "random_uniform.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 using namespace CPUTestUtils;
 

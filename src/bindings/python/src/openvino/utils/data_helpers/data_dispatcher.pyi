@@ -1,12 +1,12 @@
 # type: ignore
-from functools import singledispatch
 from __future__ import annotations
+from functools import singledispatch
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
-from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import OVDict
+from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from typing import Any
 import numpy as np
 import openvino._pyopenvino

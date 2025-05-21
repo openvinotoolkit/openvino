@@ -110,7 +110,7 @@ private:
                                                                      params.mask,
                                                                      params.axis,
                                                                      params.end_axis);
-        return std::make_shared<ov::Model>(NodeVector{RegionYolo}, ParameterVector{p});
+        return std::make_shared<ov::Model>(OutputVector{RegionYolo}, ParameterVector{p});
     }
 };
 

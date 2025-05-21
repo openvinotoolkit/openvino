@@ -15,6 +15,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "ov_ops/fully_connected.hpp"
 
 ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {

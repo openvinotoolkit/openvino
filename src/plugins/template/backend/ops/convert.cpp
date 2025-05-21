@@ -6,6 +6,8 @@
 
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 
 namespace convert {
 template <ov::element::Type_t ti, ov::element::Type_t to>

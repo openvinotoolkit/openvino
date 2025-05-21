@@ -127,7 +127,7 @@ void jit_uni_converter::init() {
     if (create_kernel() != status::success) {
         OPENVINO_THROW("Can't generate jit color converter kernel");
     }
-    _fn = (function_t)jit_ker();
+    _fn = reinterpret_cast<function_t>(const_cast<uint8_t*>(jit_ker()));
 }
 
 template <size_t N>

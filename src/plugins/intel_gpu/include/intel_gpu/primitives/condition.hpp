@@ -111,9 +111,6 @@ struct condition : public primitive_base<condition> {
         ib >> branch_true;
         ib >> branch_false;
     }
-
-protected:
-    std::vector<input_info> get_dependencies() const override { return {}; }
 };
 
 static inline std::ostream& operator<< (std::ostream& os, condition::branch& info) {

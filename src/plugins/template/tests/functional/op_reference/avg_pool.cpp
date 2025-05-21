@@ -106,7 +106,7 @@ private:
                                                                exclude_pad,
                                                                rounding_type,
                                                                pad_type);
-        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{avgPool}, ParameterVector{in});
     }
 };
 
@@ -341,7 +341,7 @@ private:
                                                                 exclude_pad,
                                                                 rounding_type,
                                                                 pad_type);
-        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{avgPool}, ParameterVector{in});
     }
 };
 

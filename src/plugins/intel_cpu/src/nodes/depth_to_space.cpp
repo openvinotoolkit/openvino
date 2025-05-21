@@ -12,7 +12,8 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_extension_utils.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;

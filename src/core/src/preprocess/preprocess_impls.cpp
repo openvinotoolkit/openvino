@@ -101,7 +101,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
     // Create separate parameter for each plane. Shape is based on color format
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
         auto plane_shape = color_info->shape(plane, new_param_shape, res.m_tensor_layout);
-        auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
+        auto plane_param = std::make_shared<op::v0::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
             std::string sub_name;
@@ -157,7 +157,7 @@ PreStepsList InputInfo::InputInfoImpl::create_implicit_steps(const Preprocessing
 
 bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                                      std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-                                     std::list<std::shared_ptr<opset8::Parameter>>& parameters_list) {
+                                     std::list<std::shared_ptr<op::v0::Parameter>>& parameters_list) {
     auto data = create_new_params(existing_names, model);
     auto consumers = data.m_param->output(0).get_target_inputs();
     bool need_validate = false;
@@ -211,7 +211,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
-        if (ov::as_type<ov::opset8::Result>(consumer.get_node())) {
+        if (ov::as_type<ov::op::v0::Result>(consumer.get_node())) {
             // Some result points to old parameter (Param->Result case), need to trigger revalidation
             need_validate = true;
         }
@@ -327,7 +327,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
 //----------- OutputInfoImpl ----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     auto node = m_output_node;
-    const auto result = ov::as_type_ptr<opset8::Result>(node.get_node_shared_ptr());
+    const auto result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
 
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
@@ -412,10 +412,10 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 }
 
 void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
-    std::shared_ptr<opset8::Result> result;
+    std::shared_ptr<op::v0::Result> result;
     auto node = m_output_node;
     const auto& start_out_node_names = node.get_tensor().get_names();
-    result = ov::as_type_ptr<opset8::Result>(node.get_node_shared_ptr());
+    result = ov::as_type_ptr<op::v0::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);
     if (get_tensor_data()->is_layout_set()) {
