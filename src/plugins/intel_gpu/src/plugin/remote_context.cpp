@@ -25,12 +25,12 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 }  // namespace
 
-RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices) : m_device_name(device_name) {
+RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx)
+    : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
 
-    // Initialize RemoteContext if corresponding device is initialized
-    if (m_device->is_initialized()) {
+    if (initialize_ctx) {
         initialize();
     }
 }
@@ -244,7 +244,7 @@ void RemoteContextImpl::check_if_shared() const {
 
 void RemoteContextImpl::initialize() {
     std::call_once(m_initialize_flag, [this]() {
-        GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+        GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
 #ifdef OV_GPU_WITH_SYCL
         const auto engine_type = cldnn::engine_types::sycl;

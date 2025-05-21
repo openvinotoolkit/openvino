@@ -147,7 +147,9 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
     std::call_once(m_default_contexts_once, [this]() {
         // Create default context
         for (auto& device : m_device_map) {
-            auto ctx = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
+            const auto device_name = get_device_name() + "." + device.first;
+            const auto initialize = false;
+            auto ctx = std::make_shared<RemoteContextImpl>(device_name, std::vector<cldnn::device::ptr>{device.second}, initialize);
             m_default_contexts.insert({device.first, ctx});
         }
     });

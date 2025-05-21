@@ -113,7 +113,6 @@ ExecutionConfig ExecutionConfig::clone() const {
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
-    ctx->initialize();
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 

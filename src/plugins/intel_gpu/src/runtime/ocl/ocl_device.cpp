@@ -470,16 +470,18 @@ void ocl_device::initialize() {
     ocl::ocl_device_detector detector;
     auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, true);
 
+    bool found = false;
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
+            OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
             if (auto casted = downcast<ocl_device>(device.second.get())) {
                 initialize_device(casted->get_device(), casted->get_context());
-                return;
+                found = true;
             }
         }
     }
 
-    OPENVINO_THROW("[GPU] Unable to initialize the requested device ", this->get_info().dev_name, ". Please ensure the device is available");
+    OPENVINO_ASSERT(found, "[GPU] Unable to initialize the requested device ", this->get_info().dev_name, ". Please ensure the device is available");
 }
 
 }  // namespace ocl

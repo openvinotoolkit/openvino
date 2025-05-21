@@ -26,7 +26,29 @@ class RemoteContextImpl : public ov::IRemoteContext {
 public:
     using Ptr = std::shared_ptr<RemoteContextImpl>;
 
-    RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices);
+    /**
+     * @brief Constructs a RemoteContextImpl for internal plugin use.
+     *
+     * @param device_name Name of the target device.
+     * @param devices List of devices associated with the plugin.
+     * @param initialize_ctx If true (default), the context is initialized immediately.
+     *                       If false, the context is created in an uninitialized state.
+     *
+     * Used to serve internal plugin needs, such as creating a context for a specific device.
+     * Supports optional delayed initialization.
+     */
+    RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx = true);
+
+    /**
+     * @brief Constructs a RemoteContextImpl from a user-provided external context or device.
+     *
+     * @param known_contexts Map of existing in Plugin contexts.
+     * @param params Configuration parameters for the remote context. May include:
+     *               context, device handles, target device index, tile index, or an external queue handle.
+     *
+     * Used to serve external context requests, such as when the user provides an existing context.
+     * Always creates an initialized context.
+     */
     RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const ov::AnyMap& params);
 
     const std::string& get_device_name() const override;
@@ -43,6 +65,14 @@ public:
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
 
+    /**
+     * @brief Initializes the RemoteContext and its associated device.
+     *
+     * This method performs context initialization if it was deferred during construction
+     * (i.e., when the constructor was called with initialize_ctx = false).
+     *
+     * Has no effect if the context is already initialized.
+     */
     void initialize();
     bool is_initialized() const { return m_is_initialized; }
 

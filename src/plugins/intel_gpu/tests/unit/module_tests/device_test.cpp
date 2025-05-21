@@ -192,7 +192,7 @@ TEST(devices_test, on_demand_initialization) {
     const bool initialize = false;
     auto devices = device_detector.get_available_devices(nullptr, nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */, initialize);
 
-    // Check that devices are not initialized, but have their descriptions configured
+    // Check that devices have the expected initialization state and their descriptions are properly configured
     for (const auto& device : devices) {
         auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(device.second);
         auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
