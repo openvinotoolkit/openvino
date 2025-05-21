@@ -57,7 +57,7 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
 }
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBKaiCompiledKernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
 
 void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                                const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -74,12 +74,12 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     config.update(N, K, n_blk_size);
     biasMem.resize(N * sizeof(float), 0);
 }
-
-// for K*N(32*512) and nb(n_block-64), repack each nb block(32*64) to nb(K+1)8nb.
+// regarding K*N(32*516),
+// for K*N(32*512) part and nb(n_block-64), repack each nb block(32*64) to nb(K+1)8nb.
+// for K*N(32*4) part, roundup to (32+1)*8.
 void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0) {
-    // std::cout << "copyb out:" << reinterpret_cast<size_t>(out0) << std::endl;
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    // rhs-in, rhs_packed-out
+    // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto K = config.get_K();            // K
     const auto N = config.get_N();            // N-rhs_stride
@@ -89,6 +89,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     const size_t sr = ukernel.get_sr();
     size_t n_blocks = (N + n_blk_size - 1) / n_blk_size;
     size_t dst_offset = 0;
+    int8_t* bias = static_cast<int8_t*>(executor->get_bias_mem());
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
@@ -102,12 +103,12 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
                                                          K,
                                                          nr,
                                                          kr,
-                                                         sr,                        // Packing arguments
-                                                         N * sizeof(float),         // RHS stride
-                                                         src_ptr,                   // RHS
-                                                         executor->get_bias_mem(),  // Bias
-                                                         nullptr,                   // Scale
-                                                         dst_ptr,                   // RHS packed
+                                                         sr,                              // Packing arguments
+                                                         N * sizeof(float),               // RHS stride
+                                                         src_ptr,                         // RHS
+                                                         bias + n_start * sizeof(float),  // Bias
+                                                         nullptr,                         // Scale
+                                                         dst_ptr,                         // RHS packed
                                                          0,
                                                          nullptr);
     }

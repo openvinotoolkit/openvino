@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov {
 namespace snippets {
@@ -67,11 +68,11 @@ public:
     bool is_memory_access_input_port(size_t idx) const;
     bool is_memory_access_output_port(size_t idx) const;
 
-    virtual bool is_padded() {
+    virtual bool is_adjusted_output_size() const {
         return false;
     }
-    virtual std::vector<size_t> get_pad_size() {
-        return std::vector<size_t>();
+    virtual size_t get_adjusted_output_size(const snippets::VectorDims& shape, const size_t& rank) const {
+        return 0;
     }
 
     /**

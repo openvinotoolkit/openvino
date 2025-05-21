@@ -4,6 +4,7 @@
 
 #include "gemm_copy_b.hpp"
 
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
@@ -83,15 +84,22 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
-std::vector<size_t> GemmCopyB::get_pad_size() {
-    return std::vector<size_t>{1, 8};
-}
-
-bool GemmCopyB::is_transposed(const std::vector<size_t>& layout) {
-    const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
-    // OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
-    //                 "supports only N dim placed as last or pre last dimension");
-    return is_transposed;
+size_t GemmCopyB::get_adjusted_output_size(const snippets::VectorDims& shape, const size_t& rank) const {
+    const size_t n_block_size = 64;
+    OPENVINO_ASSERT(shape.size() >= 2 && rank >= 2, "GemmCopyB should has at least 2 rank tensor");
+    const size_t K = *(shape.rbegin() + 1);
+    const size_t N = *shape.rbegin();
+    size_t n_block_num = N / n_block_size;
+    size_t n_tail_size = N % n_block_size;
+    size_t allocation_size = 0;
+    for (size_t i = 0; i < n_block_num; i++) {
+        allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_block_size, K);
+    }
+    if (n_tail_size > 0) {
+        allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
+    }
+    // convert byte size to element type size
+    return allocation_size / m_src_type.size();
 }
 
 GemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
@@ -105,7 +113,6 @@ ov::snippets::IShapeInferSnippets::Result GemmCopyB::ShapeInfer::infer(
     const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
-    // planar_shape[planar_shape.size() - 2] += 1;
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }

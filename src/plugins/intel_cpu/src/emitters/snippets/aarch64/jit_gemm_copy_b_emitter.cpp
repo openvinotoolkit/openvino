@@ -16,8 +16,7 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
                                                  cpu_isa_t isa,
                                                  const ExpressionPtr& expr,
-                                                 const snippets::KernelExecutorTablePtr& kernel_table,
-                                                 const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
+                                                 const snippets::KernelExecutorTablePtr& kernel_table)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto gemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());

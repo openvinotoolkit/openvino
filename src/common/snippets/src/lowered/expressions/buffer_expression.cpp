@@ -75,14 +75,11 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     OPENVINO_ASSERT(allocation_rank > 0, "Allocation size must be positive");
     const size_t rank = std::min(static_cast<size_t>(allocation_rank), planar_shape.size());
 
-    m_allocation_size = 1;
+    // Some buffer after MemoryAccess node should be padded/rounded while need keep original shape for ops(matmul) senmatic,
+    // such as copy_b in kleidiAI. allocate adjusted size.
     auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_port.get_expr()->get_node());
-    if (ma && ma->is_padded()) {
-        auto pad = ma->get_pad_size();
-        for (size_t i = 0; i < rank; ++i) {
-            const auto len = (*(planar_shape.rbegin() + i)) * (*(pad.rbegin() + i));
-            m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, len);
-        }
+    if (ma && ma->is_adjusted_output_size()) {
+        m_allocation_size = ma->get_adjusted_output_size(planar_shape, rank);
         return;
     }
 
@@ -108,6 +105,7 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
         return false;
     };
 
+    m_allocation_size = 1;
     std::set<size_t> processed_dim_idxs;
     for (const auto& parent_loop : parent_loop_ids) {
         const auto loop_info = loop_manager->get_loop_info(parent_loop);
