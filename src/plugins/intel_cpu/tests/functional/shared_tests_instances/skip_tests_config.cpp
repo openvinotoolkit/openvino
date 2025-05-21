@@ -396,22 +396,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*fma.*EltwiseLayerCPUTest.*)");
     retVector.emplace_back(R"(.*int_jit.*EltwiseLayerCPUTest.*)");
     retVector.emplace_back(R"(.*dyn.*EltwiseChainTest.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i8.*Conversion=i8.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u8.*Conversion=i8.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i16.*Conversion=i8.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u16.*Conversion=i8.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)");
     // by calc abs_threshold with expected value
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.*_eltwise_op_type=Div_.*_model_type=i32_.*)");
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(.*smoke_RoPETest.*)");
-#endif
-
-#if defined(OPENVINO_ARCH_ARM64)
-    // Issue: 149216. For low precision model from original framework, Snippets PropagatePrecision should insert ConvertTruncation instead
-    // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
-    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
