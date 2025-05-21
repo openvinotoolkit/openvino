@@ -53,6 +53,8 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 public:
     OPENVINO_RTTI_BASE("Model")
 
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be remove in 2026.0. Use Model(const "
+                        "ov::OutputVector&, const ov::ParameterVector&, const std::string&) instead.")
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Model(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");

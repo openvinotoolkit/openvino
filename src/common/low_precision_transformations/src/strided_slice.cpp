@@ -12,6 +12,8 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace pass {

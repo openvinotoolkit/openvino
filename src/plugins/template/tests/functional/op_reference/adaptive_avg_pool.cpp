@@ -73,7 +73,7 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto out = op::v0::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
         const auto adaptive_avg_pool = std::make_shared<op::v8::AdaptiveAvgPool>(in, out);
-        return std::make_shared<Model>(NodeVector{adaptive_avg_pool}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{adaptive_avg_pool}, ParameterVector{in});
     }
 };
 

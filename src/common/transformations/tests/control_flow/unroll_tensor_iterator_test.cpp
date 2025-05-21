@@ -13,8 +13,17 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -60,7 +69,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -96,7 +105,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -140,7 +149,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -176,7 +185,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -223,7 +232,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -260,7 +269,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(concat);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -304,7 +313,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -334,7 +343,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -378,7 +387,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -407,7 +416,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(rnn_cell_1, axis);
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -454,7 +463,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
 
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -484,7 +493,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(lstm_cell_1, axis);
         auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -533,7 +542,7 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
         auto Y_out = std::make_shared<opset8::Result>(rnn_sequence->output(0));
         auto Ho = std::make_shared<opset8::Result>(rnn_sequence->output(1));
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
     }
 
     std::vector<std::unordered_set<std::string>> names_before;
@@ -600,7 +609,7 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
         auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
 
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
     }
 
     std::vector<std::unordered_set<std::string>> names_before;

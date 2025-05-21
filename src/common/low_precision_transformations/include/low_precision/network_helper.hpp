@@ -21,8 +21,14 @@
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
 #include "layer_transformation.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {

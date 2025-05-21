@@ -44,7 +44,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/openvino_wheels
     steps:
       - name: Download OpenVINO artifacts (tarballs and wheels)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
@@ -72,6 +72,10 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
+            .github/actions/validate_pyi_files/action.yml
+            .github/actions/validate_pyi_files/compare_pyi_files.py
+            src/bindings/python/scripts/generate_pyapi_stubs.py
+            src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
@@ -94,6 +98,10 @@ jobs:
 
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
+
+      - name: Verify Python stub .pyi files
+        uses: ./action_root/.github/actions/validate_pyi_files
+        continue-on-error: true
 
       #
       # Tests
@@ -141,7 +149,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-api-${{ inputs.python-version }}

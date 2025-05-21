@@ -64,6 +64,12 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
+file(GLOB_RECURSE BLOBS "*.blob")
+file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
+add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                  COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}
+                  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
+
 install(
   TARGETS ${TARGET_NAME}
   RUNTIME DESTINATION tests
@@ -73,5 +79,11 @@ install(
 install(
   FILES ${SKIP_CONFIG_PATH}
   DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)
+
+install(
+  FILES ${BLOBS}
+  DESTINATION tests/intel_npu_blobs
   COMPONENT tests
   EXCLUDE_FROM_ALL)

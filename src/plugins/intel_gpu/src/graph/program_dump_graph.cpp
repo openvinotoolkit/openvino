@@ -226,7 +226,7 @@ void dump_graph_init(std::ofstream& graph,
               << "\\ntype: " << node_type_name
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
-              << (node->can_be_optimized() ? "\\n optimized out" : "");
+              << (((get_primitive_inst) ? get_primitive_inst(node->id())->can_be_optimized() : node->can_be_optimized()) ? "\\n optimized out" : "");
 
         if (!node->is_type<data>()) {
             graph << "\\n Selected kernel: "

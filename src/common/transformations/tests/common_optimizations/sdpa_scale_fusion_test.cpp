@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/sdpa_scale_fusion.hpp>
 #include <transformations/utils/utils.hpp>
@@ -38,7 +37,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest1) {
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -52,7 +51,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest1) {
                                                                                    new_mask_const,
                                                                                    new_scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -82,7 +81,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest2) {
                                                                                    sdpa_scale_const,
                                                                                    casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -95,7 +94,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest2) {
                                                                                    sdpa_mask_const,
                                                                                    new_scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -124,7 +123,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest3) {
                                                                                    sdpa_scale_const,
                                                                                    casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -136,7 +135,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest3) {
                                                                                    sdpa_mask_const,
                                                                                    new_scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -167,7 +166,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest4) {
                                                                                    sdpa_scale_const,
                                                                                    casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -179,7 +178,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest4) {
                                                                                    sdpa_mask_const,
                                                                                    new_scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -210,7 +209,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest5) {
                                                                                    sdpa_scale_const,
                                                                                    casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -221,7 +220,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest5) {
                                                                                    sdpa_mask_const,
                                                                                    scale_dyn,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, scale_dyn});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -249,7 +248,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_scaled, v_scaled, casual);
 
-        model = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAScaleFusion>();
     }
 
@@ -268,7 +267,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
                                                                                    new_mask_const,
                                                                                    new_scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
