@@ -43,14 +43,14 @@ std::ostream& get_verbose_stream();
 #ifdef GPU_DEBUG_CONFIG
 
 namespace color {
-static constexpr const char dark_gray[] = "\033[1;30m";
-static constexpr const char blue[]      = "\033[1;34m";
-static constexpr const char purple[]    = "\033[1;35m";
-static constexpr const char cyan[]      = "\033[1;36m";
-static constexpr const char reset[]     = "\033[0m";
+static constexpr const char* dark_gray = "\033[1;30m";
+static constexpr const char* blue      = "\033[1;34m";
+static constexpr const char* purple    = "\033[1;35m";
+static constexpr const char* cyan      = "\033[1;36m";
+static constexpr const char* reset     = "\033[0m";
 }  // namespace color
 
-static constexpr const char prefix[] = "GPU_Debug: ";
+static constexpr const char* prefix = "GPU_Debug: ";
 
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_VALUE_OR(debug_value, release_value) debug_value
@@ -82,7 +82,7 @@ static constexpr const char prefix[] = "GPU_Debug: ";
     (ov::intel_gpu::ExecutionConfig::get_verbose_color() ? GPU_DEBUG_LOG_COLOR_PREFIX : GPU_DEBUG_LOG_PREFIX)
 
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) \
-    GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
+    GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type_t<ov::intel_gpu::LogLevel>>(min_verbose_level))
 #else
 #define GPU_DEBUG_IF(cond) if (0)
 #define GPU_DEBUG_VALUE_OR(debug_value, release_value) release_value

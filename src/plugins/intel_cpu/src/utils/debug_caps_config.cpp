@@ -7,6 +7,8 @@
 
 #    include <string>
 
+#    include "openvino/util/env_util.hpp"
+
 namespace ov::intel_cpu {
 
 void DebugCapsConfig::readProperties() {
@@ -69,12 +71,16 @@ void DebugCapsConfig::readProperties() {
         dumpIR.parseAndSet(envVarValue);
     }
 
-    if (auto envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
+    if (auto envVarValue = ov::util::getenv_bool("OV_CPU_SUMMARY_PERF")) {
         summaryPerf = envVarValue;
     }
 
     if (auto envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS")) {
         averageCountersPath = envVarValue;
+    }
+
+    if (auto envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH")) {
+        memoryStatisticsDumpPath = envVarValue;
     }
 }
 

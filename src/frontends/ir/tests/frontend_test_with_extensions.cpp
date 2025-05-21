@@ -4,7 +4,6 @@
 
 #include "frontend_test.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 class IRFrontendExtensionTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:

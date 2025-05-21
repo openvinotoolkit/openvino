@@ -52,7 +52,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
     is_trigger_repo = repo_url == trigger_repo_url
 
-    branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
+    branch = os.getenv('TRIGGER_REPO_BRANCH') or os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
     revision = os.getenv('TRIGGER_REPO_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
@@ -82,7 +82,7 @@ def parse_ov_version(header_file: str | Path) -> str:
 
 def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
     manifest = Manifest()
-    component_name = 'dldt'  # historical, keep for internal compatibility
+    component_name = None
     repositories = []
     ov_version = None
     trigger_repo = None
@@ -95,6 +95,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
             ov_version = parse_ov_version(version_file)
         if repo.trigger:
             trigger_repo = repo
+            component_name = repo.name
 
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''

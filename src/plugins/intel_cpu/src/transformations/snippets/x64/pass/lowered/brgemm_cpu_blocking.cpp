@@ -21,7 +21,9 @@ using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 
-bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool BrgemmCPUBlocking::DummyPass::run([[maybe_unused]] LinearIR& linear_ir,
+                                       [[maybe_unused]] LinearIR::constExprIt begin,
+                                       [[maybe_unused]] LinearIR::constExprIt end) {
     return true;
 }
 std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(
@@ -43,20 +45,22 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     return std::prev(brgemm_it);
 }
 
-size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
+size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+    assert(brgemm && "BrgemmCPU is expected!");
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    // Note: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
-    // the low precision cases (ticket: 156014)
-    if (with_repacking(brgemm->get_type())) {
+    // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
+    //         the low precision cases (ticket: 156014)
+    //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
+    const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
+    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }

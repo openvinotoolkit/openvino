@@ -38,7 +38,7 @@ OutputVector translate_sub_common(const NodeContext& context, bool inplace) {
         auto alpha = context.get_input(2);
         auto casted_alpha = ComplexTypeMark::convert_like(context, alpha, y);
 
-        y = ComplexTypeMark::mul(context, y, casted_alpha);
+        y = ComplexTypeMark::mul(context, casted_alpha, y);
     }
 
     auto sub = ComplexTypeMark::sub(context, x, y);

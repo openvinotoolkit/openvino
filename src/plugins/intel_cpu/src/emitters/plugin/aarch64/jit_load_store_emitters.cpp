@@ -174,7 +174,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      ov::element::Type dst_prc,
                                      int store_num,
                                      int byte_offset,
-                                     arithmetic_mode mode,
+                                     [[maybe_unused]] arithmetic_mode mode,
                                      ov::element::Type exec_prc,
                                      emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),

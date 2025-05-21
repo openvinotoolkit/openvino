@@ -4,8 +4,6 @@
 
 #include "visitors.hpp"
 
-#include "openvino/op/ops.hpp"
-
 namespace ov {
 namespace test {
 

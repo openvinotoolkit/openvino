@@ -1040,7 +1040,7 @@ void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, cons
     fix_inputs_with_0d_ellipsis<T>(int_inputs, input_subscripts, output_subscript);
 
     // contract inputs by Einsum until just one is remained
-    for (auto const& inds_pair : einsum_path) {
+    for (const auto& inds_pair : einsum_path) {
         contract_two_inputs<T>(int_inputs, input_subscripts, output_subscript, inds_pair.first, inds_pair.second);
     }
 
@@ -1070,6 +1070,10 @@ void einsum(ov::TensorVector& outputs, const ov::TensorVector& inputs, const std
         einsum_impl<float>(inputs, outputs, equation);
     } else if (input_type == element::Type_t::i32) {
         einsum_impl<int>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f16) {
+        einsum_impl<float16>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f64) {
+        einsum_impl<double>(inputs, outputs, equation);
     } else {
         OPENVINO_ASSERT(false, "Unsupported input type for Einsum operation.");
     }

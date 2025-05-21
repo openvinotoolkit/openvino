@@ -74,7 +74,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     kernel_arguments_data get_arguments(const slice_inst& instance) const override {
         kernel_arguments_data args;
 
-        const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(*instance.node);
+        const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(instance.get_node());
 
         for (auto idx : inputs.GetNeededInputIndexes()) {
             args.inputs.push_back(instance.input_memory_ptr(idx));

@@ -79,7 +79,7 @@ static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr
     relu->set_friendly_name("relu");
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(relu);
     sigmoid->set_friendly_name("sigmoid");
-    auto f = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{data});
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{sigmoid}, ov::ParameterVector{data});
     return std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>>(f, relu, sigmoid);
 }
 

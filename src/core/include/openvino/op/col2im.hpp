@@ -42,6 +42,19 @@ public:
     const Shape& get_pads_begin() const;
     const Shape& get_pads_end() const;
 
+    void set_strides(const Strides& strides) {
+        m_strides = strides;
+    };
+    void set_dilations(const Strides& dilations) {
+        m_dilations = dilations;
+    };
+    void set_pads_begin(const Shape& pads_begin) {
+        m_pads_begin = pads_begin;
+    };
+    void set_pads_end(const Shape& pads_end) {
+        m_pads_end = pads_end;
+    };
+
 private:
     Strides m_strides;
     Strides m_dilations;

@@ -40,7 +40,7 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
     bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
     if (!empty_mem && need_to_check_memory_to_set) {
-        check_memory_to_set(*mem, ol);
+        check_memory_compatibility(*mem, ol);
     }
 
     event::ptr ev = nullptr;
@@ -70,7 +70,9 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
-    if (_impl_params->get_output_layout() != mem_layout) {
+    // Set SHAPE_CHANGED flag if the actual data layout has changed, or if the node is included
+    // into shape_of subgraph to trigger proper shape_of subgraph shape recalculation
+    if (_impl_params->get_output_layout() != mem_layout || get_node().is_in_shape_of_subgraph()) {
         set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
     _impl_params->output_layouts[0] = mem_layout;

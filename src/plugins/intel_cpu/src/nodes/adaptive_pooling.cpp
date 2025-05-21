@@ -5,7 +5,6 @@
 #include "adaptive_pooling.h"
 
 #include <cmath>
-#include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
 #include <vector>
@@ -14,6 +13,9 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/adaptive_pooling.hpp"
 #include "utils/general_utils.h"
@@ -130,7 +132,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(const dnnl::stream& strm) {
+void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {
@@ -224,26 +226,27 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
         *dstData = res;
         indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
     };
-    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
-        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
-        setBinBorders(&dStart, &dEnd, od, ID, OD);
-        setBinBorders(&hStart, &hEnd, oh, IH, OH);
-        setBinBorders(&wStart, &wEnd, ow, IW, OW);
-        auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
-        if (binSize == 0) {
-            THROW_CPU_NODE_ERR("has empty bin");
-        }
-        float sum = 0;
-        for (size_t pixD = dStart; pixD < dEnd; pixD++) {
-            for (size_t pixH = hStart; pixH < hEnd; pixH++) {
-                for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                    float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
-                    sum = sum + curr;
+    auto poolAvg =
+        [&](const float* srcData, float* dstData, int od, int oh, int ow, [[maybe_unused]] size_t spatIndOff) {
+            size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+            setBinBorders(&dStart, &dEnd, od, ID, OD);
+            setBinBorders(&hStart, &hEnd, oh, IH, OH);
+            setBinBorders(&wStart, &wEnd, ow, IW, OW);
+            auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
+            if (binSize == 0) {
+                THROW_CPU_NODE_ERR("has empty bin");
+            }
+            float sum = 0;
+            for (size_t pixD = dStart; pixD < dEnd; pixD++) {
+                for (size_t pixH = hStart; pixH < hEnd; pixH++) {
+                    for (size_t pixW = wStart; pixW < wEnd; pixW++) {
+                        float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                        sum = sum + curr;
+                    }
                 }
             }
-        }
-        *dstData = sum / binSize;
-    };
+            *dstData = sum / binSize;
+        };
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
         pool = poolMax;

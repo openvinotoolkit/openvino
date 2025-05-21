@@ -49,7 +49,7 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                 "corresponding input subscript.");
             std::unordered_map<std::string, TRShape> single_input_label_to_shape;
             for (size_t label_ind = 0, dim_ind = 0; label_ind < labels.size() && dim_ind < input_rank; ++label_ind) {
-                auto const& label = labels[label_ind];
+                const auto& label = labels[label_ind];
                 if (label.compare("...") == 0) {
                     size_t num_broadcasted_dims = input_rank - labels.size() + 1;
                     auto current_sub_pshape = T(std::vector<DimType>(pshape.begin() + dim_ind,
@@ -100,7 +100,7 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                 // Shape has dynamic rank and ellipsis
                 return {pshape};
             }
-            for (auto const& label : labels) {
+            for (const auto& label : labels) {
                 if (label_to_shape.find(label) == label_to_shape.end()) {
                     label_to_shape[label] = ov::PartialShape{Dimension::dynamic()};
                 }
@@ -112,7 +112,7 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
-    for (auto const& output_label : output_labels) {
+    for (const auto& output_label : output_labels) {
         if (output_label == "..." && label_to_shape.find(output_label) == label_to_shape.end()) {
             // Output labels may contain ellipsis that does not cover any dimensions.
             continue;

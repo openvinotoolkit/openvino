@@ -25,7 +25,7 @@ GraphContext::GraphContext(Config config,
 
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       m_auxiliaryNetworkMemoryControl(std::make_shared<NetworkMemoryControl>()),
-      m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit()) {
+      m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit("main")) {
     if (m_streamExecutor) {
         m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
         m_numaNodeId = m_cpuStreamExecutor ? std::max(0, m_cpuStreamExecutor->get_numa_node_id()) : 0;
@@ -36,7 +36,8 @@ GraphContext::GraphContext(Config config,
     }
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.
-    for (int i = 0; i < m_numNumaNodes; i++) {
+    int numaNum = std::max(m_numaNodeId + 1, m_numNumaNodes);
+    for (int i = 0; i < numaNum; i++) {
         m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
     }
 }

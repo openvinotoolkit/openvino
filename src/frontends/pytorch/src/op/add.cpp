@@ -67,7 +67,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
 
     if (alpha.get_node_shared_ptr()) {
         auto converted_alpha = ComplexTypeMark::convert_like(context, alpha, rhs);
-        rhs = ComplexTypeMark::mul(context, rhs, converted_alpha);
+        rhs = ComplexTypeMark::mul(context, converted_alpha, rhs);
     }
 
     auto add = ComplexTypeMark::add(context, lhs, rhs);

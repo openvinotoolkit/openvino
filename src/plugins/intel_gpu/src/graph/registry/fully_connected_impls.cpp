@@ -11,10 +11,6 @@
     #include "impls/onednn/fully_connected_onednn.hpp"
 #endif
 
-#if OV_GPU_WITH_CM
-    #include "impls/cm/impl_example.hpp"
-#endif
-
 namespace ov::intel_gpu {
 
 using namespace cldnn;
@@ -29,7 +25,6 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
                     return false;
                 return node.get_output_pshape().size() <= 3;
         })
-        OV_GPU_CREATE_INSTANCE_CM(cm::ExampleImplementationManager, shape_types::static_shape)
     };
 
     return impls;

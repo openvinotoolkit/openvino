@@ -948,8 +948,8 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         size_t f = output_lay.feature();
         size_t x = output_lay.spatial(0);
         size_t y = output_lay.spatial(1);
-        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
-        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
+        mem_lock<T, mem_lock_type::read> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T, mem_lock_type::read> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
@@ -1080,6 +1080,8 @@ struct quantize_random_test_param_generator : std::vector<quantize_random_test_p
         push_back(quantize_random_test_params{ input_type, output_type, {64, 32, 10, 10}, input_format, output_format, inputs_num});
         push_back(quantize_random_test_params{ input_type, output_type, {1, 17, 10, 10}, input_format, output_format, inputs_num});
         push_back(quantize_random_test_params{ input_type, output_type, {17, 17, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 1, 1029, 85}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 1, 81, 5}, input_format, output_format, inputs_num});
         return *this;
     }
 };

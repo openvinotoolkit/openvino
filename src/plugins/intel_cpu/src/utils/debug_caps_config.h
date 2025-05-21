@@ -45,7 +45,8 @@ public:
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
     std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
-    std::string summaryPerf = "";
+    bool summaryPerf = false;
+    std::string memoryStatisticsDumpPath;
 
     struct TransformationFilter {
         enum Type : uint8_t { PreLpt = 0, Lpt, PostLpt, Snippets, Specific, NumOfTypes };
@@ -97,6 +98,9 @@ public:
             };
 
             for (const auto& option : options) {
+                if (option.empty()) {
+                    continue;
+                }
                 const auto& parts = ov::util::split(option, '=');
                 if (parts.size() > 2) {
                     failed = true;

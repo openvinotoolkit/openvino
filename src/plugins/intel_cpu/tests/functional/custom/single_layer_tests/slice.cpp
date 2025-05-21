@@ -9,6 +9,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/slice.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;

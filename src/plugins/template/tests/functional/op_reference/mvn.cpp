@@ -74,7 +74,7 @@ private:
         if (!reductionAxes.empty()) {
             mvn = std::make_shared<op::v0::MVN>(in, reductionAxes, normalizeVariance, eps);
         }
-        return std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{in});
     }
 };
 
@@ -235,7 +235,7 @@ private:
         }
         const auto axes = std::make_shared<op::v0::Constant>(reductionAxes.type, reductionAxes.shape, dataVector);
         auto mvn = std::make_shared<op::v6::MVN>(in, axes, normalizeVariance, static_cast<float>(eps), epsMode);
-        return std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{in});
     }
 };
 

@@ -7,6 +7,7 @@
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
 #include "internal/op/tensorarray_write.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
@@ -24,10 +25,13 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
 
     matcher_pass_callback callback = [funcs](pattern::Matcher& m) -> bool {
         const auto conditional_block = ov::as_type_ptr<ov::op::internal::ConditionalBlock>(m.get_match_root());
+        if (!conditional_block) {
+            return false;
+        }
         const auto mask_idx = conditional_block->get_input_size() - 1;
         const auto cond = conditional_block->get_input_node_shared_ptr(mask_idx);
 
-        if (!conditional_block || !cond) {
+        if (!cond) {
             return false;
         }
 
