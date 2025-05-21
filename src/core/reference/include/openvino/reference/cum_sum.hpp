@@ -6,17 +6,24 @@
 
 #include <cmath>
 
+#include "openvino/core/shape.hpp"
+
 namespace ov {
 namespace reference {
 
 template <typename T, typename P>
 void cumsum(const T* arg, const P axis, T* out, const Shape& tensor_shape, const bool exclusive, const bool reverse) {
-    const auto rank = tensor_shape.size();
-    const auto normalized_axis = axis >= 0 ? axis : rank + axis;
+    const auto normalized_axis = [axis, rank = tensor_shape.size()] {
+        if constexpr (std::is_unsigned_v<decltype(axis)>) {
+            return axis;
+        } else {
+            return axis < 0 ? axis + rank : axis;
+        }
+    }();
     const auto axis_dim = tensor_shape[normalized_axis];
 
     const auto size_before_axis = shape_size(tensor_shape.begin(), tensor_shape.begin() + normalized_axis);
-    const auto size_after_axis = shape_size(tensor_shape.begin() + normalized_axis + 1, tensor_shape.end());
+    const auto size_after_axis = shape_size(tensor_shape.begin() + (normalized_axis + 1), tensor_shape.end());
 
     const auto reverse_shift = reverse ? -1 : 1;
     const auto element_shift = exclusive ? size_after_axis * reverse_shift : 0;
