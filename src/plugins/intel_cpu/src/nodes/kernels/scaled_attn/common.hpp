@@ -589,4 +589,29 @@ void cvt_copy(TA* a, TB* b, size_t m, size_t n, size_t src_stride, size_t dst_st
     }
 }
 
+template <typename TDST, typename TA, typename TB>
+void cvt_add(TDST* dst, TA* a, TB* b, size_t m, size_t n, size_t a_stride, size_t b_stride, size_t dst_stride) {
+    for (size_t j = 0; j < m; j++) {
+        size_t i = 0;
+#if defined(HAVE_AVX512F)
+        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+            auto va = mm512_uni_loadu_ps(a + i + j * a_stride);
+            auto vb = mm512_uni_loadu_ps(b + i + j * b_stride);
+            auto vd = _mm512_add_ps(va, vb);
+            mm512_uni_storeu_ps(dst + i + j * dst_stride, vd);
+        }
+#elif defined(HAVE_AVX2)
+        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+            auto va = mm256_uni_loadu_ps(a + i + j * a_stride);
+            auto vb = mm256_uni_loadu_ps(b + i + j * b_stride);
+            auto vd = _mm256_add_ps(va, vb);
+            mm256_uni_storeu_ps(dst + i + j * dst_stride, vd);
+        }
+#endif
+        for (; i < n; i++) {
+            dst[i + j * dst_stride] = a[i + j * a_stride] + b[i + j * b_stride];
+        }
+    }
+}
+
 }  // namespace ov::Extensions::Cpu::XARCH
