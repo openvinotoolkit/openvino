@@ -324,8 +324,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
         // Issue: 163275
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
-        // Issue: 163348
-        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
