@@ -42,6 +42,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_gen
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
+    loop_id = loop_end->get_id();
     is_work_amount_dynamic =
         ov::snippets::utils::is_dynamic_value(work_amount) || ov::snippets::utils::is_dynamic_value(wa_increment);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -65,8 +66,19 @@ void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                        const std::vector<size_t>& out) const {
     auto reg_work_amount = XReg(out[0]);
-    if (!evaluate_once) {
-        h->mov(reg_work_amount, work_amount);
+    XReg reg_runtime_params = XReg(Operand::X0);
+    if (is_work_amount_dynamic) {
+        XReg reg_aux = h->X_TMP_1;
+        const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+        h->ldr(reg_aux, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
+        h->ldr(reg_work_amount, ptr(reg_aux, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_work_amount))));
+
+        h->cmp(reg_work_amount, wa_increment);
+        h->b(LT, *loop_begin_label);
+    } else {
+        if (!evaluate_once) {
+            h->mov(reg_work_amount, work_amount);
+        }
     }
     h->L(*loop_begin_label);
 }

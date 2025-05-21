@@ -44,6 +44,7 @@ protected:
     size_t work_amount = 0;
     int64_t wa_increment = 0;
     bool evaluate_once = false;
+    size_t loop_id = -1;
     bool is_work_amount_dynamic = false;
 };
 
