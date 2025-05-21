@@ -2216,8 +2216,8 @@ static int runSingleImageTest() {
         auto inputInfo = compiledModel.inputs();
 
         // Parse input files string (matching of node names - if given)
-        std::string fileMatch = parseInputFiles(inputInfo, FLAGS_input);
-        inputFilesPerCase = splitStringList(fileMatch, ';');
+        std::string processedFileInputs = parseInputFiles(inputInfo, FLAGS_input);
+        inputFilesPerCase = splitStringList(processedFileInputs, ';');
         for (const auto& images : inputFilesPerCase) {
             std::vector<std::string> filesPerModel = splitStringList(images, ',');
             FilesForModelInputs entireModelFiles;
@@ -2278,6 +2278,25 @@ static int runSingleImageTest() {
             }
         }
         std::cout << "[Debug] Image bin precision processed!" << std::endl;
+
+        // Parse reference files
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
+        }
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
