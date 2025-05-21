@@ -76,9 +76,6 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Exactly one device expected in case of context sharing, but ", device_map.size(), " found");
 
     m_device = device_map.begin()->second;
-
-    GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
-
     m_device_name = get_device_name(known_contexts, m_device);
 
     initialize();
