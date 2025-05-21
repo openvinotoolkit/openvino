@@ -6,7 +6,6 @@
 
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-#include "precomp.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX

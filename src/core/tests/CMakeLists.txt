@@ -49,6 +49,9 @@ ov_add_test_target(
             OV UNIT CORE
 )
 
+ov_build_target_faster(${TARGET_NAME}
+    PCH "precomp.hpp")
+
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
 

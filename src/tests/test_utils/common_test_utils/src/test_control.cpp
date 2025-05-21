@@ -5,7 +5,6 @@
 #include "common_test_utils/test_control.hpp"
 
 #include "openvino/util/common_util.hpp"
-#include "precomp.hpp"
 
 using namespace std;
 
