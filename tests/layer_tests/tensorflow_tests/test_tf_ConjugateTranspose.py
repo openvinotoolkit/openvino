@@ -63,11 +63,9 @@ class TestComplexConjugateTranspose(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+    def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_conjugate_transpose_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestConjugateTranspose(CommonTFLayerTest):
@@ -113,8 +111,6 @@ class TestConjugateTranspose(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+    def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_conjugate_transpose_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

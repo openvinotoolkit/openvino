@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "gather.hpp"
 #include "gather_inst.h"
 #include "gather/gather_kernel_selector.h"
 #include "gather/gather_kernel_ref.h"
@@ -176,6 +177,11 @@ public:
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
+
+std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<gather>());
+    return typed_primitive_impl_ocl<gather>::create<gather_impl>(static_cast<const gather_node&>(node), params);
+}
 
 namespace detail {
 

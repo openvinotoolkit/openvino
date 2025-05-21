@@ -10,6 +10,7 @@
 #include <openvino/pass/manager.hpp>
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/make_stateful.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

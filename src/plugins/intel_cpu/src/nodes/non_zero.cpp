@@ -9,7 +9,7 @@
 #include <utils/bfloat16.hpp>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov::intel_cpu::node {

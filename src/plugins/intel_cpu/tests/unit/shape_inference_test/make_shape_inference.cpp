@@ -7,10 +7,10 @@
 #include <thread>
 
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "shape_inference/shape_inference.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

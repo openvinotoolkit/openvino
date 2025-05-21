@@ -168,10 +168,9 @@ void ov::Node::safe_delete(NodeVector& nodes, bool recurse) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
-            auto node = input.get_output().get_node();
-            if (node.use_count() == 2) {
+            if (auto node = input.get_output().get_node(); node.use_count() == 2) {
                 // Move the node from the input to nodes so we don't trigger a deep recursive delete
-                nodes.push_back(node);
+                nodes.push_back(std::move(node));
             }
             input.remove_output();
         }
@@ -298,7 +297,7 @@ void ov::Node::set_friendly_name(const string& name) {
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
     OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
-    return m_inputs[index].get_output().get_node().get();
+    return m_inputs[index].get_output().get_raw_pointer_node();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
@@ -603,7 +602,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
         OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
-    return Output<Node>(this, output_index);
+    return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
@@ -728,8 +727,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
-        input_tensors.push_back(tensor);
+        input_tensors.emplace_back(input.get_element_type(), input.get_shape(), data);
     }
 
     TensorVector output_tensors;
@@ -779,7 +777,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     auto id = original_id;
     visitor.on_attribute("ID", id);
     if (id != original_id) {
-        m_ref = visitor.get_registered_node(id);
+        m_ref = visitor.get_registered_node(std::move(id));
     }
     return true;
 }
@@ -811,4 +809,15 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
 }
 
 AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
+
+namespace op::util {
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index) {
+    const auto& lhs_source = lhs->get_input_descriptor(input_index).get_output();
+    const auto& rhs_source = rhs->get_input_descriptor(input_index).get_output();
+    return lhs_source.get_raw_pointer_node() == rhs_source.get_raw_pointer_node() &&
+           lhs_source.get_index() == rhs_source.get_index();
+}
+}  // namespace op::util
 }  // namespace ov

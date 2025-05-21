@@ -7,7 +7,7 @@ import numpy as np
 import os
 from common.constants import test_device, test_precision
 from copy import deepcopy
-from openvino.runtime import Core
+from openvino import Core
 
 
 class JaxLayerTest:

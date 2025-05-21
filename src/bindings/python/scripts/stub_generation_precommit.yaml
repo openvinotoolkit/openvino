@@ -5,18 +5,14 @@ repos:
         name: Generate .pyi files
         language: system
         entry: >
-          bash -c 'if [[ "$OSTYPE" == "msys" ]]; then
-            "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/src/bindings/python/scripts/generate_pyapi_stubs.bat";
-          else
-            "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/src/bindings/python/scripts/generate_pyapi_stubs.sh";
-          fi;
+          bash -c '
+          $(which python) "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/src/bindings/python/scripts/generate_pyapi_stubs.py";
           if [ $? -ne 0 ]; then
             echo "Stub generation failed. Aborting commit.";
             exit 1;
           fi;
-
           git add ./*.pyi'
-        files: .*src/bindings/python/.*
+        files: .*src/bindings/python/.*|.*tools/ovc.*
         pass_filenames: false
         verbose: true
         stages: [pre-commit]

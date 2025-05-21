@@ -488,7 +488,7 @@ def get_command_line_arguments(argv):
 
 
 def get_input_output_names(ports):
-    return [port.any_name for port in ports]
+    return [port.any_name if port.get_names() else port.node.get_friendly_name() for port in ports]
 
 def get_node_names(ports):
     return [port.node.friendly_name for port in ports]

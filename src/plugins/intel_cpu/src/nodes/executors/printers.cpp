@@ -9,7 +9,7 @@
 #    include <ostream>
 
 #    include "fullyconnected_config.hpp"
-#    include "post_ops.hpp"
+#    include "nodes/executors/convolution_config.hpp"
 
 namespace ov::intel_cpu {
 
@@ -18,8 +18,8 @@ std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const FCAttrs& attrs
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const PostOps& postOps) {
-    // @todo print PostOps
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const ConvAttrs& attrs) {
+    // @todo print Attrs
     return os;
 }
 

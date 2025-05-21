@@ -22,8 +22,8 @@
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl;
@@ -3537,7 +3537,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
     case Algorithm::ReduceAnd:
         reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
-            return x && y;
+            return static_cast<float>((x != 0.0f) && (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceL1:
@@ -3577,7 +3577,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceOr:
         reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
-            return x || y;
+            return static_cast<float>((x != 0.0f) || (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceProd:

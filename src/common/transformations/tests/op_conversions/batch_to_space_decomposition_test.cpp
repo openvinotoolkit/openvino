@@ -12,8 +12,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -33,7 +39,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
         auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{batch_to_space}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertBatchToSpace>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -72,7 +78,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
         std::vector<int64_t> end_mask(4, 0);
         auto ss = std::make_shared<opset3::StridedSlice>(reshape_after_3, begin, end, begin_mask, end_mask);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{ss}, ParameterVector{data});
     }
 }
 
@@ -85,7 +91,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
         auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{batch_to_space}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertSpaceToBatch>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -129,7 +135,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
         auto permute_4 = std::make_shared<opset3::Transpose>(reshape_before_4, axis_order_4);
         auto reshape_after_4 = std::make_shared<opset3::Reshape>(permute_4, squeezed_order_4, false);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{reshape_after_4}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{reshape_after_4}, ParameterVector{data});
     }
 }
 
@@ -142,7 +148,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
         auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{batch_to_space}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertSpaceToBatch>(false);
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -162,7 +168,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, axis_order);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, squeezed_order, false);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{data});
     }
 }
 
@@ -175,7 +181,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
         auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{batch_to_space}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertBatchToSpace>(false);
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -197,7 +203,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
         std::vector<int64_t> begin_mask(4, 0);
         std::vector<int64_t> end_mask(4, 0);
         auto ss = std::make_shared<opset3::StridedSlice>(reshape_after, begin, end, begin_mask, end_mask);
-        model_ref = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{ss}, ParameterVector{data});
     }
 }
 
@@ -214,7 +220,7 @@ void op_convertion_type_test(const Params& params) {
     const auto input_2_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
     const auto input_3_p = Constant::create(block_elem_type, Shape{2}, {0, 0});
     const auto bts_or_stb = make_shared<Op>(data, block_p, input_2_p, input_3_p);
-    const auto f = make_shared<Model>(NodeVector{bts_or_stb}, ParameterVector{data});
+    const auto f = make_shared<Model>(OutputVector{bts_or_stb}, ParameterVector{data});
 
     Manager m;
     m.register_pass<Conversion>(by_elements);
@@ -269,7 +275,7 @@ void op_convertion_test(const Params& params) {
     const auto input_2_p = Constant::create(element::i64, Shape{input_2.size()}, input_2);
     const auto input_3_p = Constant::create(element::i64, Shape{input_3.size()}, input_3);
     const auto bts_or_stb = make_shared<Op>(data, block_p, input_2_p, input_3_p);
-    const auto f = make_shared<Model>(NodeVector{bts_or_stb}, ParameterVector{data});
+    const auto f = make_shared<Model>(OutputVector{bts_or_stb}, ParameterVector{data});
 
     Manager m;
     m.set_per_pass_validation(false);

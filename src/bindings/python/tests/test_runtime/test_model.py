@@ -165,7 +165,7 @@ def test_get_result_index_invalid():
     ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
 ])
 def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
-    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i + 1}") for i, shape in enumerate(shapes)]
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
 
     model = Model(relus[0], [params[0]], model_name)
@@ -938,5 +938,5 @@ def test_model_dir():
 
 
 def test_model_without_arguments():
-    with pytest.raises(ValueError, match="Model cannot be instantiated without arguments."):
+    with pytest.raises(TypeError, match="The following argument types are supported"):
         Model()

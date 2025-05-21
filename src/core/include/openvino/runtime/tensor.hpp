@@ -122,6 +122,17 @@ public:
     Tensor(const element::Type& type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
     /**
+     * @brief Constructs Tensor using element type and shape. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const element::Type& type, const Shape& shape, const void* host_ptr, const Strides& strides = {});
+
+    /**
      * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
      * @param port port from node
      * @param allocator allocates memory for internal tensor storage
@@ -137,6 +148,16 @@ public:
      * on shape and element size
      */
     Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& strides = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param port port from node
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const ov::Output<const ov::Node>& port, const void* host_ptr, const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -197,23 +218,48 @@ public:
     Strides get_strides() const;
 
     /**
-     * @brief Provides an access to the underlaying host memory
+     * @brief Provides an access to the underlying host memory
      * @param type Optional type parameter.
      * @note If type parameter is specified, the method throws an exception
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
+     * @{
      */
+#ifndef IN_OV_COMPONENT
+    OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
+#endif
     void* data(const element::Type& type = {}) const;
+    void* data(const element::Type& type = {});
+    /// @}
 
     /**
-     * @brief Provides an access to the underlaying host memory casted to type `T`
+     * @brief Provides an access to the underlying host memory casted to type `T`
      * @return A host pointer to tensor memory casted to specified type `T`.
      * @note Throws exception if specified type does not match with tensor element type
+     * @{
      */
-    template <typename T, typename datatype = typename std::decay<T>::type>
+    template <typename T, typename datatype = std::decay_t<T>>
+#ifndef IN_OV_COMPONENT
+    OPENVINO_DEPRECATED("This function will return const T* in 2026.0. Check if used correctly")
+#endif
     T* data() const {
-        return static_cast<T*>(data(element::from<datatype>()));
+        OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+            return static_cast<T*>(data(element::from<datatype>()));
+        OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
     }
+
+    template <typename T, typename datatype = std::decay_t<T>>
+    T* data() {
+        if constexpr (std::is_const_v<T>) {
+            OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+                return std::as_const(*this)
+                    .data<T>();
+            OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+        } else {
+            return static_cast<T*>(data(element::from<datatype>()));
+        }
+    }
+    /// @}
 
     /**
      * @brief Checks if current Tensor object is not initialized
@@ -234,7 +280,7 @@ public:
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
-    typename std::enable_if<std::is_base_of<Tensor, T>::value, bool>::type is() const noexcept {
+    std::enable_if_t<std::is_base_of_v<Tensor, T>, bool> is() const noexcept {
         try {
             T::type_check(*this);
         } catch (...) {
@@ -250,7 +296,7 @@ public:
      * @return T object
      */
     template <typename T>
-    const typename std::enable_if<std::is_base_of<Tensor, T>::value, T>::type as() const {
+    const std::enable_if_t<std::is_base_of_v<Tensor, T>, T> as() const {
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }

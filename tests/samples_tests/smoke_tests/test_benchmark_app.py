@@ -17,8 +17,8 @@ import numpy as np
 import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
-from openvino.runtime import opset8 as opset
-import openvino.runtime as ov
+from openvino import opset8 as opset
+import openvino as ov
 
 def get_executable(sample_language):
     executable = 'benchmark_app'
@@ -39,7 +39,7 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
         f.write(raw_data)
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None,
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, iop=None, nstreams=None,
            layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx',
            inp='dog-224x224.bmp', batch='1', niter='10', max_irate=None, tm=None):
     output = get_cmd_output(
@@ -51,6 +51,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-max_irate', max_irate) if max_irate else '',
         *('-shape', shape) if shape else '',
         *('-data_shape', data_shape) if data_shape else '',
+        *('-iop', iop) if iop else '',
         *('-hint', 'none') if nstreams or pin else '',
         *('-pin', pin) if pin else '',
         *('-api', api) if api else '',
@@ -161,3 +162,64 @@ def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache,
     # benchmark_app reads batch from model or cmd, not from npy.
     # benchmark_app still verifyes npy shape for python impl.
     verify(sample_language, device, inp=inp, cache=cache, tmp_path=tmp_path, batch='2')
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+@pytest.mark.parametrize('pv_in_tensor_names', [{'87', 'input.1'}, {'87', 'input.1', 'pixel_values'}, {''}, set()])
+@pytest.mark.parametrize('pv_out_tensor_names', [{''}])
+@pytest.mark.parametrize('am_in_tensor_names', [{'877', 'attention_mask'}])
+@pytest.mark.parametrize('am_out_tensor_names', [{''}])
+def test_input_tensor_with_multiple_names(sample_language, device, pv_in_tensor_names, pv_out_tensor_names, am_in_tensor_names, am_out_tensor_names, cache, tmp_path):
+    '''
+    Tests the ability to resolve the correct tensor name from the -shape cmd argument when a tensor has multiple assigned names.
+    '''
+    pv_param_shape = [-1, -1, -1, -1]
+    pv_data_shape = [1, 3, 224, 224]
+    pv_param_node = opset.parameter(pv_param_shape, ov.Type.f32, name="pixel_values")
+    pv_param_node.output(0).set_names(pv_in_tensor_names)
+    pv_cvt_node = opset.convert(pv_param_node, ov.Type.f16)
+    pv_result_node = opset.result(pv_cvt_node, name='pv_result')
+    pv_result_node.output(0).set_names(pv_out_tensor_names)
+
+    am_param_shape = [-1, -1]
+    am_data_shape = [1, 77]
+    am_param_node = opset.parameter(am_param_shape, ov.Type.i64, name="attention_mask")
+    am_param_node.output(0).set_names(am_in_tensor_names)
+    am_cvt_node = opset.convert(am_param_node, ov.Type.i32)
+    am_result_node = opset.result(am_cvt_node, name='am_result')
+    am_result_node.output(0).set_names(am_out_tensor_names)
+
+    model = ov.Model([pv_result_node, am_result_node], [pv_param_node, am_param_node], 'model_with_multi_name_input_tensor')
+    data_shape = f'pixel_values{pv_data_shape},attention_mask{am_data_shape}'
+    # We intentionally set shape here instead of data_shape to catch an assert from benchmark_app,
+    # if one of command line input shapes has not been captured correctly.
+    verify(sample_language, device, shape=data_shape, model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+@pytest.mark.parametrize('in_node_name, in_tensor_names, out_node_name, out_tensor_names', [
+    ('input', {'actual_input'}, 'actual_input', {'input'}),
+])
+def test_input_output_tensor_name_collision(sample_language, device, in_node_name, in_tensor_names, out_node_name, out_tensor_names, cache, tmp_path):
+    '''
+    Tests the priority of resolving the correct tensor name from the -iop cmd argument in case of name collisions between input/output tensors and nodes.
+    '''
+    data_shape = [1, 3, 224, 224]
+    param_node = opset.parameter(data_shape, ov.Type.f32, name=in_node_name)
+    param_node.output(0).set_names(in_tensor_names)
+    cvt_node = opset.convert(param_node, ov.Type.f16)
+    result_node = opset.result(cvt_node.output(0), name=out_node_name)
+    result_node.output(0).set_names(out_tensor_names)
+
+    model = ov.Model([result_node], [param_node], 'model_with_name_collision')
+    iop = f'{list(in_tensor_names)[0]}:i32,{list(out_tensor_names)[0]}:i64'
+    inp = tmp_path / 'i32_tensor.npy'
+    # actual_input is int32 so we generate corresponding data. i64 tensor would fail.
+    with open(inp, "wb") as i32_tensor:
+        np.save(
+            i32_tensor,
+            np.random.RandomState(
+                np.random.MT19937(np.random.SeedSequence(0))
+            ).uniform(0, 256, data_shape).astype(np.int32)
+        )
+    verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "dimension_util.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "pooling_shape_inference_util.hpp"
 #include "utils.hpp"
 
