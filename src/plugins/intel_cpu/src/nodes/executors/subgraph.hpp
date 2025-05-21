@@ -102,28 +102,26 @@ protected:
 class SubgraphSpecializedBaseExecutor {
 public:
     SubgraphSpecializedBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num) {
-        precompute_ptr_mappings(external_ptrs_idces, in_num, m_src_ptr_mappings, m_external_ptr_mappings);
+        size_t external_idx = 0, src_idx = 0;
+        m_external_ptr_mappings.resize(external_ptrs_idces.size());
+        m_src_ptr_mappings.resize(in_num - external_ptrs_idces.size());
+        for (size_t i = 0; i < in_num; i++) {
+            if (external_ptrs_idces.count(i)) {
+                m_external_ptr_mappings[external_idx] = {i, external_idx};
+                external_idx++;
+            } else {
+                m_src_ptr_mappings[src_idx] = {i, src_idx};
+                src_idx++;
+            }
+        }
     };
+    virtual ~SubgraphSpecializedBaseExecutor() = default;
 
 protected:
     struct PtrMapping {
         size_t original_idx;
         size_t postprocessed_idx;
     };
-
-    inline void precompute_ptr_mappings(const std::set<size_t>& external_ptrs_idces,
-                                        size_t total_size,
-                                        std::vector<PtrMapping>& src_ptr_mappings,
-                                        std::vector<PtrMapping>& external_ptr_mappings) {
-        size_t external_idx = 0, src_idx = 0;
-        for (size_t i = 0; i < total_size; i++) {
-            if (external_ptrs_idces.count(i)) {
-                external_ptr_mappings.push_back({i, external_idx++});
-            } else {
-                src_ptr_mappings.push_back({i, src_idx++});
-            }
-        }
-    }
 
     // Mappings are needed to map original ptrs to the kernel and external ptrs based on external ptrs indices
     std::vector<PtrMapping> m_src_ptr_mappings;
@@ -135,7 +133,6 @@ class SubgraphStaticBaseExecutor : public SubgraphSpecializedBaseExecutor {
 public:
     SubgraphStaticBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num)
         : SubgraphSpecializedBaseExecutor(external_ptrs_idces, in_num) {}
-    virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
     using kernel = void (*)(const void*, const void*);
@@ -172,7 +169,6 @@ public:
           m_loop_args(snippet_config->loop_args) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
-    virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
 protected:
     using dynamic_kernel = void (*)(const void*);
