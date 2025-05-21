@@ -52,10 +52,10 @@ public:
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    virtual bool is_padded() override {
+    virtual bool is_adjusted_output_size() const override {
         return true;
     }
-    virtual std::vector<size_t> get_pad_size() override;
+    virtual size_t get_adjusted_output_size(const snippets::VectorDims& shape, const size_t& rank) const override;
 
     class ShapeInfer : public snippets::IShapeInferSnippets {
         std::vector<size_t> m_layout{};
@@ -65,8 +65,6 @@ public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
     };
-
-    static bool is_transposed(const std::vector<size_t>& layout);
 
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});

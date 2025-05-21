@@ -13,8 +13,7 @@ public:
     jit_gemm_copy_b_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr,
-                            const snippets::KernelExecutorTablePtr& kernel_table,
-                            const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
+                            const snippets::KernelExecutorTablePtr& kernel_table);
 
     size_t get_inputs_count() const override {
         return 1;

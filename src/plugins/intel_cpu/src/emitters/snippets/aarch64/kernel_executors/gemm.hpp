@@ -30,30 +30,24 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct GemmKaiCompiledKernel {
-    std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel> brgemm_kernel = nullptr;
-};
-
-class GemmKaiKernelExecutor : public snippets::KernelExecutor<GemmKernelKaiConfig, GemmKaiCompiledKernel> {
+class GemmKaiKernelExecutor
+    : public snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel> {
 public:
     GemmKaiKernelExecutor(GemmKernelKaiConfig config);
 
+    // No need kernel update, just update config is enough for update. The universal ukernel is reused with any config.
     void update_kernel(const GemmKernelKaiConfig& config,
-                       std::shared_ptr<GemmKaiCompiledKernel>& kernel) const override final {}
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {
+        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    }
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);
-    void* get_bias_mem() const {
-        return biasMem.data();
-    }
-    mutable size_t biasSize = 0;
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        GemmKernelKaiConfig& config) const override;
-
-    mutable std::vector<uint8_t> biasMem;
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel{
         kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
