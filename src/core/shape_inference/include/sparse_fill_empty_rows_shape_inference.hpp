@@ -16,7 +16,6 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRows* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
-
     const auto& values_shape = input_shapes[0];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -35,9 +34,10 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRows* op,
         "The dense_shape input must be 1D and have exactly 2 elements, meaning only 2D sparse tensors are supported.");
 
     const auto& indices_shape = input_shapes[2];
-    const bool is_indices_shape_valid = indices_shape.rank().is_dynamic() ||
-                                        (indices_shape.size() == 2 && indices_shape[1].compatible(2) &&
-                                         (is_dense_shape_rank_dynamic || indices_shape[0].compatible(values_shape[0])));
+    const bool is_indices_shape_valid =
+        indices_shape.rank().is_dynamic() || (indices_shape.size() == 2 && indices_shape[1].compatible(2) &&
+                                              (is_dense_shape_rank_dynamic || values_shape.rank().is_dynamic() ||
+                                               indices_shape[0].compatible(values_shape[0])));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            is_indices_shape_valid,
@@ -61,10 +61,10 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRows* op,
     empty_row_indicator_shape.resize(1);
     output_indices_shape[1] = 2;  // Only 2D cases are supported
 
-    if (auto dense_shape_value = get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor)) {
+    if (auto dense_shape_value = get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor);
+        dense_shape_value && (*dense_shape_value).is_static()) {
         const auto& number_of_rows = (*dense_shape_value)[0].get_length();
         empty_row_indicator_shape[0] = number_of_rows;
-
         if (auto indices_value = get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)) {
             auto is_valid_index = [](int64_t index, int64_t max_value) -> bool {
                 return index >= 0 && index < max_value;
