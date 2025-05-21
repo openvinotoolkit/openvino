@@ -43,6 +43,19 @@ namespace v0 {
 class Result;
 }  // namespace v0
 struct AutoBroadcastSpec;
+namespace util {
+/**
+ * @brief Checks if sources of inputs of two nodes are equal
+ * @param lhs - node to check input
+ * @param rhs - other node to check input
+ * @param input_index - input port index to get the source
+ * @return true if sources share same node and output index otherwise false
+ */
+OPENVINO_API
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index);
+}  // namespace util
 }  // namespace op
 namespace pass {
 
@@ -115,10 +128,11 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
-    // To fix collisions in generated friendly name
-    friend class pass::ResolveNameCollisions;
 
 protected:
+    friend OPENVINO_API bool ov::op::util::input_sources_are_equal(const std::shared_ptr<ov::Node>&,
+                                                                   const std::shared_ptr<ov::Node>&,
+                                                                   const size_t);
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
@@ -553,6 +567,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {
 public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
@@ -565,6 +580,7 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::NodeVector> : public VisitorAdapter {
 public:
     AttributeAdapter(ov::NodeVector& ref);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

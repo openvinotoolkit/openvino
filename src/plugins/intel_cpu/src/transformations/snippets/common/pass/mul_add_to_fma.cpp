@@ -6,6 +6,7 @@
 
 #include <snippets/itt.hpp>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -50,6 +51,6 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, "MulAddToFMA");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, matcher_name);
     register_matcher(m, callback);
 }

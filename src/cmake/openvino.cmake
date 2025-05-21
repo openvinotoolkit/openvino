@@ -49,11 +49,14 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
-                                             openvino::shape_inference
-                                             openvino::pugixml
-                                             ${CMAKE_DL_LIBS}
-                                             Threads::Threads)
+target_link_libraries(${TARGET_NAME} 
+    PRIVATE openvino::reference
+            openvino::shape_inference
+            openvino::pugixml
+            ${CMAKE_DL_LIBS}
+            Threads::Threads
+    PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
+           $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
@@ -65,10 +68,6 @@ endif()
 
 if(DEFINED OV_GLIBCXX_USE_CXX11_ABI)
     target_compile_definitions(${TARGET_NAME} PUBLIC _GLIBCXX_USE_CXX11_ABI=${OV_GLIBCXX_USE_CXX11_ABI})
-endif()
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
 if(RISCV64)
@@ -112,6 +111,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL}
         INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
+
+ov_install_pdb(${TARGET_NAME})
 
 # OpenVINO runtime library dev
 
@@ -183,6 +184,18 @@ install(EXPORT OpenVINOTargets
         DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+
+#
+# Install PDB files
+#
+
+if(WIN32 AND NOT BUILD_SHARED_LIBS)
+    # installation of compile PDB files for static libraries
+    install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+            DESTINATION ${OV_CPACK_ARCHIVEDIR}
+            COMPONENT pdb
+            EXCLUDE_FROM_ALL)
+endif()
 
 # build tree
 

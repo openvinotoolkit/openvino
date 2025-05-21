@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
@@ -33,20 +35,21 @@ template <typename Primitive,
           typename Attrs,
           typename ShapeAgnosticData,
           typename Instantiator = DefaultInstantiator<Primitive, Attrs, ShapeAgnosticData>>
-class DnnlFCExecutor : public Executor {
+class DnnlExecutor : public Executor {
 public:
     using PrimitivePtr = std::shared_ptr<Primitive>;
-    DnnlFCExecutor(const Attrs& attrs,
-                   const PostOps& postOps,
-                   const MemoryArgs& memory,
-                   ExecutorContext::CPtr context,
-                   const bool cacheWeights)
+    DnnlExecutor(const Attrs& attrs,
+                 const MemoryArgs& memory,
+                 ExecutorContext::CPtr context,
+                 const bool cacheWeights,
+                 const bool fc3Das2D = false)
         : m_attrs(attrs),
           m_context(std::move(context)),
-          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
-          m_primArgs(m_shapeAgnosticData->primAttrs.dnnlArgs) {}
+          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, memory, m_context, cacheWeights)),
+          m_primArgs(m_shapeAgnosticData->m_primAttrs.dnnlArgs),
+          m_fc3Das2D(fc3Das2D) {}
     bool update(const MemoryArgs& memory) override {
-        const auto primitive = createPrimitive(memory);
+        const auto primitive = createPrimitive(memory, m_attrs);
         if (!primitive) {
             return false;
         }
@@ -66,8 +69,21 @@ public:
         m_primitive->execute(m_primArgs);
     }
 
-    impl_desc_type implType() const override {
-        return m_primitive ? m_primitive->implType() : undef;
+    void execute() override {
+        m_primitive->execute(m_primArgs);
+    }
+
+    void execute() const override {
+        m_primitive->execute(m_primArgs);
+    }
+
+    [[nodiscard]] impl_desc_type implType() const override {
+        // to satisfy functional tests logic, implementation type should be shape agnostic
+        if (m_shapeAgnosticData->m_implType != impl_desc_type::undef) {
+            return m_shapeAgnosticData->m_implType;
+        }
+
+        return m_primitive ? m_primitive->implType() : impl_desc_type::undef;
     }
 
     void moveMemToNumaNode(int numaNodeID) override {
@@ -78,14 +94,14 @@ public:
         m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
-        if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID)) {
+        if (auto it = m_primArgs.find(DNNL_ARG_WEIGHTS); it != m_primArgs.end()) {
+            if (!mbind_move(it->second, numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
             }
         }
 
-        if (m_primArgs.count(DNNL_ARG_BIAS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID)) {
+        if (auto it = m_primArgs.find(DNNL_ARG_BIAS); it != m_primArgs.end()) {
+            if (!mbind_move(it->second, numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
             }
         }
@@ -121,7 +137,13 @@ private:
                              const PrimitivePtr currentPrimitive,
                              const PrimitivePtr newPrimitive,
                              const MemoryPtr& memory) {
+        if (m_attrs.nonConstantWeights) {  // non constant weights are handled by the primitive
+            m_primArgs[DNNL_ARG_WEIGHTS] = memory->getPrimitive();
+            return;
+        }
+
         const auto newPrimMemDesc = newPrimitive->weightsDesc();
+
         if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc)) {
             return;
         }
@@ -135,6 +157,26 @@ private:
 
     void updateBiasMemory(const MemoryPtr& memory) {
         m_primArgs[DNNL_ARG_BIAS] = memory->getPrimitive();
+    }
+
+    void updatePostOpsMemory(const MemoryArgs& memory) {
+        auto update = [&memory, this](int cpuMemoryArg, int dnnlMemoryArg) {
+            if (const auto arg = memory.find(cpuMemoryArg); arg != memory.end()) {
+                const auto& memory = arg->second;
+                m_primArgs[dnnlMemoryArg] = memory->getPrimitive();
+            }
+        };
+
+        update(ARG_ATTR_POST_OP_DW | ARG_WEI, DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS);
+        update(ARG_ATTR_POST_OP_DW | ARG_BIAS, DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS);
+
+        if (m_shapeAgnosticData->m_primAttrs.legacyZeroPoints) {
+            update(ARG_ATTR_ZERO_POINTS | ARG_SRC, DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC);
+            update(ARG_ATTR_ZERO_POINTS | ARG_WEI, DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS);
+            update(ARG_ATTR_ZERO_POINTS | ARG_DST, DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST);
+        } else {
+            update(ARG_ATTR_ZERO_POINTS | ARG_SRC_3, DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC);
+        }
     }
 
     void updateScratchPadMem(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive) {
@@ -153,26 +195,34 @@ private:
         const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
         const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
-        updateSrcMemory(srcDesc, newPrimitive, memory.at(ARG_SRC));
-        updateDstMemory(dstDesc, newPrimitive, memory.at(ARG_DST));
+        if (m_fc3Das2D) {
+            updateSrcMemory(srcDesc, newPrimitive, memory.at(ARG_SRC));
+            updateDstMemory(dstDesc, newPrimitive, memory.at(ARG_DST));
+        } else {
+            m_primArgs[DNNL_ARG_SRC] = memory.at(ARG_SRC)->getPrimitive();
+            m_primArgs[DNNL_ARG_DST] = memory.at(ARG_DST)->getPrimitive();
+        }
+
         updateWeightsMemory(weiDesc, currentPrimitive, newPrimitive, memory.at(ARG_WEI));
         updateBiasMemory(memory.at(ARG_BIAS));
+        updatePostOpsMemory(memory);
         updateScratchPadMem(currentPrimitive, newPrimitive);
     }
 
-    PrimitivePtr createPrimitive(const MemoryArgs& memory) {
-        return Instantiator{}(memory, m_attrs, m_context, m_shapeAgnosticData);
+    PrimitivePtr createPrimitive(const MemoryArgs& memory, const Attrs& attrs) {
+        return Instantiator{}(memory, attrs, m_context, m_shapeAgnosticData);
     }
-
-    const Attrs& m_attrs;
+    // @todo there is no real reason to store attrs. Better to just pass as api argument
+    Attrs m_attrs;
     const ExecutorContext::CPtr m_context;
-    const std::shared_ptr<ShapeAgnosticData> m_shapeAgnosticData;
+    std::shared_ptr<ShapeAgnosticData> m_shapeAgnosticData;
     dnnl_primitive_args& m_primArgs;
     bool resetSrcMemoryDataHandle = false;
     bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
     int curNumaNode = -1;
+    bool m_fc3Das2D = false;
 };
 
 }  // namespace ov::intel_cpu

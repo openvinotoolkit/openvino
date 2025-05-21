@@ -113,7 +113,7 @@ private:
     void allocate_states();
     void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
     void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
-    cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const;
+    cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;

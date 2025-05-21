@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -102,7 +102,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -156,7 +156,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
@@ -180,7 +180,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -210,7 +210,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_scalar_wzp) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(8, true);
     }
     {
@@ -234,7 +234,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_scalar_wzp) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

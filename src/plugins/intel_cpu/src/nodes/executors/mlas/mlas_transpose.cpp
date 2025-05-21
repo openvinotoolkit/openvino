@@ -23,7 +23,7 @@ template <>
 struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -48,7 +48,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -66,7 +66,7 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
 }
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -91,7 +91,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -337,9 +337,9 @@ void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
 }
 
 bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
-                                 const std::vector<MemoryDescPtr>& srcDescs,
-                                 const std::vector<MemoryDescPtr>& dstDescs,
-                                 const dnnl::primitive_attr& attr) {
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
@@ -347,7 +347,7 @@ bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
+bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {

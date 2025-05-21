@@ -186,7 +186,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         return -10.f;
     }
 
-    float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
+    float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize()) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
     bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
     bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
     float max_reg_pressure = twice_increase_max_reg_pressure ? 0.785f : increase_max_reg_pressure ? 0.75f : 0.7f;
@@ -545,8 +545,8 @@ void Convolution_kernel_b_fs_zyx_fsv16_imad::GetUpdateDispatchDataFunc(KernelDat
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }

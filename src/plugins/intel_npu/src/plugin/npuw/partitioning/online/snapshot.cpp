@@ -357,6 +357,16 @@ void Snapshot::markInternalCompute() {
     LOG_INFO("Online partitioning: executing markInternalCompute pass...");
     LOG_BLOCK();
 
+    // Iterate over groups and drop all "fake" tags.
+    // It's done for markInternalCompute pass to work properly if
+    // there are multiple tags used to not split internal patterns.
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (!group->isolatedTag().empty() && group->isolatedTag() == "fake") {
+            group->dontIsolate();
+        }
+    }
+
     // iterate it topological order
     for (const auto& nh : m_graph->sorted()) {
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
@@ -376,15 +386,23 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            NPUW_ASSERT(!group->srcNodes().empty());
-            auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
-            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
-            NPUW_ASSERT(!group_prod->isolatedTag().empty());
-            if (group_prod->isolatedTag() !=
+            Group::GPtr group_with_tag = nullptr;
+            if (group->srcNodes().empty()) {
+                NPUW_ASSERT(!group->dstNodes().empty());
+                auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(cons_nh).get<Group::GPtr>();
+            } else {
+                auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
+            }
+
+            NPUW_ASSERT(group_with_tag);
+            NPUW_ASSERT(!group_with_tag->isolatedTag().empty());
+            if (group_with_tag->isolatedTag() !=
                 "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
                 continue;
             }
-            group->isolate(group_prod->isolatedTag());
+            group->isolate(group_with_tag->isolatedTag());
         }
     }
 
@@ -423,14 +441,18 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm as a pattern (don't confuse with operations)."
-                         << " Avoid pattern " << avoid.pattern << " is skipped!");
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos") {
+                LOG_WARN(
+                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
+                    << " Avoid pattern " << avoid.pattern << " is skipped!");
                 break;
             }
             handle_patterns = true;
-
-            rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
+            if (avoid.pattern == "RMSNorm") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "SinCos") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
+            }
             break;
         }
         }
@@ -449,6 +471,7 @@ void Snapshot::earlyRegroup() {
     LOG_BLOCK();
 
     ov::pass::GraphRewrite rewr;
+    ov::pass::GraphRewrite rewr_fake;
     bool handle_patterns = false;
 
     for (const auto& isolate : m_ctx.isolates) {
@@ -470,8 +493,15 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                            \
     }
+#define HNDL_FAKE(p)                                                                            \
+    if (isolate.pattern == #p) {                                                                \
+        rewr_fake.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                                 \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
+            HNDL(RMSNorm3);
+            HNDL(RMSNorm4);
             HNDL(DQMatMulCWu4);
             HNDL(DQMatMulGQu4);
             HNDL(DQMatMulCWi4);
@@ -479,6 +509,9 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL_FAKE(FakeConvert);
+            HNDL_FAKE(FakeQuantize);
+#undef HNDL_FAKE
 #undef HNDL
         }
         }
@@ -486,6 +519,8 @@ void Snapshot::earlyRegroup() {
 
     if (handle_patterns) {
         // Check the model for all specified patterns
+        // Note: it's important to run Fake patterns first so it won't mix with the compute ones
+        rewr_fake.run_on_model(m_model);
         rewr.run_on_model(m_model);
     }
 

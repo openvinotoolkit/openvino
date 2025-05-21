@@ -41,7 +41,7 @@ public:
                       const std::vector<MemoryPtr>& dst,
                       const void* post_ops_data_) = 0;
     virtual ~DeconvExecutor() = default;
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
 protected:
     DeconvAttrs deconvAttrs;
@@ -53,11 +53,11 @@ using DeconvExecutorCPtr = std::shared_ptr<const DeconvExecutor>;
 
 class DeconvExecutorBuilder {
 public:
-    ~DeconvExecutorBuilder() = default;
-    virtual bool isSupported(const DeconvAttrs& convAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    virtual ~DeconvExecutorBuilder() = default;
+    [[nodiscard]] virtual bool isSupported(const DeconvAttrs& convAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using DeconvExecutorBuilderPtr = std::shared_ptr<DeconvExecutorBuilder>;

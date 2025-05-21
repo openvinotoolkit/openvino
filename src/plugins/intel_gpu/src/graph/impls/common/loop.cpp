@@ -3,7 +3,7 @@
 //
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "loop_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
@@ -20,22 +20,22 @@ static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
 
     switch (prim_layout.data_type) {
     case data_types::u8: {
-        mem_lock<uint8_t> lock_prim_output{mem, stream};
+        mem_lock<uint8_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i8: {
-        mem_lock<int8_t> lock_prim_output{mem, stream};
+        mem_lock<int8_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i32: {
-        mem_lock<int32_t> lock_prim_output{mem, stream};
+        mem_lock<int32_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i64: {
-        mem_lock<int64_t> lock_prim_output{mem, stream};
+        mem_lock<int64_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }

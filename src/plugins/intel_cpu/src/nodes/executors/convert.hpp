@@ -24,7 +24,7 @@ public:
                       const MemoryDescPtr& srcDesc,
                       const MemoryDescPtr& dstDesc,
                       const dnnl::primitive_attr& attr) = 0;
-    virtual ~ConvertExecutor() = default;
+    ~ConvertExecutor() override = default;
 
 protected:
     ConvertParams convertParams;
@@ -36,10 +36,10 @@ using ConvertExecutorCPtr = std::shared_ptr<const ConvertExecutor>;
 class ConvertExecutorBuilder {
 public:
     virtual ~ConvertExecutorBuilder() = default;
-    virtual bool isSupported(const ConvertParams& convertParams,
-                             const MemoryDescPtr& srcDesc,
-                             const MemoryDescPtr& dstDesc) const = 0;
-    virtual ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const ConvertParams& convertParams,
+                                           const MemoryDescPtr& srcDesc,
+                                           const MemoryDescPtr& dstDesc) const = 0;
+    [[nodiscard]] virtual ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using ConvertExecutorBuilderPtr = std::shared_ptr<ConvertExecutorBuilder>;

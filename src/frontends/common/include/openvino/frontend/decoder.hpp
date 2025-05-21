@@ -21,6 +21,12 @@ struct Tensor {
     Any element_type;
 };
 
+struct Complex {
+    Complex() = default;
+    explicit Complex(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
 struct Tuple;
 
 struct List {

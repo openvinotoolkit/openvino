@@ -44,7 +44,7 @@ public:
         friend class RegistersPool;
 
     public:
-        Reg() {}
+        Reg() = default;
         Reg(const RegistersPool::Ptr& regPool) {
             initialize(regPool);
         }
@@ -130,7 +130,7 @@ public:
     static Ptr create(dnnl::impl::cpu::x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
     template <typename TReg>
-    size_t countFree() const {
+    [[nodiscard]] size_t countFree() const {
         static_assert(is_any_of<TReg,
                                 Xbyak::Xmm,
                                 Xbyak::Ymm,
@@ -195,7 +195,7 @@ protected:
             isFreeIndexVector.at(reg.getIdx()) = false;
         }
 
-        size_t countUnused() const {
+        [[nodiscard]] size_t countUnused() const {
             size_t count = 0;
             for (const auto& isFree : isFreeIndexVector) {
                 if (isFree) {
@@ -219,13 +219,13 @@ protected:
         std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask(int requestedIdx) {
+    virtual int getFreeOpmask([[maybe_unused]] int requestedIdx) {
         OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set");
     }
-    virtual void returnOpmaskToPool(int idx) {
+    virtual void returnOpmaskToPool([[maybe_unused]] int idx) {
         OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
     }
-    virtual size_t countUnusedOpmask() const {
+    [[nodiscard]] virtual size_t countUnusedOpmask() const {
         OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
     }
 
@@ -369,7 +369,7 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
                                                 std::initializer_list<Xbyak::Reg> regsToExclude) {
 #define ISA_SWITCH_CASE(isa) \
     case isa:                \
-        return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+        return std::make_shared<IsaRegistersPool<(isa)>>(regsToExclude);
     switch (isa) {
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::sse41)
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx)

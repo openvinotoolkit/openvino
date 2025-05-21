@@ -82,7 +82,7 @@ private:
             throw std::runtime_error("Incorrect type of Logical operation");
         }
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{logical_op}, ov::ParameterVector{params_vec});
+        return std::make_shared<ov::Model>(ov::OutputVector{logical_op}, ov::ParameterVector{params_vec});
     }
 };
 }  // namespace LogicalOpsRefTestDefinitions

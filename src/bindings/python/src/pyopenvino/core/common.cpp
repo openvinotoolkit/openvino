@@ -8,7 +8,6 @@
 
 #include "Python.h"
 #include "openvino/core/except.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
 
@@ -74,13 +73,8 @@ const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
 }
 
 ov::element::Type get_ov_type(const py::array& array) {
-    // More about character codes:
-    // https://numpy.org/doc/stable/reference/arrays.scalars.html
-    char ctype = array.dtype().kind();
-    if (ctype == 'U' || ctype == 'S') {
-        return ov::element::string;
-    }
-    return dtype_num_to_ov_type().at(array.dtype().num());
+    auto dtype = array.dtype();
+    return get_ov_type(dtype);
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
@@ -90,7 +84,10 @@ ov::element::Type get_ov_type(py::dtype& dtype) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_num_to_ov_type().at(dtype.num());
+    const auto dtype_map = dtype_num_to_ov_type();
+    auto ov_type_it = dtype_map.find(dtype.num());
+    OPENVINO_ASSERT(ov_type_it != dtype_map.end(), "Unsupported data type: ", dtype);
+    return ov_type_it->second;
 }
 
 };  // namespace type_helpers
@@ -409,6 +406,27 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
         return self.get_strides();
     }
 }
+
+std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array) {
+    // Check if passed array has C-style contiguous memory layout.
+    // If memory is going to be shared it needs to be contiguous before passing to the constructor.
+    // If ndim is equal to 0, creates scalar Constant.
+    // If size is equal to 0, creates empty Constant.
+    if (array_helpers::is_contiguous(array)) {
+        auto buffer = new ov::SharedBuffer<py::array>(
+            static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
+            array.ndim() == 0 ? array.itemsize() : array.nbytes(),
+            array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
+        return memory;
+    }
+    // If passed array is not C-style, throw an error.
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
 };  // namespace constant_helpers
 
 template <>
@@ -437,23 +455,9 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
 
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
-    // Check if passed array has C-style contiguous memory layout.
-    // If memory is going to be shared it needs to be contiguous before passing to the constructor.
-    // If ndim is equal to 0, creates scalar Constant.
-    // If size is equal to 0, creates empty Constant.
-    if (array_helpers::is_contiguous(array)) {
-        auto buffer = new ov::SharedBuffer<py::array>(
-            static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
-            array.ndim() == 0 ? array.itemsize() : array.nbytes(),
-            array);
-        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            py::gil_scoped_acquire acquire;
-            delete buffer;
-        });
-        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
-    }
-    // If passed array is not C-style, throw an error.
-    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+    return ov::op::v0::Constant(type_helpers::get_ov_type(array),
+                                array_helpers::get_shape(array),
+                                constant_helpers::get_shared_memory(array));
 }
 
 template <>
@@ -664,6 +668,21 @@ ov::pass::Serialize::Version convert_to_version(const std::string& version) {
     OPENVINO_THROW("Invoked with wrong version argument: '",
                    version,
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+}
+
+std::shared_ptr<ov::Node> node_from_input_value(NodeInput& input) {
+    if (std::shared_ptr<ov::Node>* node = std::get_if<std::shared_ptr<ov::Node>>(&input)) {
+        return *node;
+    } else if (const int64_t* i_val = std::get_if<int64_t>(&input)) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, i_val);
+    } else if (const double* f_val = std::get_if<double>(&input)) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f64, ov::Shape{}, f_val);
+    } else {
+        auto& np_array = std::get<py::array>(input);
+        return std::make_shared<ov::op::v0::Constant>(type_helpers::get_ov_type(np_array),
+                                                      array_helpers::get_shape(np_array),
+                                                      constant_helpers::get_shared_memory(np_array));
+    }
 }
 
 };  // namespace Common

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "nodes/kernels/scaled_attn/common.hpp"
-
+#include "openvino/core/type/element_type.hpp"
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
@@ -20,10 +20,10 @@ namespace ov::Extensions::Cpu::XARCH {
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
-void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, float zp) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, float zp) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
 #if defined(HAVE_AVX512F)
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
@@ -57,7 +57,7 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, float zp) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, float zp) {
     // 2 4bit data form a byte
     /* 0,1|2,3|4,5|6,7
           /      \
@@ -68,7 +68,7 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
        0,1,2,3,4,5,6,7
     */
     size_t i = 0;
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(scale);
     auto v_zp_scale = _mm512_set1_ps(zp * scale);
@@ -135,6 +135,107 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
         float tmp = extract_half_byte(src_nc[i / 2], static_cast<uint8_t>(i % 2));
         tmp = (tmp - zp) * scale;
         dst[i] = tmp;
+    }
+}
+
+template <typename TDST, ov::element::Type_t PREC, std::enable_if_t<PREC == ov::element::u8, bool> = true>
+void attn_dequant_by_channel_kernel(const void* src,
+                                    TDST* dst,
+                                    size_t seq_dim,
+                                    size_t hidden_dims,
+                                    size_t src_stride,
+                                    size_t dst_stride,
+                                    float* scale,
+                                    float* zp) {
+    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+
+    for (size_t i = 0; i < seq_dim; ++i) {
+        size_t j = 0;
+#if defined(HAVE_AVX512F)
+        while (j + vec_len_f32_avx512 <= hidden_dims) {
+            auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + j + i * src_stride));
+            auto v0_512 = _mm512_cvtepu8_epi32(v0_128);
+            auto v0_value = _mm512_cvtepi32_ps(v0_512);
+            v0_value = _mm512_sub_ps(v0_value, _mm512_loadu_ps(zp + j));
+            auto v0_out = _mm512_mul_ps(v0_value, _mm512_loadu_ps(scale + j));
+            mm512_uni_storeu_ps(dst + i * dst_stride + j, v0_out);
+            j += vec_len_f32_avx512;
+        }
+#endif
+#if defined(HAVE_AVX2)
+        while (j + vec_len_f32_avx2 <= hidden_dims) {
+            auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + j + i * src_stride));
+            auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
+            auto v0_value = _mm256_cvtepi32_ps(v0_256);
+            v0_value = _mm256_sub_ps(v0_value, _mm256_loadu_ps(zp + j));
+            auto v0_out = _mm256_mul_ps(v0_value, _mm256_loadu_ps(scale + j));
+            mm256_uni_storeu_ps(dst + i * dst_stride + j, v0_out);
+            j += vec_len_f32_avx2;
+        }
+#endif
+        while (j < hidden_dims) {
+            float tmp = src_nc[i * src_stride + j];
+            tmp = (tmp - zp[j]) * scale[j];
+            dst[i * dst_stride + j] = tmp;
+            j += 1;
+        }
+    }
+}
+
+template <typename TDST, ov::element::Type_t PREC, std::enable_if_t<PREC == ov::element::u4, bool> = true>
+void attn_dequant_by_channel_kernel(const void* src,
+                                    TDST* dst,
+                                    size_t seq_dim,
+                                    size_t hidden_dims,
+                                    size_t src_stride,
+                                    size_t dst_stride,
+                                    float* scale,
+                                    float* zp) {
+    uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+    size_t j = 0;
+#if defined(HAVE_AVX512F)
+    for (; j + vec_len_f32_avx512 * 2 <= hidden_dims; j += vec_len_f32_avx512 * 2) {
+        auto v_scale0 = _mm512_loadu_ps(scale + j);
+        auto v_zp0 = _mm512_loadu_ps(zp + j);
+        auto v_scale1 = _mm512_loadu_ps(scale + j + vec_len_f32_avx512);
+        auto v_zp1 = _mm512_loadu_ps(zp + j + vec_len_f32_avx512);
+        __m512 first_half, second_half;
+        for (size_t i = 0; i < seq_dim; i++) {
+            mm512_loadu_u4_to_f32(src_nc + i * src_stride + j / 2, first_half, second_half);
+            first_half = _mm512_sub_ps(first_half, v_zp0);
+            first_half = _mm512_mul_ps(first_half, v_scale0);
+            second_half = _mm512_sub_ps(second_half, v_zp1);
+            second_half = _mm512_mul_ps(second_half, v_scale1);
+            mm512_uni_storeu_ps(dst + i * dst_stride + j, first_half);
+            mm512_uni_storeu_ps(dst + i * dst_stride + j + vec_len_f32_avx512, second_half);
+        }
+    }
+#elif defined(HAVE_AVX2)
+    for (; j + vec_len_f32_avx2 * 2 <= hidden_dims; j += vec_len_f32_avx2 * 2) {
+        auto v_scale0 = _mm256_loadu_ps(scale + j);
+        auto v_zp0 = _mm256_loadu_ps(zp + j);
+        auto v_scale1 = _mm256_loadu_ps(scale + j + vec_len_f32_avx2);
+        auto v_zp1 = _mm256_loadu_ps(zp + j + vec_len_f32_avx2);
+        __m256 first_half, second_half;
+        for (size_t i = 0; i < seq_dim; i++) {
+            mm256_loadu_u4_to_f32(src_nc + i * src_stride + j / 2, first_half, second_half);
+            first_half = _mm256_sub_ps(first_half, v_zp0);
+            first_half = _mm256_mul_ps(first_half, v_scale0);
+            second_half = _mm256_sub_ps(second_half, v_zp1);
+            second_half = _mm256_mul_ps(second_half, v_scale1);
+            mm256_uni_storeu_ps(dst + i * dst_stride + j, first_half);
+            mm256_uni_storeu_ps(dst + i * dst_stride + j + vec_len_f32_avx2, second_half);
+        }
+    }
+#endif
+    for (; j < hidden_dims; j += 2) {
+        for (size_t i = 0; i < seq_dim; ++i) {
+            uint8_t data = src_nc[i * src_stride + j / 2];
+            float tmp0 = extract_half_byte(data, static_cast<bool>(j % 2));
+            float tmp1 = extract_half_byte(data, static_cast<bool>((j + 1) % 2));
+            dst[i * dst_stride + j] = (tmp0 - zp[j]) * scale[j];
+            dst[i * dst_stride + j + 1] = (tmp1 - zp[j + 1]) * scale[j + 1];
+        }
     }
 }
 

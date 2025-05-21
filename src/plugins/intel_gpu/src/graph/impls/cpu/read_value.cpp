@@ -6,7 +6,7 @@
 #include "assign_inst.h"
 #include "kv_cache_inst.h"
 #include "read_value_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"

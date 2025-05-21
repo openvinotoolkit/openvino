@@ -92,11 +92,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         }
         const auto& parent_port = parent_expr_output.get_index();
         const auto& parent = parent_expr->get_node();
-        if (ov::is_type<op::Buffer>(parent) ||
-            ov::is_type<op::VectorBuffer>(parent) ||
-            ov::is_type<ov::op::v0::Parameter>(parent) ||
-            ov::is_type<ov::op::v0::Constant>(parent) ||
-            is_type<op::RankNormalization>(parent))
+        if (ov::is_type_any_of<op::Buffer,
+                               op::VectorBuffer,
+                               ov::op::v0::Parameter,
+                               ov::op::v0::Constant,
+                               op::RankNormalization>(parent))
             continue;
 
         // Each MemoryAccess op needs Buffer

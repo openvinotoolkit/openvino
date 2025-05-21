@@ -21,7 +21,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace com_microsoft {
+namespace ai_onnx {
 namespace opset_1 {
 
 ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& node) {
@@ -66,12 +66,20 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
     return ov::OutputVector{scaled, inv_std_var};
 }
 
-ONNX_OP("SimplifiedLayerNormalization",
-        OPSET_SINCE(1),
-        com_microsoft::opset_1::simplified_layer_normalization,
-        MICROSOFT_DOMAIN);
+/* This operator isn't clearly defined in ONNX documentation:
+    - https://github.com/onnx/onnx/blob/main/docs/Operators.md
+    - https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md
+   Strange, but a SkipSimplifiedLayerNormalization is a part of com.microsoft domain:
+    -
+   https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.SkipSimplifiedLayerNormalization
+   Same time SimplifiedLayerNormalization is described here and in some models it is found as a part of ai.onnx domain:
+    - https://github.com/microsoft/onnxruntime/blob/main/js/web/docs/webgpu-operators.md
+   To align with actual behavior and some documentation - decided to register it as a ai.onnx, but leave
+   in a folder with com.microsoft operations, because it isn't defined as a part of ONNX.
+*/
+ONNX_OP("SimplifiedLayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::simplified_layer_normalization);
 }  // namespace opset_1
-}  // namespace com_microsoft
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

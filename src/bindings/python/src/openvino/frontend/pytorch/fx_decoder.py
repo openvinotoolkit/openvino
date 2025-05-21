@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import logging
@@ -15,14 +15,12 @@ from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
-class BaseFXDecoder (Decoder):
-    """
-    BaseFXDecoder is a class that extends the Decoder class to handle decoding
-    operations for FX graphs in PyTorch. It provides a common interface for all
-    FX decoders.
+class BaseFXDecoder(Decoder):
+    """Extends Decoder to handle FX graph decoding in PyTorch.
+
+    Provides a common interface for all FX decoders.
     """
 
     def __init__(self, mark_node_callback=None) -> None:
@@ -38,15 +36,15 @@ class BaseFXDecoder (Decoder):
     def unpack_containers(arg):
         if isinstance(arg, (tuple, list)):
             res = []
-            for e in arg:
-                res.extend(BaseFXDecoder.unpack_containers(e))
+            for element in arg:
+                res.extend(BaseFXDecoder.unpack_containers(element))
             return res
         elif isinstance(arg, dict):
             res = []
-            for k, e in arg.items():
-                unpacked = BaseFXDecoder.unpack_containers(e)
+            for key, element in arg.items():
+                unpacked = BaseFXDecoder.unpack_containers(element)
                 if len(unpacked) == 1:
-                    unpacked[0] = (k, unpacked[0][1])
+                    unpacked[0] = (key, unpacked[0][1])
                 res.extend(unpacked)
             return res
         else:
@@ -75,9 +73,9 @@ class BaseFXDecoder (Decoder):
     @staticmethod
     def get_type_for_value(value):
         if issubclass(type(value), torch.fx.Node):
-            if ('tensor_meta' in value.meta.keys()):
-                if value.meta['tensor_meta'] and isinstance(value.meta['tensor_meta'], torch.Tensor):
-                    pt_type = value.meta['tensor_meta'].dtype
+            if ("tensor_meta" in value.meta.keys()):
+                if value.meta["tensor_meta"] and isinstance(value.meta["tensor_meta"], torch.Tensor):
+                    pt_type = value.meta["tensor_meta"].dtype
                     if str(pt_type) in pt_to_ov_type_map:
                         ov_type = pt_to_ov_type_map[str(pt_type)]
                         return OVAny(ov_type)
@@ -98,9 +96,6 @@ class BaseFXDecoder (Decoder):
     def inputs(self):
         # Consider 0 a special case which may mean the input is inlined, but not guaranteed
         return [x if not isinstance(x, InlinedInput) else 0 for x in self._inputs]
-
-    def input(self, index):
-        return self.inputs()[index]
 
     def output(self, index):
         return self.outputs()[index]
@@ -137,7 +132,7 @@ class BaseFXDecoder (Decoder):
         return "fx"
 
     def get_schema(self):
-        return 'NONE'
+        return "NONE"
 
     def mark_node(self, node):
         if self.mark_node_callback is not None:
@@ -162,18 +157,20 @@ class BaseFXDecoder (Decoder):
 
 
 class TorchFXPythonDecoder (BaseFXDecoder):
-    """
-    Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR.
-    """
+    """Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR."""
+
+    _decomp_table = None
 
     def __init__(self, pt_module, fx_gm=None, nodes=None,
-                 mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
+                 mark_node_callback=None, input_shapes=None,
+                 input_types=None, dynamic_shapes=False):
         super().__init__(mark_node_callback)
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
+        self.input_types = input_types or []
         self.input_types = [OVAny(pt_to_ov_type_map[str(t)])
-                            for t in input_types]
-        self.input_shapes = input_shapes
+                            for t in self.input_types]
+        self.input_shapes = input_shapes or []
 
         self._input_signature = []
         self._example_input = None
@@ -184,7 +181,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             found_types = []
             found_shapes = []
             for i, value in enumerate(self._nodes):
-                if value.op == 'placeholder':
+                if value.op == "placeholder":
                     self._inputs.append(i)
                     self._input_signature.append(value.name)
 
@@ -199,7 +196,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                                 new_shape.append(dim)
                         found_shapes[-1] = torch.Size(new_shape)
 
-                elif value.op == 'output':
+                elif value.op == "output":
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(value.args)
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
@@ -230,21 +227,45 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 self.input_types.append(
                     BaseFXDecoder.get_type_for_value(arg))
 
+    @classmethod
+    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
+        """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
+        from packaging import version
+        if version.parse(torch.__version__) >= version.parse("2.6"):
+            if cls._decomp_table is None:
+                from torch.export.decomp_utils import CustomDecompTable
+                from openvino.frontend.pytorch.torchdynamo.decompositions import ops_to_not_decompose
+                cls._decomp_table = CustomDecompTable()
+                for op in ops_to_not_decompose():
+                    try:
+                        cls._decomp_table.pop(op)
+                    except KeyError as e:
+                        logging.warning("Operation %s not found in decomp table", op, exc_info=e)
+            exported_program = exported_program.run_decompositions(cls._decomp_table)
+        elif version.parse(torch.__version__) >= version.parse("2.2"):
+            from torch._decomp import get_decompositions
+            from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+            decomp = get_decompositions(get_export_decomposition_list())
+            exported_program = exported_program.run_decompositions(decomp_table=decomp)
+        gm = exported_program.module()
+        logger.debug(gm.code)
+        return cls(gm, dynamic_shapes=True)
+
     @staticmethod
     def get_found_shape(value) -> str:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
-            if ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
-                return value.meta['tensor_meta'].shape
-            if ('val' in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
-                return value.meta['val'].shape
+            if ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
+                return value.meta["tensor_meta"].shape
+            if ("val" in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
+                return value.meta["val"].shape
         return None
 
     @staticmethod
     def get_found_dtype(value) -> str:
         # If input is a tensor, read the data type from meta data
-        if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
-            return OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)])
+        if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
+            return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
         return None
 
     def get_input_signature_name(self, index: int) -> str:
@@ -255,8 +276,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_input_shape(self, index):
         if index < len(self.input_shapes) and self.input_shapes[index] is not None:
             return PartialShape(self.input_shapes[index])
-        input = self._raw_input(index)
-        return self.get_shape_for_value(input)
+        _input = self._raw_input(index)
+        return self.get_shape_for_value(_input)
 
     def get_input_strides(self, index: int) -> list:
         raw_input = self._raw_input(index)
@@ -271,8 +292,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_input_type(self, index):
         if index < len(self.input_types) and self.input_types[index] is not None:
             return self.input_types[index]
-        input = self._raw_input(index)
-        return self.get_type_for_value(input)
+        _input = self._raw_input(index)
+        return self.get_type_for_value(_input)
 
     def get_output_debug_name(self, index):
         if self._outputs is not None and index < len(self._outputs) and self._outputs[index][0]:
@@ -289,9 +310,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return self.get_type_for_value(output)
 
     def get_shape_for_value(self, value):
-        if value and hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()):
-            if value.meta['tensor_meta']:
-                return PartialShape(len(value.meta['tensor_meta'].shape) * [-1])
+        if value and hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()):
+            if value.meta["tensor_meta"]:
+                return PartialShape(len(value.meta["tensor_meta"].shape) * [-1])
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
@@ -312,8 +333,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return OVAny(None)
 
     def get_named_input(self, name):
-        """
-        Returns id of kwargs input. Such input can be Node or a constant value,
+        """Returns id of kwargs input.
+
+        Such input can be Node or a constant value,
         this function is only used for to return node index. If the input is
         constant, get_attribute should be used.
         """
@@ -326,9 +348,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
         for node in self._nodes:
-            if node.op == 'placeholder' or node.op == 'output':
+            if node.op in {"placeholder", "output"}:
                 continue  # skipping non-operational nodes
-            if node.op == 'call_function' and str(node.target) in ["aten._assert_async.msg"]:
+            if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
                 continue
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
@@ -343,14 +365,14 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return decoder
 
     def get_op_type(self):
-        if self.pt_module.op == 'call_function':
+        if self.pt_module.op == "call_function":
             if type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 return self.pt_module.target.__name__
             return str(self.pt_module.target)
-        elif self.pt_module.op == 'get_attr':
-            return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
+        elif self.pt_module.op == "get_attr":
+            return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
-            return 'UNKNOWN_TYPE_' + str(self.pt_module.op)
+            return "UNKNOWN_TYPE_" + str(self.pt_module.op)
 
     def outputs(self):
         return [o[1] for o in self._outputs]
@@ -386,7 +408,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return node
 
     def as_constant(self):
-        assert self.pt_module.op == 'get_attr', "Only get_attr is supported"
+        assert self.pt_module.op == "get_attr", "Only get_attr is supported"
         # Extract Constant from FX module field
         ret = fetch_attr(self.fx_gm, self.pt_module.target)
         ov_const = torch_tensor_to_ov_const(ret, shared_memory=True)
@@ -397,16 +419,16 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return True
         else:
             r_input = self._raw_input(index)
-            return str(type(r_input)) in ['torch.NoneType', 'NoneType']
+            return str(type(r_input)) in ["torch.NoneType", "NoneType"]
 
     def debug(self):
         self.pt_module.print()
 
 
 class InlinedInput:
-    """
-    Represents an inlined input. This is a special case
-    where the input is not a node, but a constant value.
+    """Represents an inlined input.
+
+    This is a special case where the input is not a node, but a constant value.
     """
 
     def __init__(self, data) -> None:
@@ -414,9 +436,7 @@ class InlinedInput:
 
 
 class InlinedInputDecoder (BaseFXDecoder):
-    """
-    Decoder for inlined inputs in PyTorch FX graphs.
-    """
+    """Decoder for inlined inputs in PyTorch FX graphs."""
 
     def __init__(self, inlined_input: InlinedInput, nodes=None, mark_node_callback=None) -> None:
         super().__init__(mark_node_callback)

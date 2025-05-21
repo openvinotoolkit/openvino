@@ -49,7 +49,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
         return false;
     }
 
-    if (!config.postOps.empty()) {
+    if (!config.attrs.postOps.empty()) {
         DEBUG_LOG("ShlFCExecutor: PostOps are not supported");
         return false;
     }
@@ -82,7 +82,6 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
 }
 
 ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
-                             const PostOps& postOps,
                              const MemoryArgs& memory,
                              const ExecutorContext::CPtr context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context)) {
@@ -123,7 +122,7 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
     const auto src_shape = src.getShape();
     const auto dst_shape = dst.getShape();
     dim_M =
-        std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<>());
     dim_In = src_shape.back();
     dim_Out = dst_shape.back();
     LDA = dim_In * memory.at(ARG_SRC)->getPrecision().size();

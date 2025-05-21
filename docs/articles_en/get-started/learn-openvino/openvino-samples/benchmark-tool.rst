@@ -726,6 +726,9 @@ An example of running ``benchmark_app`` on CPU in latency mode and its output ar
          [ INFO ]     output (node: output) : f32 / [...] / {1,100}
          [Step 7/11] Loading the model to the device
          [ INFO ] Compile model took 974.64 ms
+         [ INFO ] Start of compilation memory usage: Peak 1000 KB
+         [ INFO ] End of compilation memory usage: Peak 10000 KB
+         [ INFO ] Compile model ram used 9000 KB
          [Step 8/11] Querying optimal runtime parameters
          [ INFO ] Model:
          [ INFO ]   NETWORK_NAME: torch-jit-export

@@ -20,8 +20,8 @@ protected:
      * @brief get shape infer instances for operations from backend-specific opset
      * @return register ShapeInferPtr
      */
-    ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
-                                              const std::shared_ptr<ov::Node>& op) const override;
+    [[nodiscard]] ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
+                                                            const std::shared_ptr<ov::Node>& op) const override;
 };
 
 }  // namespace ov::snippets

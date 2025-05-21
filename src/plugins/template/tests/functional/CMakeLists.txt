@@ -20,6 +20,8 @@ ov_add_test_target(
         INCLUDES
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
+        DEFINES
+            IN_OV_COMPONENT            
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT TEMPLATE

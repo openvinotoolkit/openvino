@@ -103,12 +103,15 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine, std::pair<int64_t, int64_t>& currentBounds) -> bool {
         assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
         const auto& parentNodes = ov::as_node_vector(nodeToExamine->input_values());
-        const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
-                                                        [](int64_t maxOrder, std::shared_ptr<Node> n){
-                                                            if (ov::is_type<ov::op::v0::Constant>(n) || ov::is_type<ov::op::v0::Parameter>(n))
-                                                                return maxOrder;
-                                                            return std::max(maxOrder, GetTopologicalOrder(n));
-                                                        });
+        const int64_t maxParentOrder =
+            std::accumulate(parentNodes.begin(),
+                            parentNodes.end(),
+                            currentBounds.first,
+                            [](int64_t maxOrder, std::shared_ptr<Node> n) {
+                                if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(n))
+                                    return maxOrder;
+                                return std::max(maxOrder, GetTopologicalOrder(n));
+                            });
         const auto& childNodes = nodeToExamine->get_users();
         // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
         const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,

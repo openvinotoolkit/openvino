@@ -15,30 +15,31 @@ struct BrgemmBaseKernelConfig : public ov::intel_cpu::BrgemmGenericKernelConfig 
 public:
     BrgemmBaseKernelConfig() = default;
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
+
+    void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta)
+        override;
 
     bool operator==(const BrgemmBaseKernelConfig& rhs) const;
     bool operator!=(const BrgemmBaseKernelConfig& rhs) const {
         return !(*this == rhs);
     }
 
-    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
-
-    dnnl_data_type_t get_dt_in0() const {
+    [[nodiscard]] dnnl_data_type_t get_dt_in0() const {
         return get_static_params()->dt_in0;
     }
-    dnnl_data_type_t get_dt_in1() const {
+    [[nodiscard]] dnnl_data_type_t get_dt_in1() const {
         return get_static_params()->dt_in1;
     }
 
-    dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
+    [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
         return get_static_params()->isa;
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const override;
+    [[nodiscard]] std::string to_string() const override;
 #endif
 
 protected:
@@ -52,7 +53,7 @@ protected:
         const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::isa_undef};
 
-        size_t hash() const {
+        [[nodiscard]] size_t hash() const {
             return m_hash;
         }
 
@@ -61,7 +62,7 @@ protected:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        [[nodiscard]] virtual std::string to_string() const;
 #endif
     protected:
         static size_t compute_hash(size_t hash_seed,
@@ -72,8 +73,11 @@ protected:
         const size_t m_hash{0};
     };
 
-    virtual std::shared_ptr<StaticBaseParams> get_static_params() const = 0;
-    size_t compute_hash() const;
+    [[nodiscard]] virtual std::shared_ptr<StaticBaseParams> get_static_params() const = 0;
+    [[nodiscard]] size_t compute_hash() const;
+
+    dnnl_dim_t m_M{0}, m_N{0}, m_K{0}, m_LDA{0}, m_LDB{0}, m_LDC{0};
+    float m_beta{0};
     size_t m_hash{SIZE_MAX};
 };
 

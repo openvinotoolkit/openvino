@@ -5,13 +5,15 @@
 #include "space_to_depth.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_extension_utils.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/space_to_depth.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/util/pp.hpp"
 #include "utils/general_utils.h"
 
@@ -301,7 +303,7 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
@@ -311,12 +313,12 @@ void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* d
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void SpaceToDepth::execute(const dnnl::stream& strm) {
+void SpaceToDepth::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
     const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
     execPtr->exec(srcData, dstData, MB);
 }

@@ -56,7 +56,7 @@ struct Eye::EyeExecute {
     }
 };
 
-void Eye::execute(const dnnl::stream& strm) {
+void Eye::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu,
               EyeExecute,
@@ -108,7 +108,7 @@ void Eye::executeSpecified() {
     const size_t onesPerBatchNum =
         static_cast<size_t>(shift > 0 ? std::min(countByColumns, static_cast<int64_t>(rowNum))
                                       : std::min(countByRows, static_cast<int64_t>(colNum)));
-    const size_t dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
+    const auto dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {

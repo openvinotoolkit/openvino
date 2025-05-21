@@ -10,7 +10,26 @@
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/tan.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -38,10 +57,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, PassThroughShapeInferFactory()),
-      alpha(0.f),
-      beta(0.f),
-      gamma(0.f) {
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -68,10 +84,10 @@ void Math::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Math::execute(const dnnl::stream& strm) {
+void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     switch (getAlgorithm()) {
     case Algorithm::MathAbs:
@@ -207,43 +223,43 @@ Math::getInitializers() {
     static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>
         initializers{
             {ov::op::v0::Abs::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAbs;
              }},
             {ov::op::v0::Acos::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAcos;
              }},
             {ov::op::v3::Acosh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAcosh;
              }},
             {ov::op::v0::Asin::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAsin;
              }},
             {ov::op::v3::Asinh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAsinh;
              }},
             {ov::op::v0::Atan::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAtan;
              }},
             {ov::op::v0::Ceiling::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathCeiling;
              }},
             {ov::op::v0::Cos::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathCos;
              }},
             {ov::op::v0::Cosh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathCosh;
              }},
             {ov::op::v0::Floor::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathFloor;
              }},
             {ov::op::v0::HardSigmoid::get_type_info_static(),
@@ -255,7 +271,7 @@ Math::getInitializers() {
                      ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
              }},
             {ov::op::v0::Negative::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathNegative;
              }},
             {ov::op::v0::Selu::get_type_info_static(),
@@ -267,26 +283,27 @@ Math::getInitializers() {
                      ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
              }},
             {ov::op::v0::Sign::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathSign;
              }},
             {ov::op::v0::Sin::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathSin;
              }},
             {ov::op::v0::Sinh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathSinh;
              }},
             {ov::op::v4::SoftPlus::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathSoftPlus;
              }},
             {ov::op::v0::Tan::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathTan;
              }},
-            {ov::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+            {ov::op::v3::Atanh::get_type_info_static(),
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAtanh;
              }}};
     return initializers;

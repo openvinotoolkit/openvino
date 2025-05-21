@@ -292,29 +292,24 @@ bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::sh
 /// \{
 OPENVINO_API
 void serialize(const std::shared_ptr<const ov::Model>& m,
-               const std::string& xml_path,
-               const std::string& bin_path = "",
+               const std::filesystem::path& xml_path,
+               const std::filesystem::path& bin_path = {},
                ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
-
-template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-void serialize(const std::shared_ptr<const ov::Model>& m,
-               const Path& xml_path,
-               const Path& bin_path = {""},
-               ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED) {
-    serialize(m, xml_path.string(), bin_path.string(), version);
-}
 /// \}
 
 /// \brief Save given model into IR. Floating point weights are compressed to FP16 by default.
 /// This method saves a model to IR applying all necessary transformations that usually applied
-/// in model conversion flow provided by OVC tool. Particularly, floating point weights are compressed to FP16.
+/// in model conversion flow provided by OVC tool. Particularly, floating point weights are compressed to
+/// FP16.
 /// \param model Model which will be converted to IR representation.
-/// \param output_model Path to the output model file, must have extension .xml
-/// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default)
+/// \param output_model Path to the output model file, must have extension .xml.
+/// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default).
+/// /// \{
 OPENVINO_API
 void save_model(const std::shared_ptr<const ov::Model>& model,
-                const std::string& output_model,
+                const std::filesystem::path& output_model,
                 bool compress_to_fp16 = true);
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
 OPENVINO_API
 void save_model(const std::shared_ptr<const ov::Model>& model,
@@ -322,8 +317,6 @@ void save_model(const std::shared_ptr<const ov::Model>& model,
                 bool compress_to_fp16 = true);
 #endif
 
-template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-void save_model(const std::shared_ptr<const ov::Model>& model, const Path& output_model, bool compress_to_fp16 = true) {
-    save_model(model, output_model.string(), compress_to_fp16);
-}
+/// \}
+
 }  // namespace ov

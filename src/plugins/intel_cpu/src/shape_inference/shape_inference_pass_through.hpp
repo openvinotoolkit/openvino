@@ -21,14 +21,14 @@ public:
         OPENVINO_ASSERT(!input_shapes.empty());
         return {{input_shapes.front()}, ShapeInferStatus::success};
     }
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 };
 
 class PassThroughShapeInferFactory final : public ShapeInferFactory {
 public:
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<ShapeInferPassThrough>();
     }
 };

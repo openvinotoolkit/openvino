@@ -157,7 +157,7 @@ std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm() {
 #else
     std::vector<ov::AnyMap> additionalConfig = {{}};
 #endif
-    if (with_cpu_x86_bfloat16()) {
+    if (with_cpu_x86_bfloat16() || with_cpu_x86_avx2_vnni_2()) {
         additionalConfig.push_back({ov::hint::inference_precision(ov::element::bf16)});
     }
 
@@ -238,8 +238,10 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
 // The following three patterns are covered by MLAS test
 #ifndef OV_CPU_WITH_MLAS
         emptyFusingSpec,
-        fusingBias,
         fusingMultiplyPerChannel,
+        fusingBias,
+#else
+        fusingBiasGelu, // bias + gelu to ensure mlas is not selected
 #endif
         fusingFakeQuantizePerTensorRelu,
         fusingReluScaleShift

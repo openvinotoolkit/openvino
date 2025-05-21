@@ -190,9 +190,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<ov::op::v0::Parameter>(node) ||
-            ov::is_type<ov::op::v0::Constant>(node) ||
-            ov::is_type<ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -224,9 +222,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto parent_expr_output = *input_port.get_expr_port()->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
-                    if (ov::is_type<ov::op::v0::Constant>(parent) ||
-                        ov::is_type<ov::op::v0::Parameter>(parent) ||
-                        ov::is_type<op::Buffer>(parent)) {
+                    if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, op::Buffer>(parent)) {
                         continue;
                     }
 
@@ -270,8 +266,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
-                        if (ov::is_type<ov::op::v0::Result>(consumer) ||
-                            ov::is_type<op::Buffer>(consumer)) {
+                        if (ov::is_type_any_of<ov::op::v0::Result, op::Buffer>(consumer)) {
                             continue;
                         }
 

@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -74,16 +75,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                                                    torch_split->get_input_source_output(2),
                                                    torch_split->get_input_source_output(1));
             }
-            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
-            replace_node(list_unpack, split);
-
-            return true;
-        } else if (auto split_with_sizes = cast_fw_node(input_node, "aten::split_with_sizes")) {
-            auto split_lengths = concat_list_construct(split_with_sizes->get_input_source_output(1));
-            auto split = rg.make<v1::VariadicSplit>(split_with_sizes->get_input_source_output(0),
-                                                    split_with_sizes->get_input_source_output(2),
-                                                    split_lengths);
-
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
             replace_node(list_unpack, split);
 

@@ -150,6 +150,10 @@ std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& t
     return s << as_string(type);
 }
 
+AttributeAdapter<op::v3::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::AlignedMode>::~AttributeAdapter() = default;
+
 namespace op {
 namespace roi_align {
 namespace {
@@ -158,7 +162,7 @@ template <element::Type_t ET>
 bool evaluate(const Tensor& feature_maps,
               const Tensor& rois,
               const std::vector<int64_t>& batch_indices_vec_scaled_up,
-              const Tensor& out,
+              Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,
@@ -185,7 +189,7 @@ bool evaluate(const Tensor& feature_maps,
 }
 
 bool evaluate(const TensorVector& args,
-              const Tensor& out,
+              Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,

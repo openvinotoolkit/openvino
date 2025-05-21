@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/transpose.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {

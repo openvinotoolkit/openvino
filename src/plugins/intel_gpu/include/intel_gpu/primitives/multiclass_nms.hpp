@@ -37,8 +37,8 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
         }
     }
 
-    primitive_id output_selected_indices{};
-    primitive_id output_selected_num{};
+    input_info output_selected_indices{};
+    input_info output_selected_num{};
     ov::op::util::MulticlassNmsBase::Attributes attrs;
     bool has_roisnum{false};
 
@@ -102,12 +102,16 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!output_selected_indices.empty())
-            ret.emplace_back(output_selected_indices);
-        if (!output_selected_num.empty())
-            ret.emplace_back(output_selected_num);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (output_selected_indices.is_valid())
+            ret[idx++] = &output_selected_indices;
+
+        if (output_selected_num.is_valid())
+            ret[idx++] = &output_selected_num;
+
         return ret;
     }
 

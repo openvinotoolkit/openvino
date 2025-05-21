@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -29,7 +28,7 @@ void attn_softmax(void* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  ov::element::Type precision,
+                  [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)

@@ -42,8 +42,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model created for CPU accelerator as cache is enable
-    // will only cache model for actual device
+    // No cached model for actual device
+    // will only cache model only for actual device. CVS-141026
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
@@ -76,7 +76,7 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
     }
     // No cached model generated for CPU accelerator as cache is enable.
     // model hash id changed for actual device
-    // will only cache model for actual device
+    // will cache model for actual device with new device id
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }
@@ -94,8 +94,8 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model generated for CPU accelerator as cache is enabled
-    // will only cache model for actual device
+    // No cached model for actual device
+    // will only cache model only for actual device. CVS-141026
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
@@ -122,8 +122,8 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model generated for CPU accelerator as cache is enable.
-    // will cache model for actual device as model hash id changed for actual device
+    // model hash id changed for actual device
+    // will cache model for actual device with new device id
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
     ov::test::utils::removeIRFiles(m_xml_path, m_bin_path);
@@ -138,8 +138,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model generated for CPU accelerator as cache is enable.
-    // will only cache model for actual device
+    // No cached model for actual device
+    // will only cache model only for actual device. CVS-141026
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
@@ -168,7 +168,7 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::intel_auto::enable_startup_fallback(false)});
     }
     // model hash id changed for actual device
-    // will cache 2 models for actual device and no cached model for CPU as CPU accelerator is disable
+    // will cache model for actual device with new device id
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }

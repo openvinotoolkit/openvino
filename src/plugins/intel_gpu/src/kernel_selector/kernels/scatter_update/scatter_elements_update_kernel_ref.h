@@ -34,6 +34,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
+    bool SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

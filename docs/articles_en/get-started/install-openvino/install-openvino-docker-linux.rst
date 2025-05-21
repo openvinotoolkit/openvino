@@ -54,8 +54,7 @@ Also, verify you have permissions to run containers (sudo or docker group member
    OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <../install-openvino>`
    distributions are identical, so the documentation applies to both.
 
-   Note that starting with OpenVINO 2024.4, Ubuntu docker images will no longer be provided
-   and will be replaced by Debian-based ones.
+   Note that Ubuntu docker images are no longer provided, Debian-based ones are available instead.
 
 .. note::
 

@@ -48,6 +48,7 @@
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
+#include "nodes/istft.h"
 #include "nodes/llm_mlp.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
@@ -56,7 +57,6 @@
 #include "nodes/matmul.h"
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
-#include "nodes/mha.h"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -93,11 +93,13 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
 #include "nodes/search_sorted.h"
+#include "nodes/segment_max.h"
 #include "nodes/shapeof.h"
 #include "nodes/shuffle_channels.h"
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
+#include "nodes/sparse_fill_empty_rows.h"
 #include "nodes/split.h"
 #include "nodes/stft.h"
 #include "nodes/strided_slice.h"
@@ -124,6 +126,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(BatchToSpace, Type::BatchToSpace);
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
+    INTEL_CPU_NODE(SparseFillEmptyRows, Type::SparseFillEmptyRows);
     INTEL_CPU_NODE(If, Type::If);
     INTEL_CPU_NODE(Broadcast, Type::Broadcast);
     INTEL_CPU_NODE(ExperimentalDetectronTopKROIs, Type::ExperimentalDetectronTopKROIs);
@@ -216,11 +219,13 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(STFT, Type::STFT);
+    INTEL_CPU_NODE(ISTFT, Type::ISTFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
+    INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
@@ -228,7 +233,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
-    INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)

@@ -76,7 +76,7 @@ private:
         const auto padsBegin = std::make_shared<op::v0::Parameter>(element::i64, params.padsBeginTensor.shape);
         const auto padsEnd = std::make_shared<op::v0::Parameter>(element::i64, params.padsEndTensor.shape);
         const auto batchToSpace = std::make_shared<op::v1::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
-        return std::make_shared<ov::Model>(NodeVector{batchToSpace},
+        return std::make_shared<ov::Model>(OutputVector{batchToSpace},
                                            ParameterVector{data, blockShape, padsBegin, padsEnd});
     }
 };

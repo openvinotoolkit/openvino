@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "executor.hpp"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
@@ -16,6 +17,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/printers.hpp"
 #include "nodes/executors/variable_executor.hpp"
+#include "openvino/core/except.hpp"
 #include "post_ops.hpp"
 
 namespace ov::intel_cpu {
@@ -25,15 +27,16 @@ class ExecutorFactory {
 public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
-    ExecutorFactory(const Attrs& attrs,
-                    const PostOps& postOps,
+    ExecutorFactory(Attrs attrs,
                     ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
+                    const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
         : m_attrs(attrs),
-          m_postOps(postOps),
           m_context(std::move(context)),
-          m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {}
+          m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
+        OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
+    }
 
     /**
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.
@@ -43,24 +46,33 @@ public:
      * returns the corresponding memory descriptors.
      *
      * @param descriptors memory descriptors.
-     * @return MemoryDescArgs The proper memory descriptors based on the configuration.
+     * @return MemoryDescArgs The list of proper memory descriptors based on the configuration.
      * @todo Create proper memory descriptors for all the implementations
      *       to fully enable graph's layout propagation functionality
      *
      * @note The main use case is to avoid a fallback during the creation of an executor
      *       by passing proper memory descriptors to the make() method
      */
-    MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
+    [[nodiscard]] std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
-        const auto& impl = m_suitableImplementations.front();
-        executor::Config<Attrs> config{descriptors, m_attrs, m_postOps};
+        executor::Config<Attrs> config{descriptors, m_attrs};
 
-        if (auto fallbackConfig = impl.get().requiresFallback(config)) {
-            return fallbackConfig->descs;
+        auto getProperMemoryDescArgs = [](const ExecutorImplementationRef& impl,
+                                          const executor::Config<Attrs>& config) {
+            if (auto fallbackConfig = impl.get().requiresFallback(config)) {
+                return fallbackConfig->descs;
+            }
+
+            return config.descs;
+        };
+
+        std::vector<MemoryDescArgs> memoryDescArgs;
+        for (const auto& impl : m_suitableImplementations) {
+            memoryDescArgs.emplace_back(getProperMemoryDescArgs(impl, config));
         }
 
-        return config.descs;
+        return memoryDescArgs;
     }
 
     /**
@@ -77,7 +89,7 @@ public:
     ExecutorPtr make(const MemoryArgs& memory) {
         // only single executor is available
         if (m_suitableImplementations.size() == 1) {
-            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs, m_postOps);
+            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
 
             const auto& theOnlyImplementation = m_suitableImplementations.front().get();
 
@@ -89,14 +101,10 @@ public:
                                                      theOnlyImplementation.name());
             }
 
-            return theOnlyImplementation.create(m_attrs, m_postOps, memory, m_context);
+            return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory,
-                                                         m_attrs,
-                                                         m_postOps,
-                                                         m_context,
-                                                         m_suitableImplementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, m_suitableImplementations);
     }
 
 private:
@@ -104,7 +112,6 @@ private:
      * @brief Filters and retrieves suitable implementations based on the provided executor configuration.
      *
      * @param attrs The attributes used for filtering implementations.
-     * @param postOps The post-operations to be applied.
      * @param descs The memory descriptor arguments.
      * @param implementationPriority Optional. The name of the implementation to prioritize.
      *        If specified, only the implementation with this name will be considered.
@@ -113,12 +120,12 @@ private:
      *       priority are considered.
      */
     static std::vector<ExecutorImplementationRef> filter(const Attrs& attrs,
-                                                         const PostOps& postOps,
                                                          const MemoryDescArgs& descs,
+                                                         const MemoryFormatFilter& memoryFormatFilter = {},
                                                          const std::string& implementationPriority = {}) {
         const auto& implementations = getImplementations<Attrs>();
         std::vector<ExecutorImplementationRef> suitableImplementations;
-        const executor::Config<Attrs> config{descs, attrs, postOps};
+        const executor::Config<Attrs> config{descs, attrs};
 
         for (const auto& implementation : implementations) {
             DEBUG_LOG("Processing implementation: ", implementation.name());
@@ -130,7 +137,7 @@ private:
                 continue;
             }
 
-            if (!implementation.supports(config)) {
+            if (!implementation.supports(config, memoryFormatFilter)) {
                 DEBUG_LOG("Implementation is not supported: ", implementation.name());
                 continue;
             }
@@ -150,9 +157,8 @@ private:
         return suitableImplementations;
     }
 
-    const Attrs& m_attrs;
-    const PostOps& m_postOps;
-    const ExecutorContext::CPtr m_context;
+    Attrs m_attrs;
+    ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
 };
 

@@ -29,7 +29,7 @@ namespace ov::intel_cpu {
  */
 class WeightsSharing {
     struct MemoryInfo {
-        typedef std::shared_ptr<MemoryInfo> Ptr;
+        using Ptr = std::shared_ptr<MemoryInfo>;
 
         MemoryInfo(const MemoryPtr& memoryPtr, bool valid) : sharedMemory(memoryPtr), valid(valid) {}
 
@@ -39,16 +39,23 @@ class WeightsSharing {
     };
 
 public:
-    typedef std::shared_ptr<WeightsSharing> Ptr;
+#ifdef CPU_DEBUG_CAPS
+    struct Statistics {
+        size_t total_size;  // bytes
+        size_t total_memory_objects;
+    };
+#endif  // CPU_DEBUG_CAPS
+
+    using Ptr = std::shared_ptr<WeightsSharing>;
 
     class SharedMemory {
     public:
-        typedef std::shared_ptr<SharedMemory> Ptr;
+        using Ptr = std::shared_ptr<SharedMemory>;
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
         operator MemoryPtr() const;
-        bool isValid() const;
+        [[nodiscard]] bool isValid() const;
         void valid(bool b);
 
     private:
@@ -62,6 +69,10 @@ public:
                                    bool valid = true);
 
     SharedMemory::Ptr get(const std::string& key) const;
+
+#ifdef CPU_DEBUG_CAPS
+    Statistics dumpStatistics() const;
+#endif  // CPU_DEBUG_CAPS
 
 protected:
     mutable std::mutex guard;
@@ -79,6 +90,10 @@ public:
 
     WeightsSharing::Ptr& operator[](int i);
     const WeightsSharing::Ptr& operator[](int i) const;
+
+#ifdef CPU_DEBUG_CAPS
+    std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
+#endif  // CPU_DEBUG_CAPS
 
 private:
     std::map<int, WeightsSharing::Ptr> _cache_map;

@@ -20,7 +20,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     };
     const auto& ma_op = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(port.get_expr()->get_node());
     OPENVINO_ASSERT(ma_op, "Expected MemoryAccess op!");
-    size_t offset = ov::snippets::utils::get_dynamic_value<size_t>();
+    auto offset = ov::snippets::utils::get_dynamic_value<size_t>();
     size_t id = SIZE_MAX;
     switch (port.get_type()) {
     case ov::snippets::lowered::ExpressionPort::Type::Input:

@@ -127,7 +127,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -147,7 +147,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("saved_model.pb", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -168,7 +168,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "saved_model.pb", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -252,7 +252,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
 
          .. tab-item:: C++
@@ -271,7 +271,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -290,7 +290,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.tflite", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -381,7 +381,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
                  compiled_model = ov.compile_model("<INPUT_MODEL>.onnx", "AUTO")
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
 
          .. tab-item:: C++
@@ -399,7 +399,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO");
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -514,7 +514,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -532,7 +532,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -551,7 +551,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.pdmodel", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli

@@ -6,9 +6,9 @@ Create a Yocto Image with OpenVINO™
 
 .. note::
 
-   Note that the YOCTO distribution is community-supported and has not been fully tested.
+   Note that the YOCTO distribution is mostly community-supported.
    You will need to set up and configure your host machine to be compatible with BitBake. For
-   instruction on how to do that, follow the
+   instructions on how to do that, follow the
    `Yocto Project official documentation <https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution>`__  .
 
 

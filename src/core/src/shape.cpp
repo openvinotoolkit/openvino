@@ -86,4 +86,6 @@ typename Shape::reference Shape::at(std::ptrdiff_t i) {
 typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
     return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
 }
+
+AttributeAdapter<ov::Shape>::~AttributeAdapter() = default;
 }  // namespace ov

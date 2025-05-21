@@ -27,8 +27,7 @@ bool InsertBroadcastMove::is_broadcasting_needed(const std::shared_ptr<ov::Node>
     // - VectorBuffer has scalar output shape to avoid broadcast conflicts and manually shape insertion.
     // - Fill can be inserted only after VectorBuffer, and should be ignored as well.
     return !utils::is_scalar_constant(n) &&
-           !ov::is_type<ov::snippets::op::VectorBuffer>(n) &&
-           !ov::is_type<ov::snippets::op::Fill>(n);
+           !ov::is_type_any_of<ov::snippets::op::VectorBuffer, ov::snippets::op::Fill>(n);
 }
 
 std::vector<size_t> InsertBroadcastMove::get_last_dims(const ExpressionPtr& expr) {

@@ -38,6 +38,12 @@ public:
     const std::vector<PatternSymbolValue>& g() const;
 
     bool operator==(const PatternSymbolValue& other) const;
+    bool operator!=(const PatternSymbolValue& other) const;
+
+    template <typename T, typename std::enable_if_t<std::is_constructible_v<PatternSymbolValue, T>>* = nullptr>
+    static std::vector<PatternSymbolValue> make_value_vector(const std::vector<T>& v) {
+        return {v.begin(), v.end()};
+    }
 
 private:
     bool is_valid() const;
@@ -94,18 +100,8 @@ public:
     }
 
     bool operator()(PatternSymbolMap& m, const Output<Node>& output) const;
-
-    template <typename T>
-    bool operator()(const T& arg) const {
-        OPENVINO_ASSERT(!m_requires_map,
-                        "Predicate " + m_name + " called with unexpected argument: " + std::string(typeid(T).name()));
-        if constexpr (std::is_convertible_v<T, Output<Node>>) {
-            PatternSymbolMap dummy_map;
-            return m_pred(dummy_map, arg);
-        }
-        OPENVINO_ASSERT(false,
-                        "Predicate " + m_name + " called with unexpected argument: " + std::string(typeid(T).name()));
-    }
+    bool operator()(const std::shared_ptr<Node>& node) const;
+    bool operator()(const Output<Node>& output) const;
 
     template <typename TPredicate>
     Predicate operator||(const TPredicate& other) const {

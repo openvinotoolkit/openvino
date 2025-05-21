@@ -195,4 +195,20 @@ op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string&
 std::ostream& op::operator<<(std::ostream& s, const ov::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+
+template ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
+
+AttributeAdapter<op::PadMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::FillMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PadType>::~AttributeAdapter() = default;
+AttributeAdapter<op::RoundingType>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::EpsMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKSortType>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PhiloxAlignment>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastModeSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::RecurrentSequenceDirection>::~AttributeAdapter() = default;
 }  // namespace ov

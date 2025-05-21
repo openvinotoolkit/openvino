@@ -93,11 +93,9 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
 
     const auto& output = params.outputs[0];
     const auto& indices = params.inputs[1];
-
     const auto& scope = is_second ? indices : output;
 
     const auto rank = params.inputs[0].GetDims().size();
-
     switch (rank) {
     case 4:
         dispatchData.gws = {scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v};
@@ -125,7 +123,6 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-
     return dispatchData;
 }
 
@@ -163,6 +160,15 @@ bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
     return true;
 }
 
+bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const {
+    if (kernel_id == 0) {
+        if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
+            return false;
+        }
+    }
+    return KernelData::SkipKernelExecution(params);
+}
+
 void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
@@ -172,7 +178,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
             auto dispatchData = SetDefault(prim_params, i == 1);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
         }
     };
 }
@@ -194,6 +200,12 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2]));
+            if (newParams.mode != ScatterUpdateReduction::NONE) {
+                dispatchData.gws = {1, 1, 1};
+                dispatchData.lws = {1, 1, 1};
+            }
         }
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

@@ -13,19 +13,21 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
+        return {precision, srcShape, srcShape.getDims(), order};
     }
-    size_t getMinimalRank() const override {
+    [[nodiscard]] size_t getMinimalRank() const override {
         return 0lu;
     }
 };
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         VectorDims blkDims = srcShape.getDims();
@@ -39,9 +41,9 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
-    size_t getMinimalRank() const override {
+    [[nodiscard]] size_t getMinimalRank() const override {
         return 3lu;
     }
 };
@@ -49,7 +51,8 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {
             OPENVINO_THROW("Can't create blocked tensor descriptor!");
         }
@@ -64,9 +67,9 @@ public:
         }
         blkDims.push_back(_blockSize);
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
-    size_t getMinimalRank() const override {
+    [[nodiscard]] size_t getMinimalRank() const override {
         return 3lu;
     }
 

@@ -51,7 +51,9 @@ enum impl_desc_type : int64_t {
     // shl backend
     shl = 1ll << 32,
 
-    kleidiai = 1ll << 33,
+    gv = 1ll << 33,
+
+    kleidiai = 1ll << 34,
 
     // real types
     ref_any = ref | any,
@@ -85,6 +87,8 @@ enum impl_desc_type : int64_t {
     jit_sse42_dw = jit | sse42 | _dw,
     jit_uni_dw = jit | uni | _dw,
     jit_avx512_amx_dw = jit | avx512 | amx | _dw,
+
+    jit_avx2_1x1_dw = jit | avx2 | _1x1 | _dw,
 
     brgconv_avx512 = brgconv | avx512,
     brgconv_avx2 = brgconv | avx2,
@@ -123,7 +127,9 @@ enum impl_desc_type : int64_t {
     jit_sve512 = jit | sve512,
 
     gemm_shl = gemm | shl,
-    gemm_kleidiai = gemm | kleidiai
+    gemm_kleidiai = gemm | kleidiai,
+
+    jit_gv = jit | gv
 };
 
 std::vector<std::string> extractTypeAndImplName(const std::string& priority);

@@ -1559,7 +1559,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, {1, 1, 1}, {0, 0, 0}),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{1, 1, 1}, {0, 0, 0}),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -1653,7 +1653,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, {0, 0, 0}),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{ 2,2,2 }, {0, 0, 0}),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -1726,7 +1726,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+        deconvolution("deconv", input_info("reordered_input"), "weights", ov::Strides{ 2,2,2 }, { 1, 1, 1 }),
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
@@ -2373,7 +2373,7 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            deconvolution("deconv", input_info("input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+            deconvolution("deconv", input_info("input"), "weights", ov::Strides{ 2,2,2 }, { 1, 1, 1 }),
             reorder("out", input_info("deconv"), format::bfzyx, data_types::f32)
     );
 

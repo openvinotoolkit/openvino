@@ -10,7 +10,7 @@
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
-#define PRINT(X)      ss << #X << " = " << X << "\n"
+#define PRINT(X)      ss << #X << " = " << (X) << "\n"
 #define EQ(X)         X == rhs.X
 #define HASH(X)       seed = hash_combine(seed, X)
 
@@ -163,8 +163,8 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.ptr_D = dst;
     brgemm_p.ptr_buf = scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = with_comp;
-    brgemm_p.do_apply_comp = with_comp;
+    brgemm_p.do_post_ops = static_cast<size_t>(with_comp);
+    brgemm_p.do_apply_comp = static_cast<size_t>(with_comp);
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");

@@ -66,9 +66,7 @@ class TestLookupTableSizeOps(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_lookup_table_size(self, hash_table_type, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_lookup_table_size(self, hash_table_type, params, ie_device, precision, ir_version, temp_dir):
         keys_type = params['keys_type']
         self._test(*self.create_lookup_table_size_net(hash_table_type=hash_table_type, **params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -4,6 +4,8 @@
 
 #include "jit_memory_emitters.hpp"
 
+#include <memory>
+
 #include "emitters/utils.hpp"
 
 using namespace Xbyak_aarch64;
@@ -33,7 +35,7 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
-    load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
+    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, byte_offset);
 }
 
 void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -81,8 +83,8 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const 
 template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    XReg src = XReg(in[0]);
-    TReg dst = TReg(out[0]);
+    auto src = XReg(in[0]);
+    auto dst = TReg(out[0]);
 
     h->uni_ld1rw(dst.s, src, byte_offset);
 }
@@ -99,7 +101,7 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
-    store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
+    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, byte_offset);
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

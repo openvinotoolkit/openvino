@@ -62,9 +62,9 @@ protected:
     std::shared_ptr<DeconvExecutor> execPtrDeconvACL = nullptr;
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
-    class DeconvDNNLExecutor : public DnnlExecutor {
+    class DeconvDNNLExecutor : public DnnlExecutorLegacy {
     public:
         DeconvDNNLExecutor(const dnnl::deconvolution_forward::primitive_desc& pd,
                            const dnnl::memory::desc& inMemDesc,

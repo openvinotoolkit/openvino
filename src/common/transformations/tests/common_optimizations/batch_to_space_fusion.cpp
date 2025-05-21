@@ -12,7 +12,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -38,7 +43,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionTranspose) {
                                                    std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice, op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-        model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
@@ -49,7 +54,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionTranspose) {
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 14}));
-        model_ref = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data});
     }
 }
 
@@ -72,7 +77,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionReshape) {
             std::make_shared<opset6::Reshape>(slice,
                                               op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 4, 14}),
                                               false);
-        model = std::make_shared<Model>(NodeVector{reshape_after}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
@@ -83,7 +88,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionReshape) {
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 3, 0}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 1, 2}));
-        model_ref = std::make_shared<Model>(NodeVector{batch_to_space}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{batch_to_space}, ParameterVector{data});
     }
 }
 
@@ -104,7 +109,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidTransposePerm) {
                                                    std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice, op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-        model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
@@ -124,7 +129,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidTransposePerm) {
                                                    std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice, op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-        model_ref = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
     }
 }
 
@@ -145,7 +150,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidMode) {
                                                    std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice, op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-        model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
@@ -165,7 +170,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidMode) {
                                                    std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice, op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-        model_ref = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
     }
 }
 
@@ -188,7 +193,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice,
                                                 op::v0::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
-        model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
     {
@@ -209,7 +214,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
         auto trans_after =
             std::make_shared<opset6::Transpose>(slice,
                                                 op::v0::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
-        model_ref = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{data});
         manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 }

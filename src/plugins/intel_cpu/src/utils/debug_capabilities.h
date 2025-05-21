@@ -17,10 +17,12 @@
 #    include <utility>
 
 #    include "edge.h"
+#    include "memory_control.hpp"
 #    include "nodes/node_config.h"
 #    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
+#    include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -119,6 +121,7 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem);
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model);
 std::ostream& operator<<(std::ostream& os, const PrintableDelta& us);
 std::ostream& operator<<(std::ostream& os, const Edge::ReorderStatus reorderStatus);
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_desc& desc);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::desc& desc);
@@ -165,7 +168,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                          \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
@@ -278,6 +281,7 @@ struct EnforceInferPrcDebug {
 };
 
 bool getEnvBool(const char* name);
+
 #else  // !CPU_DEBUG_CAPS
 
 #    define CPU_DEBUG_CAP_ENABLE(...)
@@ -291,7 +295,3 @@ bool getEnvBool(const char* name);
 #    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
-
-// To avoid "unused variable" warnings `when debug caps
-// need more information than non-debug caps version
-#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x

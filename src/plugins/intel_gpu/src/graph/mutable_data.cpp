@@ -57,7 +57,7 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
 
 event::ptr mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     event::ptr input_ev = nullptr;
-    if (_node != nullptr) {
+    if (has_node()) {
         auto& eng = _network.get_engine();
         auto& mem_node = const_cast<program_node*>(_node)->as<mutable_data>();
         auto& mem_attached = mem_node.get_attached_memory();

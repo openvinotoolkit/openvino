@@ -12,7 +12,7 @@
 
 #include "reorder_inst.h"
 #include "fully_connected_inst.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "graph/impls/ocl/register.hpp"
 
 #include <memory>

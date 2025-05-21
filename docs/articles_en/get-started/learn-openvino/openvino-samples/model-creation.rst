@@ -8,7 +8,7 @@ Model Creation Sample
                  Inference Request API (Python, C++).
 
 
-This sample demonstrates how to run inference using a :doc:`model <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>`
+This sample demonstrates how to run inference using a :doc:`model <../../../openvino-workflow/running-inference/model-representation>`
 built on the fly that uses weights from the LeNet classification model, which is
 known to work well on digit classification tasks. You do not need an XML file,
 the model is created from the source code on the fly. Before using the sample,
@@ -23,7 +23,7 @@ refer to the following requirements:
 How It Works
 ####################
 
-At startup, the sample application reads command-line parameters, :doc:`builds a model <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>`
+At startup, the sample application reads command-line parameters, :doc:`builds a model <../../../openvino-workflow/running-inference/model-representation>`
 and passes the weights file. Then, it loads the model and input data to the OpenVINO™
 Runtime plugin. Finally, it performs synchronous inference and processes output
 data, logging each step in a standard output stream.
@@ -47,7 +47,7 @@ data, logging each step in a standard output stream.
             :language: cpp
 
 
-You can see the explicit description of each sample step at :doc:`Integration Steps <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+You can see the explicit description of each sample step at :doc:`Integration Steps <../../../openvino-workflow/running-inference>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
 ####################
@@ -289,7 +289,7 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`

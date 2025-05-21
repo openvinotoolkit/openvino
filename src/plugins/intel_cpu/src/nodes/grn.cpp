@@ -7,7 +7,8 @@
 #include <string>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/grn.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -82,7 +83,7 @@ void GRN::prepareParams() {
         }
     }
 
-    if (dataDims.size() > 0) {
+    if (!dataDims.empty()) {
         N = static_cast<int>(dataDims[0]);
     }
     if (dataDims.size() > 1) {
@@ -100,9 +101,9 @@ void GRN::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void GRN::execute(const dnnl::stream& strm) {
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+void GRN::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

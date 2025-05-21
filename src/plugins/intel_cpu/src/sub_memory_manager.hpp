@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <assert.h>
-
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <string>

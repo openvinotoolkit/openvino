@@ -4,6 +4,8 @@
 
 #include "brgemm.hpp"
 
+#include <memory>
+
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -98,7 +100,7 @@ BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::Mult
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_kernel(const BrgemmKernelConfig& c) const {
     const auto& res = std::make_shared<BrgemmCompiledKernel>();
-    res->brgemm_kernel.reset(new brgemm_ref_kernel(c));
+    res->brgemm_kernel = std::make_shared<brgemm_ref_kernel>(c);
     return res;
 }
 

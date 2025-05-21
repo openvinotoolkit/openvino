@@ -240,9 +240,9 @@ void MultiClassNms::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -386,9 +386,9 @@ void MultiClassNms::execute(const dnnl::stream& strm) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), static_cast<size_t>(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    int* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
-    float* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selected_num = validOutputsMemPtr->getDataAs<int>();
+    auto* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selected_num = validOutputsMemPtr->getDataAs<int>();
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
         return batch_idx * num_box + box_idx;
@@ -451,7 +451,7 @@ bool MultiClassNms::created() const {
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
     float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    const float norm = static_cast<float>(normalized == false);
+    const auto norm = static_cast<float>(normalized == false);
 
     // to align with reference
     yminI = boxesI[0];
@@ -511,7 +511,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 }
             }
             fb.reserve(sorted_boxes.size());
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
@@ -542,7 +542,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                             adaptive_threshold *= m_nmsEta;
                         }
                         if (currBox.score == origScore) {
-                            fb.push_back({currBox.score, batch_idx, class_idx, currBox.idx});
+                            fb.emplace_back(currBox.score, batch_idx, class_idx, currBox.idx);
                             continue;
                         }
                         if (currBox.score > m_scoreThreshold) {
@@ -571,7 +571,7 @@ const float* MultiClassNms::slice_class(const int batch_idx,
                                         const VectorDims& dataStrides,
                                         const bool is_boxes,
                                         const int* roisnum,
-                                        const VectorDims& roisnumStrides,
+                                        [[maybe_unused]] const VectorDims& roisnumStrides,
                                         const bool shared) {
     if (shared) {
         if (is_boxes) {
@@ -621,12 +621,12 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
             int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // align with ref
-                    sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
+                    sorted_boxes.emplace_back(scoresPtr[box_idx], box_idx);
                 }
             }
 
             int io_selection_size = 0;
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 parallel_sort(sorted_boxes.begin(),
                               sorted_boxes.end(),
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {

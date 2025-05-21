@@ -132,7 +132,7 @@ General considerations
    * Do not include model loading time.
    * Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
    * In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`.
-   * When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/dynamic-shapes>`.
+   * When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`.
    * If possible, demand the same accuracy. For example, TensorFlow allows ``FP16`` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the ``FP16`` as well.
 
 .. dropdown:: Make sure the benchmarking setup is proper for the selected scenario
@@ -244,7 +244,7 @@ request, while the actual latency can be quite different.
 
 Lastly, the performance statistics with both performance counters and execution graphs are
 averaged, so such data for the
-:doc:`inputs of dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`
+:doc:`inputs of dynamic shapes <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`
 should be measured carefully, preferably by isolating the specific shape and executing multiple
 times in a loop, to gather reliable data.
 

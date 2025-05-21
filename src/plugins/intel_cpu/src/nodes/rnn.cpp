@@ -146,7 +146,7 @@ struct RNNKey {
     dnnl::algorithm cellAct;
     dnnl::rnn_direction direction;
     dnnl::primitive_attr attr;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
 };
 
@@ -280,7 +280,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                               ov::op::v5::GRUSequence::get_type_info_static(),
                               ov::op::internal::AUGRUCell::get_type_info_static(),
                               ov::op::internal::AUGRUSequence::get_type_info_static())) {
-                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                if (const auto activations = std::vector<std::string>{"sigmoid", "tanh"};
+                    rnnCellBase->get_activations() != activations) {
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
@@ -361,8 +362,8 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ov::Node>& op) {
         return true;
     }
     const auto& rtInfo = op->get_rt_info();
-    if (rtInfo.count("seqAxis")) {
-        return rtInfo.at("seqAxis").as<int64_t>() == 0;
+    if (auto it = rtInfo.find("seqAxis"); it != rtInfo.end()) {
+        return it->second.as<int64_t>() == 0;
     }
     return false;
 }
@@ -404,7 +405,7 @@ public:
         return m_shape_infer->get_pads_end();
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return m_shape_infer->get_port_mask();
     }
 
@@ -417,7 +418,7 @@ private:
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
 
@@ -508,16 +509,16 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 
     const auto& rtInfo = op->get_rt_info();
 
-    if (rtInfo.count("inputScale")) {
-        inputScale = rtInfo.at("inputScale").as<float>();
+    if (auto it = rtInfo.find("inputScale"); it != rtInfo.end()) {
+        inputScale = it->second.as<float>();
     }
 
-    if (rtInfo.count("inputShift")) {
-        inputShift = rtInfo.at("inputShift").as<float>();
+    if (auto it = rtInfo.find("inputShift"); it != rtInfo.end()) {
+        inputShift = it->second.as<float>();
     }
 
-    if (rtInfo.count("weightsScales")) {
-        weightsScales = rtInfo.at("weightsScales").as<std::vector<float>>();
+    if (auto it = rtInfo.find("weightsScales"); it != rtInfo.end()) {
+        weightsScales = it->second.as<std::vector<float>>();
     }
 
     if (is_cell) {
@@ -1386,20 +1387,22 @@ void RNN::prepareParams() {
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+    if (auto it = primArgs.find(DNNL_ARG_WEIGHTS_LAYER);
+        it == primArgs.end() || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
         primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+    if (auto it = primArgs.find(DNNL_ARG_WEIGHTS_ITER);
+        it == primArgs.end() || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
         primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
-        !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
+    if (auto it = primArgs.find(DNNL_ARG_BIAS);
+        it == primArgs.end() || !prevExecPtr || !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
         primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();
     }
@@ -1408,13 +1411,13 @@ void RNN::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
@@ -1477,7 +1480,7 @@ void RNN::cleanup() {
     }
 }
 
-RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutorLegacy(pd) {
     wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
     bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }

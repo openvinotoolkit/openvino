@@ -67,7 +67,7 @@ struct CPUStreamsExecutor::Impl {
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
+            if (_impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
 #elif OV_THREAD == OV_THREAD_OMP
@@ -241,9 +241,9 @@ struct CPUStreamsExecutor::Impl {
         private:
             // disable all copy and move semantics, user only can use fetch()
             // to create a new instance with a shared count num;
-            ThreadTracker(ThreadTracker const&) = default;
+            ThreadTracker(const ThreadTracker&) = default;
             ThreadTracker(ThreadTracker&&) = delete;
-            ThreadTracker& operator=(ThreadTracker const&) = delete;
+            ThreadTracker& operator=(const ThreadTracker&) = delete;
             ThreadTracker& operator=(ThreadTracker&&) = delete;
             std::thread::id _id;
             std::shared_ptr<std::atomic_int> _count_ptr;

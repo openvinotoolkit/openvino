@@ -144,11 +144,13 @@ offer a limited set of supported OpenVINO features.
          ov::workload_type
          ov::intel_npu::compilation_mode_params
          ov::intel_npu::compiler_dynamic_quantization
+         ov::intel_npu::qdq_optimization
          ov::intel_npu::turbo
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
+         ov::intel_npu::run_inferences_sequentially
 
    .. tab-item:: Read-only properties
 
@@ -165,6 +167,7 @@ offer a limited set of supported OpenVINO features.
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::luid (windows only)
          ov::device::pci_info
          ov::device::gops
          ov::device::type
@@ -281,5 +284,5 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
-* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-npu>`__
+* `Vision colorization Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/ddcolor-image-colorization>`__

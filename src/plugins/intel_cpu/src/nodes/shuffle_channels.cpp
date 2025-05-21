@@ -5,6 +5,7 @@
 #include "shuffle_channels.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/op/shuffle_channels.hpp>
 #include <string>
 
@@ -270,7 +271,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
@@ -289,15 +290,15 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ShuffleChannels::execute(const dnnl::stream& strm) {
+void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
 
     int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
     execPtr->exec(srcData, dstData, MB);
 }
 

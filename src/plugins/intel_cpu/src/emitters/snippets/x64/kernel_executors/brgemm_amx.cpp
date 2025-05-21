@@ -84,7 +84,7 @@ struct BrgemmCopyAKey {
           src_stride{src_stride},
           LDA{LDA} {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         HASH(isa);
         HASH(dt);
@@ -232,7 +232,7 @@ void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* confi
                                                         dnnl_dim_t N,
                                                         dnnl_dim_t K) {
     auto compatible = [&](amx_tile_config_t* rhs) {
-        return rhs && rhs->M == M && rhs->N == N && rhs->K == K;
+        return (rhs != nullptr) && rhs->M == M && rhs->N == N && rhs->K == K;
     };
     if (config && !compatible(config)) {
         config->M = M;
