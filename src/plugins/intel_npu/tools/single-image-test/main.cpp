@@ -2043,18 +2043,6 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> inModelLayouts = parseLayoutRegex(FLAGS_iml);
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
-        // Declare input file variables
-        std::vector<std::string> inputFilesPerCase;
-        using FilesPerInput = std::vector<std::string>;
-        using FilesForModelInputs = std::vector<FilesPerInput>;
-        std::vector<FilesForModelInputs> inputFilesForOneInfer;
-
-        // Declare output file / reference file variables
-        std::vector<std::string> refFilesPerCase;
-        using RefFilesPerInput = std::vector<std::string>;
-        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
-        RefFilesForModelOutputs refFilesForOneInfer;
-
         if (FLAGS_network.empty()) {
             std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
@@ -2215,6 +2203,12 @@ static int runSingleImageTest() {
 
         auto inputInfo = compiledModel.inputs();
 
+        // Declare input file variables
+        std::vector<std::string> inputFilesPerCase;
+        using FilesPerInput = std::vector<std::string>;
+        using FilesForModelInputs = std::vector<FilesPerInput>;
+        std::vector<FilesForModelInputs> inputFilesForOneInfer;
+
         // Parse input files string (matching of node names - if given)
         std::string processedFileInputs = parseInputFiles(inputInfo, FLAGS_input);
         inputFilesPerCase = splitStringList(processedFileInputs, ';');
@@ -2240,6 +2234,31 @@ static int runSingleImageTest() {
                 std::cout << "]";
             }
             std::cout << std::endl;
+        }
+
+        // Declare output file / reference file variables
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        RefFilesForModelOutputs refFilesForOneInfer;
+
+        // Parse reference files
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
         }
 
         std::vector<std::string> inputBinPrecisionStrPerCase;
@@ -2278,25 +2297,6 @@ static int runSingleImageTest() {
             }
         }
         std::cout << "[Debug] Image bin precision processed!" << std::endl;
-
-        // Parse reference files
-        if (!FLAGS_ref_results.empty()) {
-            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
-            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
-            // input files
-            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
-                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
-                    << " given in input files. "
-                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
-                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
-                return EXIT_FAILURE;
-            }
-
-            for (const auto& refResult : refFilesPerCase) {
-                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
-                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
-            }
-        }
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
