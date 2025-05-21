@@ -202,6 +202,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point_cw) {
+    auto model = convert_model("dequantize_linear_21_no_zero_point_cw.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 4}, std::vector<float>{1,  2,  3,  4,  10, 12, 14, 16, 27, 30, 33, 36,
+                                                                    52, 56, 60, 60, 5,  10, 15, 20, 30, 36, 42, 48});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint8) {
     auto model = convert_model("dequantize_linear_0.onnx");
 
@@ -335,6 +345,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21) {
 
     test_case.add_expected_output<float>({6, 3},
                                          std::vector<float>{1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6, 4, 5, 6});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_cw) {
+    auto model = convert_model("dequantize_linear_21_cw.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 4}, std::vector<float>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+                                                                    4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6});
     test_case.run();
 }
 
