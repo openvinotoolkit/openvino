@@ -175,6 +175,8 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangul
     const ov::Output<ov::Node>& real_part,
     const ov::Output<ov::Node>& imag_part);
 
+ov::OutputVector pre_translate_string_tensor_input(const ov::Output<ov::Node>& input);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

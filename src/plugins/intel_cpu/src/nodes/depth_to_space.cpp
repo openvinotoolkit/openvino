@@ -12,7 +12,8 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_extension_utils.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;
@@ -316,7 +317,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void DepthToSpace::execute(const dnnl::stream& strm) {
+void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

@@ -5,12 +5,13 @@
 #include "experimental_detectron_topkrois.h"
 
 #include <algorithm>
-#include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_topkrois.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -62,7 +63,7 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronTopKROIs::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 

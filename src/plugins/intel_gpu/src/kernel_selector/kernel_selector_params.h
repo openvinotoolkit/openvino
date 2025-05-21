@@ -388,6 +388,7 @@ struct EngineInfo {
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
     bool supports_microkernels = false;
+    bool supports_work_group_collective_functions = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
@@ -543,7 +544,7 @@ struct FusedOpsConfiguration {
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
-        size_t dims_num = bfzyx_idx_order.size();
+        int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
         } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {

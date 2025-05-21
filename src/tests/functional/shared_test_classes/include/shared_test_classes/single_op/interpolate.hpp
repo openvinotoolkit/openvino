@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
+#include "openvino/op/interpolate.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

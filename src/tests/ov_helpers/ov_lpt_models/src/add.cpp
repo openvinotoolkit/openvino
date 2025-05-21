@@ -7,10 +7,11 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace ov::pass::low_precision;
 

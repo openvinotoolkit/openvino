@@ -1,10 +1,10 @@
 # type: ignore
-"""
-openvino.properties.device submodule that simulates ov::device
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+openvino.properties.device submodule that simulates ov::device
+"""
 __all__ = ['Capability', 'PCIInfo', 'Priorities', 'Type', 'architecture', 'capabilities', 'full_name', 'gops', 'id', 'luid', 'pci_info', 'priorities', 'properties', 'thermal', 'type', 'uuid']
 class Capability:
     """

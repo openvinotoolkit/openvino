@@ -16,6 +16,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 using namespace ov;
 using namespace ov::pass;

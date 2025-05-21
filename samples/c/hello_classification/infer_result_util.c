@@ -35,6 +35,7 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
     void* data = NULL;
     status = ov_tensor_data(tensor, &data);
     if (status != OK) {
+        ov_shape_free(&output_shape);
         free(results);
         return NULL;
     }

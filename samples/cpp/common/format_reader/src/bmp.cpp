@@ -5,6 +5,7 @@
 // clang-format off
 #include <fstream>
 #include <iostream>
+#include <cstdint>
 
 #include "bmp.h"
 // clang-format on

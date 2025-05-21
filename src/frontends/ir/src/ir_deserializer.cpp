@@ -57,7 +57,7 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
                 *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
             }
             start = pos;
-        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
+        } else if (pos > 0 && tensor_names[pos - 1] == esc_char) {
             ++pos;
         } else {
             if (auto length = pos - start; length > 0) {
@@ -484,7 +484,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
 
     struct FunctionNodes {
         ov::ParameterVector parameters;
-        ov::ResultVector results;
+        ov::OutputVector results;
         ov::NodeVector all;
         ov::SinkVector sinks;
     };
@@ -558,7 +558,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                 OPENVINO_THROW("Attempt to access node ", e.fromLayerId, " that not in graph.");
             }
             auto& p_output = params[e.fromLayerId].params;
-            size_t const realInputPortId = p.params.get_real_input_port_id(e.toPortId);
+            const size_t realInputPortId = p.params.get_real_input_port_id(e.toPortId);
             if (realInputPortId >= inputs.size())
                 OPENVINO_THROW(p.params.type,
                                " layer ",
@@ -911,7 +911,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             }
         }
 
-        auto const& opset = opsetIt->second;
+        const auto& opset = opsetIt->second;
 
         ovNode = std::shared_ptr<ov::Node>(opset.create_insensitive(type_name));
         if (!ovNode) {

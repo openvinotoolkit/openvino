@@ -1,10 +1,10 @@
 # type: ignore
-"""
-openvino.properties.streams submodule that simulates ov::streams
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+openvino.properties.streams submodule that simulates ov::streams
+"""
 __all__ = ['Num', 'num']
 class Num:
     AUTO: typing.ClassVar[Num]  # value = <openvino._pyopenvino.properties.streams.Num object>

@@ -11,8 +11,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/xor.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -33,7 +35,7 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         auto xor_op =
             std::make_shared<opset1::Xor>(input1, input2, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        model = std::make_shared<ov::Model>(NodeVector{xor_op}, ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(OutputVector{xor_op}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::ConvertXorToLogicalXor>();
     }
 
@@ -52,6 +54,6 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
                                                   input2,
                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{logical_xor}, ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(OutputVector{logical_xor}, ParameterVector{input1, input2});
     }
 }

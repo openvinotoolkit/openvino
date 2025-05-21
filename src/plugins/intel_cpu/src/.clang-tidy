@@ -5,17 +5,33 @@
 #
 ### Scopes to be enabled:
 #
-# cppcoreguidelines-*,
 # readability-*,
-# modernize-*,
-# bugprone-*,
-# misc-*,
 #
 ### Checks that are turned off for a reason:
 #
+# -cppcoreguidelines-avoid-c-arrays. There are a lot of code which uses C-style arrays
+# -cppcoreguidelines-avoid-do-while. Just stylistic preference
+# -cppcoreguidelines-explicit-virtual-functions. Forbids 'override final' usage
+# -cppcoreguidelines-init-variables. Too many unnecessary initializations
+# -cppcoreguidelines-macro-usage. There are macros defined by OV that are matching this check
+# -cppcoreguidelines-misleading-capture-default-by-value. Commonly used in the transformations code
+# -cppcoreguidelines-non-private-member-variables-in-classes. There are a lot of code which uses protected members directly
+# -cppcoreguidelines-owning-memory. There is a code which uses raw pointers
+# -cppcoreguidelines-pro-bounds-array-to-pointer-decay. There are a lot of code which uses array to pointer conversion
+# -cppcoreguidelines-pro-bounds-constant-array-index. Size is deduced incorrectly from the array type
 # -cppcoreguidelines-pro-bounds-pointer-arithmetic
+# -cppcoreguidelines-pro-type-const-cast. There is some code which uses const_cast and cannot get rid of that
+# -cppcoreguidelines-pro-type-reinterpret-cast. There are a lot of code which uses reinterpret_cast
+# -cppcoreguidelines-pro-type-static-cast-downcast. Performance impact
+# -cppcoreguidelines-pro-type-member-init. Too many unnecessary initializations
+# -cppcoreguidelines-pro-type-union-access. There are a lot of code which uses unions
+# -cppcoreguidelines-pro-type-vararg. There are a lot of code which uses vararg functions
+# -cppcoreguidelines-rvalue-reference-param-not-moved. There are a lot of code which uses rvalue references
+# -cppcoreguidelines-special-member-functions. There are a lot of code which does not define all copy/move constructors/assignment operators
 # -google-readability-todo. No big reason to enforce
 # -modernize-use-trailing-return-type. Just stylistic preference
+# -misc-const-correctness. No big reason to enforce
+# -misc-no-recursion. No big reason to enforce
 # -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
 # -readability-uppercase-literal-suffix. 
 #
@@ -25,14 +41,18 @@
 # -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
-# -bugprone-lambda-function-name. Used by generic debug caps macro
 # -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
+# -cppcoreguidelines-avoid-const-or-ref-data-members
+# -cppcoreguidelines-avoid-non-const-global-variables
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
 # -modernize-avoid-c-arrays,
-# -readability-implicit-bool-conversion,
+# -misc-header-include-cycle,
+# -misc-include-cleaner,
+# -misc-non-private-member-variables-in-classes,
+# -misc-use-anonymous-namespace,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
@@ -42,31 +62,57 @@
 Checks: >
   -*,
   bugprone-*,
+  cppcoreguidelines-*,
   performance-*,
   google-*,
   modernize-*,
-  cppcoreguidelines-prefer-member-initializer,
+  misc-*,
+  readability-container-size-empty,
   readability-else-after-return,
+  readability-implicit-bool-conversion,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-incorrect-roundings,
-  -bugprone-lambda-function-name,
   -bugprone-narrowing-conversions,
   -bugprone-signed-char-misuse,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-explicit-virtual-functions,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-misleading-capture-default-by-value,
   -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-pro-type-member-init,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-rvalue-reference-param-not-moved,
+  -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,
-  -readability-braces-around-statements,
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
+  -misc-header-include-cycle,
+  -misc-const-correctness,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-anonymous-namespace,
   -readability-identifier-length,
-  -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
@@ -93,10 +139,14 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
+ # Unifies the usage of the statements
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: "1"
 ### To be considered to enable:
-#  # Unifies the usage of the statements
-#  - key: readability-braces-around-statements.ShortStatementLines
-#    value: "1"
 #  Reasonable way to enforce splitting complex code into simple functions
 #  - key: google-readability-function-size.StatementThreshold
 #    value: "800"
