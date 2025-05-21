@@ -4,19 +4,25 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
@@ -251,7 +257,6 @@ ov::Output<ov::Node> ComplexTypeMark::inv(const NodeContext& context, const ov::
     auto data_complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
 
     if (data_complex) {
-        auto real_imag = data_complex->get_data();
         auto real = data_complex->get_real();
         auto imag = data_complex->get_imag();
 
@@ -314,4 +319,49 @@ ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
     }
 
     return context.mark_node(make_shared<v1::ConvertLike>(input, like_data));
+}
+
+ov::Output<ov::Node> ComplexTypeMark::abs(const NodeContext& context, const ov::Output<ov::Node>& data) {
+    auto data_complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+
+    if (data_complex) {
+        // abs of complex number sqrt(real^2 + imag^2)
+        auto data = data_complex->get_data();
+
+        // compute element-wise square for complex representation
+        auto const_two = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{}, 2));
+        const_two = context.mark_node(make_shared<v1::ConvertLike>(const_two, data));
+        auto squared_data = context.mark_node(make_shared<v1::Power>(data, const_two));
+
+        // compute sum of squared real and imaginary parts
+        auto const_minus_one = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{}, -1));
+        auto complex_abs = context.mark_node(make_shared<v1::ReduceSum>(squared_data, const_minus_one, false));
+
+        return context.mark_node(make_shared<v0::Sqrt>(complex_abs));
+    }
+
+    return context.mark_node(make_shared<v0::Abs>(data));
+}
+
+ov::Output<ov::Node> ComplexTypeMark::exp(const NodeContext& context, const ov::Output<ov::Node>& data) {
+    auto data_complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+
+    if (data_complex) {
+        auto real = data_complex->get_real();
+        auto imag = data_complex->get_imag();
+
+        // exp of complex number e^real * cos(imag) + i e^real * sin(imag)
+        auto real_exp = context.mark_node(make_shared<v0::Exp>(real));
+
+        auto imag_cos = context.mark_node(make_shared<v0::Cos>(imag));
+        auto imag_sin = context.mark_node(make_shared<v0::Sin>(imag));
+
+        auto res_real = context.mark_node(make_shared<v1::Multiply>(real_exp, imag_cos));
+        auto res_imag = context.mark_node(make_shared<v1::Multiply>(real_exp, imag_sin));
+
+        return context.mark_node(make_shared<ComplexTypeMark>(res_real, res_imag));
+        ;
+    }
+
+    return context.mark_node(make_shared<v0::Exp>(data));
 }

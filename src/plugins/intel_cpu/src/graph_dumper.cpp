@@ -245,7 +245,6 @@ void serializeToXML(const Graph& graph, const std::string& path) {
         return;
     }
 
-    std::string binPath;
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(path, NULL_STREAM, ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
@@ -272,12 +271,7 @@ void serializeToCout(const Graph& graph) {
 }
 
 void summary_perf(const Graph& graph) {
-    if (!graph.getGraphContext()) {
-        return;
-    }
-    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
-
-    if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
+    if (!graph.getGraphContext() || !graph.getConfig().debugCaps.summaryPerf) {
         return;
     }
 
@@ -288,7 +282,6 @@ void summary_perf(const Graph& graph) {
     for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
         double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
-        auto name = node->getName();
 
         total += node->PerfCounter().count() * avg;
         total_avg += avg;

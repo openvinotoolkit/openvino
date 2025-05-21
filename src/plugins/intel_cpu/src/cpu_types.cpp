@@ -91,6 +91,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Erf", Type::Eltwise},
         {"SoftPlus", Type::Eltwise},
         {"SoftSign", Type::Eltwise},
+        {"SegmentMax", Type::SegmentMax},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
         {"BitwiseAnd", Type::Eltwise},
@@ -110,6 +111,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SpaceToBatch", Type::SpaceToBatch},
         {"DepthToSpace", Type::DepthToSpace},
         {"SpaceToDepth", Type::SpaceToDepth},
+        {"SparseFillEmptyRows", Type::SparseFillEmptyRows},
         {"Roll", Type::Roll},
         {"LRN", Type::Lrn},
         {"Split", Type::Split},
@@ -246,7 +248,6 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"PriorBox", Type::PriorBox},
         {"PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
-        {"MHA", Type::MHA},
         {"Unique", Type::Unique},
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
@@ -309,6 +310,7 @@ std::string NameFromType(const Type type) {
         CASE(Transpose);
         CASE(SpaceToDepth);
         CASE(SpaceToBatch);
+        CASE(SparseFillEmptyRows);
         CASE(MemoryOutput);
         CASE(MemoryInput);
         CASE(RNNSeq);
@@ -382,7 +384,6 @@ std::string NameFromType(const Type type) {
         CASE(SubModel);
         CASE(PriorBox);
         CASE(PriorBoxClustered)
-        CASE(MHA);
         CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
@@ -394,6 +395,7 @@ std::string NameFromType(const Type type) {
         CASE(QKVProjection);
         CASE(RMS);
         CASE(SearchSorted);
+        CASE(SegmentMax);
         CASE(LoRA);
         CASE(Unknown);
     }

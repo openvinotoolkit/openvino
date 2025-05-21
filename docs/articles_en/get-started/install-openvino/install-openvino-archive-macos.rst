@@ -47,7 +47,8 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.0/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/macos/>`__,
+   extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -57,9 +58,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.0/macos/openvino_toolkit_macos_12_6_2025.0.0.17942.1f68be9f594_x86_64.tgz --output openvino_2025.0.0.tgz
-            tar -xf openvino_2025.0.0.tgz
-            sudo mv openvino_toolkit_macos_12_6_2025.0.0.17942.1f68be9f594_x86_64 /opt/intel/openvino_2025.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/macos/openvino_toolkit_macos_12_6_2025.1.0.18503.6fec06580ab_x86_64.tgz --output openvino_2025.1.0.tgz
+            tar -xf openvino_2025.1.0.tgz
+            sudo mv openvino_toolkit_macos_12_6_2025.1.0.18503.6fec06580ab_x86_64 /opt/intel/openvino_2025.1.0
 
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
@@ -67,9 +68,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.0/macos/openvino_toolkit_macos_12_6_2025.0.0.17942.1f68be9f594_arm64.tgz --output openvino_2025.0.0.tgz
-            tar -xf openvino_2025.0.0.tgz
-            sudo mv openvino_toolkit_macos_12_6_2025.0.0.17942.1f68be9f594_arm64 /opt/intel/openvino_2025.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/macos/openvino_toolkit_macos_12_6_2025.1.0.18503.6fec06580ab_arm64.tgz --output openvino_2025.1.0.tgz
+            tar -xf openvino_2025.1.0.tgz
+            sudo mv openvino_toolkit_macos_12_6_2025.1.0.18503.6fec06580ab_arm64 /opt/intel/openvino_2025.1.0
 
 
 5. (Optional) Install *numpy* Python Library:
@@ -78,11 +79,11 @@ Step 1: Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2025.0.0/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2025.1.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2025.0.0
+      cd /opt/intel/openvino_2025.1.0
       python3 -m pip install -r ./python/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -90,7 +91,7 @@ Step 1: Install OpenVINO Core Components
    .. code-block:: sh
 
 
-      sudo ln -s /opt/intel/openvino_2025.0.0 /opt/intel/openvino_2025
+      sudo ln -s /opt/intel/openvino_2025.1.0 /opt/intel/openvino_2025
 
 
    .. note::
@@ -140,16 +141,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <../../notebooks/vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      Try the `Python Quick Start Example <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-monodepth>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
       Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * `OpenVINO Python API Tutorial <../../notebooks/openvino-api-with-output.html>`__
-      * `Basic image classification program with Hello Image Classification <../../notebooks/hello-world-with-output.html>`__
-      * `Convert a PyTorch model and use it for image background removal <../../notebooks/vision-background-removal-with-output.html>`__
+      * `OpenVINO Python API Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-api>`__
+      * `Basic image classification program with Hello Image Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__
+      * `Convert a PyTorch model and use it for image background removal <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-background-removal>`__
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
@@ -188,6 +189,6 @@ Additional Resources
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../install-openvino>`
 * :doc:`Convert models for use with OpenVINO™ <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
-* :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+* :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`
 * Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__

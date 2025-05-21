@@ -9,9 +9,9 @@ and returns the generated content. For a quickstart guide, refer to the
 :doc:`GenAI API Guide <../../openvino-workflow-generative/inference-with-genai>`.
 
 To see OpenVINO GenAI in action, check these Jupyter notebooks:
-`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md>`__
+`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot>`__
 and
-`LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md>`__.
+`LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__.
 
 OpenVINO GenAI is available for installation via PyPI and Archive distributions.
 A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/0/src/docs/BUILD.md>`__
@@ -49,24 +49,24 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/linux/openvino_genai_ubuntu24_2025.0.0.0_x86_64.tar.gz --output openvino_genai_2025.0.0.0.tgz
-               tar -xf openvino_genai_2025.0.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/linux/openvino_genai_ubuntu24_2025.1.0.0_x86_64.tar.gz --output openvino_genai_2025.1.0.0.tgz
+               tar -xf openvino_genai_2025.1.0.0.tgz
 
          .. tab-item:: Ubuntu 22.04
             :sync: ubuntu-22
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/linux/openvino_genai_ubuntu22_2025.0.0.0_x86_64.tar.gz --output openvino_genai_2025.0.0.0.tgz
-               tar -xf openvino_genai_2025.0.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/linux/openvino_genai_ubuntu22_2025.1.0.0_x86_64.tar.gz --output openvino_genai_2025.1.0.0.tgz
+               tar -xf openvino_genai_2025.1.0.0.tgz
 
          .. tab-item:: Ubuntu 20.04
             :sync: ubuntu-20
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/linux/openvino_genai_ubuntu20_2025.0.0.0_x86_64.tar.gz  --output openvino_genai_2025.0.0.0.tgz
-               tar -xf openvino_genai_2025.0.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/linux/openvino_genai_ubuntu20_2025.1.0.0_x86_64.tar.gz  --output openvino_genai_2025.1.0.0.tgz
+               tar -xf openvino_genai_2025.1.0.0.tgz
 
 
    .. tab-item:: ARM 64-bit
@@ -74,8 +74,8 @@ Linux
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/linux/openvino_genai_ubuntu20_2025.0.0.0_arm64.tar.gz -O openvino_genai_2025.0.0.0.tgz
-         tar -xf openvino_genai_2025.0.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/linux/openvino_genai_ubuntu20_2025.1.0.0_arm64.tar.gz -O openvino_genai_2025.1.0.0.tgz
+         tar -xf openvino_genai_2025.1.0.0.tgz
 
 
 Windows
@@ -84,7 +84,7 @@ Windows
 .. code-block:: sh
 
    cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/windows/openvino_genai_windows_2025.0.0.0_x86_64.zip --output openvino_genai_2025.0.0.0.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/windows/openvino_genai_windows_2025.1.0.0_x86_64.zip --output openvino_genai_2025.1.0.0.zip
 
 macOS
 ++++++++++++++++++++++++++
@@ -96,16 +96,16 @@ macOS
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/macos/openvino_genai_macos_12_6_2025.0.0.0_x86_64.tar.gz --output openvino_genai_2025.0.0.0.tgz
-         tar -xf openvino_genai_2025.0.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/macos/openvino_genai_macos_12_6_2025.1.0.0_x86_64.tar.gz --output openvino_genai_2025.1.0.0.tgz
+         tar -xf openvino_genai_2025.1.0.0.tgz
 
    .. tab-item:: ARM, 64-bit
       :sync: arm-64
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.0/macos/openvino_genai_macos_12_6_2025.0.0.0_arm64.tar.gz --output openvino_genai_2025.0.0.0.tgz
-         tar -xf openvino_genai_2025.0.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.1/macos/openvino_genai_macos_12_6_2025.1.0.0_arm64.tar.gz --output openvino_genai_2025.1.0.0.tgz
+         tar -xf openvino_genai_2025.1.0.0.tgz
 
 
 Here are the full guides:

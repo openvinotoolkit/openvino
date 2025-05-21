@@ -99,7 +99,7 @@ static void transpose_out4d(const uint8_t* in,
 }
 }  // namespace
 
-void STFT::execute(const dnnl::stream& strm) {
+void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
     const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
     auto* rdft_result = getDstDataAtPortAs<float>(0);

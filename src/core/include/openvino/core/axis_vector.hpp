@@ -44,6 +44,7 @@ class OPENVINO_API AttributeAdapter<AxisVector> : public IndirectVectorValueAcce
 public:
     AttributeAdapter(AxisVector& value) : IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>>(value) {}
     OPENVINO_RTTI("AttributeAdapter<AxisVector>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

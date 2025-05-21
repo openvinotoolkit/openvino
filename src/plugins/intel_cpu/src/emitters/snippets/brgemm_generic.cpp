@@ -8,7 +8,7 @@
 #include "dnnl_extension_utils.h"
 #include "utils/general_utils.h"
 
-#define PRINT(X) ss << #X << " = " << X << "\n"
+#define PRINT(X) ss << #X << " = " << (X) << "\n"
 #define EQ(X)    X == rhs.X
 #define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
@@ -137,7 +137,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& loop_ids = expr->get_loop_ids();
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto get_loop_info = [&]() {
-        OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
+        assert(loop_idx < loop_ids.size() && "Loop is missed");
         return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
     };
 

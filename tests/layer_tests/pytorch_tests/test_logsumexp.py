@@ -28,6 +28,7 @@ class TestLogsumexp(PytorchLayerTest):
     @pytest.mark.parametrize("keepdim", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_logsumexp(self, dim, keepdim, ie_device, precision, ir_version):
         self._test(aten_logsumexp(dim, keepdim), None, "aten::logsumexp",

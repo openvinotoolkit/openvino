@@ -16,6 +16,7 @@
 
 #include "itt.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"

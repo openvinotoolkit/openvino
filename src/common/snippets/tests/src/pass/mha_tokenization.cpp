@@ -23,6 +23,30 @@ void TokenizeMHASnippetsTests::run() {
     disable_rt_info_check();
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Static) {
+    const auto &f = MHA2DFunction(std::vector<PartialShape>{{12, 64}, {64, 12}, {12, 12}, {12, 64}},
+                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Dynamic) {
+    const auto &f = MHA2DFunction(std::vector<PartialShape>{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},
+                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Partially_Dynamic) {
+    const auto &f = MHA2DFunction(std::vector<PartialShape>{{12, 64}, {64, 12}, {-1, 12}, {12, 64}},
+                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D) {
     const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
@@ -240,12 +264,33 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     run();
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM_ScalarParams) {
+    const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1}, {64}, {8, 64, 512}},
+                                            std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {}, {},
+                                                               {8, 1, 64, 512}, {8, 512, 512}});
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    config.set_concurrency(16);
+    run();
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
     const auto& f = MHAWithExtractedReshapeFunction(std::vector<PartialShape>{{400, 196, 80},
                                                                               {400, 80, 196},
                                                                               {400, 14, 14, 14},
                                                                               {400, 14, 14, 1, 14},
                                                                               {400, 196, 80}}, true);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Rank_Change_Reshape_extraction) {
+    const auto& f = MHARankUpgradeToReductionFunction(std::vector<PartialShape>{{100, 16, 100, 32},
+                                                                                {100, 16, 32, 100},
+                                                                                {1, 16, 100, 100},
+                                                                                {1, 100, 1, 100, 100},
+                                                                                {100, 16, 100, 32}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();

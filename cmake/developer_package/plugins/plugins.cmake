@@ -89,10 +89,6 @@ function(ov_add_plugin)
 
         target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-        if(WIN32)
-            set_target_properties(${OV_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${OV_PLUGIN_NAME})
-        endif()
-
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
             if (APPLE)
                 target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
@@ -146,6 +142,8 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
+
+                ov_install_pdb(${TARGET_NAME})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()

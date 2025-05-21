@@ -9,6 +9,10 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/relu.hpp"
 
 using namespace ov::test;
 

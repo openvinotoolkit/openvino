@@ -11,6 +11,7 @@
 #include "crop_inst.h"
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
+#include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "permute_inst.h"
@@ -24,6 +25,7 @@
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lstm_seq_inst.h"
 #include "border_inst.h"
+#include "lora_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -476,6 +478,10 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
             return false;
+        // Read_value and assign don't handle data paddings internally, thus disable
+        // crop optimization for now
+        if (user->is_type<read_value>() || user->is_type<assign>())
+            return false;
         // If the input tensor of convolution includes dynamic padding, there is an issue
         // where the total size of tensor is not properly calculated and becomes 0
         // It causes issue for internal buffer allocation during runtime
@@ -506,6 +512,9 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
             return false;
+        if (user->is_type<lora>()) {
+            return false;
+        }
     }
 
     // do not optimize crop, that must be calculated in propagate_constants
@@ -827,7 +836,6 @@ void prepare_buffer_fusing::run(program& p) {
                                                                                        false);
             } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                 std::pair<const program_node*, layout> user_info;
-                std::vector<layout> reshape_layouts;
                 if (node.get_users().front()->is_type<reshape>()) {
                     auto& reshape_node = node.get_users().front()->as<reshape>();
                     if (reshape_node.is_runtime_propagatable_padding()) {
@@ -997,6 +1005,39 @@ void prepare_buffer_fusing::run(program& p) {
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
             node.can_be_optimized(can_read_value_be_optimize(node));
             GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
+        });
+        program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
+            // Allow optimization of reorder -> permute if input dimension order is same as the permute order
+            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                return;
+            }
+
+            auto &users = node.get_users();
+            if (users.size() != 1 || !users.front()->is_type<permute>()) {
+                return;
+            }
+            auto &permute_node = users.front()->as<permute>();
+
+            auto &input_layout = node.get_input_layout(0);
+            auto &output_layout = node.get_output_layout(0);
+            if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
+                return;
+            }
+
+            auto input_order = input_layout.get_dims_order();
+            auto permute_order = permute_node.get_permute_order();
+            if (input_order.size() != permute_order.size()) {
+                return;
+            }
+            for (size_t i = 0; i < permute_order.size(); i++) {
+                if (permute_order[i] != input_order[i]) {
+                    return;
+                }
+            }
+            node.can_be_optimized(true);
+            permute_node.can_be_optimized(true);
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << permute_node.id() << " can be optimized" << std::endl;
         });
     }
 }

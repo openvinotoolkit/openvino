@@ -10,9 +10,11 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -22,6 +24,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
@@ -64,7 +67,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8);
+        bool is_quantized_int8 = pattern_map.find(q_proj_weight_const_i8) != pattern_map.end();
 
         OutputVector args = {src};
         OutputVector deq_scales;
@@ -232,7 +235,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
+        bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
 
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
@@ -247,7 +250,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3)) {
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
         }
 

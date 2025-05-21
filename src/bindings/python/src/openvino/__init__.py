@@ -52,12 +52,12 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 
 # Import public classes from _ov_api
+from openvino._op_base import Op
 from openvino._ov_api import Model
 from openvino._ov_api import Core
 from openvino._ov_api import CompiledModel
 from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
-from openvino._ov_api import Op
 
 # Import all public modules
 from openvino.package_utils import LazyLoader

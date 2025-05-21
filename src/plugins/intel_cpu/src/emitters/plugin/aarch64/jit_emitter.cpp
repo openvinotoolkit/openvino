@@ -59,7 +59,7 @@ void jit_emitter::emit_data() const {
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (const auto& it : entry_map_) {
@@ -75,7 +75,8 @@ emitter_in_out_map jit_emitter::get_in_out_type() const {
     return in_out_type_;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 

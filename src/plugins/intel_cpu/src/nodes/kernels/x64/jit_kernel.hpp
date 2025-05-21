@@ -185,11 +185,8 @@ public:
     if_expression(const boolean_expression<T>& expr) : _expr(expr) {}
 
     ~if_expression() {
-        try {
-            if (!_is_exit_valid) {
-                _expr._kernel.assignL(_exit, _else);
-            }
-        } catch (...) {
+        if (!_is_exit_valid) {
+            _expr._kernel.assignL(_exit, _else);
         }
     }
 
@@ -862,10 +859,7 @@ namespace internal {
 template <typename Reg>
 shared_reg<Reg> make_shared(Reg& reg, jit_kernel& kernel) {
     std::shared_ptr<Reg> ptr(&reg, [&kernel](Reg* preg) {
-        try {
-            kernel.free(*preg);
-        } catch (...) {
-        }
+        kernel.free(*preg);
     });
     return ptr;
 }

@@ -90,6 +90,14 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
         return false;
 
+    auto input_dt = params.inputs[0].GetDType();
+    if (input_dt == Datatype::INT8 || input_dt == Datatype::INT32) {
+        for (auto act : params.activations) {
+            if (act.function == ActivationFunction::ABS)
+                return false;
+        }
+    }
+
     return true;
 }
 

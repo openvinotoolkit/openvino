@@ -26,9 +26,17 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
         const auto expr = expr_it->get();
         if (ov::is_type<op::Scalar>(expr->get_node())) {
             const auto consumers = expr->get_output_port_connector(0)->get_consumers();
-            OPENVINO_ASSERT(consumers.size() == 1, "Scalar expression is expected to have a single consumer");
+            OPENVINO_ASSERT(!consumers.empty(), "Scalar expression should have at least one consumer");
+            auto consumer_expr = consumers.begin()->get_expr();
+            const auto& loop_ids = consumer_expr->get_loop_ids();
+            for (const auto& consumer : consumers) {
+                OPENVINO_ASSERT(consumer.get_expr()->get_loop_ids() == loop_ids,
+                                "All consumers of a Scalar expression are expected to have the same loop IDs");
+                if (consumer.get_expr()->get_exec_num() < consumer_expr->get_exec_num()) {
+                    consumer_expr = consumer.get_expr();
+                }
+            }
 
-            const auto& consumer_expr = consumers.begin()->get_expr();
             // Move something only if
             //  - Consumer is not already the next one (previous since the iterator is a reverse one)
             //  - The next operation is not already a Scalar (since it was just moved there on the previous iteration)

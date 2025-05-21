@@ -851,7 +851,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     config.outConfs[0].inPlace(-1);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
     const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
@@ -875,8 +875,6 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
 
     if (!enforceRef && mayiuse(cpu::x64::sse41)) {
@@ -925,7 +923,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
 void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float* offsets,
                                                                     const float* modulation,
-                                                                    bool enforceRef) {
+                                                                    [[maybe_unused]] bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -1341,7 +1339,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
     });
 }
 
-void DeformableConvolution::execute(const dnnl::stream& strm) {
+void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();

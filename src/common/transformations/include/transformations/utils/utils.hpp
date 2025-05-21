@@ -193,7 +193,11 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
-TRANSFORMATIONS_API bool is_large_language_model(const ov::Model& model);
+TRANSFORMATIONS_API bool is_large_language_model(
+    const ov::Model& model,
+    std::function<bool(std::shared_ptr<ov::Node>)> func = [](std::shared_ptr<ov::Node>) {
+        return false;
+    });
 
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
@@ -256,15 +260,6 @@ template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
     auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);
     return try_fold_unary_output(unary_output_node);
-}
-
-template <class T>
-Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
-    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
-    return output[0];
 }
 
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);

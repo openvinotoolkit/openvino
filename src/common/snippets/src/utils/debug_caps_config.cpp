@@ -40,6 +40,9 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
     };
 
     for (const auto& option : options) {
+        if (option.empty()) {
+            continue;
+        }
         const auto& parts = ov::util::split(option, '=');
         if (parts.size() > 2) {
             failed = true;

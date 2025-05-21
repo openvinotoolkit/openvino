@@ -4,9 +4,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "utils.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
@@ -75,7 +79,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -136,7 +140,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11_undefined_precisoin) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -197,7 +201,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11_dynamic_precisoin) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -258,7 +262,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -465,7 +469,7 @@ TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
         transpose->set_friendly_name("Transpose0321");
         auto result = std::make_shared<ov::opset1::Result>(transpose);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -544,7 +548,7 @@ TEST_P(IRFrontendMMapTests, model_with_lp_weights_reading_from_disk) {
         transpose->set_friendly_name("Add_4");
         auto result = std::make_shared<ov::opset1::Result>(transpose);
         result->set_friendly_name("Result_5");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -612,7 +616,7 @@ TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -1131,7 +1135,7 @@ TEST_F(IRFrontendTests, not_opset1) {
         shapeof->set_friendly_name("shapeof");
         auto result = std::make_shared<ov::opset1::Result>(shapeof);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -1303,7 +1307,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
                 <layer id="0" name="input2" type="Parameter" version="opset1">
                     <data shape="1,4,512" element_type="f32"/>
                     <output>
-                        <port id="0" precision="FP32" names="input2">
+                        <port id="0" precision="FP32" names="model/bert/encoder/layer_0/attention/self/query/Tensordot/MatMul;model/bert/encoder/layer_0/attention/self/query/BiasAdd;model/bert/encoder/layer_0/attention/output/dense/Tensordot/shape;model/bert/encoder/layer_0/attention/self/query/Tensordot;model/bert/encoder/layer_0/attention/self/query/BiasAdd/ReadVariableOp_Gemm__32:0">
                             <dim>1</dim>
                             <dim>4</dim>
                             <dim>512</dim>

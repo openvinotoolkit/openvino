@@ -4,7 +4,7 @@
 
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -92,12 +92,14 @@ struct condition_impl : typed_primitive_impl<condition> {
                     auto other_branch = !pred ? instance.get_branch_true() : instance.get_branch_false();
                     auto other_layout = other_branch.inner_program->get_outputs()[out_idx]->get_output_layout();
                     output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
+                    OPENVINO_ASSERT(output_mem_ptr != nullptr, "output_mem_ptr should not be null.");
                     output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
                     GPU_DEBUG_LOG << "    output layout is updated to " << output_layout.to_short_string() << std::endl;
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
                 instance.set_output_memory(output_mem_ptr, out_idx);
+                instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
         } else {

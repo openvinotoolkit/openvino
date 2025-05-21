@@ -29,7 +29,6 @@ from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_mak
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
@@ -80,7 +79,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
         "use_python_fusion_cache",
         DEFAULT_OPENVINO_PYTHON_CONFIG["use_python_fusion_cache"],
     )
-    global compiled_cache
+    global compiled_cache  # noqa: F824
 
     model_hash_str = executor_parameters.get("model_hash_str", None)
     if model_hash_str is not None:
@@ -128,8 +127,9 @@ class OpenVINOGraphModule(torch.nn.Module):
 
         try:
             result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id, options=self.options)
-        except Exception:
-            logger.debug("OpenVINO execution failed. Falling back to native PyTorch execution.")
+            logger.debug("OpenVINO graph execution successful")
+        except Exception as e:
+            logger.debug(f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution.")
             self.perm_fallback = True
             return self.gm(*args)
 
@@ -159,7 +159,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
 def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None, options=None):
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
-    global partitioned_modules
+    global partitioned_modules  # noqa: F824
 
     use_python_fusion_cache = executor_parameters.get(
         "use_python_fusion_cache",
@@ -182,8 +182,8 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
 
 def clear_caches():
-    global partitioned_modules
-    global compiled_cache
+    global partitioned_modules  # noqa: F824
+    global compiled_cache  # noqa: F824
 
     compiled_cache.clear()
     partitioned_modules.clear()

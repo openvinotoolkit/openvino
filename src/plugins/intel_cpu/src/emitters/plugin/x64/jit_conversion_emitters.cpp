@@ -19,9 +19,17 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, node->get_input_element_type(0), node->get_output_element_type(0), exec_prc) {
+}
+
+jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+                                         cpu_isa_t host_isa,
+                                         const ov::element::Type& in_prec,
+                                         const ov::element::Type& out_prec,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
-      input_type(node->get_input_element_type(0)),
-      output_type(node->get_output_element_type(0)) {
+      input_type(in_prec),
+      output_type(out_prec) {
     if (output_type == ov::element::bf16) {
         uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
     }
@@ -71,6 +79,15 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* ho
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+                                                               cpu_isa_t host_isa,
+                                                               const ov::element::Type& in_prec,
+                                                               const ov::element::Type& out_prec,
+                                                               ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc) {
     prepare_table();
 }
 
@@ -233,6 +250,13 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* ho
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {}
+
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+                                                               cpu_isa_t host_isa,
+                                                               const ov::element::Type& in_prec,
+                                                               const ov::element::Type& out_prec,
+                                                               ov::element::Type exec_prc)
+    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc) {}
 
 void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                const std::vector<size_t>& out_vec_idxs) const {

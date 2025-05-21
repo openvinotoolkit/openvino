@@ -21,9 +21,13 @@ public:
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(ov::Tensor blob, bool blobAllocatedByPlugin, const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+
+    std::vector<std::string> get_supported_options() const override;
+
+    bool is_option_supported(std::string optname) const override;
 
     uint32_t get_version() const override;
 

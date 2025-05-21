@@ -3,8 +3,7 @@
 //
 
 #include "ov_lpt_models/fuse_multiply_to_fake_quantize.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -24,7 +23,8 @@ std::shared_ptr<ov::Model> FuseMultiplyToFakeQuantizeFunction::get(
     const DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
 
-    const auto fakeQuantize = makeFakeQuantize(input, ov::element::f32, fqOnData);
+    const auto constantPrecision = fqOnData.constantPrecision != ov::element::dynamic ? fqOnData.constantPrecision : ov::element::f32;
+    const auto fakeQuantize = makeFakeQuantize(input, constantPrecision, fqOnData);
     const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
     lastDequantization->set_friendly_name("output");
 

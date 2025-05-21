@@ -51,6 +51,7 @@ enum class Type {
     Transpose,
     SpaceToBatch,
     SpaceToDepth,
+    SparseFillEmptyRows,
     StridedSlice,
     MemoryOutput,
     MemoryInput,
@@ -123,7 +124,6 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA,
     RandomUniform,
     Unique,
     Ngram,
@@ -135,6 +135,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    SegmentMax,
     LoRA
 };
 

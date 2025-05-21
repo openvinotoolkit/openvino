@@ -59,7 +59,7 @@ struct experimental_detectron_generate_proposals_single_image
             pre_nms_count{pre_nms_count},
             post_nms_count{post_nms_count} {}
 
-    primitive_id output_roi_scores;
+    input_info output_roi_scores;
     float min_size = 0.0f;
     float nms_threshold = 0.0f;
     int64_t pre_nms_count = 0;
@@ -71,7 +71,7 @@ struct experimental_detectron_generate_proposals_single_image
         seed = hash_combine(seed, nms_threshold);
         seed = hash_combine(seed, pre_nms_count);
         seed = hash_combine(seed, post_nms_count);
-        seed = hash_combine(seed, output_roi_scores.empty());
+        seed = hash_combine(seed, output_roi_scores.is_valid());
         return seed;
     }
 
@@ -85,7 +85,7 @@ struct experimental_detectron_generate_proposals_single_image
                nms_threshold == rhs_casted.nms_threshold &&
                pre_nms_count == rhs_casted.pre_nms_count &&
                post_nms_count == rhs_casted.post_nms_count &&
-               output_roi_scores.empty() == rhs_casted.output_roi_scores.empty();
+               output_roi_scores.is_valid() == rhs_casted.output_roi_scores.is_valid();
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -107,10 +107,13 @@ struct experimental_detectron_generate_proposals_single_image
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!output_roi_scores.empty())
-            ret.push_back(output_roi_scores);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (output_roi_scores.is_valid())
+            ret[idx++] = &output_roi_scores;
+
         return ret;
     }
 };

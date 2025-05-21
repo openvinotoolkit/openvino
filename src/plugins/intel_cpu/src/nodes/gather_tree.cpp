@@ -80,7 +80,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherTree::execute(const dnnl::stream& strm) {
+void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }
@@ -174,7 +174,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
 
             for (auto parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
                 if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) ||
-                    static_cast<size_t>(idx + parent) >= parentIdxSize) {
+                    static_cast<size_t>(idx) + parent >= parentIdxSize) {
                     incorrectResult = true;
                     break;
                 }

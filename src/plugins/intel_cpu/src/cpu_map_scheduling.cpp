@@ -19,8 +19,9 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
         switch (input_type) {
         case ov::hint::SchedulingCoreType::PCORE_ONLY:
             for (auto& i : result_table) {
-                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
+                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC] + i[LP_EFFICIENT_CORE_PROC];
                 i[EFFICIENT_CORE_PROC] = 0;
+                i[LP_EFFICIENT_CORE_PROC] = 0;
             }
             break;
         case ov::hint::SchedulingCoreType::ECORE_ONLY:
@@ -36,7 +37,8 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
     };
 
     if (((input_type == ov::hint::SchedulingCoreType::PCORE_ONLY) && (proc_type_table[0][MAIN_CORE_PROC] == 0)) ||
-        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0))) {
+        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0) &&
+         (proc_type_table[0][LP_EFFICIENT_CORE_PROC] == 0))) {
         input_type = ov::hint::SchedulingCoreType::ANY_CORE;
     }
 
@@ -69,38 +71,36 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
     return result_table;
 }
 
-bool get_cpu_pinning(bool& input_value,
-                     const bool input_changed,
-                     const bool cpu_reservation,
-                     const std::vector<std::vector<int>>& proc_type_table,
-                     const std::vector<std::vector<int>>& streams_info_table) {
+bool check_cpu_pinning(const bool cpu_pinning,
+                       const bool cpu_pinning_changed,
+                       const bool cpu_reservation,
+                       const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value;
 
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    if (proc_type_table.size() == 1) {
-        result_value = input_changed ? input_value : cpu_reservation;
-    } else {
-        result_value = false;
-    }
+    result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
 #else
-    if (input_changed) {
-        result_value = input_value;
-    } else {
-        result_value = true;
-        // The following code disables pinning in case stream contains both Pcore and Ecore
+    // The following code disables pinning in case stream contains both Pcore and Ecore
+    auto hyper_cores_in_stream = [&]() {
         if (streams_info_table.size() >= 3) {
             if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
                 (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
                 (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                result_value = cpu_reservation;
+                return true;
             }
+        }
+        return false;
+    };
+
+    result_value = cpu_pinning_changed ? cpu_pinning : true;
+    if (!cpu_pinning_changed && !cpu_reservation) {
+        if (hyper_cores_in_stream()) {
+            result_value = false;
         }
     }
 #endif
-
-    input_value = result_value;
 
     return result_value;
 }

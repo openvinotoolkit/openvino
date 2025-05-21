@@ -439,5 +439,6 @@ public:
     AttributeAdapter(ov::PartialShape& value) : DirectValueAccessor<ov::PartialShape>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PartialShape>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov
