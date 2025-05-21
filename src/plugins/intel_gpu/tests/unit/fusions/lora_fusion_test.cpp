@@ -137,7 +137,7 @@ TEST_P(lora_act_eltw, basic) {
         reorder("reorder_bfyx", input_info("eltw"), p.planar_format, data_types::f32)
     );
 
-    tolerance = p.input_type == data_types::f16 ? 1e-2f : 1e-5f;
+    tolerance = p.input_type == data_types::f16 ? 1e-4f : 1e-5f;
     execute(p);
 }
 

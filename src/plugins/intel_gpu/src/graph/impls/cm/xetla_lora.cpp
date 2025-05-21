@@ -75,9 +75,20 @@ protected:
                 auto eltwise = std::static_pointer_cast<const cldnn::eltwise>(postop.desc);
                 auto eltwise_layout = params.input_layouts[post_op_arg_index++];
                 auto eltwise_dtype = ov_to_xetla_dtype(eltwise_layout.data_type);
-                const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
 
-                if (eltwise_M == 1) {
+                // const bool broadcast = eltwise->broadcast_spec.m_type != ov::op::AutoBroadcastType::NONE;
+                bool broadcast = false;
+                if (params.is_dynamic()) {
+                    broadcast = !eltwise_layout.get_partial_shape()[0].is_dynamic();
+                } else {
+                    const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
+                    broadcast = eltwise_M == 1;
+                }
+
+                const bool broadcast_start_0 = eltwise->broadcast_spec.m_axis == 0;
+                assert(broadcast == broadcast_start_0);
+
+                if (broadcast && broadcast_start_0) {
                     if (eltwise->mode == eltwise_mode::sum) {
                         xetla_postops.push_back(std::make_unique<ShiftChannels>(post_op_index++, eltwise_dtype));
                     } else if (eltwise->mode == eltwise_mode::prod) {
@@ -351,7 +362,7 @@ class XetlaLoRAGEMMAGenerator : public XeTLALoraBaseGenerator {
     const bool is_aligned;
 
 public:
-    XetlaLoRAGEMMAGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemm", "A"), is_aligned{is_aligned} {}
+    XetlaLoRAGEMMAGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemmA", "A"), is_aligned{is_aligned} {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -440,7 +451,7 @@ class XetlaLoRAGEMMBGenerator : public XeTLALoraBaseGenerator {
     const bool is_aligned;
 
 public:
-    XetlaLoRAGEMMBGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemm", "B"), is_aligned{is_aligned} {}
+    XetlaLoRAGEMMBGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemmB", "B"), is_aligned{is_aligned} {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -519,6 +530,7 @@ protected:
                 args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(i)});
             }
         }
+
         return args;
     }
 
@@ -547,10 +559,10 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LoRAImpl)
     // Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
     Stage::Ptr lora_gemm_a = make_stage<XetlaLoRAGEMMAGenerator>(true);
-    Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false);
+    // Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false);
 
     Stage::Ptr lora_gemm_b = make_stage<XetlaLoRAGEMMBGenerator>(true);
-    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false);
+    // Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false);
 
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {

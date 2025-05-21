@@ -68,7 +68,7 @@ struct LoRAImplementationManager : public ImplementationManager {
                 if (Activation::ActivationOp::none == xetla_activation_func) {
                     return false;
                 }
-                if (activation_desc->additional_params.a != 1.0f && activation_desc->additional_params.b != 0.0f) {
+                if (!((activation_desc->additional_params.a == 1.0f) && (activation_desc->additional_params.b == 0.0f))) {
                     return false;
                 }
                 if (prim.deps.size() != 0) {
@@ -81,6 +81,21 @@ struct LoRAImplementationManager : public ImplementationManager {
                 if (Eltwise::EltwiseOp::none == xetla_eltwise_mode) {
                     return false;
                 }
+
+                const bool broadcast_start_0 = eltwise_desc->broadcast_spec.m_axis == 0;
+
+                bool broadcast = true;
+                // if(node.is_dynamic()){
+                //     broadcast = !eltwise_desc->.get_partial_shape()[0].is_dynamic();
+                // } else {
+                //     const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
+                //     broadcast = eltwise_M == 1;
+                // }
+
+                if (!(broadcast == broadcast_start_0)) {
+                    return false;
+                }
+
             } else {
                 return false;
             }
