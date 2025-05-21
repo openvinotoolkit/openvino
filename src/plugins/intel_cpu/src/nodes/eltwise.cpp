@@ -803,10 +803,12 @@ public:
 
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (!one_of(algorithm,
+                    Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
+                    Algorithm::EltwiseFloor,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwisePowerStatic,
@@ -2367,7 +2369,12 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
     }
 // Convert can be fused into Eltwise only if jit implementation is supported
 #if defined(OPENVINO_ARCH_ARM64)
-    return EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
+    return EltwiseJitExecutor::isSupportedOp(this,
+                                             getAlpha(),
+                                             getBeta(),
+                                             getGamma(),
+                                             {},
+                                             {convertNode->getOriginalOutputPrecisionAtPort(0)});
 #else
     return false;
 #endif

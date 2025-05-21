@@ -168,10 +168,9 @@ void ov::Node::safe_delete(NodeVector& nodes, bool recurse) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
-            auto node = input.get_output().get_node();
-            if (node.use_count() == 2) {
+            if (auto node = input.get_output().get_node(); node.use_count() == 2) {
                 // Move the node from the input to nodes so we don't trigger a deep recursive delete
-                nodes.push_back(node);
+                nodes.push_back(std::move(node));
             }
             input.remove_output();
         }
@@ -728,8 +727,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
-        input_tensors.push_back(tensor);
+        input_tensors.emplace_back(input.get_element_type(), input.get_shape(), data);
     }
 
     TensorVector output_tensors;
@@ -779,7 +777,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     auto id = original_id;
     visitor.on_attribute("ID", id);
     if (id != original_id) {
-        m_ref = visitor.get_registered_node(id);
+        m_ref = visitor.get_registered_node(std::move(id));
     }
     return true;
 }

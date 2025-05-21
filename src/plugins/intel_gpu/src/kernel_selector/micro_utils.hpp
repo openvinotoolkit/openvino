@@ -18,22 +18,22 @@
 #endif
 
 #include "gpu/intel/microkernels/package.hpp"
-#include "gpu/intel/jit/gemm/include/microkernel_provider.hpp"
+#include "gpu/intel/jit/gemm/include/gemmstone/microkernel_provider.hpp"
 #include "gpu/intel/microkernels/shim.hpp"
 #include "common/utils.hpp"
 
 namespace micro {
 
 using Package = dnnl::impl::gpu::intel::micro::Package;
-using HWInformation = dnnl::impl::gpu::intel::jit::HWInformation;
-using GEMMProblem = dnnl::impl::gpu::intel::jit::GEMMProblem;
-using ABOffset = dnnl::impl::gpu::intel::jit::ABOffset;
-using GEMMStrategy = dnnl::impl::gpu::intel::jit::GEMMStrategy;
+using HWInformation = gemmstone::HWInformation;
+using GEMMProblem = gemmstone::GEMMProblem;
+using ABOffset = gemmstone::ABOffset;
+using GEMMStrategy = gemmstone::GEMMStrategy;
 using GEMMProtocol = dnnl::impl::gpu::intel::micro::GEMMProtocol;
-using MatrixLayout = dnnl::impl::gpu::intel::jit::MatrixLayout;
-using Type = dnnl::impl::gpu::intel::jit::Type;
-using SizeParams = dnnl::impl::gpu::intel::jit::SizeParams;
-using StrategyRequirement = dnnl::impl::gpu::intel::jit::StrategyRequirement;
+using MatrixLayout = gemmstone::MatrixLayout;
+using Type = gemmstone::Type;
+using SizeParams = gemmstone::SizeParams;
+using StrategyRequirement = gemmstone::StrategyRequirement;
 using ShimOptions = dnnl::impl::gpu::intel::micro::ShimOptions;
 using HostLanguage = dnnl::impl::gpu::intel::micro::HostLanguage;
 using Setting = dnnl::impl::gpu::intel::micro::Setting;
@@ -74,15 +74,11 @@ struct MicroKernelPackage {
 inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
                                         const std::vector<StrategyRequirement> &reqs = std::vector<StrategyRequirement>(),
                                         void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr) {
-    return dnnl::impl::gpu::intel::jit::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster);
+    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster);
 }
 
 static inline int alignment_for_ld(int ld) {
-    return  dnnl::impl::gpu::intel::jit::alignmentForLD(ld);
-}
-
-static inline uint8_t data_type_size(micro::Type dt) {
-    return uint8_t(dnnl::impl::types::data_type_size(micro::Type(dt).get_dnnl_type()));
+    return  gemmstone::alignmentForLD(ld);
 }
 
 }  // namespace micro
