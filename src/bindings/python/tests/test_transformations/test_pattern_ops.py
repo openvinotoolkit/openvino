@@ -16,6 +16,7 @@ from openvino.passes import (
     type_matches,
     type_matches_any,
     shape_matches,
+    attrs_match,
 )
 from openvino.utils.types import get_element_type
 
@@ -276,6 +277,19 @@ def test_any_input_symbol_predicate():
     assert symbols["Batches"] == [a_dim.get_symbol(), 2, 3, 4], symbols
     assert symbols["Dyn"] == b_dim.get_symbol(), symbols
     assert symbols["Six"] == 6, symbols
+
+
+def test_attrs_match():
+    param = ops.parameter([-1, -1])
+
+    def test_shape_of_attribute(et: str):
+        node = ops.shape_of(param, output_type=et)
+        attr = {"output_type": et}
+        matcher = Matcher(AnyInput(attrs_match(attr)), "Find shape_of with attribute")
+        assert matcher.match(node), f"Match failed for {node} with attribute"
+
+    test_shape_of_attribute("i64")
+    test_shape_of_attribute("i32")
 
 
 def test_optional_full_match():
