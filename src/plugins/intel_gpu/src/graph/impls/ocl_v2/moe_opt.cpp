@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "moe_expert_opt.hpp"
+#include "moe_opt.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
@@ -17,11 +17,11 @@
 #    include "common_utils/jitter.hpp"
 #    include "debug_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
-#    include "intel_gpu/primitives/moe_expert.hpp"
+#    include "intel_gpu/primitives/moe.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
 #    include "intel_gpu/runtime/utils.hpp"
-#    include "moe_expert_inst.h"
+#    include "moe_inst.h"
 #    include "ocl_v2/utils/fused_ops_jitter.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
@@ -345,14 +345,14 @@ struct onednn_linear {
     }
 };
 
-class MoeExpertOptSoftMaxTopK : public KernelGenerator {
+class MOEOptSoftMaxTopK : public KernelGenerator {
 public:
-    MoeExpertOptSoftMaxTopK() : KernelGenerator("moe_expert_opt", "softmax_topk") {}
+    MOEOptSoftMaxTopK() : KernelGenerator("moe_opt", "softmax_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.topk);
         jit.make("VALUE_NUM", desc->_config.expert_num);
@@ -372,14 +372,14 @@ protected:
     }
 };
 
-class MoeExpertOptGather : public KernelGenerator {
+class MOEOptGather : public KernelGenerator {
 public:
-    MoeExpertOptGather() : KernelGenerator("moe_expert_opt", "gather") {}
+    MOEOptGather() : KernelGenerator("moe_opt", "gather") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -398,14 +398,14 @@ protected:
     }
 };
 
-class MoeExpertOptScatter : public KernelGenerator {
+class MOEOptScatter : public KernelGenerator {
 public:
-    MoeExpertOptScatter() : KernelGenerator("moe_expert_opt", "index_add") {}
+    MOEOptScatter() : KernelGenerator("moe_opt", "index_add") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -427,7 +427,7 @@ protected:
 #    define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
-    auto desc = params.typed_desc<moe_expert>();
+    auto desc = params.typed_desc<moe>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.topk);
@@ -442,14 +442,14 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
 }
 
-class MoeExpertOptMLPGateUp : public KernelGenerator {
+class MOEOptMLPGateUp : public KernelGenerator {
 public:
-    MoeExpertOptMLPGateUp() : KernelGenerator("moe_expert_mlp", "gate_up") {}
+    MOEOptMLPGateUp() : KernelGenerator("moe_mlp", "gate_up") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         return jit;
@@ -465,14 +465,14 @@ protected:
     }
 };
 
-class MoeExpertOptMLPDown : public KernelGenerator {
+class MOEOptMLPDown : public KernelGenerator {
 public:
-    MoeExpertOptMLPDown() : KernelGenerator("moe_expert_mlp", "down") {}
+    MOEOptMLPDown() : KernelGenerator("moe_mlp", "down") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         return jit;
@@ -488,14 +488,14 @@ protected:
     }
 };
 
-class MoeExpertOptMLPReduce : public KernelGenerator {
+class MOEOptMLPReduce : public KernelGenerator {
 public:
-    MoeExpertOptMLPReduce() : KernelGenerator("moe_expert_mlp", "reduce") {}
+    MOEOptMLPReduce() : KernelGenerator("moe_mlp", "reduce") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
+        auto desc = params.typed_desc<moe>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
@@ -516,15 +516,15 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
-class MoeExpertOptImpl : public PrimitiveImplOCL {
+class MOEOptImpl : public PrimitiveImplOCL {
 public:
-    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoeExpertOptImpl)
-    Stage::Ptr softmax_topk = make_stage<MoeExpertOptSoftMaxTopK>();
-    Stage::Ptr gather = make_stage<MoeExpertOptGather>();
-    Stage::Ptr scatter = make_stage<MoeExpertOptScatter>();
-    Stage::Ptr mlp_gate_up = make_stage<MoeExpertOptMLPGateUp>();
-    Stage::Ptr mlp_down = make_stage<MoeExpertOptMLPDown>();
-    Stage::Ptr mlp_reduce = make_stage<MoeExpertOptMLPReduce>();
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MOEOptImpl)
+    Stage::Ptr softmax_topk = make_stage<MOEOptSoftMaxTopK>();
+    Stage::Ptr gather = make_stage<MOEOptGather>();
+    Stage::Ptr scatter = make_stage<MOEOptScatter>();
+    Stage::Ptr mlp_gate_up = make_stage<MOEOptMLPGateUp>();
+    Stage::Ptr mlp_down = make_stage<MOEOptMLPDown>();
+    Stage::Ptr mlp_reduce = make_stage<MOEOptMLPReduce>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -573,9 +573,9 @@ public:
     int _intermediate_size;
     int _group_size;
 
-    MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
-    MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
-        init(node.as<moe_expert>().get_primitive());
+    MOEOptImpl() : PrimitiveImplOCL(MOEOpt::get_type_info_static()) {}
+    MOEOptImpl(const program_node& node, const RuntimeParams& params) : MOEOptImpl() {
+        init(node.as<moe>().get_primitive());
 
         add_stage(softmax_topk, params);
         add_stage(gather, params);
@@ -585,12 +585,12 @@ public:
         add_stage(mlp_reduce, params);
     }
 
-    void init(const std::shared_ptr<const moe_expert>& moe) {
-        const auto& moe_mlp_params = moe->_mlp_params;
+    void init(const std::shared_ptr<const moe>& cur_moe) {
+        const auto& moe_mlp_params = cur_moe->_mlp_params;
         _dnnl_weights.resize(moe_mlp_params.size());
-        _hidden_size = static_cast<int>(moe->_config.hidden_size);
-        _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
-        _group_size = static_cast<int>(moe->_config.group_size);
+        _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+        _intermediate_size = static_cast<int>(cur_moe->_config.intermediate_size);
+        _group_size = static_cast<int>(cur_moe->_config.group_size);
 
         for (size_t j = 0; j < moe_mlp_params.size(); j++) {
             const auto& mlp_params = moe_mlp_params[j];
@@ -626,21 +626,21 @@ public:
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe_expert>());
+        init(impl_params->typed_desc<moe>());
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
-        auto moe = make_deep_copy<MoeExpertOptImpl>(this);
-        moe->_dnnl_weights = _dnnl_weights;
-        moe->_hidden_size = _hidden_size;
-        moe->_intermediate_size = _intermediate_size;
-        moe->_group_size = _group_size;
-        return moe;
+        auto cur_moe = make_deep_copy<MOEOptImpl>(this);
+        cur_moe->_dnnl_weights = _dnnl_weights;
+        cur_moe->_hidden_size = _hidden_size;
+        cur_moe->_intermediate_size = _intermediate_size;
+        cur_moe->_group_size = _group_size;
+        return cur_moe;
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
-        auto moe = params.typed_desc<moe_expert>();
-        const auto& config = moe->_config;
+        auto cur_moe = params.typed_desc<moe>();
+        const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.topk);
         int expert_num = static_cast<int>(config.expert_num);
 
@@ -677,7 +677,7 @@ public:
         return internal_buffers;
     }
 
-    void prepare_internal_buffers(typed_primitive_inst<moe_expert>& instance, scratch_buffers& scratch, bool is_single_batch) {
+    void prepare_internal_buffers(typed_primitive_inst<moe>& instance, scratch_buffers& scratch, bool is_single_batch) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         scratch.topk_id = intermediates_memories[0];
         scratch.topk_weights = intermediates_memories[1];
@@ -687,7 +687,7 @@ public:
             scratch.x = intermediates_memories[4];
             scratch.routing_weights = intermediates_memories[5];
             scratch.gate = intermediates_memories[6];
-            const auto& config = instance.get_typed_desc<moe_expert>()->_config;
+            const auto& config = instance.get_typed_desc<moe>()->_config;
             int expert_num = static_cast<int>(config.expert_num);
             scratch.expert_masks.resize(expert_num);
             for (int i = 0; i < expert_num; i++) {
@@ -697,7 +697,7 @@ public:
         }
     }
 
-    void get_expert_mask_from_gpu(const MOEExpert::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOE::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
         // shape: [batch, topk]
         auto layout = mem->get_layout();
         const auto& shape = layout.get_shape();
@@ -766,7 +766,7 @@ public:
                                     const std::vector<size_t>& global,
                                     const std::vector<size_t>& local,
                                     bool needs_completion_event = false) const {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute_stage"));
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute_stage"));
         cldnn::stream& stream = instance.get_network().get_stream();
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
@@ -795,28 +795,28 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
-    auto get_input_info(typed_primitive_inst<moe_expert>& instance, int idx) {
+    auto get_input_info(typed_primitive_inst<moe>& instance, int idx) {
         auto mem = instance.input_memory_ptr(idx);
         auto dep = instance.dependencies()[idx];
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_expert>& instance, scratch_buffers& scratch) {
-        auto moe = instance.get_typed_desc<moe_expert>();
-        int max_topk = static_cast<int>(moe->_config.topk);
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe>& instance, scratch_buffers& scratch) {
+        auto cur_moe = instance.get_typed_desc<moe>();
+        int max_topk = static_cast<int>(cur_moe->_config.topk);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto routing_mem_ptr = scratch.topk_weights;
 
-        _hidden_size = static_cast<int>(moe->_config.hidden_size);
-        _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
+        _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+        _intermediate_size = static_cast<int>(cur_moe->_config.intermediate_size);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
-        const auto& mlp_weight_mem = moe->_mlp_weights_mem;
+        const auto& mlp_weight_mem = cur_moe->_mlp_weights_mem;
         event::ptr ret;
 
         {
@@ -864,7 +864,7 @@ public:
         }
     };
 
-    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_expert>& instance) {
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe>& instance) {
         auto key = std::make_pair(n_token, expert_no);
         static LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash> _kernels(1024);
         if (_kernels.has(key)) {
@@ -873,8 +873,8 @@ public:
 
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        auto moe = instance.get_typed_desc<moe_expert>();
-        const auto& moe_mlp_params = moe->_mlp_params;
+        auto cur_moe = instance.get_typed_desc<moe>();
+        const auto& moe_mlp_params = cur_moe->_mlp_params;
         const auto& mlp_params = moe_mlp_params[expert_no];
         auto& dnn_stream = stream.get_onednn_stream();
         auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(0)->get_layout().data_type);
@@ -941,10 +941,10 @@ public:
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
-        auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
-        auto moe = instance.get_typed_desc<moe_expert>();
-        const auto& config = moe->_config;
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MOEOptImpl::execute"));
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe>&>(ins);
+        auto cur_moe = instance.get_typed_desc<moe>();
+        const auto& config = cur_moe->_config;
         int max_topk = static_cast<int>(config.topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
@@ -956,7 +956,7 @@ public:
         prepare_internal_buffers(instance, scratch, batch == 1);
 
         // softmax+topk
-        auto lws_size = moe->_config.expert_num;
+        auto lws_size = cur_moe->_config.expert_num;
         auto topk_event = execute_stage(events,
                                         instance,
                                         *softmax_topk,
@@ -1063,22 +1063,22 @@ public:
 
 }  // namespace
 
-std::unique_ptr<primitive_impl> MoeExpertOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    assert(node.is_type<moe_expert>());
-    return std::make_unique<MoeExpertOptImpl>(node, params);
+std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<moe>());
+    return std::make_unique<MOEOptImpl>(node, params);
 }
 
 }  // namespace ov::intel_gpu::ocl
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_expert)
-BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeExpertOptImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MOEOptImpl)
 
 #else
 
 namespace ov::intel_gpu::ocl {
 
-std::unique_ptr<primitive_impl> MoeExpertOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
-    OPENVINO_THROW("MoeExpertOpt depends on onednn.");
+std::unique_ptr<primitive_impl> MOEOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    OPENVINO_THROW("MOEOpt depends on onednn.");
 }
 
 }  // namespace ov::intel_gpu::ocl

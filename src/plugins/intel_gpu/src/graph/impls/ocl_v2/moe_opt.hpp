@@ -15,9 +15,9 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
-struct MoeExpertOpt : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::moe_expert::opt")
-    explicit MoeExpertOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+struct MOEOpt : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::moe::opt")
+    explicit MOEOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {

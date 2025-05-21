@@ -9,17 +9,18 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::op::internal {
 ///
 /// \brief MOE experts
-class TRANSFORMATIONS_API MOEExpert : public ov::op::Op {
+class TRANSFORMATIONS_API MOE : public ov::op::Op {
 public:
-    OPENVINO_OP("MOEExpert", "ie_internal_opset");
+    OPENVINO_OP("MOE", "ie_internal_opset");
 
-    MOEExpert() = default;
+    MOE() = default;
 
     struct Config {
         size_t topk = 0;
@@ -32,15 +33,18 @@ public:
         ov::element::Type scale_type = ov::element::dynamic;   // same for gate/up/down
         ov::element::Type zp_type = ov::element::dynamic;      // same for gate/up/down
         bool operator==(const Config& rhs) const {
-            return memcmp(this, &rhs, sizeof(*this)) == 0;
+#define CMP(x) (x == rhs.x)
+            return CMP(topk) && CMP(expert_num) && CMP(hidden_size) && CMP(intermediate_size) &&
+                   CMP(fused_router_logic) && CMP(group_size) && CMP(weight_type) && CMP(scale_type) && CMP(zp_type);
+#undef CMP
         }
     };
 
     // 0: weight, 1: scale, 2: zp
     struct ConstsPerExpert {
-        std::array<std::shared_ptr<ov::Node>, 3> gates;
-        std::array<std::shared_ptr<ov::Node>, 3> ups;
-        std::array<std::shared_ptr<ov::Node>, 3> downs;
+        std::array<std::shared_ptr<ov::op::v0::Constant>, 3> gates;
+        std::array<std::shared_ptr<ov::op::v0::Constant>, 3> ups;
+        std::array<std::shared_ptr<ov::op::v0::Constant>, 3> downs;
     };
     struct Attributes {
         // expert config
@@ -49,7 +53,7 @@ public:
         std::vector<ConstsPerExpert> consts;
     };
 
-    MOEExpert(const OutputVector& args, const Attributes& attrs);
+    MOE(const OutputVector& args, const Attributes& attrs);
 
     const Config& get_config() const;
     void set_config(const Config& config);
@@ -57,8 +61,8 @@ public:
         return m_attrs.consts;
     }
 
-    void add_consts(int expert_no, const ConstsPerExpert& consts) {
-        OPENVINO_ASSERT(expert_no == static_cast<int>(m_attrs.consts.size()));
+    void add_consts(size_t expert_no, const ConstsPerExpert& consts) {
+        OPENVINO_ASSERT(expert_no == m_attrs.consts.size());
         m_attrs.consts.push_back(consts);
     }
 

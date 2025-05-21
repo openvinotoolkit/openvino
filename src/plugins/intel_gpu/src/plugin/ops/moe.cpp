@@ -9,9 +9,9 @@
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 #include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/primitives/moe_expert.hpp"
+#include "intel_gpu/primitives/moe.hpp"
 
 namespace ov::intel_gpu {
 
@@ -57,7 +57,7 @@ static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const
     return true;
 }
 
-static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOEExpert>& op) {
+static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOE>& op) {
     size_t weights_size = 0;
     auto get_size = [&](const std::shared_ptr<ov::Node>& node) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -82,7 +82,7 @@ static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOEExpert
     return weights_size;
 }
 
-static cldnn::memory::ptr pre_allocate_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op) {
+static cldnn::memory::ptr pre_allocate_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOE>& op) {
     auto size = get_weights_size(op);
     auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(size)}, ov::element::i8, cldnn::format::bfyx);
     auto alloc_type = p.get_engine().get_preferred_memory_allocation_type(false);
@@ -91,13 +91,12 @@ static cldnn::memory::ptr pre_allocate_weights(ProgramBuilder& p, const std::sha
     return mem;
 }
 
-static void fill_weights_memory(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op, std::vector<cldnn::mlp_params>& params,
+static void fill_weights_memory(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOE>& op, std::vector<cldnn::mlp_params>& params,
     cldnn::mlp_weights_mem& wei_mem) {
     auto& stream = p.get_engine().get_service_stream();
-    auto fill = [&] (const std::shared_ptr<ov::Node>& node, cldnn::memory_ptr mem, bool try_repack = false) {
+    auto fill = [&] (const std::shared_ptr<ov::op::v0::Constant>& op, cldnn::memory_ptr mem, bool try_repack = false) {
         if (!mem)
             return;
-        auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
         ov::Shape const_shape = op->get_shape();
         auto constFormat = cldnn::format::get_default_format(const_shape.size());
         cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
@@ -145,11 +144,11 @@ static void fill_weights_memory(ProgramBuilder& p, const std::shared_ptr<ov::op:
     wei_mem.weights_offset->copy_from(stream, offsets.data(), 0, 0, wei_mem.weights_offset->get_layout().bytes_count(), true);
 }
 
-static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op) {
+static void CreateMOEOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOE>& op) {
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
-    OPENVINO_ASSERT(config.fused_router_logic, "MOEExpert must fuse router logic");
-    OPENVINO_ASSERT(inputs.size() == 2, "Inputs count of MOEExpert should be 2");
+    OPENVINO_ASSERT(config.fused_router_logic, "MOE must fuse router logic");
+    OPENVINO_ASSERT(inputs.size() == 2, "Inputs count of MOE should be 2");
 
     const std::string layerName = layer_type_name_ID(op);
     std::vector<cldnn::mlp_params> params;
@@ -160,11 +159,11 @@ static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::i
     create_weights_memory(wei_mem, config, engine, params);
     fill_weights_memory(p, op, params, wei_mem);
 
-    const cldnn::moe_expert moe(layerName, inputs, config, params, wei_mem);
+    const cldnn::moe moe(layerName, inputs, config, params, wei_mem);
 
     p.add_primitive(*op, moe);
 }
 
-REGISTER_FACTORY_IMPL(internal, MOEExpert);
+REGISTER_FACTORY_IMPL(internal, MOE);
 
 }  // namespace ov::intel_gpu

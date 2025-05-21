@@ -12,12 +12,12 @@
 namespace ov {
 namespace test {
 
-using MOEExpertTestParams = std::tuple<ElementType>;  // input precision
+using MOETestParams = std::tuple<ElementType>;  // input precision
 
-class MOEExpertTest : public testing::WithParamInterface<MOEExpertTestParams>,
+class MOETest : public testing::WithParamInterface<MOETestParams>,
                       virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MOEExpertTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MOETestParams>& obj) {
         ElementType inType;
         std::tie(inType) = obj.param;
         std::ostringstream result;
@@ -42,7 +42,7 @@ protected:
         return result;
     }
 
-    std::shared_ptr<ov::Model> BuildMoeExpert(ElementType inType,
+    std::shared_ptr<ov::Model> BuildMOE(ElementType inType,
                                               bool expected_pattern,
                                               int expert_num = 1,
                                               int topk = 8);

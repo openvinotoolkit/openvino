@@ -18,7 +18,7 @@ using namespace ov::gen_pattern;
 namespace ov {
 namespace test {
 
-std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
+std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
                                                          bool expected_pattern,
                                                          int expert_num,
                                                          int topk) {
@@ -184,7 +184,7 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
                                        ov::ParameterVector{final_hidden_states_, router_logits, hidden_states_2d});
 }
 
-void MOEExpertTest::SetUp() {
+void MOETest::SetUp() {
     ElementType inType;
     std::vector<InputShape> inputShapes;
     std::tie(inType) = this->GetParam();
@@ -198,12 +198,12 @@ void MOEExpertTest::SetUp() {
         // configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
     }
 
-    function = BuildMoeExpert(inType, true, static_cast<int>(_expert_num), static_cast<int>(_topk));
+    function = BuildMOE(inType, true, static_cast<int>(_expert_num), static_cast<int>(_topk));
 
-    functionRefs = BuildMoeExpert(inType, false, static_cast<int>(_expert_num), static_cast<int>(_topk));
+    functionRefs = BuildMOE(inType, false, static_cast<int>(_expert_num), static_cast<int>(_topk));
 }
 
-void MOEExpertTest::generate(float idx, size_t bs) {
+void MOETest::generate(float idx, size_t bs) {
     inputs.clear();
     auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, int start, int end) {
         if (param->get_element_type() == element::f32) {
@@ -227,13 +227,13 @@ void MOEExpertTest::generate(float idx, size_t bs) {
     create_input(function->get_parameters()[2], {bs, 2048}, -1, 2);
 }
 
-void MOEExpertTest::prepare() {
+void MOETest::prepare() {
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
 }
 
-std::vector<ov::Tensor> MOEExpertTest::run_test(std::shared_ptr<ov::Model> model) {
+std::vector<ov::Tensor> MOETest::run_test(std::shared_ptr<ov::Model> model) {
     function = model;
     prepare();
     std::vector<ov::Tensor> outputs;
@@ -254,7 +254,7 @@ std::vector<ov::Tensor> MOEExpertTest::run_test(std::shared_ptr<ov::Model> model
     return outputs;
 }
 
-void MOEExpertTest::check_op(const std::string& type_name, int expected_count) {
+void MOETest::check_op(const std::string& type_name, int expected_count) {
     int count = 0;
     for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
         if (n->get_friendly_name().find(type_name) != std::string::npos) {

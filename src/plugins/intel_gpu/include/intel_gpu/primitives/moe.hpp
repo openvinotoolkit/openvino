@@ -6,11 +6,11 @@
 #include "intel_gpu/graph/serialization/memory_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "primitive.hpp"
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 #include <vector>
 
 namespace cldnn {
-using MOEExpert = ov::op::internal::MOEExpert;
+using MOE = ov::op::internal::MOE;
 
 struct mlp_params {
     struct param {
@@ -41,7 +41,7 @@ struct mlp_weights_mem {
     memory::ptr weights_offset;
 };
 
-static void create_weights_memory(mlp_weights_mem& wei_mem, const cldnn::MOEExpert::Config& config, cldnn::engine& engine,
+static void create_weights_memory(mlp_weights_mem& wei_mem, const cldnn::MOE::Config& config, cldnn::engine& engine,
     std::vector<mlp_params>& params) {
     cldnn::memory::ptr weights_base = wei_mem.weights_base;
     size_t weights_offset = 0;
@@ -73,20 +73,20 @@ static void create_weights_memory(mlp_weights_mem& wei_mem, const cldnn::MOEExpe
     wei_mem.weights_offset = engine.create_subbuffer(*weights_base, offset_layout, weights_offset);
 }
 
-/// @brief moe_expert primitive
+/// @brief moe primitive
 /// @details Performs moe expert
-struct moe_expert : public primitive_base<moe_expert> {
-    CLDNN_DECLARE_PRIMITIVE(moe_expert)
+struct moe : public primitive_base<moe> {
+    CLDNN_DECLARE_PRIMITIVE(moe)
 
-    moe_expert() : primitive_base("", {}) {}
+    moe() : primitive_base("", {}) {}
 
-    /// @brief Constructs moe_expert primitive / layer.
+    /// @brief Constructs moe primitive / layer.
     ///
     /// @param id                 An identifier of new primitive.
     /// @param inputs             A list of Input primitive ids (inputs).
-    moe_expert(const primitive_id& id,
+    moe(const primitive_id& id,
             const std::vector<input_info>& inputs,
-            const MOEExpert::Config& config, const std::vector<mlp_params>& param,
+            const MOE::Config& config, const std::vector<mlp_params>& param,
             const mlp_weights_mem& wei_mem)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),
@@ -94,7 +94,7 @@ struct moe_expert : public primitive_base<moe_expert> {
           _mlp_weights_mem(wei_mem) {
     }
 
-    MOEExpert::Config _config;
+    MOE::Config _config;
     std::vector<mlp_params> _mlp_params;
     mlp_weights_mem _mlp_weights_mem;
 
@@ -102,20 +102,20 @@ struct moe_expert : public primitive_base<moe_expert> {
         if (!compare_common_params(rhs))
             return false;
 
-        auto rhs_casted = downcast<const moe_expert>(rhs);
+        auto rhs_casted = downcast<const moe>(rhs);
 
         return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 &&
                _mlp_params == rhs_casted._mlp_params;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<moe_expert>::save(ob);
+        primitive_base<moe>::save(ob);
         ob << make_data(&_config, sizeof(_config));
         ob << _mlp_weights_mem.weights_base;
     }
 
     void load(BinaryInputBuffer& ib) override {
-        primitive_base<moe_expert>::load(ib);
+        primitive_base<moe>::load(ib);
         ib >> make_data(&_config, sizeof(_config));
         ib >> _mlp_weights_mem.weights_base;
         create_weights_memory(_mlp_weights_mem, _config, ib.get_engine(), _mlp_params);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_moe_expert.hpp"
+#include "transformations/common_optimizations/fuse_moe.hpp"
 
 #include <gtest/gtest.h>
 
@@ -16,7 +16,7 @@
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
@@ -24,7 +24,7 @@ using namespace testing;
 using namespace ov::gen_pattern;
 using namespace ov;
 
-std::shared_ptr<ov::Model> BuildMoeExpert(int expert_num, int topk) {
+std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     ov::element::Type inType = ov::element::f32;
     // param1: [batch*seq, 2048]
     auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
@@ -238,7 +238,7 @@ std::shared_ptr<ov::Model> BuildMoeExpert(int expert_num, int topk) {
                                        ov::ParameterVector{final_hidden_states_, router_logits, hidden_states_2d});
 }
 
-static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, const int topk) {
+static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int topk) {
     ov::element::Type inType = ov::element::f32;
     // param1: [batch*seq, 2048]
     auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
@@ -248,24 +248,24 @@ static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, cons
     auto hidden_states_2d = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
     auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
 
-    std::vector<op::internal::MOEExpert::ConstsPerExpert> all_consts;
+    std::vector<op::internal::MOE::ConstsPerExpert> all_consts;
     for (int i = 0; i < expert_num; i++) {
-        op::internal::MOEExpert::ConstsPerExpert consts;
-        consts.gates[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.gates[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.gates[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        op::internal::MOE::ConstsPerExpert consts;
+        consts.gates[0] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 128}), {0}));
+        consts.gates[1] = ov::as_type_ptr<opset1::Constant>(makeConst(element::f16, ov::Shape({768, 16, 1}), {0}));
+        consts.gates[2] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 1}), {0}));
 
-        consts.ups[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.ups[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.ups[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        consts.ups[0] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 128}), {0}));
+        consts.ups[1] = ov::as_type_ptr<opset1::Constant>(makeConst(element::f16, ov::Shape({768, 16, 1}), {0}));
+        consts.ups[2] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 1}), {0}));
 
-        consts.downs[0] = makeConst(element::u4, ov::Shape({768, 16, 128}), {0});
-        consts.downs[1] = makeConst(element::f16, ov::Shape({768, 16, 1}), {0});
-        consts.downs[2] = makeConst(element::u4, ov::Shape({768, 16, 1}), {0});
+        consts.downs[0] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 128}), {0}));
+        consts.downs[1] = ov::as_type_ptr<opset1::Constant>(makeConst(element::f16, ov::Shape({768, 16, 1}), {0}));
+        consts.downs[2] = ov::as_type_ptr<opset1::Constant>(makeConst(element::u4, ov::Shape({768, 16, 1}), {0}));
 
         all_consts.push_back(consts);
     }
-    op::internal::MOEExpert::Config config;
+    op::internal::MOE::Config config;
     config.expert_num = expert_num;
     config.hidden_size = 2048;
     config.group_size = 128;
@@ -281,11 +281,10 @@ static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, cons
     new_args[0] = hidden_states_;
     new_args[1] = router_logits;
 
-    op::internal::MOEExpert::Attributes attrs = {config,
-                                                 std::vector<op::internal::MOEExpert::ConstsPerExpert>{all_consts}};
-    auto new_node = std::make_shared<op::internal::MOEExpert>(new_args, attrs);
+    op::internal::MOE::Attributes attrs = {config, std::vector<op::internal::MOE::ConstsPerExpert>{all_consts}};
+    auto new_node = std::make_shared<op::internal::MOE>(new_args, attrs);
 
-    new_node->set_friendly_name(std::string("moe_expert"));
+    new_node->set_friendly_name(std::string("moe"));
     return std::make_shared<ov::Model>(new_node,
                                        ov::ParameterVector{final_hidden_states_, hidden_states_2d, router_logits});
 }
@@ -297,9 +296,9 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE) {
     int expert_num = 4;
     int topk = 8;
 
-    model = BuildMoeExpert(expert_num, topk);
-    manager.register_pass<ov::pass::FuseMoeExpert>();
-    manager.register_pass<ov::pass::FuseMoeExpertRouter>();
+    model = BuildMOE(expert_num, topk);
+    manager.register_pass<ov::pass::FuseMOE>();
+    manager.register_pass<ov::pass::FuseMOERouter>();
 
-    model_ref = BuildFusedMoeExpert(expert_num, topk);
+    model_ref = BuildFusedMOE(expert_num, topk);
 }

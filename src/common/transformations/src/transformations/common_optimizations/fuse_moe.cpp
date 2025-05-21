@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_moe_expert.hpp"
+#include "transformations/common_optimizations/fuse_moe.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -36,7 +36,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
@@ -44,8 +44,8 @@
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
-ov::pass::FuseMoeExpert::FuseMoeExpert() {
-    MATCHER_SCOPE(FuseMoeExpert);
+ov::pass::FuseMOE::FuseMOE() {
+    MATCHER_SCOPE(FuseMOE);
 
     auto expert_mask = makePattern(ov::Rank(3));
     // shape: [batch * seq_len, hidden_dim]
@@ -164,7 +164,7 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
 
         auto last_node = pattern_map.at(index_add__ScatterElementsUpdate_8).get_node_shared_ptr();
 
-        op::internal::MOEExpert::ConstsPerExpert consts;
+        op::internal::MOE::ConstsPerExpert consts;
 #define GET_MATMUL_PARAM(mat, idx)                                                                              \
     mat[0] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weight_const##idx).get_node_shared_ptr());    \
     if (pattern_map.at(scale_const##idx).get_node()) {                                                          \
@@ -204,7 +204,7 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
                             down_shape);
         }
 
-        op::internal::MOEExpert::Config config;
+        op::internal::MOE::Config config;
         config.expert_num = expert_num;
         config.hidden_size = hidden_size;
         config.intermediate_size = intermediate_size;
@@ -254,24 +254,23 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
         new_args[1] = pattern_map.at(hidden_states).get_node_shared_ptr();
         new_args[2] = pattern_map.at(expert_mask).get_node_shared_ptr();
         new_args[3] = pattern_map.at(routing_weights).get_node_shared_ptr();
-        if (new_args[0].get_node_shared_ptr()->get_type_info() == op::internal::MOEExpert::get_type_info_static()) {
-            auto moe = ov::as_type_ptr<op::internal::MOEExpert>(new_args[0].get_node_shared_ptr());
+        if (new_args[0].get_node_shared_ptr()->get_type_info() == op::internal::MOE::get_type_info_static()) {
+            auto moe = ov::as_type_ptr<op::internal::MOE>(new_args[0].get_node_shared_ptr());
             OPENVINO_ASSERT(config == moe->get_config(), "each expert config must be same");
-            moe->add_consts(expert_no, consts);
+            moe->add_consts(static_cast<size_t>(expert_no), consts);
 
             ov::replace_node(last_node, moe);
             register_new_node(moe);
         } else {
-            op::internal::MOEExpert::Attributes attrs = {config,
-                                                         std::vector<op::internal::MOEExpert::ConstsPerExpert>{consts}};
-            auto new_node = std::make_shared<op::internal::MOEExpert>(new_args, attrs);
+            op::internal::MOE::Attributes attrs = {config, std::vector<op::internal::MOE::ConstsPerExpert>{consts}};
+            auto new_node = std::make_shared<op::internal::MOE>(new_args, attrs);
             // check whether the plugin accepts the config
             if (transformation_callback(new_node)) {
                 return false;
             }
 
             OPENVINO_ASSERT(expert_no == 0, "MOE expert must begin with 0, current: ", expert_no);
-            new_node->set_friendly_name("moe_expert");
+            new_node->set_friendly_name("moe");
 
             ov::replace_node(last_node, new_node);
             register_new_node(new_node);
@@ -283,8 +282,8 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::FuseMoeExpertRouter::FuseMoeExpertRouter() {
-    MATCHER_SCOPE(FuseMoeExpertRouter);
+ov::pass::FuseMOERouter::FuseMOERouter() {
+    MATCHER_SCOPE(FuseMOERouter);
 
     // param1: [batch*seq, 2048]
     auto final_hidden_states = makePattern(ov::Rank(2));
@@ -316,9 +315,9 @@ ov::pass::FuseMoeExpertRouter::FuseMoeExpertRouter() {
     auto index_Reshape =
         makePattern<ov::op::v1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});
 
-    auto moe_expert03 = makePattern<ov::op::internal::MOEExpert>(
+    auto moe03 = makePattern<ov::op::internal::MOE>(
         {final_hidden_states, unsqueeze_Unsqueeze, permute_Transpose, index_Reshape});
-    auto result = moe_expert03;
+    auto result = moe03;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
@@ -333,9 +332,9 @@ ov::pass::FuseMoeExpertRouter::FuseMoeExpertRouter() {
         // f32[batch*seq, 2048]
         auto hidden_states_2d = pattern_map.at(view_Reshape).get_node_shared_ptr();
         // f32[batch*seq, 2048]
-        auto moe_node = pattern_map.at(moe_expert03).get_node_shared_ptr();
+        auto moe_node = pattern_map.at(moe03).get_node_shared_ptr();
 
-        auto moe = ov::as_type_ptr<op::internal::MOEExpert>(moe_node);
+        auto moe = ov::as_type_ptr<op::internal::MOE>(moe_node);
 
         OutputVector new_args(2);
         // hidden_states_2d: f32[batch*seq, 2048]
@@ -347,7 +346,7 @@ ov::pass::FuseMoeExpertRouter::FuseMoeExpertRouter() {
         cfg.fused_router_logic = true;
         moe->set_config(cfg);
 
-        moe->set_friendly_name("moe_expert_router");
+        moe->set_friendly_name("moe_router");
 
         return true;
     };

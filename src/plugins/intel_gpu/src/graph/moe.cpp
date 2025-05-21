@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "moe_expert_inst.h"
+#include "moe_inst.h"
 #include "openvino/core/except.hpp"
 #include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 
 namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_expert)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(moe)
 
 /*
     Calc_output_layout method is called only when output layout is invalidated.
@@ -22,23 +22,23 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_expert)
     In this both cases, we need to recalc branch_true and branch_false.
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
-layout moe_expert_inst::calc_output_layout(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
+layout moe_inst::calc_output_layout(moe_node const& /* node */, kernel_impl_params const& impl_param) {
     return impl_param.input_layouts[0];
 }
 
 template<typename ShapeType>
-std::vector<layout> moe_expert_inst::calc_output_layouts(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
+std::vector<layout> moe_inst::calc_output_layouts(moe_node const& /* node */, kernel_impl_params const& impl_param) {
     return {impl_param.input_layouts[0]};
 }
 
-template std::vector<layout> moe_expert_inst::calc_output_layouts<ov::PartialShape>(moe_expert_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> moe_inst::calc_output_layouts<ov::PartialShape>(moe_node const& node, const kernel_impl_params& impl_param);
 
-std::string moe_expert_inst::to_string(moe_expert_node const& node) {
+std::string moe_inst::to_string(moe_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    json_composite moe_expert_info;
+    json_composite moe_info;
 
-    node_info->add("moe_expert info", moe_expert_info);
+    node_info->add("moe info", moe_info);
 
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
@@ -46,9 +46,9 @@ std::string moe_expert_inst::to_string(moe_expert_node const& node) {
 }
 
 /*
-moe_expert primitive is reusing memory with the input.
+moe primitive is reusing memory with the input.
 */
-moe_expert_inst::typed_primitive_inst(network& network, moe_expert_node const& node)
+moe_inst::typed_primitive_inst(network& network, moe_node const& node)
     : parent(network, node) {
 }
 

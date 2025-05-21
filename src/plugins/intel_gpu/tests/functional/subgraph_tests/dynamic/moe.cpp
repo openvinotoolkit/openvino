@@ -10,7 +10,7 @@ namespace {
 using namespace ov;
 using namespace ov::test;
 
-TEST_P(MOEExpertTest, Inference) {
+TEST_P(MOETest, Inference) {
     {
         // moe depends on onednn which depends on xmx
         auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
@@ -20,7 +20,7 @@ TEST_P(MOEExpertTest, Inference) {
     auto ret = core->get_property(ov::test::utils::DEVICE_GPU, ov::internal::supported_properties);
     targetDevice = ov::test::utils::DEVICE_GPU;
     auto actualOutputs = run_test(function);
-    check_op("moe_expert", 1);
+    check_op("moe", 1);
     check_op("OneHot", 0);
     configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
     targetDevice = ov::test::utils::DEVICE_CPU;
@@ -31,7 +31,7 @@ TEST_P(MOEExpertTest, Inference) {
     }
 }
 
-TEST_P(MOEExpertTest, Inference_cached) {
+TEST_P(MOETest, Inference_cached) {
     {
         auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
         if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
@@ -64,7 +64,7 @@ TEST_P(MOEExpertTest, Inference_cached) {
     }
     {
         actualOutputs = run_test(function);
-        check_op("moe_expert", 1);
+        check_op("moe", 1);
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
         ov::test::utils::removeDir(cacheDirName);
@@ -75,10 +75,10 @@ TEST_P(MOEExpertTest, Inference_cached) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MOEExpert_basic,
-                         MOEExpertTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MOE_basic,
+                         MOETest,
                          // TODO(MOE): support f32
                          ::testing::Combine(::testing::Values(ov::element::f16)),
-                         MOEExpertTest::getTestCaseName);
+                         MOETest::getTestCaseName);
 
 } // namespace

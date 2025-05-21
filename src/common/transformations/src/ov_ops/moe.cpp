@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 
 #include "itt.hpp"
 
@@ -10,36 +10,36 @@ namespace ov {
 namespace op {
 namespace internal {
 
-MOEExpert::MOEExpert(const OutputVector& args, const Attributes& attrs) : Op(args), m_attrs(attrs) {
+MOE::MOE(const OutputVector& args, const Attributes& attrs) : Op(args), m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-const MOEExpert::Config& MOEExpert::get_config() const {
+const MOE::Config& MOE::get_config() const {
     return m_attrs.config;
 }
 
-void MOEExpert::set_config(const Config& config) {
+void MOE::set_config(const Config& config) {
     m_attrs.config = config;
 }
 
-std::shared_ptr<ov::Node> MOEExpert::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(internal_MOEExpert_clone_with_new_inputs);
+std::shared_ptr<ov::Node> MOE::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(internal_MOE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    return std::make_shared<MOEExpert>(new_args, m_attrs);
+    return std::make_shared<MOE>(new_args, m_attrs);
 }
 
-void MOEExpert::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(internal_MOEExpert_validate_and_infer_types);
+void MOE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_MOE_validate_and_infer_types);
     OPENVINO_ASSERT(get_input_size() == 2 || get_input_size() == 4,
-                    "MOEExpert must have 2/4 inputs whereas it has ",
+                    "MOE must have 2/4 inputs whereas it has ",
                     get_input_size());
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-bool MOEExpert::visit_attributes(ov::AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(internal_MOEExpert_visit_attributes);
+bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(internal_MOE_visit_attributes);
     visitor.start_structure("config");
 
     visitor.on_attribute("topk", m_attrs.config.topk);

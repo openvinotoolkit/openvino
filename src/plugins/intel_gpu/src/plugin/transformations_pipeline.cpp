@@ -95,7 +95,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/fuse_moe_expert.hpp"
+#include "transformations/common_optimizations/fuse_moe.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -188,7 +188,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
-#include "ov_ops/moe_expert.hpp"
+#include "ov_ops/moe.hpp"
 
 namespace {
 template<typename T>
@@ -447,10 +447,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // moe expert requires onednn enabled which needs in order queue.
         if (config.get_queue_type() == QueueTypes::in_order) {
-            manager.register_pass<ov::pass::FuseMoeExpert>();
-            manager.register_pass<ov::pass::FuseMoeExpertRouter>();
-            pass_config->set_callback<ov::pass::FuseMoeExpert>([](const_node_ptr& node) -> bool {
-                auto moe = as_type_ptr<const ov::op::internal::MOEExpert>(node);
+            manager.register_pass<ov::pass::FuseMOE>();
+            manager.register_pass<ov::pass::FuseMOERouter>();
+            pass_config->set_callback<ov::pass::FuseMOE>([](const_node_ptr& node) -> bool {
+                auto moe = as_type_ptr<const ov::op::internal::MOE>(node);
                 const auto& config = moe->get_config();
                 // TODO(MOE): support more cases
                 if (config.weight_type == ov::element::u4 && config.scale_type == ov::element::f16 && config.zp_type == ov::element::u4 &&
