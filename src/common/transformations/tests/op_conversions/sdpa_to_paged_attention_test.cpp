@@ -9,26 +9,37 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
@@ -518,7 +529,9 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto key_cache_0 = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, 32, 128}}, el_type_f32});
         auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
-        auto params = nodes_to_params({max_context_len,
+        auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto params = nodes_to_params({score_aggregation_window,
+                                       max_context_len,
                                        block_indices_begins,
                                        block_indices,
                                        subsequence_begins,
@@ -564,6 +577,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
+        auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
@@ -578,7 +592,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              scale,
                                                                              sliding_window,
                                                                              alibi_slopes,
-                                                                             max_context_len});
+                                                                             max_context_len,
+                                                                             score_aggregation_window_const});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -800,6 +815,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto value_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "value_cache.0");
         auto key_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "key_cache.0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "input_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -882,7 +898,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                                                c1,
                                                                                c2,
                                                                                Reshape166,
-                                                                               max_context_len});
+                                                                               max_context_len,
+                                                                               score_aggregation_window});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1101,6 +1118,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto key_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "key_cache_0");
         auto inputs_embeds = make_param(PartialShape{DYN, DYN}, element::f32, "inputs_embeds");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1229,7 +1247,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                                                                c1,
                                                                                c2,
                                                                                c3,
-                                                                               max_context_len});
+                                                                               max_context_len,
+                                                                               score_aggregation_window});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1422,6 +1441,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto key_cache_0 = make_param(PartialShape{DYN, 32, 96}, element::f32, "key_cache_0");
         auto inputs_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1532,7 +1552,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                                                                            scale,
                                                                            sliding_window,
                                                                            alibi_slopes,
-                                                                           max_context_len});
+                                                                           max_context_len,
+                                                                           score_aggregation_window});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});

@@ -19,12 +19,12 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
-    auto is_divided = [input_size](size_t i) {
-        return input_size % i == 0;
-    };
-    auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    for (size_t d : {16, 8, 4, 2}) {
+        if (input_size % d == 0)
+            return d;
+    }
+
+    return 1; // Fallback: Any integer divides evenly by 1
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {

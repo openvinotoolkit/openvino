@@ -5,7 +5,6 @@
 #include "cpu_generator.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset5.hpp>
 
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_ext_emitters.hpp"
@@ -20,6 +19,7 @@
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"

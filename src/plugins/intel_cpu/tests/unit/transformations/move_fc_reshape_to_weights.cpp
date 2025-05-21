@@ -10,12 +10,16 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

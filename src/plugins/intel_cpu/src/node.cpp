@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>

@@ -6,7 +6,6 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "summary.hpp"
 
 namespace ov {

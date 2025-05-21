@@ -8,7 +8,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestSub(CommonTFLayerTest):
-    def create_sub_placeholder_const_net(self, x_shape, y_shape, ir_version, use_legacy_frontend):
+    def create_sub_placeholder_const_net(self, x_shape, y_shape, ir_version):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -41,12 +41,10 @@ class TestSub(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+    def test_sub_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_2D = [
         dict(x_shape=[1, 1], y_shape=[1, 1]),
@@ -57,12 +55,10 @@ class TestSub(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+    def test_sub_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_3D = [
         dict(x_shape=[1, 1, 1], y_shape=[1, 1, 1]),
@@ -75,12 +71,10 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+    def test_sub_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_4D = [
         dict(x_shape=[1, 1, 1, 1], y_shape=[1, 1, 1, 1]),
@@ -92,12 +86,10 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+    def test_sub_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1, 1, 1, 1, 1]),
@@ -109,12 +101,10 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+    def test_sub_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     ###############################################################################################
     #                                                                                             #
@@ -129,11 +119,10 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_1D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+                                                temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_broadcast_2D = [
         dict(x_shape=[1, 1], y_shape=[1]),
@@ -146,11 +135,10 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_2D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+                                                temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_broadcast_3D = [
         dict(x_shape=[1, 1, 1], y_shape=[1]),
@@ -166,11 +154,10 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_3D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+                                                temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_broadcast_4D = [
         dict(x_shape=[1, 1, 1, 1], y_shape=[1]),
@@ -189,11 +176,10 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_4D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+                                                temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
     test_data_broadcast_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1, 1, 1, 1, 1]),
@@ -211,11 +197,10 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_5D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+                                                temp_dir):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)
 
 
 class TestComplexSub(CommonTFLayerTest):
@@ -243,7 +228,7 @@ class TestComplexSub(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_complex_sub_net(self, x_shape, y_shape, ir_version, use_legacy_frontend):
+    def create_complex_sub_net(self, x_shape, y_shape, ir_version):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -278,8 +263,6 @@ class TestComplexSub(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_sub(self, x_shape, y_shape, 
-                   ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_complex_sub_net(x_shape, y_shape, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_complex_sub_net(x_shape, y_shape, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

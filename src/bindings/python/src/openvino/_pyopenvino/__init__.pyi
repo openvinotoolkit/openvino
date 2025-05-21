@@ -721,6 +721,20 @@ class Core:
                     :rtype: openvino.RemoteContext
         """
     @typing.overload
+    def get_property(self, device_name: str, name: str, arguments: dict[str, typing.Any]) -> typing.Any:
+        """
+                    Gets properties dedicated to device behaviour.
+        
+                    :param device_name: A name of a device to get a properties value.
+                    :type device_name: str
+                    :param name: Property or name of Property.
+                    :type name: str
+                    :param arguments: Additional arguments to get a property.
+                    :type arguments: dict[str, typing.Any]
+                    :return: Extracted information from property.
+                    :rtype: typing.Any
+        """
+    @typing.overload
     def get_property(self, device_name: str, property: str) -> typing.Any:
         """
                     Gets properties dedicated to device behaviour.
@@ -2277,16 +2291,28 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self, results: list[Node], parameters: list[op.Parameter], name: str = '') -> None:
+    def __init__(self, results: list[op.Result], parameters: list[op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of Nodes to be used as results.
-                            :type results: List[openvino.Node]
+                            :param results: List of results.
+                            :type results: List[op.Result]
                             :param parameters: List of parameters.
-                            :type parameters:  List[op.Parameter]
+                            :type parameters: List[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
+        """
+    @typing.overload
+    def __init__(self, results: list[Node], parameters: list[op.Parameter], name: str = '') -> None:
+        """
+                    Create user-defined Model which is a representation of a model.
+        
+                    :param results: List of Nodes to be used as results.
+                    :type results: List[openvino.Node]
+                    :param parameters: List of parameters.
+                    :type parameters:  List[op.Parameter]
+                    :param name: String to set as model's friendly name.
+                    :type name: str
         """
     @typing.overload
     def __init__(self, result: Node, parameters: list[op.Parameter], name: str = '') -> None:

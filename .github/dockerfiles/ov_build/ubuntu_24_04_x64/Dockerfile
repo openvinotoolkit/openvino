@@ -44,13 +44,16 @@ RUN apt-get update && \
         python3-full \
         # For Java API
         default-jdk \
+        # For clang-tidy validation
+        clang-format-18 \
+        clang-tidy-18 \
         && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sccache

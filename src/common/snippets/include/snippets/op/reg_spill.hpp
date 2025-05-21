@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cassert>
+
 #include "snippets/emitter.hpp"
 
 #include "openvino/op/op.hpp"
@@ -68,7 +70,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillBegin> get_reg_spill_begin() const {
         auto reg_spill_begin = ov::as_type_ptr<RegSpillBegin>(get_input_node_shared_ptr(0));
-        OPENVINO_ASSERT(reg_spill_begin, "Can't get reg_spill_begin from reg_spill_end");
+        assert(reg_spill_begin && "Can't get reg_spill_begin from reg_spill_end");
         return reg_spill_begin;
     }
     const std::set<Reg>& get_regs_to_spill() const override {

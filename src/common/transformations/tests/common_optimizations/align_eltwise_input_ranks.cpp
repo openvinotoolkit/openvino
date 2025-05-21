@@ -7,7 +7,13 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 
 using namespace testing;
 using namespace ov;

@@ -4,7 +4,9 @@
 
 #include "subgraph_roll_matmul_roll.hpp"
 #include <common_test_utils/data_utils.hpp>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/roll.hpp"
 
 namespace ov {
 namespace test {

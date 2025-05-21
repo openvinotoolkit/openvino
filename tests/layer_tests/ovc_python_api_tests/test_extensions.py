@@ -113,7 +113,7 @@ class TestExtensions(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_extensions(self, params, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                   temp_dir):
         onnx_net_path = self.create_onnx_model(temp_dir)
 
         test_params = params['params_test']

@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_op/generate_proposals.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 namespace ov {
 namespace test {

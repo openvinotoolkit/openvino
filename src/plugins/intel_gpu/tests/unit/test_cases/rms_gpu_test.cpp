@@ -362,3 +362,59 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_padding) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{-1, 2, 16}, data_types::f32, format::bfyx, cldnn::padding({0,0,2}, {0,0,4}, 0x4)};
+
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx, cldnn::padding({0,0,2}, {0,0,4})});
+    auto input_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 16}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
+
+    set_values(input,  {
+        0.0f,       0.0f,      0.001839f,  -0.003815f, 0.000961f,  0.002930f, -0.003998f, -0.008057f, -0.005402f, -0.002945f, 0.006744f,
+        -0.000004f, 0.004303f, -0.002380f, 0.000072f,  0.001404f,  0.000568f, 0.002579f,  0.0f,       0.0f,       0.0f,       0.0f,
+        0.0f,       0.0f,      0.003098f,  -0.006989f, -0.000244f, 0.010193f, 0.002899f,  -0.005798f, -0.026978f, 0.008789f,  0.002258f,
+        0.006500f,  0.003159f, -0.012329f, 0.026245f,  -0.001839f, 0.000259f, 0.002670f,  0.0f,       0.0f,       0.0f,       0.0f,
+    });
+
+    set_values(input_ref, {
+        0.001839f, -0.003815f, 0.000961f, 0.002930f, -0.003998f, -0.008057f, -0.005402f, -0.002945f,
+        0.006744f, -0.000004f, 0.004303f, -0.002380f, 0.000072f, 0.001404f, 0.000568f, 0.002579f,
+        0.003098f, -0.006989f, -0.000244f, 0.010193f, 0.002899f, -0.005798f, -0.026978f, 0.008789f,
+        0.002258f, 0.006500f, 0.003159f, -0.012329f, 0.026245f, -0.001839f, 0.000259f, 0.002670f
+    });
+    set_values(gamma, {
+        0.029785f, 0.014038f, 0.003098f, 0.013123f, 0.015137f, 0.009399f, 0.008362f, 0.008179f,
+        0.018188f, 0.021973f, 0.005249f, 0.004639f, 0.004272f, 0.020264f, 0.013489f, 0.008789f
+    });
+
+    rms_ref<float>(input_ref, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        ASSERT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3) << " index=" << i;
+    }
+}

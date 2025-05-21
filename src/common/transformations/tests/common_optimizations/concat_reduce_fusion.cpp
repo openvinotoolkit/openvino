@@ -16,7 +16,6 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
