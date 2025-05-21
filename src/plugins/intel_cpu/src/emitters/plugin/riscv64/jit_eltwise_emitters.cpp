@@ -470,7 +470,7 @@ size_t jit_negative_emitter::get_inputs_num() const {
 }
 
 size_t jit_negative_emitter::aux_vecs_count() const {
-    return 1;
+    return 0;  
 }
 
 void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -485,10 +485,12 @@ template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
-    VReg aux = VReg(aux_vec_idxs[0]);
 
-    h->vmv_v_v(aux, src);                
-    h->vfneg_vv(dst, aux);               
+
+    if (src.getIdx() != dst.getIdx()) {
+        h->vmv_v_v(dst, src);
+    }
+    h->vfneg_vv(dst, dst);              
 }
 
 std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
