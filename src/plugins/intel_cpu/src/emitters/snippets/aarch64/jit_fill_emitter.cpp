@@ -104,14 +104,14 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
     auto dst = TReg(out[0]);
     switch (offset) {
     case 1:
-        h->ld1(dst.s[1], table_val2("value", sizeof(float)));
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.s[1], table_val2("value", 0));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 2:
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 3:
-        h->ld1(dst.s[3], table_val2("value", 3 * sizeof(float)));
+        h->ld1(dst.s[3], table_val2("value", 0));
         break;
     case 4:
         break;
