@@ -491,25 +491,26 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                       size_t sub_seq_id,
                                       size_t h) {
     // scale f32[S] zp f32[S] offset in bytes
-    auto S = src.m_dims[3];
-    size_t params_offset = 2 * sizeof(float) * S;
-    auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
-    auto q_len = subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
-    auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
+    const auto S = src.m_dims[3];
+    const size_t params_offset = 2 * sizeof(float) * S;
+    const auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
+    const auto q_len =
+        subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
+    const auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
     const size_t block_size = dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(DST_PREC);
-    size_t m = 0;
+    const size_t m = 0;
     // Quantized cache is either u8/u4, the plain memory is both uint8,
     // Here we use stride_bytes instead of stride which consider divide sub_byte_multiplier automatically.
     if (past_len == 0) {
-        auto total_blocks =
+        const auto total_blocks =
             block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_indices_begins.ptr<int32_t>()[sub_seq_id];
         parallel_for(total_blocks, [&](int32_t block_count) {
-            auto block_id = block_number_start + block_count;
-            auto block_number = block_indices.ptr<int32_t>()[block_id];
-            auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
-                                 ? (q_len - block_count * block_size)
-                                 : block_size;
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
+            const auto block_id = block_number_start + block_count;
+            const auto block_number = block_indices.ptr<int32_t>()[block_id];
+            const auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
+                                       ? (q_len - block_count * block_size)
+                                       : block_size;
+            const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
@@ -524,18 +525,26 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                              p_zps);
         });
     } else {
-        auto prev_nums = past_len % block_size;
-        size_t block_offset = block_number_start + past_len / block_size;
-        auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
+        const auto prev_nums = past_len % block_size;
+        const size_t block_offset = block_number_start + past_len / block_size;
+        const auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
         parallel_for(total_blocks, [&](size_t block_id) {
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id;
-            auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
+            const bool is_first_block = block_id == 0;
+            size_t offset = 0;
+            // layout for blocked cache
+            // block_0    |   block_1  |   block_2
+            // prev_data  |   new_data |   new_data
+            // new_data   |   new_data |   new_data
+            if (!is_first_block) {
+                offset = prev_nums;
+            }
+            const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id - offset;
+            const auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
             auto p_data = base + params_offset;
             size_t valid_length = 0;
-            bool is_first_block = block_id == 0;
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             if (is_first_block) {
                 valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
