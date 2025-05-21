@@ -84,12 +84,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extesion is not supported on GPU or "
                         "No layout format available for gather:LookupTableFind issue")
         self._test(*self.create_lookup_table_find_net(hash_table_type=hash_table_type,
                                                       keys_shape=keys_shape, **params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
