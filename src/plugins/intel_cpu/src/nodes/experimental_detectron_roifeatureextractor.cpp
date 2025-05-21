@@ -6,12 +6,13 @@
 
 #include <algorithm>
 #include <cmath>
-#include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 namespace ov::intel_cpu::node {
 namespace {

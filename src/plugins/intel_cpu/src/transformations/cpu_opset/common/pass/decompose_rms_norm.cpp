@@ -6,7 +6,12 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -24,9 +29,9 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }
-        auto data = node->get_input_node_shared_ptr(0);
+        auto data = node->input_value(0);
         auto data_precision = node->get_input_element_type(0);
-        auto scale = node->get_input_node_shared_ptr(1);
+        auto scale = node->input_value(1);
 
         auto power_const = ov::opset10::Constant::create(data_precision, {}, std::vector<float>{2.f});
         auto power = std::make_shared<ov::opset10::Power>(data, power_const);

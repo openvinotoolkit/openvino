@@ -5,8 +5,9 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

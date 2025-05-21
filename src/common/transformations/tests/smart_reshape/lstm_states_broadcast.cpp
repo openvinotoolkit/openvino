@@ -6,7 +6,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 using namespace std;
 using namespace ov::opset9;
@@ -42,7 +46,7 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
                                           R,
                                           static_cast<size_t>(p.hidden_size.get_length()));
 
-        model = make_shared<ov::Model>(ov::NodeVector{cell}, ov::ParameterVector{parameter});
+        model = make_shared<ov::Model>(ov::OutputVector{cell}, ov::ParameterVector{parameter});
     }
     OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
 }
@@ -92,7 +96,7 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
 
         auto res_ti_1 = make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = make_shared<Result>(tensor_iterator->output(0));
-        model = make_shared<ov::Model>(ov::NodeVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
+        model = make_shared<ov::Model>(ov::OutputVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
     }
     OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
 }

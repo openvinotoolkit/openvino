@@ -5,12 +5,13 @@
 #include "experimental_detectron_topkrois.h"
 
 #include <algorithm>
-#include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_topkrois.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 namespace ov::intel_cpu::node {
 

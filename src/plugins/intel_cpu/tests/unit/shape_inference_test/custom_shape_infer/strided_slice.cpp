@@ -5,7 +5,8 @@
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <memory>
-#include "openvino/op/ops.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/strided_slice.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

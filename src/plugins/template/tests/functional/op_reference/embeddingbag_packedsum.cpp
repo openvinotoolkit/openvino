@@ -71,10 +71,10 @@ private:
 
         if (per_sample_weights) {
             const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices, per_sample_weights);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };

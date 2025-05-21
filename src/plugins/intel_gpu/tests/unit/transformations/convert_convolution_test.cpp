@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_1) {
                                                               dilations,
                                                               ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -80,7 +80,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_2) {
                                                               dilations,
                                                               ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -125,7 +125,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_3) {
                                                                dilations,
                                                                ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -149,7 +149,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -183,7 +183,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_4) {
                                                                dilations,
                                                                ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -207,7 +207,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_4) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -241,7 +241,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_5) {
                                                                dilations,
                                                                ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -265,7 +265,7 @@ TEST_F(TransformationTestsF, ConvertConvolutionToInternal_5) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -285,7 +285,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_1) {
                                                                    dilations,
                                                                    ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -303,7 +303,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -323,7 +323,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_2) {
                                                                    dilations,
                                                                    ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -341,7 +341,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -368,7 +368,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_3) {
                                                                     dilations,
                                                                     ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -392,7 +392,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -426,7 +426,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_4) {
                                                                     dilations,
                                                                     ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -450,7 +450,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_4) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -484,7 +484,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_5) {
                                                                     dilations,
                                                                     ov::op::PadType::EXPLICIT);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
         manager.register_pass<ConvertConvolutionToInternal>();
     }
     {
@@ -508,7 +508,7 @@ TEST_F(TransformationTestsF, ConvertGroupConvolutionToInternal_5) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 }
 

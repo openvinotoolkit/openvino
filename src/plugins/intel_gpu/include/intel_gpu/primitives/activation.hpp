@@ -120,14 +120,14 @@ struct activation : public primitive_base<activation> {
     /// @brief PRelu activation slope input primitive id.
     /// Input x dimension should be equal to input feature size (one slope per channel).
     /// All other dimensions should be 1.
-    primitive_id additional_params_input;
+    input_info additional_params_input;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, activation_function);
         seed = hash_combine(seed, additional_params.a);
         seed = hash_combine(seed, additional_params.b);
-        seed = hash_combine(seed, additional_params_input.empty());
+        seed = hash_combine(seed, additional_params_input.is_valid());
         return seed;
     }
 
@@ -140,7 +140,7 @@ struct activation : public primitive_base<activation> {
         return activation_function == rhs_casted.activation_function &&
                additional_params.a == rhs_casted.additional_params.a &&
                additional_params.b == rhs_casted.additional_params.b &&
-               additional_params_input.empty() == rhs_casted.additional_params_input.empty();
+               additional_params_input.is_valid() == rhs_casted.additional_params_input.is_valid();
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -158,10 +158,14 @@ struct activation : public primitive_base<activation> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        if (additional_params_input.empty())
-            return {};
-        return {additional_params_input};
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (additional_params_input.is_valid())
+            ret[idx++] = &additional_params_input;
+
+        return ret;
     }
 };
 }  // namespace cldnn

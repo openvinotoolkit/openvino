@@ -221,27 +221,27 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
 }
 
 void condition_inst::update_output_layout() {
-    auto memory_deps = _node->get_const_memory_deps();
-    for (auto& i : _node->get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
+    auto memory_deps = get_node().get_const_memory_deps();
+    for (auto& i : get_node().get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0 || i >= get_node().get_dependencies().size()) {
             continue;
         }
-        auto dep_id = _node->get_dependency(i).id();
+        auto dep_id = get_node().get_dependency(i).id();
 
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
     }
     _impl_params->memory_deps = memory_deps;
 
-    auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
+    auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
     if (new_layouts.empty()) {
-        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
+        auto new_layout = get_node().type()->calc_output_layout(*_node, *_impl_params);
+        new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(0), new_layout.data_padding);
         _impl_params->output_layouts[0] = new_layout;
     } else {
         for (size_t i = 0; i != new_layouts.size(); ++i) {
             auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
+            new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(i), new_layout.data_padding);
             _impl_params->output_layouts[i] = new_layout;
         }
     }
