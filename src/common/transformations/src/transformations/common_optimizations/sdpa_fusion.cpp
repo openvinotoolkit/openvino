@@ -327,6 +327,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
                 std::swap(axes_values[axes_values.size() - 1], axes_values[axes_values.size() - 2]);
                 auto axes = v0::Constant::create(ov::element::i64, {axes_values.size()}, axes_values);
                 vec[i] = std::make_shared<v1::Transpose>(vec[i], axes);
+                ov::copy_runtime_info(m.get_matched_nodes(), {axes, vec[i].get_node_shared_ptr()});
             }
         }
 
