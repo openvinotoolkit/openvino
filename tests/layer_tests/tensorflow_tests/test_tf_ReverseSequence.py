@@ -49,8 +49,7 @@ class TestReverseSequence(CommonTFLayerTest):
     def test_reverse_sequence_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                     use_legacy_frontend):
         self._test(*self.create_reverse_sequence_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexReverseSequence(CommonTFLayerTest):
@@ -173,5 +172,4 @@ class TestComplexReverseSequence(CommonTFLayerTest):
     def test_reverse_sequence_complex(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
         self._test(*self.create_reverse_sequence_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
