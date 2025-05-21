@@ -1751,12 +1751,12 @@ void transpose_16NxK(TDST* dst,
                      [[maybe_unused]] const bool quant_key_bychannel) {
     size_t k = 0;
     auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    // zero padding unsued blocks before packing
+    // zero padding unsued blocks before transpose
     for (size_t n = N; n < block_size; n++) {
         memset(src_ptr + n * src_stride, 0, K * sizeof(typename ov::element_type_traits<SRC_PREC>::value_type));
     }
     for (; k + 16 <= K; k += 16) {
-        for (size_t n = 0; n < N; n += 16) {
+        for (size_t n = 0; n < block_size; n += 16) {
             transpose_16x16_kernel(dst + n, src_ptr + n * src_stride, dst_stride, src_stride);
         }
 
@@ -1764,7 +1764,7 @@ void transpose_16NxK(TDST* dst,
         src_ptr += 16;
     }
     if (k < K) {
-        for (size_t n = 0; n < N; n += 16) {
+        for (size_t n = 0; n < block_size; n += 16) {
             transpose_16xK_kernel(dst + n, src_ptr + n * src_stride, K - k, dst_stride, src_stride);
         }
     }
@@ -1883,6 +1883,9 @@ static inline void dequant(float* dst,
                            [[maybe_unused]] const size_t group_size,
                            [[maybe_unused]] const bool quant_bychannel) {
     cvt_copy(dst, reinterpret_cast<ov::float16*>(src), 1, K * N, 0, 0);
+    for (size_t i = N; i < block_size; i++) {
+        memset(dst + i * K, 0, sizeof(T) * K);
+    }
 }
 
 template <typename TDST,
@@ -3195,7 +3198,7 @@ struct MHA {
                 dequant<DATA_TYPE, VALUE_PREC>(
                     _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, hk, kv_block),
                     v_ptr,
-                    _helper._block_size,
+                    valid_len,
                     _helper.SV,
                     _helper._block_size,
                     _helper._value_group_size,
@@ -3230,8 +3233,14 @@ struct MHA {
                 } else {
                     // zero padding unsued blocks
                     for (size_t n = valid_len; n < _helper._block_size; n++) {
-                        auto* v_ptr = v_cache.ptr<DATA_TYPE>(block_number, hk, n, 0);
-                        memset(v_ptr, 0, sizeof(DATA_TYPE) * v_cache.m_dims[3]);
+                        auto* v_ptr = v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
+                            block_number,
+                            hk,
+                            n,
+                            0);
+                        memset(v_ptr,
+                               0,
+                               sizeof(typename ov::element_type_traits<VALUE_PREC>::value_type) * v_cache.m_dims[3]);
                     }
                 }
             }
@@ -3675,13 +3684,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 _slot_mapping.ptr<int32_t>()[idx++] =
                     block_number * _helper._block_size + block_offset % _helper._block_size;
             }
-            // To simplify tails of the kernels for Q*K and W*V:
-            // for first token kernels:
-            //    Q*K aka [m, k0] * [n0, k0]', there is already tails logic for m, k0, but no(always assume n0 is
-            //    block_size) for n0 which means the tail of k_cache need to be set to zero.
-            //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
-            //    zero.
-            // for second token, the kernels have tails handling logic
         }
 
         if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
