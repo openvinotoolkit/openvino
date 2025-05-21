@@ -1,6 +1,11 @@
 name: Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
 
@@ -75,6 +80,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -86,6 +92,7 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF

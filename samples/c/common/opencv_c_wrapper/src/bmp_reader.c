@@ -67,7 +67,7 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(2);
     }
 
-    image->width = (image->infoHeader.width > 0) ? image->infoHeader.width : 0;
+    image->width = abs(image->infoHeader.width);
     image->height = abs(image->infoHeader.height);
 
     if (image->infoHeader.bits != 24) {
@@ -80,12 +80,18 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(4);
     }
 
-    size_t padSize = (size_t)image->width & 3U;
-    size_t row_size = (size_t)image->width * 3U;
+    size_t padSize = ((size_t)image->width) & 3U;
+    int row_size = image->width * 3;
     char pad[3];
-    size_t size = row_size * (size_t)image->height;
+    int size = row_size * image->height;
+    size *= sizeof(char);
 
-    image->data = malloc(sizeof(char) * size);
+    if (size < 0) {
+        printf("[BMP] image size is too large\n");
+        CLEANUP_AND_RETURN(3);
+    }
+
+    image->data = malloc(size);
     if (NULL == image->data) {
         printf("[BMP] memory allocation failed\n");
         CLEANUP_AND_RETURN(5);
@@ -98,9 +104,8 @@ int readBmpImage(const char* fileName, BitMap* image) {
 
     // reading by rows in invert vertically
     int i;
-    int image_height = image->height;
-    for (i = 0; i < image_height; i++) {
-        int storeAt = image->infoHeader.height < 0 ? i : image_height - 1 - i;
+    for (i = 0; i < image->height; i++) {
+        int storeAt = image->infoHeader.height < 0 ? i : image->height - 1 - i;
         cnt = fread(image->data + row_size * storeAt, row_size, sizeof(unsigned char), input);
         if (cnt != sizeof(unsigned char)) {
             printf("[BMP] file read error\n");
@@ -112,6 +117,6 @@ int readBmpImage(const char* fileName, BitMap* image) {
             CLEANUP_AND_RETURN(2);
         }
     }
-
+    fclose(input);
     return 0;
 }

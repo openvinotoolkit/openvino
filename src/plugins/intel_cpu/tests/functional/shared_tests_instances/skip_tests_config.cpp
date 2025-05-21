@@ -563,16 +563,15 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)");
+    }
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
         retVector.emplace_back(R"(.*Prc=f16.*)");
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*HasShapeOf=1.*)");
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
-    } else {
-        // Issue 117407
-        retVector.emplace_back(
-            R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
 #endif
 #if defined(OPENVINO_ARCH_ARM)
@@ -617,6 +616,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
     // Issue: 164799
     retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*)");
+    // Issue 167685
+    retVector.emplace_back(R"(.*importExportModelWithTypeRelaxedExt.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&

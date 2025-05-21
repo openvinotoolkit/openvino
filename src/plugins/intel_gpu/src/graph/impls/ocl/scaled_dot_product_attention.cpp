@@ -258,8 +258,6 @@ protected:
         const auto key_shape = transpose_pshape(impl_param.get_input_layout(1).get_partial_shape(), input_k_transpose_order);
         const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), input_v_transpose_order);
 
-        OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
-
         const auto num_heads_dim = 1;
         if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
             if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
@@ -269,7 +267,10 @@ protected:
         }
 
         if (query_shape[query_shape.size() - 1].is_static())
-            config.head_size = query_shape[query_shape.size() - 1].get_length();
+            config.k_head_size = query_shape[query_shape.size() - 1].get_length();
+
+        if (value_shape[value_shape.size() - 1].is_static())
+            config.v_head_size = value_shape[value_shape.size() - 1].get_length();
 
         config.is_causal = desc->is_causal;
 

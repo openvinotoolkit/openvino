@@ -157,6 +157,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
+REGISTER_OCL(ISTFT);
 
 #undef REGISTER_OCL
 
