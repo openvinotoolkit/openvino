@@ -96,6 +96,8 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+#include "openvino/pass/serialize.hpp"
+
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
     auto new_shape = ov::PartialShape::dynamic(shape.rank());
     if (shape.rank().is_static())
@@ -148,6 +150,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
+
+    std::string dump_graphs_path = "graph/";
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_0_init.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_0_init.bin");
+    }
+
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults
     // should be performed before first ConstantFolding call.
     // The passes can deteach graph branches where zero dimesion is calculated.
@@ -256,11 +265,28 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
     ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
+    // [TEST]
+    // std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(config.get_dump_graphs_path(), "");
+    // std::string dump_graphs_path = "graph/";
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_1_before_ConvertU4WeightsZeroPointToScalar.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_1.bin");
+    }
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_2_after_ConvertU4WeightsZeroPointToScalar.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_2.bin");
+    }
+
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_3.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_3.bin");
+    }
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(decomp, BatchNormDecomposition)
@@ -269,6 +295,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(decomp, ConvertNegative)
     ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_4.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_4.bin");
+    }
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
@@ -280,7 +311,16 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_4_1.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_4_1.bin");
+    }
     REGISTER_PASS(manager, ConstantFolding)
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_5.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_5.bin");
+    }
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -293,9 +333,21 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_5.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_5.bin");
+    }
+
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_6.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_6.bin");
+    }
+
     manager.run_passes(f);
 
     if (!m_use_shapes) {
@@ -309,6 +361,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         }
     }
     f->validate_nodes_and_infer_types();
+
+    ov::pass::Manager tmp_manager(get_pass_config(), "tmp_MOC");
+    if (!dump_graphs_path.empty()) {
+        tmp_manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_moc_trans_7.xml",
+                                                    dump_graphs_path + "ov_model_moc_trans_7.bin");
+    }
 
     return false;
 }

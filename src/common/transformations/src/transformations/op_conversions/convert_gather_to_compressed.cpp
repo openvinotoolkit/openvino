@@ -13,12 +13,20 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
+
+using namespace ov;
+using namespace ov::op;
+using namespace ov::pass::pattern;
 
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     using namespace ov::pass::pattern;
@@ -119,6 +127,7 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         }
 
         std::shared_ptr<ov::Node> new_gather_node = nullptr;
+        std::cout << ">> ConvertGatherToGatherCompressed : " << gather_node->get_friendly_name() << std::endl;
         if (with_zero_point) {
             new_gather_node = std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
                                                                                    gather_input_b,
@@ -126,12 +135,14 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
                                                                                    gather_node->get_batch_dims(),
                                                                                    gather_input_scale,
                                                                                    gather_input_zp);
+            std::cout << "  -- zp : " << gather_input_zp->get_friendly_name() << std::endl;
         } else {
             new_gather_node = std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
                                                                                    gather_input_b,
                                                                                    gather_input_c,
                                                                                    gather_node->get_batch_dims(),
                                                                                    gather_input_scale);
+            std::cout << "  -- no zp" << std::endl;
         }
 
         if (transformation_callback(new_gather_node)) {
@@ -183,5 +194,76 @@ ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, "MoveDecompressionAfterGather");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::MarkFoldConstForGatherCompressed::MarkFoldConstForGatherCompressed() {
+    // MATCHER_SCOPE(MarkFoldConstForGatherCompressed);
+
+    // data input:
+    auto input_pattern = any_input();
+    auto convert_pattern = wrap_type<ov::op::v0::Convert>({input_pattern}, consumers_count(1));
+
+    // zero points:
+    auto zp_pattern = any_input();
+    auto zp_convert_pattern = pattern::optional<ov::op::v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = pattern::optional<ov::op::v1::Subtract>({convert_pattern, zp_reshape_pattern});
+
+    // scale:
+    auto scale_pattern = any_input();
+    auto scale_convert_pattern = pattern::optional<ov::op::v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = pattern::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+
+    auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({multiply_pattern, any_input()});
+
+    auto last_convert_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, multiply_pattern});
+    auto last_convert_m = wrap_type<ov::op::v0::Convert>({last_convert_input});
+
+    // auto dicts_input_m =
+    //     std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, last_convert_m, multiply_pattern});
+    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, multiply_pattern, last_convert_m});
+    auto gather_pattern = wrap_type<ov::op::v8::Gather>({gather_input, any_input(), wrap_type<ov::op::v0::Constant>()});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto multiply = m.get_match_root();
+
+        OPENVINO_ASSERT(pattern_map.count(gather_pattern));
+        // ov::Shape dicts_shape = pattern_map.at(dicts_m).get_node_shared_ptr()->get_shape();
+        auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_pattern).get_node_shared_ptr());
+        if (!gather_node || transformation_callback(gather_node)) {
+            return false;
+        }
+        // const auto multiply = m.get_match_root();
+        // if (transformation_callback(multiply)) {
+        //     return false;
+        // }
+
+        using PatternNode = std::shared_ptr<Node>;
+        std::map<PatternNode, bool> keep_const_precisions = {{zp_reshape_pattern, true},
+                                                             {zp_pattern, true},
+                                                             {zp_convert_pattern, true}};
+        for (const auto& pattern_node : keep_const_precisions) {
+            if (pattern_map.count(pattern_node.first)) {
+                auto node = pattern_map.at(pattern_node.first).get_node_shared_ptr();
+                if (node->get_friendly_name() == "model.embed_tokens.zp_to_f16" ||
+                    node->get_friendly_name() == "model.embed_tokens.zp_const") {
+                    std::cout << ">> In MarkFoldConstForGatherCompressed : " << node->get_friendly_name() << std::endl;
+                }
+
+                ov::enable_constant_folding(node);
+
+                // if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
+                //         ov::enable_keep_const_precision(node);
+                // }
+            }
+        }
+        return false;
+    };
+
+    auto m = std::make_shared<Matcher>(gather_pattern, "KeepConstPrecision");
     this->register_matcher(m, callback);
 }

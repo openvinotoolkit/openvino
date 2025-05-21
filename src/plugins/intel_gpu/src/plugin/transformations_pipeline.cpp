@@ -365,9 +365,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
+        std::string dump_graphs_path = "graph/";
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_0.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_0.bin");
+        }
+
+        std::cout << "====================================================== MarkDequantization " << std::endl;
+        // Marks nodes of a certain subgraph as dequantization nodes
+        // Enable/Disable constant folding for some nodes. it swaps those nodes in 'Convert' to 'Reshape' to allow folding
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
+            // true);
+
+        // [TEST]
+        manager.register_pass<ov::pass::MarkFoldConstForGatherCompressed>();
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
@@ -442,14 +455,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_1.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_1.bin");
+        }
+
+        std::cout << "====================================================== KeepConstPrecision " << std::endl;
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
+
         pass_config->set_callback<ov::pass::MarkDequantization,
                 ov::pass::KeepConstPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
+
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_2.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_2.bin");
+        }
 
         pass_config->set_callback<ov::pass::RMSFusion>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
             if (!root->get_input_partial_shape(0).is_static()) {
@@ -459,6 +484,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
+
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_3.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_3.bin");
+        }
         manager.register_pass<ov::pass::RMSFusion>(false);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
@@ -468,18 +498,39 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
 
+        // [TEMP]
+        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ConvertPrecision" << std::endl;
+        // manager.register_pass<ov::pass::ConstantFolding>();
+
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_4_before_convert_prec.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_4.bin");
+        }
+
+        // std::cout << ">>>> fp_convert_precision_map : " << ((fp_convert_precision_map) ? "true" : "false") << std::endl;
+
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_5_before_common_opt.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_5.bin");
+        }
+
+        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> CommonOptimizations" << std::endl;
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_trans_pipe_6_after_common_opt.xml",
+                                                        dump_graphs_path + "ov_model_trans_pipe_6.bin");
+        }
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
@@ -647,6 +698,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
+        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ConvertPrecision" << std::endl;
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,
@@ -1172,7 +1224,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
-        // Therefore, run MarkDequantization again to fold ZP constant.
+        // Therefore, run MarkDequantization again to fold ZP constant. 
         manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
         if (device_info.supports_immad) {
             if (disable_horizontal_fc_fusion)
@@ -1182,12 +1234,29 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
 
         manager.register_pass<ov::pass::SDPAScaleFusion>();
+
+        std::string tmp_dump_graphs_path = "graph/";
+        if (!tmp_dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(tmp_dump_graphs_path + "ov_model_trans_pipe_7_before_gather_comp.xml",
+                tmp_dump_graphs_path + "ov_model_trans_pipe_7.bin");
+        }
+
+        // [TEMP]
+        // manager.register_pass<ov::pass::ConstantFolding>();
+
+        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ConvertGatherToGatherCompressed" << std::endl;
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+        if (!tmp_dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(tmp_dump_graphs_path + "ov_model_trans_pipe_8_after_gather_comp.xml",
+                tmp_dump_graphs_path + "ov_model_trans_pipe_8.bin");
+        }
+
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
             return rank != 4;
         });
+
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);

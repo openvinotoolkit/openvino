@@ -173,6 +173,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
+        std::cout << ">> FullyConnectedCompressed : " << fc->get_friendly_name() << std::endl;
         if (with_zero_point) {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
                                                                     fc_input_b,
@@ -180,12 +181,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc_input_scale,
                                                                     fc_input_zp,
                                                                     fc->get_output_type());
+            std::cout << "  -- zp : " << fc_input_zp->get_friendly_name() << std::endl;
         } else {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
                                                                     fc_input_b,
                                                                     fc_input_bias,
                                                                     fc_input_scale,
                                                                     fc->get_output_type());
+            std::cout << "  -- no zp" << std::endl;
         }
 
         result_nodes.push_back(new_fc);

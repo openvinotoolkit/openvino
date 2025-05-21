@@ -132,9 +132,21 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // MOCTransformations contain StridedSliceOptimization transformation,
     // so we must call SliceToStridedSlice before MOCTransformations call
     REGISTER_PASS(manager, SliceToStridedSlice, true)
+
+    std::string dump_graphs_path = "graph/";
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_common_opt_0.xml",
+                                                    dump_graphs_path + "ov_model_common_opt_0.bin");
+    }
+
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
+
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_common_opt_1.xml",
+                                                    dump_graphs_path + "ov_model_common_opt_1.bin");
+    }
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented

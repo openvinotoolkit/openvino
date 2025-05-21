@@ -294,6 +294,11 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
+                if (node->get_friendly_name() == "model.embed_tokens.zp_to_f16" ||
+                    node->get_friendly_name() == "model.embed_tokens.zp_const") {
+                    std::cout << ">> In KeepConstPrecisionm, " << node->get_friendly_name() << std::endl;
+                }
+
                 if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);

@@ -703,11 +703,23 @@ bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {
+        for (auto input : input_values) {
+            auto input_node = input.get_node();
+            if (input_node->get_friendly_name() == "model.embed_tokens.zp_const"
+                || input_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+                    std::cout << "        -- disabled by : " << input_node->get_friendly_name() << std::endl;
+            }
+        }
         return false;
     }
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
+        auto input_node = input.get_node();
+        if (input_node->get_friendly_name() == "model.embed_tokens.zp_const"
+            || input_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout <<     "      -- input : " << input_node->get_friendly_name() << std::endl;
+        }
         return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
 

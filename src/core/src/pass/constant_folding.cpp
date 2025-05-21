@@ -108,6 +108,16 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
+        if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout << " >> In ConstantFolding::run_on_model, original_node : " << original_node->get_friendly_name()
+                        << std::endl;
+        }
+
+        if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            bool if_const_fold = original_node->can_constant_fold(original_node->input_values());
+            std::cout << "  -- if_const_fold : " << (if_const_fold ? "true" : "false") << std::endl;
+        }
+
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
@@ -121,8 +131,12 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             if (rewritten) {
                 original_node->validate_and_infer_types();
             }
+            if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+                std::cout << "  -- continue by (False)can_constant_fold => rewritten : " << (rewritten ? "true" : "false") << std::endl;
+            }
             continue;
         }
+
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
@@ -132,6 +146,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
         if (rewritten) {
             node->validate_and_infer_types();
+        }
+
+        if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout << "  -- rewritten : " << (rewritten ? "true" : "false") << std::endl;
         }
 
         OutputVector replacements(node->get_output_size());
@@ -148,6 +166,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 const auto& replacement = replacements.at(i);
                 auto replacement_ptr = replacement.get_node_shared_ptr();
                 if (replacement_ptr && (node_output != replacement)) {
+                    if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+                        std::cout << "  -- rewritten TRUE !!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+                    }
+
                     replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
 
                     node_output.replace(replacement);
@@ -158,7 +180,15 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     copy_runtime_info(original_node, replacement_ptr);
                     ov::copy_weightless_cache_attr(original_node, replacement_ptr);
 
+                    if (original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+                        std::cout << "    -- replacement_ptr : " << replacement_ptr->get_friendly_name() << std::endl;
+                    }
+
                     rewritten = true;
+                }
+
+                if (rewritten == false && original_node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+                    std::cout << "  -- rewritten FALSE!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
                 }
             }
         } else {
@@ -195,7 +225,13 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
     for (auto&& node : model->get_ordered_ops()) {
         const auto& input_values = node->input_values();
         bool can_be_folded;
+        if (node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout << " >> In pre_calculated_values_folding : " << node->get_friendly_name() << std::endl;
+        }
         bool node_has_disabled_constant_folding = constant_folding_is_disabled(node);
+        if (node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout << "    -- node_has_disabled_constant_folding : " << node_has_disabled_constant_folding << std::endl;
+        }
 
         // During constant folding process, current node's input precision may not match
         // the node's original input precision. After we removed evaluates for some types (like f16, bf16)
@@ -282,5 +318,10 @@ bool ov::pass::constant_folding_is_disabled(const std::shared_ptr<Node>& node) {
 
 bool ov::pass::constant_folding_is_disabled(const Node* const node) {
     OPENVINO_ASSERT(node, "node is nullptr");
+    if (node->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+        std::cout << "    -- constant_folding_is_disabled : " << node->get_rt_info().count(DisableConstantFolding::get_type_info_static())
+                    << std::endl;
+    }
     return node->get_rt_info().count(DisableConstantFolding::get_type_info_static());
+
 }

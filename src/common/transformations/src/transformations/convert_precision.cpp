@@ -497,6 +497,15 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v1::Reverse::get_type_info_static(), extend_reverse_type},
     };
 
+    pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32:ConvertPrecisionResult");
+    std::string dump_graphs_path = "graph/";
+    static int net_id = 0;
+    if (!dump_graphs_path.empty()) {
+        manager.register_pass<pass::Serialize>(dump_graphs_path + "ov_model_convert_precision_0_" + std::to_string(net_id) + ".xml",
+                                                    dump_graphs_path + "ov_model_convert_precision_0_" + std::to_string(net_id) + ".bin");
+        net_id++;
+    }
+
     bool is_changed = convert_precision(*this,
                                         f,
                                         type_to_fuse,
@@ -507,11 +516,33 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
                                         m_convert_input_output_precision,
                                         m_store_original_precision_as_rt_attribute);
 
+    std::cout << ">> IN ConvertPrecision, convert_precision => is_changed : " << (is_changed ? "true" : "false") << std::endl;
+
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
-        pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32:RemoveConverts");
+        // pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32:RemoveConverts");
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_convert_precision_1_" + std::to_string(net_id) + ".xml",
+                                                        dump_graphs_path + "ov_model_convert_precision_1_" + std::to_string(net_id) + ".bin");
+            net_id++;
+        }
         manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        // manager.run_passes(f);
+
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_convert_precision_2_" + std::to_string(net_id) + ".xml",
+                                                        dump_graphs_path + "ov_model_convert_precision_2_" + std::to_string(net_id) + ".bin");
+            net_id++;
+        }
+
         manager.register_pass<pass::ConstantFolding>();
+        // manager.run_passes(f);
+        if (!dump_graphs_path.empty()) {
+            manager.register_pass<ov::pass::Serialize>(dump_graphs_path + "ov_model_convert_precision_3_" + std::to_string(net_id) + ".xml",
+                                                        dump_graphs_path + "ov_model_convert_precision_3_" + std::to_string(net_id) + ".bin");
+            net_id++;
+        }
+
         manager.run_passes(f);
     }
 

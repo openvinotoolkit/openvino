@@ -14,6 +14,7 @@ namespace pass {
 class TRANSFORMATIONS_API CompressedGatherTransformation;
 class TRANSFORMATIONS_API ConvertGatherToGatherCompressed;
 class TRANSFORMATIONS_API MoveDecompressionAfterGather;
+class TRANSFORMATIONS_API MarkFoldConstForGatherCompressed;
 
 }  // namespace pass
 }  // namespace ov
@@ -58,11 +59,21 @@ public:
     MoveDecompressionAfterGather();
 };
 
+/*
+ * MarkFoldConstForGatherCompressed enable or disable constant folding for GatherCompressed node
+ */
+class ov::pass::MarkFoldConstForGatherCompressed : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkFoldConstForGatherCompressed");
+    MarkFoldConstForGatherCompressed();
+};
+
 class ov::pass::CompressedGatherTransformation : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("CompressedGatherTransformation");
     CompressedGatherTransformation() {
         add_matcher<ov::pass::ConvertGatherToGatherCompressed>();
         add_matcher<ov::pass::MoveDecompressionAfterGather>();
+        add_matcher<ov::pass::MarkFoldConstForGatherCompressed>();
     }
 };
