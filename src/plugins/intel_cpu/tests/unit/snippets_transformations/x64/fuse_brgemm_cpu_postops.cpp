@@ -320,7 +320,7 @@ TEST_P(FuseConvertTests, CompareFunctions) {}
 TEST_P(FuseScalarEltwiseTests, CompareFunctions) {}
 TEST_P(FuseBinaryEltwiseTests, CompareFunctions) {}
 
-const std::vector<std::pair<ov::element::Type, ov::element::Type>> fuse_convert_in_precisions = {
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
     {ov::element::i8, ov::element::i8},
     {ov::element::u8, ov::element::i8},
     {ov::element::bf16, ov::element::bf16}};
@@ -329,7 +329,7 @@ const ov::element::TypeVector convert_dst_types = {ov::element::f32, ov::element
 
 INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                          FuseConvertTests,
-                         ::testing::Combine(::testing::ValuesIn(fuse_convert_in_precisions),
+                         ::testing::Combine(::testing::ValuesIn(input_precisions),
                                             ::testing::ValuesIn(convert_dst_types)),
                          FuseConvertTests::getTestCaseName);
 
@@ -338,11 +338,6 @@ const std::vector<ov::Node::type_info_t> eltwise_postop_types = {ov::opset1::Mul
                                                                  ov::opset1::Subtract::get_type_info_static(),
                                                                  ov::opset1::Maximum::get_type_info_static(),
                                                                  ov::opset1::Minimum::get_type_info_static()};
-
-const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
-    {ov::element::i8, ov::element::i8},
-    {ov::element::u8, ov::element::i8},
-    {ov::element::bf16, ov::element::bf16}};
 
 INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                          FuseScalarEltwiseTests,
