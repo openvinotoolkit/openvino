@@ -89,6 +89,8 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
                                                KernelsTypes::FINALIZATION_MULTI_TOKENS };
 
     const auto has_scores_output = params.outputs.size() > 1;
+    const auto has_score_aggregation = params.conf.has_score_aggregation;
+
     if (has_scores_output) {
         kernels_type.push_back(KernelsTypes::SCORES_CALCULATION);
     }
@@ -149,6 +151,11 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
             // Intermediate softmax results for scores output calculation and precalculated accumulated
             // sequence length offsets for each subsequence
             internal_buffers_num += 2;
+
+            if (has_score_aggregation) {
+               // Precalculated cumulative sum of aggregation score windows
+               internal_buffers_num += 1;
+            }
         }
 
         // Softmax's exp_sums, max_logits and intermediate output
@@ -296,6 +303,15 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
 
     if (params.outputs.size() > 1) {
         jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
+        if (params.conf.has_score_aggregation) {
+            jit.AddConstant(MakeJitConstant("HAS_SCORE_AGGREGATION", 1));
+        }
+    }
+
+    const size_t score_aggregation_idx = 13;
+    jit.Merge(MakeTypeJitConstants(params.inputs[score_aggregation_idx].GetDType(), "SCORE_AGGREGATION_INPUT"));
+    if (params.conf.has_score_aggregation) {
+        jit.AddConstant(MakeJitConstant("HAS_SCORE_AGGREGATION", 1));
     }
 
     if (params.conf.has_rotated_blocks)
@@ -459,7 +475,8 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             auto subsequences_number = past_lens.Batch().v;
             auto softmax_buf_dt_size = BytesPerElement(softmax_acc_dt);
 
-            auto softmax_buf_elements_count = subsequences_number * prim_params.conf.heads_num * num_of_partitions * partition_size;
+            auto tokens_number = prim_params.conf.has_score_aggregation ? prim_params.conf.paged_attention_snap_kv_tokens : subsequences_number;
+            auto softmax_buf_elements_count = tokens_number * prim_params.conf.heads_num * num_of_partitions * partition_size;
             auto softmax_buf_size = softmax_buf_elements_count * softmax_buf_dt_size;
 
             // Softmax intermediate output
@@ -467,9 +484,14 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             // Precalculated accumulated sequence length offsets for each subsequence
             kd.internalBuffers.emplace_back(subsequences_number * BytesPerElement(Datatype::INT32), lockable);
 
+            if (prim_params.conf.has_score_aggregation) {
+                // Cumulative window size sum buffer
+                kd.internalBuffers.emplace_back((subsequences_number + 1) * BytesPerElement(Datatype::INT32), lockable);
+            }
+
             if (prim_params.stage == PagedAttentionStage::PREFILL) {
                 // Recalculate buf_size as in case of PREFILL stage it's not needed to allocate buffer per each input token
-                buf_elements_count = subsequences_number * prim_params.conf.heads_num * num_of_partitions;
+                buf_elements_count = tokens_number * prim_params.conf.heads_num * num_of_partitions;
                 buf_size = buf_elements_count * buf_dt_size;
 
                 // Intermediate tmp output buffer is not used for PREFILL stage

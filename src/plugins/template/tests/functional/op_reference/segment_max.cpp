@@ -156,6 +156,17 @@ std::vector<SegmentMaxParams> generateSegmentMaxParams(ov::op::FillMode fillMode
                              std::vector<T_D>{1, 2, 3, 4, empty_segment_value, empty_segment_value}),
                          fillMode),
     };
+    if constexpr (std::is_signed_v<T_D>) {
+        segmentMaxParams.emplace_back(
+            // All negative segments
+            SegmentMaxParams(
+                Tensor({4}, T, std::vector<T_D>{-5, -3, -2, -4}),               // data
+                Tensor({4}, T_idx, std::vector<T_I>{0, 0, 1, 1}),               // segmentIds
+                Tensor({}, T_idx, std::vector<T_I>{3}),                         // numSegments
+                Tensor({2}, T, std::vector<T_D>{-3, -2}),                       // expectedResult
+                Tensor({3}, T, std::vector<T_D>{-3, -2, empty_segment_value}),  // expectedResultNumSegments
+                fillMode));
+    }
     return segmentMaxParams;
 }
 
