@@ -511,6 +511,11 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto need_reorder = [&](size_t dep_id) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
+        if (dep_pshape.size() == 0) {
+            // ConvertU4WeightsZeroPointToScalar pass generates scalar const layer
+            return false;
+        }
+
         // Group for scale_idx is always 1, whereas zero_point_idx is 0.
         auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
         auto groups_count = dep_pshape[groups_idx].get_length();
@@ -523,7 +528,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         reorder_bfyx_to_fbyx(decompression_scale_idx);
     }
 
-    if (!fc_prim->decompression_zero_point.empty()) {
+    if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
         if (need_reorder(decompression_zp_idx)) {
             reorder_bfyx_to_fbyx(decompression_zp_idx);

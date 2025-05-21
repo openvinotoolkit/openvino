@@ -95,7 +95,7 @@ bool KVCacheRotateKernelRef::Validate(const Params& params) const {
 JitConstants KVCacheRotateKernelRef::GetJitConstants(const kv_cache_rotate_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.conf.head_size));
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.conf.k_head_size));
     jit.AddConstant(MakeJitConstant("HEADS_NUM", params.conf.heads_num));
     jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", params.conf.kv_heads_num));
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
@@ -106,9 +106,9 @@ JitConstants KVCacheRotateKernelRef::GetJitConstants(const kv_cache_rotate_param
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = BytesPerElement(params.original_cache_dt) * 2; // scale + zp
         jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
     } else {
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.k_head_size));
     }
 
     return jit;

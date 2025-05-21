@@ -22,7 +22,8 @@ Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<IGraph>& graph,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
-    : _graph(graph),
+    : _init_structs(init_structs),
+      _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
@@ -30,13 +31,14 @@ Pipeline::Pipeline(const Config& config,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
 
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
+                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
         auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(init_structs, 0);
+            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
 
         if (profiling_pool->create()) {
             _profiling_query->create(profiling_pool);
@@ -44,14 +46,16 @@ Pipeline::Pipeline(const Config& config,
 
         if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
             _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-            _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(init_structs, _config.get<LOG_LEVEL>());
+            _npu_profiling =
+                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
         }
     }
 
-    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
-            std::make_shared<EventPool>(init_structs->getDevice(),
-                                        init_structs->getContext(),
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
                                         _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
 
         _events.reserve(_number_of_command_lists);
@@ -63,7 +67,7 @@ Pipeline::Pipeline(const Config& config,
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
+            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {
@@ -125,7 +129,8 @@ Pipeline::Pipeline(const Config& config,
             ++io_index;
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
@@ -146,7 +151,8 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -167,7 +173,8 @@ Pipeline::Pipeline(const Config& config,
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
-    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
