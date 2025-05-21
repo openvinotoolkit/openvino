@@ -29,7 +29,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
     static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);

@@ -9,6 +9,10 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 using namespace ov::test::utils;
 
@@ -233,7 +237,7 @@ void OpSummary::saveReport() {
     filename += ov::test::utils::REPORT_EXTENSION;
 
     if (!ov::util::directory_exists(outputFolder)) {
-        ov::util::create_directory_recursive(outputFolder);
+        ov::util::create_directory_recursive(std::filesystem::path{outputFolder});
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;

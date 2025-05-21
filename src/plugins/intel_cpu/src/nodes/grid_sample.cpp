@@ -159,7 +159,7 @@ void GridSample::createPrimitive() {
     execParamsPerThread.resize(m_threads_num);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+        parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -209,7 +209,7 @@ void GridSample::prepareParams() {
     const uint64_t totalWork = dstShape[2] * dstShape[3];
     const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
-    parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -274,12 +274,12 @@ void GridSample::prepareParams() {
     });
 }
 
-void GridSample::execute(const dnnl::stream& strm) {
+void GridSample::execute([[maybe_unused]] const dnnl::stream& strm) {
     const void* srcData = getSrcDataAtPort(IN_DATA);
     const uint8_t* gridData = getSrcDataAtPortAs<uint8_t>(IN_GRID);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
-    auto threadBody = [&](const int ithr, const int nthr) {
+    auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
         const auto& p = execParamsPerThread[ithr];
         auto arg = kernel::GridSamplesKernelExecArgs();
         if (p.workAmount == 0lu) {

@@ -22,6 +22,9 @@ inputs:
   trigger_repo_sha:
     description: "Commit hash of a trigger repo. If not set - taken from github context"
     required: false
+  trigger_repo_branch:
+    description: "Branch of a trigger repo. If not set - taken from github context"
+    required: false
 
 
 runs:
@@ -45,3 +48,4 @@ runs:
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         TRIGGER_REPO_SHA: ${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
+        TRIGGER_REPO_BRANCH: ${{ inputs.trigger_repo_branch }}

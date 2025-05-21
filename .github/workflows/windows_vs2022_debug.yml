@@ -1,6 +1,11 @@
 name: Windows (VS 2022, Python 3.11, Debug)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   merge_group:
   pull_request:
   push:
@@ -15,7 +20,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -58,13 +63,13 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
-      cmake-options: |-
-        -G "Ninja" `
-        -DENABLE_PYTHON=OFF `
-        -DENABLE_CPPLINT=OFF `
-        -DENABLE_TESTS=ON `
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
-        -DENABLE_STRICT_DEPENDENCIES=OFF `
+      cmake-options: >-
+        -G 'Ninja'
+        -DENABLE_PYTHON=OFF
+        -DENABLE_CPPLINT=OFF
+        -DENABLE_TESTS=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
 
   CXX_Unit_Tests:

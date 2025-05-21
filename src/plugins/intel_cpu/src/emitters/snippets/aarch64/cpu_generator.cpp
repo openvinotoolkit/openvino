@@ -20,7 +20,6 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -170,6 +169,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
 
     // ternary
+    jitters[op::v1::Select::get_type_info_static()] = CREATE_CPU_EMITTER(jit_select_emitter);
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mul_add_emitter);
 
     // binary
@@ -179,13 +179,22 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Minimum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_minimum_emitter);
     jitters[op::v1::Mod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mod_emitter);
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
+    jitters[snippets::op::PowerStatic::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_static_emitter);
+    jitters[op::v1::Power::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_dynamic_emitter);
     jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
+    jitters[op::v0::Xor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
 
     // Comparison ops
     jitters[op::v1::Equal::get_type_info_static()] = CREATE_CPU_EMITTER(jit_equal_emitter);
     jitters[op::v1::Greater::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_emitter);
     jitters[op::v1::GreaterEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_equal_emitter);
     jitters[op::v1::LessEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_equal_emitter);
+
+    // Logical ops
+    jitters[op::v1::LogicalAnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_and_emitter);
+    jitters[op::v1::LogicalOr::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_or_emitter);
+    jitters[op::v1::LogicalNot::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_not_emitter);
+    jitters[op::v1::LogicalXor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
 
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = CREATE_CPU_EMITTER(jit_abs_emitter);
@@ -318,7 +327,7 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
     return ov::snippets::RegType::undefined;
 }
 
-bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
+bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
     return false;
 }
 

@@ -9,8 +9,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu::node {
@@ -102,7 +103,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
-void CumSum::execute(const dnnl::stream& strm) {
+void CumSum::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (inputShapes.size() == numOfInputs) {
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
     }

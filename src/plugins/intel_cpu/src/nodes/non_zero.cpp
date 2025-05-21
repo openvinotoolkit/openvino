@@ -9,7 +9,7 @@
 #include <utils/bfloat16.hpp>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov::intel_cpu::node {
@@ -44,7 +44,7 @@ void NonZero::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
     }
 }
@@ -121,7 +121,7 @@ void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(const dnnl::stream& strm) {
+void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this};
     OV_SWITCH(intel_cpu,

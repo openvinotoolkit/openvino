@@ -41,6 +41,10 @@ public:
 
     _ze_result_t destroyGraph(ze_graph_handle_t graphHandle);
 
+    std::string getCompilerSupportedOptions() const;
+
+    bool isOptionSupported(std::string optname) const;
+
     void getGraphBinary(ze_graph_handle_t graphHandle,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,

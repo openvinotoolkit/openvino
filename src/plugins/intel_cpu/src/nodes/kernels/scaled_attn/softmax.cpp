@@ -28,7 +28,7 @@ void attn_softmax(void* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  ov::element::Type precision,
+                  [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)

@@ -102,7 +102,7 @@ public:
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
@@ -125,7 +125,7 @@ public:
              float* w_scale) {
         static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
             if (work) {
@@ -243,7 +243,7 @@ public:
         wbuffer.alloc(works, weight_element_size);
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -272,7 +272,7 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float* w_scale) {
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.run(M, pA, strideA_in_bytes);
@@ -592,8 +592,7 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 

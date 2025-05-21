@@ -69,7 +69,7 @@ private:
         auto stop = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstop);
         auto step = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstep);
         auto range = std::make_shared<op::v0::Range>(start, stop, step);
-        return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
+        return std::make_shared<Model>(OutputVector{range}, ParameterVector{});
     }
 };
 
@@ -102,7 +102,7 @@ private:
         auto stop = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstop);
         auto step = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstep);
         auto range = std::make_shared<op::v4::Range>(start, stop, step, otype);
-        return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
+        return std::make_shared<Model>(OutputVector{range}, ParameterVector{});
     }
 };
 

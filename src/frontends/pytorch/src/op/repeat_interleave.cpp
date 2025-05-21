@@ -40,7 +40,9 @@ Output<Node> generate_indices_from_repeats_tensor(const NodeContext& context, co
 }  // namespace
 
 OutputVector translate_repeat_interleave(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
+    // aten::repeat_interleave.self_Tensor(Tensor self, Tensor repeats, int? dim=None, *, SymInt? output_size=None)
+    // output_size  - Total output size for the given axis (e.g. sum of repeats), serves as hint and can be ignored
+    num_inputs_check(context, 2, 4);
     // constants
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));

@@ -197,11 +197,12 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     void update_stages_flags(const cldnn::primitive_inst& instance) {
-        if (instance.get_flag(cldnn::ExecutionFlags::MEMORY_CHANGED) || instance.get_flag(cldnn::ExecutionFlags::IMPL_CHANGED) ||
-            instance.get_flag(cldnn::ExecutionFlags::SHAPE_CHANGED)) {
-            for (auto& stage : _stages) {
-                stage->kd.need_args_update = true;
-            }
+        const auto current_flags = instance.get_impl_params()->flags.to_ulong();
+        constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
+        constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        for (auto& stage : _stages) {
+            stage->kd.need_args_update = (current_flags & mask_args) != 0;
+            stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
         }
     }
 
@@ -222,8 +223,12 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         auto& kd = stage.kd;
         auto& params = kd.params;
 
-        if (kd.need_args_update) {
+        if (kd.need_dispatch_data_update) {
             kd.update_dispatch_data_func(*instance.get_impl_params(), kd, m_rt_params.get());
+            kd.need_dispatch_data_update = false;
+        }
+
+        if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
             stream.set_arguments(*stage.kernel, params, args);
@@ -248,6 +253,10 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
         update_rt_params(instance);
 
+        if (_order.size() == 1) {
+            return execute_stage(events, instance, *_stages[_order[0]]);
+        }
+
         std::vector<cldnn::event::ptr> tmp_events(events);
         // Default impl just runs each stage in registration order
         for (const auto& stage_id : _order) {
@@ -269,6 +278,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void reset_kernels_source() override {
         for (auto& stage : _stages) {
             stage->kd.code.reset();
+            stage->codegen.reset();
         }
     }
 

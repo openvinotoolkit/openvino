@@ -51,6 +51,7 @@ struct KernelData {
     DispatchDataFunc update_dispatch_data_func{nullptr};
     WeightsReorderParams weights_reorder_params;
     bool need_args_update{true};
+    bool need_dispatch_data_update{true};
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib);
@@ -59,9 +60,9 @@ struct KernelData {
 class KernelGeneratorBase {
 public:
     KernelGeneratorBase() = default;
-    KernelGeneratorBase(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase(const KernelGeneratorBase&) = delete;
     KernelGeneratorBase(KernelGeneratorBase&&) = delete;
-    KernelGeneratorBase& operator=(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase& operator=(const KernelGeneratorBase&) = delete;
     KernelGeneratorBase& operator=(KernelGeneratorBase&&) = delete;
     virtual ~KernelGeneratorBase() = default;
 

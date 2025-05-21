@@ -10,8 +10,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 rng = np.random.default_rng(475912)
 
 class TestTFScatterND(CommonTFLayerTest):
-    def create_tf_scatternd_placeholder_const_net(self, x_shape, indices, updates, ir_version,
-                                                  use_legacy_frontend):
+    def create_tf_scatternd_placeholder_const_net(self, x_shape, indices, updates, ir_version):
         #
         #   Create Tensorflow model
         #
@@ -69,12 +68,10 @@ class TestTFScatterND(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_tf_scatter_nd(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
-        self._test(*self.create_tf_scatternd_placeholder_const_net(**params, ir_version=ir_version,
-                                                                   use_legacy_frontend=use_legacy_frontend),
+    def test_tf_scatter_nd(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_tf_scatternd_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
 class TestTFScatterNDComplex(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -88,7 +85,7 @@ class TestTFScatterNDComplex(CommonTFLayerTest):
         return inputs_data
 
     def create_tf_scatternd_complex_placeholder_const_net(self, x_shape, indices, updates_shape, indices_type,
-                                                          ir_version, use_legacy_frontend):
+                                                          ir_version):
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
@@ -120,9 +117,7 @@ class TestTFScatterNDComplex(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_tf_scatter_nd_complex(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
-        self._test(*self.create_tf_scatternd_complex_placeholder_const_net(**params, ir_version=ir_version,
-                                                                   use_legacy_frontend=use_legacy_frontend),
+    def test_tf_scatter_nd_complex(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_tf_scatternd_complex_placeholder_const_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

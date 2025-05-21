@@ -35,6 +35,9 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
+    // set timeout to 30 min
+    ov::test::utils::CrashHandler::SetUpTimeout(1800);
+
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";
     for (int c = 0; c < argc; ++c) {
@@ -88,6 +91,16 @@ int main(int argc, char** argv, char** envp) {
     ov::log::Level logLevel =
         level.empty() ? ov::log::Level::ERR : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());
     log.setLevel(logLevel);
+
+    auto blobPaths = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH;
+    if (blobPaths.empty()) {
+        auto path = std::string_view(argv[0]);
+        size_t pos =
+            path.find_last_of('\\') != std::string_view::npos ? path.find_last_of('\\') : path.find_last_of('/');
+        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
+            pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
+        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
+    }
 
     return RUN_ALL_TESTS();
 }

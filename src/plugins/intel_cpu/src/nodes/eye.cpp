@@ -56,7 +56,7 @@ struct Eye::EyeExecute {
     }
 };
 
-void Eye::execute(const dnnl::stream& strm) {
+void Eye::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu,
               EyeExecute,

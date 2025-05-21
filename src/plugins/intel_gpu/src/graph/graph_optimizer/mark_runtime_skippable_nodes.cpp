@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,8 @@
 #include "scatter_elements_update_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
+#include "dynamic_quantize_inst.h"
+#include "lora_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -75,7 +77,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
-        program_helpers::do_for_types<permute>(*node, [](permute_node& node){
+
+        program_helpers::do_for_types<permute>(*node, [](permute_node& node) {
             // if node is already optimized at compilation time, do not handle at runtime
             if (node.can_be_optimized())
                 return;
@@ -100,7 +103,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
-        program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node){
+
+        program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node) {
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output()
                 || node.has_fused_primitives()
@@ -139,7 +143,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
             node.set_runtime_skippable(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
-        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
+
+        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node) {
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output()
                 || node.has_fused_primitives()
@@ -180,7 +185,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
-        program_helpers::do_for_types<reorder>(*node, [](reorder_node& node){
+
+        program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
             auto impl_params = node.get_kernel_impl_params();
 
             if ((node.is_output() && node.get_dependency(0).is_input())
@@ -205,7 +211,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
 
-        program_helpers::do_for_types<scatter_elements_update>(*node, [](scatter_elements_update_node & node){
+        program_helpers::do_for_types<scatter_elements_update>(*node, [](scatter_elements_update_node& node) {
             auto impl_params = node.get_kernel_impl_params();
 
             if ((node.is_output() && node.get_dependency(0).is_input())
@@ -222,7 +228,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
 
-        program_helpers::do_for_types<scatter_update>(*node, [](scatter_update_node & node){
+        program_helpers::do_for_types<scatter_update>(*node, [](scatter_update_node& node) {
             auto impl_params = node.get_kernel_impl_params();
 
             if ((node.is_output() && node.get_dependency(0).is_input())
@@ -239,7 +245,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
 
-        program_helpers::do_for_types<scatter_nd_update>(*node, [](scatter_nd_update_node & node){
+        program_helpers::do_for_types<scatter_nd_update>(*node, [](scatter_nd_update_node& node) {
             auto impl_params = node.get_kernel_impl_params();
 
             if ((node.is_output() && node.get_dependency(0).is_input())
@@ -251,6 +257,31 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<dynamic_quantize>(*node, [](dynamic_quantize_node & node) {
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format))
+                return;
+
+            if (node.is_dynamic()) {
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<lora>(*node, [](lora_node& node) {
+            // Dynamic LoRA can always potentially be with empty adapters
+            if (node.is_dynamic() && !node.has_fused_primitives()) {
+                node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
