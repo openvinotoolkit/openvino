@@ -5,7 +5,14 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 
 ov::intel_cpu::MishDecomposition::MishDecomposition() {
     auto mish = ov::pass::pattern::wrap_type<opset4::Mish>();

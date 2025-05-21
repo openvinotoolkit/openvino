@@ -671,11 +671,9 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     selectedPd->setConfig(config);
 
     if (haveSubgraph()) {
-        // Adopt parent configuration, avoid to insert reorder before the MemoryInput.
         std::vector<Input::InputConfig> graphInputConfig;
-
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+        for (auto&& portConfig : config.inConfs) {
+            auto desc = portConfig.getMemDesc();
             graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 

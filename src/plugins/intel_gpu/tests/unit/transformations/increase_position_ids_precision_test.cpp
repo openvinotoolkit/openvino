@@ -51,7 +51,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionWithoutUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
@@ -75,7 +75,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionWithoutUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_convert, sin_convert}, ov::op::internal::RoPE::Config());
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionWithUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionWithUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -149,7 +149,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsMatmulWithoutUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
@@ -173,7 +173,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsMatmulWithoutUnsqueeze) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_convert, sin_convert}, ov::op::internal::RoPE::Config());
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -197,7 +197,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsReshapeAfterMatmul) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, reshape_dims });
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, reshape_dims});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
@@ -223,7 +223,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsReshapeAfterMatmul) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_convert, sin_convert}, ov::op::internal::RoPE::Config());
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, reshape_dims });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, reshape_dims});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -254,7 +254,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLongRoPE) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, rotary_embd });
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, rotary_embd});
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
@@ -288,7 +288,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLongRoPE) {
         auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, rotary_embd });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, rotary_embd});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

@@ -57,7 +57,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto is_nan = std::make_shared<op::v10::IsNaN>(in);
-        return std::make_shared<Model>(NodeVector{is_nan}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{is_nan}, ParameterVector{in});
     }
 };
 

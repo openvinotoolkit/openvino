@@ -11,6 +11,7 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
@@ -33,6 +34,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 
 namespace ov::intel_cpu {
@@ -423,7 +425,6 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
 }
 
 static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& attrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -442,7 +443,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
 
     if (attrs.fcSemantic) {
         // use original post ops and zero points in case if used as FC executor
-        return {DnnlPostOpsComposer(postOps,
+        return {DnnlPostOpsComposer(attrs.postOps,
                                     context->getEngine(),
                                     outputDims,
                                     channelDimIdx,
@@ -456,7 +457,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                     .compose()};
     }
 
-    DnnlPostOpsComposer legacyPostOpsLegacyZeroPoints(postOps,
+    DnnlPostOpsComposer legacyPostOpsLegacyZeroPoints(attrs.postOps,
                                                       context->getEngine(),
                                                       outputDims,
                                                       channelDimIdx,
@@ -495,7 +496,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     }
 
     // @todo avoid extra step of creating config to get the brgconv availability
-    auto config = GraphEmitter<ConvAttrs>::createConfig(memory, attrs, postOps);
+    auto config = GraphEmitter<ConvAttrs>::createConfig(memory, attrs);
     if (!DnnlConvolutionPrimitive::isBrgConvAvailable(config)) {
         DEBUG_LOG("Brgconv is not available. Skip extra attribute");
         return {legacyCompose};
@@ -510,7 +511,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
 
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
         attrs.inputZeroPointsType == ZeroPointsType::PerTensor) {
-        DnnlPostOpsComposer legacyPostOpsOriginalZeroPoints(postOps,
+        DnnlPostOpsComposer legacyPostOpsOriginalZeroPoints(attrs.postOps,
                                                             context->getEngine(),
                                                             outputDims,
                                                             channelDimIdx,
@@ -526,7 +527,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
         return attributeVariants;
     }
 
-    DnnlPostOpsComposer originalPostOpsOriginalZeroPoints(postOps,
+    DnnlPostOpsComposer originalPostOpsOriginalZeroPoints(attrs.postOps,
                                                           context->getEngine(),
                                                           outputDims,
                                                           channelDimIdx,
@@ -669,7 +670,6 @@ static std::tuple<MemoryDescPtr, MemoryDescPtr> createDummySrcDstDescs(const Con
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const ConvAttrs& attrs,
-                                                                           const PostOps& postOps,
                                                                            const MemoryArgs& memory,
                                                                            const ExecutorContext::CPtr& context,
                                                                            const bool cacheWeights) {
@@ -700,7 +700,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
-    const auto primitiveAttributes = createPrimitiveAttrs(attrs, postOps, memory, context);
+    const auto primitiveAttributes = createPrimitiveAttrs(attrs, memory, context);
 
     std::vector<dnnl::primitive_attr> dnnlAttrVariants;
     dnnlAttrVariants.reserve(primitiveAttributes.size());
@@ -734,7 +734,6 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& fcAttrs,
-                                                                           const PostOps& postOps,
                                                                            const MemoryArgs& memory,
                                                                            const ExecutorContext::CPtr& context,
                                                                            const bool cacheWeights) {
@@ -751,9 +750,13 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     fcAttrs.weightsNonTransposed,
                     false,
                     false,
-                    true};
+                    true,
+                    false,
+                    {},
+                    {},
+                    fcAttrs.postOps};
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context);
+    const auto postOpData = createPrimitiveAttrs(attrs, memory, context);
     OPENVINO_ASSERT(postOpData.size() == 1, "Single attribute variant is expected when used as FC executor");
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData.front());
@@ -811,12 +814,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
-        const bool zeroPaddingR = std::all_of(attrs.paddingR.begin(), attrs.paddingR.end(), [](const auto& p) {
-            return p == 0;
+        const bool fusedDWconv = std::any_of(attrs.postOps.begin(), attrs.postOps.end(), [](const auto& p) {
+            return std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(p) != nullptr;
         });
 
         if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled
-            !zeroPaddingR) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
+            fusedDWconv) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
             return std::make_tuple(attrs.paddingL, attrs.paddingR);
         }
 

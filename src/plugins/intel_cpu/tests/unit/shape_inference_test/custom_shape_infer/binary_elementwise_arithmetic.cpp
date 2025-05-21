@@ -3,9 +3,18 @@
 //
 
 #include <gtest/gtest.h>
-#include "openvino/op/ops.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -120,4 +129,3 @@ INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_subtract, CpuShapeInferenceTest_BEA
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

@@ -4,8 +4,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/reverse.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

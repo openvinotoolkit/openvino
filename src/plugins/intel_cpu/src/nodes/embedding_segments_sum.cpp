@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace ov::intel_cpu::node {
 

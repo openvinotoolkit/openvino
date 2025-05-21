@@ -24,13 +24,13 @@ TEST(DisableTransformationsTests, TestTemplatePluginProperty) {
         auto like = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto cvtlike = std::make_shared<ov::op::v1::ConvertLike>(data, like);
 
-        m = std::make_shared<ov::Model>(ov::NodeVector{cvtlike}, ov::ParameterVector{data});
+        m = std::make_shared<ov::Model>(ov::OutputVector{cvtlike}, ov::ParameterVector{data});
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
         auto cvt = std::make_shared<ov::op::v0::Convert>(data, ov::element::i32);
 
-        m_ref = std::make_shared<ov::Model>(ov::NodeVector{cvt}, ov::ParameterVector{data});
+        m_ref = std::make_shared<ov::Model>(ov::OutputVector{cvt}, ov::ParameterVector{data});
     }
 
     auto core = ov::test::utils::PluginCache::get().core("TEMPLATE");

@@ -98,6 +98,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         set_callback_executor(m_callback_executor);
     }
 
+    m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
+
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
@@ -157,14 +159,22 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int streamId = 0;
     int socketId = 0;
-    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->get_stream_id();
-        socketId = std::max(0, streamsExecutor->get_socket_id());
+
+    size_t graph_idx = 0;
+    if (m_graphs.size() > 1) {
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
+        if (nullptr != streamsExecutor) {
+            streamId = streamsExecutor->get_stream_id();
+            socketId = std::max(0, streamsExecutor->get_socket_id());
+        }
+        graph_idx = streamId % m_graphs.size();
     }
-    auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
+
+    auto graphLock = GraphGuard::Lock(m_graphs[graph_idx]);
+
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
         auto makeGraph = [&] {
             try {
                 GraphContext::Ptr ctx;
@@ -207,7 +217,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_callback_executor());
+                                            get_callback_executor(),
+                                            m_optimized_single_stream);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());

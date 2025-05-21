@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
 #include <vector>
@@ -17,6 +16,7 @@
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "selective_build.h"
 
 using namespace dnnl;

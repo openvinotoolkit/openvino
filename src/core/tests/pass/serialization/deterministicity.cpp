@@ -198,8 +198,8 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModel) {
         parameter1->set_friendly_name("input1");
         auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
-        modelRef =
-            std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result0, result1},
+                                               ov::ParameterVector{parameter0, parameter1});
     }
 
     auto& expected1 = modelRef;
@@ -321,8 +321,8 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
         parameter1->set_friendly_name("input1");
         auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
-        modelRef =
-            std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result0, result1},
+                                               ov::ParameterVector{parameter0, parameter1});
     }
 
     auto& expected1 = modelRef;

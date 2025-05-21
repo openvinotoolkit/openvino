@@ -35,14 +35,13 @@ static void initFCAttrs(const FCAttrs& attrs,
                         ACLTensorAttrs& aclTensorAttrs,
                         ACLFCAttrs& aclfcAttrs,
                         const MemoryArgs& memory,
-                        arm_compute::GEMMInfo& fullyConnectedLayerInfo,
-                        const PostOps& postOps) {
+                        arm_compute::GEMMInfo& fullyConnectedLayerInfo) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
-    if (!postOps.empty()) {
-        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
+    if (!attrs.postOps.empty()) {
+        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(attrs.postOps[0]);
         fullyConnectedLayerInfo.set_activation_info(
             getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                    activation->alpha(),
@@ -56,18 +55,12 @@ static void initFCAttrs(const FCAttrs& attrs,
 }
 
 ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
-                                                             const PostOps& postOps,
                                                              const MemoryArgs& memory,
                                                              const ExecutorContext::CPtr& context) {
     dequantizationScales = getDeQuantizedScales(memory);
-    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo, postOps);
-    packedWeights = acl_fc_executor::prepareWeightMemory(memory,
-                                                         context,
-                                                         attrs,
-                                                         aclfcAttrs,
-                                                         postOps,
-                                                         expectedWeightFormat,
-                                                         weiTensorInfo);
+    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo);
+    packedWeights =
+        acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, expectedWeightFormat, weiTensorInfo);
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
@@ -78,7 +71,7 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
         return false;
     }
 
-    VERIFY(checkPostOps(config.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
+    VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
     VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(one_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
     return true;
