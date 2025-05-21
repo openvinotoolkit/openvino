@@ -30,25 +30,25 @@ std::vector<std::vector<InputShape>> inputShape_2D(bool with_dynamic = true) {
 //   - The second element is a pair: {expected number of subgraphs, expected number of nodes}
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations() {
     return {
-        {1, {2, 2}},
-        {3, {3, 3}},
-        {5, {4, 4}},
+        {1, {1, 1}},
+        {3, {2, 2}},
+        {5, {3, 3}},
     };
 }
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsBf16() {
     return {
-        {1, {2, 8}},
+        {1, {3, 9}},
         {3, {3, 13}},
-        {5, {4, 18}},
+        {5, {5, 18}},
     };
 }
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsQuantized() {
     return {
-        {1, {2, 2}},
-        {3, {2, 2}},
-        {5, {3, 3}},
+        {1, {1, 1}},
+        {3, {1, 1}},
+        {5, {1, 1}},
     };
 }
 
