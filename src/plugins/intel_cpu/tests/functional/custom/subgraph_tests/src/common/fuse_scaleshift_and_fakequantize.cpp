@@ -6,6 +6,8 @@
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/util/common_util.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace test {

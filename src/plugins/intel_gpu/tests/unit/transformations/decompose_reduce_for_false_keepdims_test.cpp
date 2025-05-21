@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
+#include "openvino/opsets/opset10_decl.hpp"
 #include <openvino/pass/manager.hpp>
 #include <plugin/transformations/decompose_reduce_for_false_keepdims.hpp>
 #include <string>
@@ -18,6 +18,13 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "test_utils.h"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 using namespace testing;
 using namespace ::tests;
@@ -79,8 +86,7 @@ public:
         else
             throw std::runtime_error("Invalid reduce type for this test-case.");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{input.get_node_shared_ptr()},
-                                                  ov::ParameterVector{param});
+        return std::make_shared<ov::Model>(ov::OutputVector{input.get_node_shared_ptr()}, ov::ParameterVector{param});
     }
 };
 

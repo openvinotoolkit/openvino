@@ -10,9 +10,11 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -22,6 +24,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);

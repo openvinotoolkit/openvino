@@ -626,7 +626,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 
 uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
     uint32_t mask = 0;
-    OPENVINO_ASSERT(broadcastable_inputs.size() <= sizeof(mask) * CHAR_BIT,
+    OPENVINO_ASSERT(broadcastable_inputs.size() < sizeof(mask) * CHAR_BIT,
                     "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
