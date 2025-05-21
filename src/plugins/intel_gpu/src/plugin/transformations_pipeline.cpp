@@ -1234,7 +1234,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name()
-                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 " << innermost_size << std::endl;
+                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
+                                    << innermost_size << std::endl;
                     return true;
                 }
 
