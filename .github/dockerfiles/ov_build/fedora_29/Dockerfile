@@ -29,14 +29,47 @@ RUN dnf update -y && dnf install -y \
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# Setup Python
+# Build Pythons
+# Python 3.9
 RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
-    tar xvf Python-3.9.9.tar.xz
-RUN cd /usr/src/Python-3.9.9 && \
+    wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
+    tar xvf Python-3.9.21.tar.xz
+RUN cd /usr/src/Python-3.9.21 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.10
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
+    tar xvf Python-3.10.16.tar.xz
+RUN cd /usr/src/Python-3.10.16 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.11
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
+    tar xvf Python-3.11.9.tar.xz
+RUN cd /usr/src/Python-3.11.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.12
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
+    tar xvf Python-3.12.9.tar.xz
+RUN cd /usr/src/Python-3.12.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.13
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
+    tar xvf Python-3.13.2.tar.xz
+RUN cd /usr/src/Python-3.13.2 && \
     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
@@ -61,6 +94,10 @@ RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
@@ -73,3 +110,25 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | b
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
+# To build git and curl from source
+RUN dnf update -y && dnf install -y dh-autoreconf \
+    curl-devel \
+    expat-devel \
+    gettext-devel \
+    openssl-devel \
+    perl-devel \
+    zlib-devel \
+    libpsl-devel
+
+# Build and install newer curl
+RUN wget https://github.com/curl/curl/releases/download/curl-8_13_0/curl-8.13.0.tar.gz && \
+    tar -zxf curl-8.13.0.tar.gz
+RUN cd curl-8.13.0 && \
+    ./configure --prefix=/usr --with-openssl && \
+    make install
+
+# Build and install newer git
+RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49.0.tar.gz && \
+    tar -zxf git-2.49.0.tar.gz
+RUN cd git-2.49.0 && \
+    make configure && ./configure --prefix=/usr && make install

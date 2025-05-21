@@ -3,8 +3,7 @@
 //
 
 #include "ov_lpt_models/concat.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -14,6 +13,13 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace builder {

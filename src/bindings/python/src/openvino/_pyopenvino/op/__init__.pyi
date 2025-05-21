@@ -1,12 +1,12 @@
 # type: ignore
-"""
-Package ngraph.impl.op that wraps ov::op
-"""
-from __future__ import annotations
 from . import util
+from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+"""
+Package ngraph.impl.op that wraps ov::op
+"""
 __all__ = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']
 class Constant(openvino._pyopenvino.Node):
     """

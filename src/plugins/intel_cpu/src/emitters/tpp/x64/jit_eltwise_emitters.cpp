@@ -53,7 +53,7 @@ const uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
 }
 
 std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -100,7 +100,7 @@ void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_
 }
 
 std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 

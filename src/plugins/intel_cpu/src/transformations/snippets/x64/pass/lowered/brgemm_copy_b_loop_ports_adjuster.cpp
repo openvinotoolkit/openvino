@@ -8,7 +8,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
 
 BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                            const CPURuntimeConfigurator* configurator)
@@ -31,7 +31,7 @@ BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::l
     }
 }
 
-bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
+bool BrgemmCopyBLoopPortsAdjuster::run([[maybe_unused]] const snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmCopyBLoopPortsAdjuster")
     for (const auto& p : m_affected_uni2exp_map) {
         const auto& uni_loop = p.first;
@@ -47,4 +47,4 @@ bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear
     return true;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

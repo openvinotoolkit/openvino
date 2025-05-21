@@ -120,8 +120,8 @@ public:
     CommandQueue() = delete;
     CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const ze_command_queue_priority_t& priority,
-                 const uint32_t& group_ordinal,
-                 bool turbo = false);
+                 const uint32_t group_ordinal,
+                 const uint32_t command_queue_options = 0);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;

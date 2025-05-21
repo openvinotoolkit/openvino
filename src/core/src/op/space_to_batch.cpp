@@ -74,7 +74,7 @@ namespace space_to_batch {
 namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     const auto& data = inputs[0];
-    const auto& out = outputs[0];
+    auto& out = outputs[0];
     const auto elem_size = data.get_element_type().size();
 
     auto data_shape = data.get_shape();

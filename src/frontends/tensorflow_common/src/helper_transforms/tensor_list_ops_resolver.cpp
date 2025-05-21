@@ -5,6 +5,7 @@
 #include "helper_transforms/tensor_list_ops_resolver.hpp"
 
 #include "helper_ops/tensor_list_ops.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"

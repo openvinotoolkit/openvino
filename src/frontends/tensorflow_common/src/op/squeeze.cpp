@@ -51,7 +51,7 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
         auto squeeze_complex = make_shared<ComplexTypeMark>(squeeze, complex_part_type);
         return {squeeze_complex->output(0)};
     } else if (input.get_element_type() == element::string) {
-        ov::OutputVector unpacked_input = make_shared<v15::StringTensorUnpack>(input)->outputs();
+        auto unpacked_input = pre_translate_string_tensor_input(input);
         auto begins = unpacked_input[0];
         auto ends = unpacked_input[1];
         auto chars = unpacked_input[2];

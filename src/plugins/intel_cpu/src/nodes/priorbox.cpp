@@ -11,7 +11,8 @@
 
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
 namespace ov::intel_cpu::node {
@@ -140,7 +141,7 @@ void PriorBox::createPrimitive() {
     }
 }
 
-void PriorBox::execute(const dnnl::stream& strm) {
+void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];

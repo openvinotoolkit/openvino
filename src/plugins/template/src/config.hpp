@@ -49,6 +49,10 @@ struct Configuration {
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    bool enableCpuPinning = false;
+    bool enableHyperThreading = false;
+    int compilation_thread_num = 1;
     EncryptionCallbacks encryption_callbacks{};
     std::filesystem::path weights_path{};
     AnyMap compiled_model_runtime_properties{};

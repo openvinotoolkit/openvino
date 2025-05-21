@@ -131,7 +131,7 @@ protected:
                         ov::OutputVector inputsForShapeInfer;
                         for (size_t j = 0; j < lastNode->get_input_size(); j++) {
                             if (ov::is_type<ov::op::v0::Constant>(lastNode->get_input_node_ptr(j))) {
-                                inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                                inputsForShapeInfer.push_back(lastNode->input_value(j));
                             } else {
                                 inputsForShapeInfer.push_back(
                                     std::make_shared<ov::op::v0::Parameter>(lastNode->get_input_element_type(j),
@@ -1403,7 +1403,8 @@ const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(::testing:
                                                                       ::testing::ValuesIn(dilations3d),
                                                                       ::testing::ValuesIn(numOutChannels_DW),
                                                                       ::testing::ValuesIn(numGroups_DW),
-                                                                      ::testing::Values(ov::op::PadType::EXPLICIT));
+                                                                      ::testing::Values(ov::op::PadType::EXPLICIT,
+                                                                                        ov::op::PadType::AUTO));
 
 const std::vector<CPUSpecificParams> CPUParams_DW_3D = {conv_avx2_dw_3D,
                                                         conv_avx512_dw_3D,

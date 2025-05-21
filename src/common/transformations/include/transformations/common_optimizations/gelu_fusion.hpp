@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API GeluFusionWithErfThree;
 class TRANSFORMATIONS_API GeluFusionWithErfFour;
 class TRANSFORMATIONS_API GeluFusionWithTanh;
 class TRANSFORMATIONS_API GeluFusionWithTanhNoPower;
+class TRANSFORMATIONS_API GeluFusionWithTanhNoPower2;
 
 }  // namespace pass
 }  // namespace ov
@@ -92,6 +93,17 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
+ * @brief GeluFusion transformation replaces a sub-graph
+ * x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715 * x * x * x]))) with a Gelu (Tanh) op.
+ */
+class ov::pass::GeluFusionWithTanhNoPower2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanhNoPower2");
+    GeluFusionWithTanhNoPower2();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
  * @brief GeluFusion transformation replaces various sub-graphs with a Gelu op.
  */
 class ov::pass::GeluFusion : public ov::pass::GraphRewrite {
@@ -104,5 +116,6 @@ public:
         add_matcher<ov::pass::GeluFusionWithErfFour>();
         add_matcher<ov::pass::GeluFusionWithTanh>();
         add_matcher<ov::pass::GeluFusionWithTanhNoPower>();
+        add_matcher<ov::pass::GeluFusionWithTanhNoPower2>();
     }
 };

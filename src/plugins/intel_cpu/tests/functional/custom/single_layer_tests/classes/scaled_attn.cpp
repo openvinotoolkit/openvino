@@ -5,7 +5,7 @@
 #include "scaled_attn.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
@@ -102,12 +102,6 @@ void ScaledAttnLayerCPUTest::SetUp() {
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("mha");
     function = makeNgraphFunction(inType, inputParams, sdp, "SDP");
-
-    functionRefs = function->clone();
-    ov::pass::Manager manager;
-    // decompose ScaledDotProductAttention
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-    manager.run_passes(functionRefs);
 }
 
 void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

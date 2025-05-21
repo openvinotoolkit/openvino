@@ -141,9 +141,9 @@ In rare cases, TensorFlow operation conversion requires two transformations (`Lo
 In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
 The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
 
-Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
+Here is an example of an implementation for the internal operation `SparseSegmentOps`:
 
-https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
+https://github.com/openvinotoolkit/openvino/blob/994ac20d7fd7fc3ec415dbfa5f0bf6ad886a8162/src/frontends/tensorflow_common/include/helper_ops/sparse_segment_ops.hpp#L32-L67
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
 For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api.html)

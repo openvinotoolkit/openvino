@@ -8,8 +8,15 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace ov;
 
@@ -61,7 +68,7 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
 
         const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
                                                 : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
-        model = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{fake_convert}, ParameterVector{data});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -106,7 +113,7 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
             result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
         }
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, params);
     }
 
     const auto res = compare_functions(model, model_ref);
