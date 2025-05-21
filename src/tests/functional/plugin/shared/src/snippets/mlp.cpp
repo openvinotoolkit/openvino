@@ -49,8 +49,8 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
           num_hidden_layers_with_expectations,
           hidden_matmul_size] = obj.param;
 
-    auto [num_hidden_layers, num_nodes] = num_hidden_layers_with_expectations;
-    auto num_subgraphs = num_nodes;
+    auto [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
+    auto [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -75,7 +75,7 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
 }
 
 void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    std::pair <size_t, size_t> num_hidden_layers_with_expectations;
+    std::pair <size_t, std::pair<size_t, size_t>> num_hidden_layers_with_expectations;
     std::tie(input_shapes,
              m_input_types,
              prc,
@@ -84,8 +84,9 @@ void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& 
              additional_config,
              num_hidden_layers_with_expectations,
              m_hidden_matmul_size) = this->GetParam();
-    std::tie(m_num_hidden_layers, ref_num_nodes) = num_hidden_layers_with_expectations;
-    ref_num_subgraphs = ref_num_nodes;
+    std::pair<size_t, size_t> ref_num_subgraphs_and_nodes;
+    std::tie(m_num_hidden_layers, ref_num_subgraphs_and_nodes) = num_hidden_layers_with_expectations;
+    std::tie(ref_num_subgraphs, ref_num_nodes) = ref_num_subgraphs_and_nodes;
 }
 
 std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const {
