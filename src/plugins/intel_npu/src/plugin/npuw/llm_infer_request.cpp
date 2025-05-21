@@ -192,6 +192,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    if (input_ids->get_size() > kvcache_desc.max_prompt_size) {
+        OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
+                       kvcache_desc.max_prompt_size,
+                       ".\nPlease either setup longer \"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
+    }
+
     prepare_for_new_conversation();
 
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
