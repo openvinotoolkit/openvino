@@ -511,75 +511,6 @@ protected:
     }
 };
 
-class MoeExpertOptMLPUpCM : public cm::KernelGenerator {
-public:
-    MoeExpertOptMLPUpCM() : KernelGenerator("moe_expert_up_cm") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit);
-        jit.make("KERNEL_NAME", get_entry_point(params));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{nullptr};
-    }
-};
-
-class MoeExpertOptMLPDownCM : public cm::KernelGenerator {
-public:
-    MoeExpertOptMLPDownCM() : KernelGenerator("moe_expert_down_cm") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit);
-        jit.make("KERNEL_NAME", get_entry_point(params));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{nullptr};
-    }
-};
-
-class MoeExpertOptMLPReduceCM : public cm::KernelGenerator {
-public:
-    MoeExpertOptMLPReduceCM() : KernelGenerator("moe_expert_mlp", "reduce_cm") {}
-
-protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit);
-        jit.make("KERNEL_NAME", get_entry_point(params));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        Arguments args;
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{nullptr};
-    }
-};
-
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int offset = 0) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("convert2dnnl"));
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
@@ -594,9 +525,6 @@ public:
     Stage::Ptr mlp_gate_up = make_stage<MoeExpertOptMLPGateUp>();
     Stage::Ptr mlp_down = make_stage<MoeExpertOptMLPDown>();
     Stage::Ptr mlp_reduce = make_stage<MoeExpertOptMLPReduce>();
-    Stage::Ptr cm_mlp_reduce = make_stage<MoeExpertOptMLPReduceCM>();
-    Stage::Ptr cm_mlp_up = make_stage<MoeExpertOptMLPUpCM>();
-    Stage::Ptr cm_mlp_down = make_stage<MoeExpertOptMLPDownCM>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -644,8 +572,6 @@ public:
     int _hidden_size;
     int _intermediate_size;
     int _group_size;
-    bool _up_use_cl;
-    bool _down_use_cl;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
@@ -657,15 +583,6 @@ public:
         add_stage(mlp_gate_up, params);
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
-        if (!(_up_use_cl && _down_use_cl)) {
-            add_stage(cm_mlp_reduce, params);
-        }
-        if (!_up_use_cl) {
-            add_stage(cm_mlp_up, params);
-        }
-        if (!_down_use_cl) {
-            add_stage(cm_mlp_down, params);
-        }
     }
 
     void init(const std::shared_ptr<const moe_expert>& moe) {
@@ -704,16 +621,6 @@ public:
                 }
             }
         }
-
-        auto mask = 1;
-        auto p = std::getenv("CM_MASK");
-        if (p) {
-            mask = std::atoi(p);
-        }
-        // TODO(moe): enable cm support
-        mask = 0;
-        _up_use_cl = !(mask & 1);
-        _down_use_cl = !(mask & 2);
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -728,8 +635,6 @@ public:
         moe->_hidden_size = _hidden_size;
         moe->_intermediate_size = _intermediate_size;
         moe->_group_size = _group_size;
-        moe->_up_use_cl = _up_use_cl;
-        moe->_down_use_cl = _down_use_cl;
         return moe;
     }
 
@@ -916,68 +821,32 @@ public:
 
         {
             // scratch.up = up(x) * silu(gate(x))
-            if (_up_use_cl) {
-                execute_stage({},
-                              instance,
-                              *mlp_gate_up,
-                              {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
-                              {scratch.up},
-                              {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                              {1, subgroup_size, SUBGROUP_NUM});
-            } else {
-                // execute_stage({},
-                //               instance,
-                //               *cm_mlp_up,
-                //               {hidden_states_mem_ptr, batch_mem_ptr, mlp_weight_mem.weights_base, scale_zps.gate_up_addrs},
-                //               {scratch.up},
-                //               {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
-                //               {1, 4});
-            }
+            execute_stage({},
+                          instance,
+                          *mlp_gate_up,
+                          {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
+                          {scratch.up},
+                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                          {1, subgroup_size, SUBGROUP_NUM});
+
             // scratch.y = down(scratch.up) * weight[expert_no]
-            if (_down_use_cl) {
-                execute_stage({},
-                              instance,
-                              *mlp_down,
-                              {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
-                              {scratch.y},
-                              {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                              {1, subgroup_size, SUBGROUP_NUM});
-            } else {
-                // execute_stage({},
-                //               instance,
-                //               *cm_mlp_down,
-                //               {scratch.up,
-                //                batch_mem_ptr,
-                //                routing_mem_ptr,
-                //                mlp_weight_mem.weights_base,
-                //                scale_zps.down_addrs,
-                //                scale_zps.down_scales_addrs,
-                //                scale_zps.down_zp_addrs},
-                //               {scratch.y},
-                //               {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
-                //               {1, 4});
-            }
+            execute_stage({},
+                          instance,
+                          *mlp_down,
+                          {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
+                          {scratch.y},
+                          {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                          {1, subgroup_size, SUBGROUP_NUM});
+
             // final = sum(scratch.y)
-            if (!_up_use_cl || !_down_use_cl) {
-                // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
-                ret = execute_stage({},
-                                    instance,
-                                    *cm_mlp_reduce,
-                                    {scratch.y},
-                                    {final_hidden_states_mem_ptr},
-                                    {static_cast<size_t>(1), static_cast<size_t>(_hidden_size / subgroup_size)},
-                                    {1, SUBGROUP_NUM},
-                                    instance.needs_completion_event());
-            } else {
-                ret = execute_stage({},
-                                    instance,
-                                    *mlp_reduce,
-                                    {scratch.y},
-                                    {final_hidden_states_mem_ptr},
-                                    {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                                    {1, std::min(max_work_group_size, size_t{1024})},
-                                    instance.needs_completion_event());
-            }
+            ret = execute_stage({},
+                                instance,
+                                *mlp_reduce,
+                                {scratch.y},
+                                {final_hidden_states_mem_ptr},
+                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                {1, std::min(max_work_group_size, size_t{1024})},
+                                instance.needs_completion_event());
         }
         return ret;
     }
