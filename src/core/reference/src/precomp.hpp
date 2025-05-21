@@ -4,14 +4,5 @@
 
 #pragma once
 
-#include <algorithm>
-#include <numeric>
-#include <stdexcept>
-#include <utility>
-#include <vector>
+#include "openvino/pch/precomp_core.hpp"
 
-#include <cfenv>
-#include <cmath>
-#include <cstddef>
-#include <cstdio>
-#include <cstring>
