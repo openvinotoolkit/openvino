@@ -13,7 +13,8 @@
 #include "dnnl_extension_utils.h"
 #include "dnnl_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace dnnl;
 
@@ -208,7 +209,7 @@ void SoftMax::prepareParams() {
                 break;
             }
         }
-        return std::make_shared<DnnlExecutor>(prim_desc);
+        return std::make_shared<DnnlExecutorLegacy>(prim_desc);
     };
 
     auto cache = context->getParamsCache();

@@ -5,6 +5,8 @@
 #include "openvino/reference/binary_convolution.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/binary_convolution.hpp"
 
 namespace bin_conv_v1 {
 template <ov::element::Type_t t_in, ov::element::Type_t t_f>

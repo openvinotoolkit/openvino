@@ -1,8 +1,8 @@
 # type: ignore
+from __future__ import annotations
 """
 openvino exceptions hierarchy. All exceptions are descendants of OVError.
 """
-from __future__ import annotations
 __all__ = ['OVError', 'OVTypeError', 'UserInputError']
 class OVError(Exception):
     """

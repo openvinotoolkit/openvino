@@ -6,10 +6,6 @@
 
 #include <algorithm>
 
-#if defined(_WIN32)
-#    include <windows.h>
-#endif
-
 std::string ov::util::to_lower(const std::string& s) {
     std::string rc = s;
     std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
@@ -45,14 +41,6 @@ std::vector<std::string> ov::util::split(const std::string& src, char delimiter,
     return rc;
 }
 
-size_t ov::util::hash_combine(const std::vector<size_t>& list) {
-    size_t seed = 0;
-    for (size_t v : list) {
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
-}
-
 std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
     auto lines = ov::util::split(str, '\n');
     std::stringstream res;
@@ -64,12 +52,3 @@ std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::
     }
     return res.str();
 }
-
-#if defined(_WIN32)
-bool ov::util::may_i_use_dynamic_code() {
-    HANDLE handle = GetCurrentProcess();
-    PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code_policy = {0};
-    GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
-    return dynamic_code_policy.ProhibitDynamicCode != TRUE;
-}
-#endif

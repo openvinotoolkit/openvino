@@ -24,6 +24,7 @@
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -141,6 +142,9 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+    // Disabled SDPA transformation, since there is ref SDPA op.
+    pass_config->disable<ov::pass::ScaledDotProductAttentionDecomposition>();
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
     // and we can create device backend-dependent graph
@@ -347,6 +351,11 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::template_plugin::disable_transformations,
             ov::log::level,
             ov::hint::model_priority,
+            ov::hint::enable_hyper_threading,
+            ov::hint::enable_cpu_pinning,
+            ov::hint::scheduling_core_type,
+            ov::compilation_num_threads,
+            ov::inference_num_threads,
             ov::weights_path,
             ov::cache_mode,
         };

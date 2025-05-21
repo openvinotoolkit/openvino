@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/reorg_yolo.hpp"
+#include "openvino/op/reorg_yolo.hpp"
 
 namespace ov {
 namespace test {

@@ -5,6 +5,7 @@
 #include "remove_packing_ops.hpp"
 
 #include "helper_ops/packed_sequence.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"

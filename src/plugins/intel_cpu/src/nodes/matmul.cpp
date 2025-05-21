@@ -19,7 +19,8 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/matmul.hpp"
 #include "utils/general_utils.h"
 using namespace dnnl;
@@ -662,14 +663,14 @@ void MatMul::prepareParams() {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
         if (found) {
-            return std::make_shared<DnnlExecutor>(prim_desc);
+            return std::make_shared<DnnlExecutorLegacy>(prim_desc);
         }
 
         // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
         // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
         // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
         // undefined input shapes but not available for primitive_desc with input batch 1.
-        return std::make_shared<DnnlExecutor>(first_desc);
+        return std::make_shared<DnnlExecutorLegacy>(first_desc);
     };
 
     auto cache = context->getParamsCache();

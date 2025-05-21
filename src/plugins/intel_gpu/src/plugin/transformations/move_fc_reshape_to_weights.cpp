@@ -15,6 +15,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

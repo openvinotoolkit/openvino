@@ -18,7 +18,7 @@ namespace utils {
 static const std::vector<element::Type>& get_known_types() {
     static const auto known_types = [] {
         using namespace ov::element;
-        constexpr size_t enum_count = static_cast<std::underlying_type_t<Type_t>>(Type_t::f8e8m0) - 1;
+        constexpr size_t enum_count = static_cast<std::underlying_type_t<Type_t>>(Type_t::f8e8m0);
 
         std::vector<Type> types(enum_count);
         for (size_t idx = 1, i = 0; i < types.size(); ++idx, ++i) {

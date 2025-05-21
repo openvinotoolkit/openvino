@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
 namespace ov {
@@ -134,6 +135,15 @@ public:
 
     /// \brief Returns the rt_info for the element
     virtual DecoderRTInfo get_rt_info() const = 0;
+
+    /// \brief Returns if node has a custom converter that should be used instead (if any) of the default converter
+    /// registered in front-end If this method returns true, `convert` method should be used as a conversion extension
+    /// for this node instead of (any) default converter Such node may not have implemented other methods, like
+    /// `get_op_type` that usually are implemented for "normal" nodes.
+    virtual bool has_converter() const = 0;
+
+    /// \brief Converts the node if `has_converter` returns true
+    virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
 };
 
 }  // namespace pytorch

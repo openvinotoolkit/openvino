@@ -13,9 +13,9 @@
 #        include <windows.h>
 #    endif
 
-#    ifdef __clang__
-#        pragma clang diagnostic push
-#        pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#    if defined(__clang__) || defined(__GNUC__)
+#        pragma GCC diagnostic push
+#        pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #    endif
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
@@ -45,8 +45,8 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 #    endif
 }
 
-#    ifdef __clang__
-#        pragma clang diagnostic pop
+#    if defined(__clang__) || defined(__GNUC__)
+#        pragma GCC diagnostic pop
 #    endif
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

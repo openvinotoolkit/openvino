@@ -6,6 +6,10 @@
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "openvino/reference/sequences.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 // clang-format on
 
 namespace rnn_seq_v5 {

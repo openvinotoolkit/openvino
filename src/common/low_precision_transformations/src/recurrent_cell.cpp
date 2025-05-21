@@ -7,16 +7,33 @@
 #include <memory>
 
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
