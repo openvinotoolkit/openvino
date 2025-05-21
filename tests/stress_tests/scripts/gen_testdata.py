@@ -5,7 +5,8 @@
 
 """ Script to generate XML config file with the list of IR models
 Usage: 
-    python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache> --topology=<model_name_1>,<model_name_2>,...
+    python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
+    optional: --framework=[tf|tf2|onnx|pytorch] --topology=<model_name_1>,<model_name_2>,...
 """
 # pylint:disable=line-too-long
 
@@ -80,6 +81,9 @@ def get_args(parser):
     parser.add_argument('--topology', action=ListAction, default='',
                         help="'List of models topology in IR-cache. Examples: --topology=<model_name_1>,<model_name_2>,..."
                         )
+    parser.add_argument('--framework', action=ListAction, default='',
+                        help="'List of models frameworks in IR-cache. Examples: --framework=onnx,tf,pytorch,..."
+                        )
     return parser.parse_args()
 
 def main():
@@ -99,11 +103,15 @@ def main():
     for root, _, files in os.walk(subdirectory):
         for file_name in files:
             if file_name.endswith(".xml"):
+                full_path = os.path.join(root, file_name)
+                path_parts = os.path.normpath(full_path).split(os.path.sep)
                 if args.topology:
                     if file_name.split('.')[0] not in args.topology:
                         continue
-                full_path = os.path.join(root, file_name)
-                path_parts = os.path.normpath(full_path).split(os.path.sep)
+                if args.framework:
+                    _fw = path_parts[-6] if path_parts[-2] != "optimized" else path_parts[-8]
+                    if _fw not in args.framework:
+                        continue
 
                 model_element = eET.Element("model", {
                     "name": file_name,
