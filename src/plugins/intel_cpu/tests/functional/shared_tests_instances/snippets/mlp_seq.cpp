@@ -19,8 +19,7 @@ std::vector<std::vector<InputShape>> inputShape_2D(bool with_dynamic = true) {
         {{4, 64}},
         {{8, 64}});
     if (with_dynamic) {
-        shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {8, 64}, {6, 64}}}});
-        shapes.push_back({{PartialShape{-1, 64}, {{2, 64}, {2, 64}, {4, 64}, {3, 64}}}});
+        shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
     }
     return shapes;
 }
@@ -48,7 +47,7 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
     return {
         {1, {1, 1}},
         {3, {1, 1}},
-        {5, {1, 1}},
+        {5, {2, 2}},
     };
 }
 

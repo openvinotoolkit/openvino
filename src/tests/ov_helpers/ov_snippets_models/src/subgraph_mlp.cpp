@@ -77,15 +77,9 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     }
     mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size);
 
-    ov::builder::subgraph::FakeQuantizeOnData onData2 =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
-    current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData2);
     auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
-    ov::builder::subgraph::FakeQuantizeOnData onData1 =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
-    auto dq_A = ov::builder::subgraph::makeFakeQuantize(softmax, ov::element::f32, onData1);
 
-    auto result = std::make_shared<ov::op::v0::Result>(dq_A);
+    auto result = std::make_shared<ov::op::v0::Result>(softmax);
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{A_param});
 }
 

@@ -39,7 +39,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
             count++;
         }
     }
-    if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op->input_value(0).get_node_shared_ptr())) {
+    if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
         count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
     }
     return count;
@@ -184,8 +184,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         if (mm_count < 2)
             return false;
 
-        /* ================================ */
-
         /* ====== Subgraph creation ======= */
 
         const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
@@ -194,8 +192,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
 
         return true;
-
-        /* ================================ */
     });
 }
 
