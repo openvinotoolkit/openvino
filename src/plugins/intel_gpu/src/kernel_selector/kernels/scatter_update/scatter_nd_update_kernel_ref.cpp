@@ -185,6 +185,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
 
         if (i == 0) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
         } else if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));

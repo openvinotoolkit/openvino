@@ -21,6 +21,14 @@
     #define TARGET_COORD_ORDER    target_coord[0],target_coord[1],target_coord[2],target_coord[3],target_coord[4],target_coord[5]
 #endif
 
+#if INPUT2_DIMS == 4
+    #define INPUT2_ORDER b,f,y,x
+#elif INPUT2_DIMS == 5
+    #define INPUT2_ORDER b,f,z,y,x
+#elif INPUT2_DIMS == 6
+    #define INPUT2_ORDER b,f,w,z,y,x
+#endif
+
 #define INDICES_MAX_DIM 6
 
 
@@ -36,8 +44,18 @@
     #endif
 #elif INDICES_RANK == 3
 #define IND_ORDER  b,f,0,i
-// #elif INDICES_RANK == 4
-//         target_coord[i] = indices[INPUT1_GET_INDEX(b, f, y, i)];
+#elif INDICES_RANK == 4
+    #if INPUT1_DIMS == 4
+        #if INPUT2_DIMS == 4
+            #define IND_ORDER  b,f,y,i
+        #elif INPUT2_DIMS == 5
+            #define IND_ORDER  b,f,z,i
+        #elif INPUT2_DIMS == 6
+            #define IND_ORDER  b,f,w,i
+        #endif
+    #elif INPUT1_DIMS == 5
+        #define IND_ORDER  b,f,y,i,0
+    #endif
 // #elif INDICES_RANK == 5
 //         target_coord[i] = indices[INPUT1_GET_INDEX(b, f, z, y, i)];
 // #elif INDICES_RANK == 6
@@ -102,29 +120,32 @@ KERNEL(scatter_nd_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint b = dim2 / INPUT2_FEATURE_NUM;
 #endif
 
-    INPUT1_TYPE target_coord[OUTPUT_DIMS];
-    INPUT1_TYPE g_coord[OUTPUT_DIMS] = { ORDER };
+    INPUT1_TYPE target_coord[INDICES_MAX_DIM];
+    INPUT1_TYPE g_coord[INDICES_MAX_DIM] = { INPUT2_ORDER };
 
+#if INPUT1_LENGTH == 1 && INDICES_RANK == 1
+    for (uint i = 0; i < OUTPUT_DIMS; ++i) {
+        target_coord[i] = g_coord[i];
+    }
+#else
     for (uint i = 0; i < INDICES_LAST_DIM; ++i) {
         target_coord[i] = indices[GET_INDICES_INDEX(IND_ORDER)];
     }
 
     for (uint i = INDICES_LAST_DIM; i < OUTPUT_DIMS; ++i) {
-#if INDICES_RANK == 1
-        target_coord[i] = g_coord[i];
-#else
-        target_coord[i] = g_coord[INDICES_RANK - 1 + i - INDICES_LAST_DIM];
-#endif
+        target_coord[i] = g_coord[INDICES_RANK - 1 - INDICES_LAST_DIM + i];
     }
+#endif
 
     const uint output_idx = GET_OUTPUT_INDEX(TARGET_COORD_ORDER);
-    const uint updates_idx = GET_UPDATES_INDEX(ORDER);
+    const uint updates_idx = GET_UPDATES_INDEX(INPUT2_ORDER);
 
     INPUT2_TYPE val = updates[updates_idx];
 
-    // printf("g_coord[%2d,%2d,%2d,%2d] target_coord[%2d,%2d,%2d,%2d] output_id(%2d) updates_idx(%2d) val(%.2f) INDICES_LAST_DIM(%d) OUTPUT_DIMS(%d)\n",
-    //         g_coord[0], g_coord[1], g_coord[2], g_coord[3],
-    //         target_coord[0], target_coord[1], target_coord[2], target_coord[3], output_idx, updates_idx, val, INDICES_LAST_DIM, OUTPUT_DIMS);
+    // printf("g_coord[%2d,%2d,%2d,%2d,%2d] target_coord[%2d,%2d,%2d,%2d,%2d] output_id(%2d) updates_idx(%2d) val(%.2f) INDICES_LAST_DIM(%d) OUTPUT_DIMS(%d)\n",
+    //         g_coord[0], g_coord[1], g_coord[2], g_coord[3], g_coord[4],
+    //         target_coord[0], target_coord[1], target_coord[2], target_coord[3], target_coord[4],
+    //         output_idx, updates_idx, val, INDICES_LAST_DIM, OUTPUT_DIMS);
 
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
