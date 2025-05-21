@@ -241,8 +241,10 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
   group size values are ``0``, ``32``, ``64``, or ``128``.
 
-  On Intel CPU, dynamic quantization is enabled **by default**.
-  On Intel GPU without XMX support, dynamic quantization is enabled by default.
+  On Intel CPU and Intel GPU, dynamic quantization is enabled **by default**.
+  * For Intel CPU and Intel GPU without XMX support, the default group size is ``32``.
+  * For Intel GPU with XMX support, the only supported group size is ``innermost axis`` and
+    it is turned on **by default**.
 
   To disable dynamic quantization you can either:
 
