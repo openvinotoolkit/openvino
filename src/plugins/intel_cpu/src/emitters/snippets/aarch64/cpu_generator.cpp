@@ -223,11 +223,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
     jitters[ov::intel_cpu::aarch64::GemmCPU::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_gemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
-    jitters[intel_cpu::aarch64::GemmCopyB::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_gemm_copy_b_emitter,
-                                configurator->get_kernel_executor_table(),
-                                compiled_kernel_cache);
+        CREATE_SNIPPETS_EMITTER(jit_gemm_emitter, configurator->get_kernel_executor_table());
+    jitters[ov::intel_cpu::aarch64::GemmCopyB::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_gemm_copy_b_emitter, configurator->get_kernel_executor_table());
 #ifdef SNIPPETS_LIBXSMM_TPP
     // brgemm
     jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =

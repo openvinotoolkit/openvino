@@ -59,17 +59,15 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct GemmCopyBKaiCompiledKernel {
-    std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel> gemm_copyb_kernel = nullptr;
-};
-
 class GemmCopyBKaiKernelExecutor
-    : public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBKaiCompiledKernel> {
+    : public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel> {
 public:
     GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config);
 
     void update_kernel(const GemmCopyBKernelKaiConfig& config,
-                       std::shared_ptr<GemmCopyBKaiCompiledKernel>& kernel) const override final {}
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {
+        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    }
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0);
