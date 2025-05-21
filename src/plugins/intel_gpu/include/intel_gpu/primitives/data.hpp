@@ -187,6 +187,7 @@ struct weightless_cache_manager {
             ib >> *reorder_rep.reorder;
         }
 
+        OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");
         auto constant_ptr = weights_memory->get_constant_buf(bin_offset, original_size);
 
         if (should_run_transformations()) {

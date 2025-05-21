@@ -94,7 +94,7 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
         return false;
 
     const auto zeros_const = Constant::create(input2.get_element_type(), {}, {0});
-    const auto zero_t = Tensor(input2.get_element_type(), Shape{});
+    auto zero_t = Tensor(input2.get_element_type(), Shape{});
     memcpy(zero_t.data(), zeros_const->get_data_ptr(), zero_t.get_byte_size());
 
     const auto max_value = ov::util::make_tensor_of_max_value(input2.get_element_type());
@@ -172,7 +172,7 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
 
         // replace zeros by 1 values to get result of divide for other values of arguments
         const auto ones = Constant::create(input2.get_element_type(), input2.get_shape(), {1});
-        const auto ones_t = Tensor(ones->get_element_type(), ones->get_shape());
+        auto ones_t = Tensor(ones->get_element_type(), ones->get_shape());
         memcpy(ones_t.data(), ones->get_data_ptr(), ones_t.get_byte_size());
 
         status = Select().evaluate(value2_outs, {input2_zeros_mask, ones_t, value2});

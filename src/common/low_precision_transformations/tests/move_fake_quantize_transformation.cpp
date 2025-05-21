@@ -23,6 +23,7 @@
 #include "ov_lpt_models/move_fake_quantize.hpp"
 #include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
 
 using namespace testing;
 using namespace ov;

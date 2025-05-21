@@ -7,6 +7,13 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {

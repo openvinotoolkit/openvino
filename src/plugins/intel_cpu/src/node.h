@@ -23,6 +23,7 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -761,8 +762,7 @@ protected:
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
-    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 

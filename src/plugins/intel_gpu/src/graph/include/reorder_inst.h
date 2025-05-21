@@ -33,7 +33,7 @@ public:
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     program_node& mean() const { return get_dependency(1); }
 
-    bool has_mean() const { return !typed_desc()->mean.empty(); }
+    bool has_mean() const { return typed_desc()->mean.is_valid(); }
 
     bool requires_reinterpret() const { return req_reinterpr; }
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
@@ -92,7 +92,7 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
+    bool has_mean() const { return get_typed_desc<reorder>()->mean.is_valid(); }
 
     void update_output_memory() override;
     bool requires_reinterpret() const {

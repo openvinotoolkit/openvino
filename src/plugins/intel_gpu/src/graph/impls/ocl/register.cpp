@@ -15,7 +15,6 @@ void register_implementations() {
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
-    REGISTER_OCL(col2im);
     REGISTER_OCL(concatenation);
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
@@ -31,7 +30,6 @@ void register_implementations() {
     REGISTER_OCL(experimental_detectron_topk_rois);
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
-    REGISTER_OCL(gather);
     REGISTER_OCL(gather_elements);
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
@@ -87,6 +85,7 @@ void register_implementations() {
     REGISTER_OCL(scaled_dot_product_attention);
     REGISTER_OCL(search_sorted);
     REGISTER_OCL(STFT);
+    REGISTER_OCL(ISTFT);
 }
 
 }  // namespace ocl

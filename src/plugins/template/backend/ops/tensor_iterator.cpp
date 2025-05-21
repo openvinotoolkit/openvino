@@ -6,6 +6,7 @@
 
 #include "backend.hpp"
 #include "evaluate_node.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 namespace ti_v0 {
 ov::reference::custom_evaluate_function evaluate =

@@ -69,14 +69,13 @@ void scatter_elements_update_inst::update_output_memory() {
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    if (_node != nullptr)
-        build_deps();
+    build_deps();
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_enable_memory_pool()) {
-        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;

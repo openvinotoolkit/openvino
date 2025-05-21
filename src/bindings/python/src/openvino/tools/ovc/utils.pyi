@@ -1,8 +1,8 @@
 # type: ignore
 from __future__ import annotations
 from importlib import metadata as importlib_metadata
-from openvino_telemetry.backend import backend_ga4
 from openvino.tools.ovc.error import Error
+from openvino_telemetry.backend import backend_ga4
 import importlib as importlib
 import logging as log
 import numpy
