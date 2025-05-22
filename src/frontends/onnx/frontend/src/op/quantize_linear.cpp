@@ -222,8 +222,12 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
-    if (scale.get_partial_shape().rank().is_static() && (scale.get_partial_shape().rank().get_length() == 0 || scale.get_partial_shape().compatible({1})) &&
-        zero_point.get_partial_shape().rank().is_static() && (zero_point.get_partial_shape().rank().get_length() == 0 || zero_point.get_partial_shape().compatible({1}))) {
+    if (scale.get_partial_shape().rank().is_static() &&
+        (scale.get_partial_shape().rank().get_length() == 0 ||
+        scale.get_partial_shape().compatible({1})) &&
+        zero_point.get_partial_shape().rank().is_static() &&
+        (zero_point.get_partial_shape().rank().get_length() == 0 ||
+        zero_point.get_partial_shape().compatible({1}))) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
 
