@@ -241,3 +241,79 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     }
 }
 #endif // ENABLE_ONEDNN_FOR_GPU
+
+TEST(group_normalization, basic_b_fs_yx_fsv16) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    const ov::Shape input_shape = {1, 128, 256, 256};
+    const ov::Shape param_shape = {128, 1, 1, 1};
+    auto in_layout = layout{input_shape, data_types::f32, format::bfyx};
+    auto scale_layout = layout{param_shape, data_types::f32, format::bfyx};
+    auto bias_layout = layout{param_shape, data_types::f32, format::bfyx};
+    const float epsilon = 1e-5f;
+    const int64_t num_groups = 1;
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+
+    tests::random_generator rg{"GroupNormalizationGPUTest"};
+
+    std::vector<float> in_vals = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);
+    std::vector<float> scale_vals = rg.generate_random_1d<float>(input_shape[1], -1, 1);
+    std::vector<float> bias_vals = rg.generate_random_1d<float>(input_shape[1], -1, 1);
+
+    set_values(input_mem, in_vals);
+    set_values(scale_mem, scale_vals);
+    set_values(bias_mem, bias_vals);
+
+    topology topology(
+        input_layout("input_bfyx_f32", in_layout),
+        input_layout("scale_bfyx_f32", scale_layout),
+        input_layout("bias_bfyx_f32", bias_layout),
+        reorder("input_fsv16_f32", input_info("input_bfyx_f32"), format::b_fs_yx_fsv16, data_types::f32),
+        reorder("scale_fsv16_f32", input_info("scale_bfyx_f32"), format::b_fs_yx_fsv16, data_types::f32),
+        reorder("bias_fsv16_f32", input_info("bias_bfyx_f32"), format::b_fs_yx_fsv16, data_types::f32),
+        group_normalization("group_normalization_fsv16_f32",
+                            input_info("input_fsv16_f32"),
+                            input_info("scale_fsv16_f32"),
+                            input_info("bias_fsv16_f32"),
+                            num_groups,
+                            epsilon),
+        reorder("output_bfyx_f32", input_info("group_normalization_fsv16_f32"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
+    config.set_property(
+        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization_fsv16_f32", gn_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input_bfyx_f32", input_mem);
+    network.set_input_data("scale_bfyx_f32", scale_mem);
+    network.set_input_data("bias_bfyx_f32", bias_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output_bfyx_f32").get_memory();
+    cldnn::mem_lock<float> output_mem_lock(output, get_test_stream());
+
+    cldnn::mem_lock<float> input_mem_lock(input_mem, get_test_stream());
+    cldnn::mem_lock<float> scale_mem_lock(scale_mem, get_test_stream());
+    cldnn::mem_lock<float> bias_mem_lock(bias_mem, get_test_stream());
+
+    std::vector<float> reference_output(output_mem_lock.size());
+    ov::reference::group_normalization(input_mem_lock.data(),
+                                       scale_mem_lock.data(),
+                                       bias_mem_lock.data(),
+                                       reference_output.data(),
+                                       input_shape,
+                                       num_groups,
+                                       epsilon);
+
+    for (std::size_t i = 0; i < reference_output.size(); i++) {
+        ASSERT_NEAR(reference_output[i], output_mem_lock[i], 0.01);
+    }
+}
