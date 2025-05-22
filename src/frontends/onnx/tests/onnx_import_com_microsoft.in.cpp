@@ -2356,4 +2356,3 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_where_u8) {
     test_case.add_expected_output<uint8_t>(Shape{4, 5, 6}, expected_output);
     test_case.run();
 }
-
