@@ -43,9 +43,24 @@ void not_equal(const std::string* arg0,
                const Shape& arg0_shape,
                const Shape& arg1_shape,
                const op::AutoBroadcastSpec& broadcast_spec) {
-    std::string to_compare = arg1[0];
-    for (size_t i = 0; i < shape_size(arg0_shape); ++i) {
-        out[i] = static_cast<U>(arg0[i] != to_compare);
+    const auto arg0_elem_count = shape_size(arg0_shape);
+    const auto arg1_elem_count = shape_size(arg1_shape);
+
+    if (arg0_elem_count == 1) {
+        const std::string& to_compare = arg0[0];
+        for (size_t i = 0; i < arg1_elem_count; ++i) {
+            out[i] = static_cast<U>(to_compare != arg1[i]);
+        }
+    } else if (arg1_elem_count == 1) {
+        const std::string& to_compare = arg1[0];
+        for (size_t i = 0; i < arg0_elem_count; ++i) {
+            out[i] = static_cast<U>(arg0[i] != to_compare);
+        }
+    } else {
+        OPENVINO_ASSERT(arg0_shape == arg1_shape, "Advanced broadcast is not supported for string type yet.");
+        for (size_t i = 0; i < arg0_elem_count; ++i) {
+            out[i] = static_cast<U>(arg0[i] != arg1[i]);
+        }
     }
 }
 
