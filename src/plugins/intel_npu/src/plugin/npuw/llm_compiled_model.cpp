@@ -221,7 +221,7 @@ private:
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
-    ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
+    explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
