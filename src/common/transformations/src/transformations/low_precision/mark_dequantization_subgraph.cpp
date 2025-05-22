@@ -5,6 +5,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
@@ -355,5 +356,51 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     };
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& fp_precisions_to_mark,
+                                                 const element::TypeVector& int_precisions_to_mark) {
+    MATCHER_SCOPE(MarkGatherSubgraph);
+
+    // 1. Data input: FP → (optional Convert) → (input to Gather[0])
+    auto is_fp = [](const Output<Node>& out) {
+        return out.get_element_type().is_real();
+    };
+    auto data_input = wrap_type<op::v0::Constant>(is_fp && check_precision(fp_precisions_to_mark));
+    auto data_convert = optional<op::v0::Convert>({data_input});
+
+    // 2. Indices input: int/uint → (optional Convert) → (input to Gather[1])
+    auto is_integral = [](const Output<Node>& out) {
+        return out.get_element_type().is_integral();
+    };
+    auto indices_input = wrap_type<op::v0::Constant>(is_integral && check_precision(int_precisions_to_mark));
+    auto indices_convert = optional<op::v0::Convert>({indices_input});
+
+    // Gather (fp, integral, any)
+    auto axis = any_input();
+    auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pm = m.get_pattern_map();
+        auto gather_node = pm.at(gather);
+        if (transformation_callback(gather_node)) {
+            return false;
+        }
+
+        for (const auto& node : {gather, data_convert, indices_convert}) {
+            if (pm.count(node))
+                ov::disable_constant_folding(pm.at(node));
+        }
+
+        for (const auto& constant : {data_input, indices_input}) {
+            if (pm.count(constant))
+                ov::enable_keep_const_precision(pm.at(constant));
+        }
+
+        return false;
+    };
+
+    auto m = std::make_shared<Matcher>(gather, "MarkGatherSubgraph");
     this->register_matcher(m, callback);
 }

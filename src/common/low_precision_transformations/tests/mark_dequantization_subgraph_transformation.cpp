@@ -22,6 +22,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace ov;
 
@@ -867,4 +868,83 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
     auto func_comparator = FunctionsComparator::with_default();
     auto result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+inline std::shared_ptr<ov::Model> make_gather_model(
+    ov::element::Type data_type,
+    ov::element::Type indices_type,
+    bool use_data_convert,
+    bool use_indices_convert)
+{
+    using ov::op::v0::Constant;
+    using ov::op::v0::Convert;
+    using ov::op::v8::Gather;
+
+    std::shared_ptr<ov::Node> data = std::make_shared<Constant>(data_type, ov::Shape{4}, 2);
+    if (use_data_convert)
+        data = std::make_shared<Convert>(data, ov::element::f32);
+
+    std::shared_ptr<ov::Node> indices = std::make_shared<Constant>(indices_type, ov::Shape{3}, 1);
+    if (use_indices_convert)
+        indices = std::make_shared<Convert>(indices, ov::element::i32);
+
+    auto axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
+    auto gather = std::make_shared<Gather>(data, indices, axis);
+
+   return std::make_shared<ov::Model>(OutputVector{gather}, ov::ParameterVector{});
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph) {
+    auto data_type = ov::element::f8e4m3;
+    auto indices_type = ov::element::i8;
+
+    // the model remains the same, no ref model provided, compare with cloned.
+    model = make_gather_model(data_type, indices_type, true, true);
+    manager.register_pass<ov::pass::MarkGatherSubgraph>(
+        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
+        ov::element::TypeVector{ov::element::i8, ov::element::u8}
+    );
+
+    manager.register_pass<ov::pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, ov::element::f32},
+        {indices_type, ov::element::i32},
+    };
+    manager.register_pass<ov::pass::ConvertPrecision>(map);
+}
+
+TEST(RTInfoCheck, MarkGatherSubgraph) {
+    auto data_type = ov::element::f8e4m3;
+    auto indices_type = ov::element::i8;
+
+    // the model remains the same, no ref model provided, compare with cloned.
+    auto model = make_gather_model(data_type, indices_type, true, true);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::MarkGatherSubgraph>(
+        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
+        ov::element::TypeVector{ov::element::i8, ov::element::u8}
+    );
+
+    manager.register_pass<ov::pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, ov::element::f32},
+        {indices_type, ov::element::i32},
+    };
+    manager.register_pass<ov::pass::ConvertPrecision>(map);
+    manager.run_passes(model);
+
+    // Expect Convert ops have CF disabled, Consts have keep_const_precision
+    int convert_cf_disabled = 0, const_keep_precision = 0;
+    for (const auto& node : model->get_ops()) {
+        if (auto conv = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+            convert_cf_disabled += ov::pass::constant_folding_is_disabled(conv);
+        }
+
+        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+            const_keep_precision += ov::is_keep_const_precision(c);
+        }
+    }
+
+    EXPECT_EQ(convert_cf_disabled, 2);
+    EXPECT_EQ(const_keep_precision, 2);
 }

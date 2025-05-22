@@ -109,5 +109,28 @@ public:
     explicit KeepDequantizationPrecision(const element::TypeVector& precisions);
 };
 
+/**
+ * Marks subgraphs where Gather receives:
+ *   - data: FP Constant → (optional Convert)
+ *   - indices: INT/UINT Constant → (optional Convert)
+ * Disables constant folding for Converts, enables keep-precision for Constants.
+ *
+ * Pattern:
+ *
+ *      [FP Constant]      [INT Constant]       [Axis]
+ *            |                  |                |
+ *      (optional Convert) (optional Convert)     |
+ *            |                  |                |
+ *            +--------+---------+--------+-------+
+ *                     |         |        |
+ *              Gather (data, indices, axis)
+ */
+class TRANSFORMATIONS_API MarkGatherSubgraph : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkGatherSubgraph")
+    MarkGatherSubgraph(const element::TypeVector& fp_precisions_to_mark,
+                       const element::TypeVector& int_precisions_to_mark);
+};
+
 }  // namespace pass
 }  // namespace ov
