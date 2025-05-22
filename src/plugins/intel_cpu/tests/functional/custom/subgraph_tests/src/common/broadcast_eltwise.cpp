@@ -107,6 +107,7 @@ private:
 };
 
 TEST_P(BroadcastEltwise, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     CheckLastNode(compiledModel);
 }

@@ -49,6 +49,10 @@ CompiledModel::~CompiledModel() {
         m_sub_compiled_models.clear();
         m_sub_memory_manager->_memorys_table.clear();
     }
+    auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+    if (streamsExecutor) {
+        streamsExecutor->cpu_reset();
+    }
     CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps, m_name, m_graphs, m_socketWeights));
 }
 
@@ -97,6 +101,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor) {
         set_callback_executor(m_callback_executor);
     }
+
+    m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
@@ -215,7 +221,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_callback_executor());
+                                            get_callback_executor(),
+                                            m_optimized_single_stream);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
