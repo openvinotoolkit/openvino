@@ -76,6 +76,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
+            // Issue: 168015. Low precision PRelu is not supported on GPU
+            R"(.*smoke_LPT.*PReluTransformation.*)",
             // Issue: expected precision mismatch
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             // Issue: accuracy mismatch
