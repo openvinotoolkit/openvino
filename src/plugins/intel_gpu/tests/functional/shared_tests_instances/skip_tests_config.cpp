@@ -76,13 +76,16 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
-            // Issue: Disabled due to LPT precision matching issue
+            // Issue: expected precision mismatch
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
+            // Issue: accuracy mismatch
+            R"(.*smoke_LPT.*FuseDequantizeToFakeQuantizeTransformation.*f32_0_dynamic_\[\]_f32__\{\}_\{\}__\{.0.01.\}_dynamic_\[\]_0_1_dynamic_f32_level=256_shape=\[\]_input_low=\{.0.\}_input_high=\{.2.55.\}_output_low=\{.0.\}_output_high=\{.2.55.\}_output_precision=_constant_precision=)",
+            R"(.*smoke_LPT.*MatMulWithConstantTransformation.*\[1,1,3,4\].*level=256_shape=\[1,3,1\]_input_low=\{.0,.0,.0.\}_input_high=\{.25,.24,.25.\}_output_low=\{.0,.0,.0.\}_output_high=\{.25,.24,.25.\}_output_precision=_constant_precision=.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
-            // Issue: CVS-133173
+            // by calc abs_threshold with expected value
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.6.8\)\}_LL=\(6.5.6\)_A=\(4.1.2.3.4.5\)\(5.4.3.0.1.0\)\(2.1.3.1.3.0\)_AL=\(3.3.5\)_BI=7_PCR=1_CMR=1_U=0_PF=f32_PI=i64.*)",
             R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.16.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)",
             R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.32.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)",
@@ -95,7 +98,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_MatMul_BothTranspose/MatMulLayerTest.Inference/IS=\(\[\]_\[\]\)_TS=\{\(5\)_\(5\)\}_transpose_a=1_transpose_b=1_secondary_input_type=(CONSTANT|PARAMETER)_modelType=(f16|f32).*)",
             R"(.*smoke_dynamic_conv_reshape_fullyconnected/ConvReshapeFullyConnectedDynamicGPUTestDynamic.Inference/IS=\[\?\.64\.1\.\?\.\?\]_\[1\.64\.1\.1\.1\]_model_type=f16.*)",
             R"(.*smoke_empty_tensor/EmptyTensorDynamicGPUTest.Inference/IS=\[\?\]_\[30\]_\[40\]_\[50\]_\[10\]_\[7\]_\[\?.\?\]_\[1.0\]_\[1.8\]_\[1.0\]_\[1.3\]_\[1.20\]_NetType=i32.*)",
-            // by calc abs_threshold with expected value
             R"(.*smoke_Convolution2D_ExplicitPadding/ActivatiConvolutionLayerTestonLayerTest.Inference.*netPRC=f16.*)",
             R"(.*smoke_Convolution2D_AutoPadValid/ConvolutionLayerTest.Inference.*netPRC=f16.*)",
             R"(.*smoke_Convolution3D_Basic1/ConvolutionLayerTest.*)",
