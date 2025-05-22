@@ -7,6 +7,13 @@
 #include "common_test_utils/type_prop.hpp"
 #include "dimension_util.hpp"
 
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/sink.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/core.hpp"
+
 using namespace std;
 using namespace ov;
 
@@ -125,4 +132,49 @@ TEST(type_prop, DISABLED_read_value_symbols_propagation_from_init_subgraph) {
     auto variable = std::make_shared<op::util::Variable>(variable_info);
     std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(input, variable);
     EXPECT_THAT(get_shape_symbols(read_value->get_output_partial_shape(0)), symbols);
+}
+
+
+TEST(type_prop, my_test) {
+    using namespace ov::pass::pattern;
+    using namespace ov;
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+    position_ids->output(0).set_names({"position_ids"});
+
+    auto var_info = ov::op::util::VariableInfo{ov::PartialShape{-1}, ov::element::i64, "var_" + std::to_string(0)};
+    auto var = std::make_shared<ov::op::util::Variable>(var_info);
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{0}, {}), var);
+    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{read_value->output(0), position_ids->output(0)}, 0);
+    auto assign = std::make_shared<ov::op::v6::Assign>(concat, var);
+    
+    auto res = std::make_shared<ov::op::v0::Result>(concat);
+
+    auto model = std::make_shared<ov::Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{position_ids});
+
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+ 
+    auto input = model->input();
+    std::string input_name = input.get_any_name();
+ 
+    ov::Shape shape = {1};
+ 
+    for (int64_t i = 0; i < 5; ++i) {
+        ov::Tensor input_tensor(ov::element::i64, shape);
+ 
+        int64_t* data = input_tensor.data<int64_t>();
+        data[0] = i;
+ 
+        infer_request.set_tensor(input_name, input_tensor);
+ 
+        infer_request.infer();
+
+        auto output_tensor = infer_request.get_output_tensor(0);
+        int64_t* output_data = input_tensor.data<int64_t>();
+        std::cout << output_data[0] << std::endl;
+ 
+        std::cout << "Inference #" << i << " completed, input = " << i << std::endl;
+    }
 }
