@@ -139,6 +139,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 
 namespace opset_1 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    std::cout << "hehexx" << std::endl;
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
@@ -171,14 +172,12 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
     if (x_shape.rank().is_static()) {
         axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
     }
-
+    std::cout << "hehe0" << std::endl;
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
-    const auto one_partial_shape = PartialShape({1});
 
-    if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 &&
-        y_scale_shape != one_partial_shape && x_shape.rank().is_static() && x_shape.rank().get_length() > 0 &&
-        x_shape[axis].is_static()) {
+    if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
+        x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_scale_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization scale elements ",
@@ -193,8 +192,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
     }
 
     if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
-        y_zero_point_shape != one_partial_shape && x_shape.rank().is_static() && x_shape.rank().get_length() > 0 &&
-        x_shape[axis].is_static()) {
+        x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_zero_point_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization zero point elements ",
@@ -225,8 +223,8 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
-    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
-        zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
+    if (scale.get_partial_shape().rank().is_static() && (scale.get_partial_shape().rank().get_length() == 0 || scale.get_partial_shape().compatible({1})) &&
+        zero_point.get_partial_shape().rank().is_static() && (zero_point.get_partial_shape().rank().get_length() == 0 || zero_point.get_partial_shape().compatible({1}))) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
 
