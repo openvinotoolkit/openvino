@@ -470,9 +470,9 @@ void Partitioner::identifySubgraphs() {
                 if (otype == ov::element::f32 && connect_in_f16) {
                     if (!is_hp_tag(output)) {
                         otype = ov::element::f16;
-                        LOG_VERB("Found parameter  " << output << ", will be computed in fp16 precision");
+                        LOG_DEBUG("Found parameter  " << output << ", will be computed in fp16 precision");
                     } else {
-                        LOG_VERB("Found parameter  " << output << ", pinned to compute in fp32 precision");
+                        LOG_DEBUG("Found parameter  " << output << ", pinned to compute in fp32 precision");
                     }
                 }
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(otype, output.get_partial_shape());
@@ -723,7 +723,7 @@ void Partitioner::identifySubgraphs() {
                         if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
                             if (!is_hp_tag(output_desc)) {
                                 auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
-                                LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
+                                LOG_VERB("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
                                 result_src = new_cvt;
                             } else {
                                 LOG_VERB("Found result  " << output_desc << ", pinned to compute in high precision");
