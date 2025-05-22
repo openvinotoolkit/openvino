@@ -1,45 +1,31 @@
 [
     {
-        "Platform": "Intel® Xeon® Platinum 8380",
-        "Model": "meta-llama/Llama-2-7b-chat-hf",
+        "Platform": "Intel® Xeon® 6972P",
+        "Model": "meta-llama/Llama-2-7b-chat-hf FP16",
         "featured_SKU": "false",
-        "whats_new_model": false,
+        "whats_new_model": "false",
         "PlatformType": "",
         "Parameters": {
             "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
-                            "0.2": 94.1,
-                            "0.4": 187.74,
-                            "0.6": 272.52,
-                            "0.8": 293.4,
-                            "2.0": 295.76
+                            "0.2": 95.43,
+                            "0.4": 190.04,
+                            "0.6": 283.3,
+                            "0.8": 373.53,
+                            "1.0": 463.01,
+                            "2.0": 884.21,
+                            "inf": 1170.44
                         },
                         "Latency": {
-                            "0.2": 176.7,
-                            "0.4": 118.58,
-                            "0.6": 432.65,
-                            "0.8": 740.36,
-                            "2.0": 762.86
-                        }
-                    }
-                ]
-            },
-            "Vllm": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                            "0.4": 187.8,
-                            "0.6": 271.96,
-                            "0.8": 288.48,
-                            "inf": 289.27
-                        },
-                        "Latency": {
-                            "0.4": 132.19,
-                            "0.6": 489.94,
-                            "0.8": 782.4,
-                            "inf": 806.93
+                            "0.2": 39.0,
+                            "0.4": 44.02,
+                            "0.6": 46.7,
+                            "0.8": 55.73,
+                            "1.0": 57.01,
+                            "2.0": 89.72,
+                            "inf": 167.66
                         }
                     }
                 ]
@@ -48,49 +34,361 @@
     },
     {
         "Platform": "Intel® Xeon® Platinum 8480+",
-        "Model": "meta-llama/Llama-2-7b-chat-hf",
+        "Model": "meta-llama/Llama-2-7b-chat-hf FP16",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 95.28,
+                            "0.4": 188.5,
+                            "0.6": 280.33,
+                            "0.8": 369.14,
+                            "1.0": 456.64,
+                            "2.0": 844.87,
+                            "inf": 1051.44
+                        },
+                        "Latency": {
+                            "0.2": 60.19,
+                            "0.4": 64.67,
+                            "0.6": 69.04,
+                            "0.8": 75.15,
+                            "1.0": 82.94,
+                            "2.0": 129.74,
+                            "inf": 184.89
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® 6972P",
+        "Model": "meta-llama/Llama-2-7b-chat-hf INT8",
         "featured_SKU": "false",
-        "whats_new_model": false,
+        "whats_new_model": "false",
         "PlatformType": "",
         "Parameters": {
             "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
-                            "0.8": 365.72,
-                            "1.0": 450.76,
-                            "2.0": 789.09,
-                            "inf": 838.44
+                            "0.2": 95.33,
+                            "0.4": 189.99,
+                            "0.6": 282.44,
+                            "0.8": 373.7,
+                            "1.0": 462.77,
+                            "2.0": 859.52,
+                            "inf": 1036.41
                         },
                         "Latency": {
-                            "0.8": 98.08,
-                            "1.0": 125.44,
-                            "2.0": 238.21,
-                            "inf": 252.41
+                            "0.2": 40.83,
+                            "0.4": 45.13,
+                            "0.6": 50.99,
+                            "0.8": 57.71,
+                            "1.0": 62.86,
+                            "2.0": 151.79,
+                            "inf": 195.98
                         }
                     }
                 ]
-            },
-            "Vllm": {
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8480+",
+        "Model": "meta-llama/Llama-2-7b-chat-hf INT8",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
-                            "0.2": 94.84,
-                            "0.4": 188.81,
-                            "0.6": 279.7,
-                            "0.8": 367.37,
-                            "1.0": 452.54,
-                            "2.0": 776.32,
-                            "inf": 799.64
+                            "0.2": 95.45,
+                            "0.4": 189.16,
+                            "0.6": 281.07,
+                            "0.8": 369.56,
+                            "1.0": 455.53,
+                            "2.0": 803.52,
+                            "inf": 863.92
                         },
                         "Latency": {
-                            "0.2": 64.3,
-                            "0.4": 76.82,
-                            "0.6": 86.42,
-                            "0.8": 104.28,
-                            "1.0": 131.91,
-                            "2.0": 258.35,
-                            "inf": 268.59
+                            "0.2": 51.7,
+                            "0.4": 58.45,
+                            "0.6": 66.58,
+                            "0.8": 79.06,
+                            "1.0": 96.87,
+                            "2.0": 214.22,
+                            "inf": 226.86
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® 6972P",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct FP16",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.39,
+                            "0.4": 164.66,
+                            "0.6": 245.08,
+                            "0.8": 325.81,
+                            "1.0": 404.89,
+                            "2.0": 782.64,
+                            "inf": 1435.88
+                        },
+                        "Latency": {
+                            "0.2": 45.85,
+                            "0.4": 44.98,
+                            "0.6": 49.4,
+                            "0.8": 50.54,
+                            "1.0": 53.6,
+                            "2.0": 79.07,
+                            "inf": 140.78
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8480+",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct FP16",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.56,
+                            "0.4": 163.92,
+                            "0.6": 244.44,
+                            "0.8": 323.26,
+                            "1.0": 401.55,
+                            "2.0": 754.65,
+                            "inf": 1127.85
+                        },
+                        "Latency": {
+                            "0.2": 67.79,
+                            "0.4": 69.76,
+                            "0.6": 73.49,
+                            "0.8": 77.57,
+                            "1.0": 82.74,
+                            "2.0": 112.9,
+                            "inf": 179.26
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Arc™ A770 Graphics",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT4",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 83.18,
+                            "0.4": 166.09,
+                            "0.6": 248.42,
+                            "0.8": 330.07,
+                            "1.0": 410.06,
+                            "2.0": 805.59,
+                            "inf": 2185.97
+                        },
+                        "Latency": {
+                            "0.2": 23.24,
+                            "0.4": 26.47,
+                            "0.6": 29.1,
+                            "0.8": 31.19,
+                            "1.0": 34.99,
+                            "2.0": 45.64,
+                            "inf": 90.98
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Arc™ B580 Graphics",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT4",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 83.25,
+                            "0.4": 166.23,
+                            "0.6": 248.96,
+                            "0.8": 331.72,
+                            "1.0": 413.87,
+                            "2.0": 817.85,
+                            "inf": 1994.98
+                        },
+                        "Latency": {
+                            "0.2": 13.43,
+                            "0.4": 14.01,
+                            "0.6": 14.59,
+                            "0.8": 15.29,
+                            "1.0": 15.87,
+                            "2.0": 21.11,
+                            "inf": 105.58
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Arc™ A770 Graphics",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT8",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.62,
+                            "0.4": 164.85,
+                            "0.6": 246.57,
+                            "0.8": 327.26,
+                            "1.0": 407.54,
+                            "2.0": 796.95,
+                            "inf": 2011.42
+                        },
+                        "Latency": {
+                            "0.2": 32.51,
+                            "0.4": 34.49,
+                            "0.6": 36.01,
+                            "0.8": 37.04,
+                            "1.0": 38.33,
+                            "2.0": 51.77,
+                            "inf": 98.51
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Arc™ B580 Graphics",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT8",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.58,
+                            "0.4": 165.03,
+                            "0.6": 247.36,
+                            "0.8": 328.75,
+                            "1.0": 409.73,
+                            "2.0": 807.57,
+                            "inf": 1917.81
+                        },
+                        "Latency": {
+                            "0.2": 20.84,
+                            "0.4": 21.67,
+                            "0.6": 22.5,
+                            "0.8": 23.35,
+                            "1.0": 24.26,
+                            "2.0": 30.57,
+                            "inf": 99.54
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® 6972P",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT8",
+        "featured_SKU": "false",
+        "whats_new_model": "false",
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.63,
+                            "0.4": 164.55,
+                            "0.6": 245.68,
+                            "0.8": 325.5,
+                            "1.0": 405.05,
+                            "2.0": 765.93,
+                            "inf": 1129.09
+                        },
+                        "Latency": {
+                            "0.2": 47.12,
+                            "0.4": 52.45,
+                            "0.6": 58.18,
+                            "0.8": 61.45,
+                            "1.0": 68.75,
+                            "2.0": 119.65,
+                            "inf": 177.33
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8480+",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT8",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 82.51,
+                            "0.4": 164.72,
+                            "0.6": 245.23,
+                            "0.8": 325.04,
+                            "1.0": 403.56,
+                            "2.0": 745.92,
+                            "inf": 959.79
+                        },
+                        "Latency": {
+                            "0.2": 54.3,
+                            "0.4": 61.37,
+                            "0.6": 62.52,
+                            "0.8": 68.76,
+                            "1.0": 78.87,
+                            "2.0": 170.55,
+                            "inf": 210.4
                         }
                     }
                 ]
@@ -99,145 +397,64 @@
     },
     {
         "Platform": "Intel® Xeon® Platinum 8580",
-        "Model": "meta-llama/Llama-2-7b-chat-hf",
-        "featured_SKU": "false",
-        "whats_new_model": false,
-        "PlatformType": "",
+        "Model": "meta-llama/Llama-2-7b-chat-hf FP16",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 95.16,
+                            "0.4": 188.36,
+                            "0.6": 280.55,
+                            "0.8": 371.39,
+                            "1.0": 457.78,
+                            "2.0": 853.24,
+                            "inf": 1070.86
+                        },
+                        "Latency": {
+                            "0.2": 57.23,
+                            "0.4": 61.41,
+                            "0.6": 66.47,
+                            "0.8": 70.99,
+                            "1.0": 76.39,
+                            "2.0": 119.94,
+                            "inf": 179.55
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8580",
+        "Model": "meta-llama/Llama-2-7b-chat-hf INT8",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
             "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
                             "0.2": 95.21,
-                            "0.4": 188.67,
-                            "0.6": 280.2,
-                            "0.8": 367.31,
-                            "1.0": 452.32,
-                            "2.0": 779.35,
-                            "inf": 803.72
+                            "0.4": 188.69,
+                            "0.6": 280.08,
+                            "0.8": 368.14,
+                            "1.0": 451.88,
+                            "2.0": 778.27,
+                            "inf": 791.53
                         },
                         "Latency": {
-                            "0.2": 51.36,
-                            "0.4": 70.72,
-                            "0.6": 85.08,
-                            "0.8": 106.68,
-                            "1.0": 137.73,
-                            "2.0": 255.67,
-                            "inf": 267.35
-                        }
-                    }
-                ]
-            },
-            "Vllm": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                            "0.2": 94.89,
-                            "0.4": 188.19,
-                            "0.6": 279.74,
-                            "0.8": 367.71,
-                            "1.0": 451.08,
-                            "2.0": 777.0,
-                            "inf": 788.01
-                        },
-                        "Latency": {
-                            "0.2": 58.33,
-                            "0.4": 77.26,
-                            "0.6": 89.43,
-                            "0.8": 114.8,
-                            "1.0": 142.9,
-                            "2.0": 263.78,
-                            "inf": 273.84
-                        }
-                    }
-                ]
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8380",
-        "Model": "mistralai/Mistral-7B-v0.1",
-        "featured_SKU": "false",
-        "whats_new_model": false,
-        "PlatformType": "",
-        "Parameters": {
-            "Ovms": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                            "0.2": 89.93,
-                            "0.4": 180.57,
-                            "0.6": 262.51,
-                            "0.8": 291.1,
-                            "2.0": 292.37
-                        },
-                        "Latency": {
-                            "0.2": 167.68,
-                            "0.4": 109.87,
-                            "0.6": 291.3,
-                            "0.8": 744.04,
-                            "2.0": 769.97
-                        }
-                    }
-                ]
-            },
-            "Vllm": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                        },
-                        "Latency": {
-                        }
-                    }
-                ]
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8480+",
-        "Model": "mistralai/Mistral-7B-v0.1",
-        "featured_SKU": "false",
-        "whats_new_model": false,
-        "PlatformType": "",
-        "Parameters": {
-            "Ovms": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                            "0.8": 351.26,
-                            "1.0": 430.53,
-                            "2.0": 760.33,
-                            "inf": 936.48
-                        },
-                        "Latency": {
-                            "0.8": 81.83,
-                            "1.0": 97.34,
-                            "2.0": 187.8,
-                            "inf": 223.4
-                        }
-                    }
-                ]
-            },
-            "Vllm": {
-                "Precisions": [
-                    {
-                        "Throughput": {
-                            "0.2": 98.21,
-                            "0.4": 194.6,
-                            "0.6": 287.38,
-                            "0.8": 376.37,
-                            "1.0": 462.08,
-                            "2.0": 773.12,
-                            "inf": 753.43
-                        },
-                        "Latency": {
-                            "0.2": 64.49,
-                            "0.4": 74.28,
-                            "0.6": 84.47,
-                            "0.8": 100.89,
-                            "1.0": 125.37,
-                            "2.0": 236.31,
-                            "inf": 262.84
+                            "0.2": 47.6,
+                            "0.4": 65.37,
+                            "0.6": 78.42,
+                            "0.8": 99.42,
+                            "1.0": 126.66,
+                            "2.0": 240.68,
+                            "inf": 248.06
                         }
                     }
                 ]
@@ -246,51 +463,64 @@
     },
     {
         "Platform": "Intel® Xeon® Platinum 8580",
-        "Model": "mistralai/Mistral-7B-v0.1",
-        "featured_SKU": "false",
-        "whats_new_model": false,
-        "PlatformType": "",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct FP16",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
             "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
-                            "0.2": 91.31,
-                            "0.4": 180.06,
-                            "0.6": 267.92,
-                            "0.8": 351.07,
-                            "1.0": 432.01,
-                            "2.0": 748.68,
-                            "inf": 819.18
+                            "0.2": 82.37,
+                            "0.4": 163.61,
+                            "0.6": 243.97,
+                            "0.8": 323.14,
+                            "1.0": 400.85,
+                            "2.0": 757.11,
+                            "inf": 1140.11
                         },
                         "Latency": {
-                            "0.2": 53.68,
-                            "0.4": 67.74,
-                            "0.6": 79.37,
-                            "0.8": 93.2,
-                            "1.0": 112.89,
-                            "2.0": 219.32,
-                            "inf": 246.03
+                            "0.2": 64.21,
+                            "0.4": 67.62,
+                            "0.6": 71.11,
+                            "0.8": 74.47,
+                            "1.0": 77.93,
+                            "2.0": 104.83,
+                            "inf": 171.92
                         }
                     }
                 ]
-            },
-            "Vllm": {
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8580",
+        "Model": "meta-llama/Meta-Llama-3-8B-Instruct INT8",
+        "featured_SKU": true,
+        "whats_new_model": "false",
+        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "Parameters": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
-                            "0.4": 194.46,
-                            "0.8": 375.65,
-                            "1.0": 459.88,
-                            "2.0": 763.63,
-                            "inf": 785.84
+                            "0.2": 82.67,
+                            "0.4": 164.14,
+                            "0.6": 244.89,
+                            "0.8": 323.41,
+                            "1.0": 400.72,
+                            "2.0": 731.15,
+                            "inf": 849.17
                         },
                         "Latency": {
-                            "0.4": 77.79,
-                            "0.8": 114.66,
-                            "1.0": 140.99,
-                            "2.0": 252.09,
-                            "inf": 255.55
+                            "0.2": 52.21,
+                            "0.4": 66.77,
+                            "0.6": 75.9,
+                            "0.8": 88.2,
+                            "1.0": 103.25,
+                            "2.0": 201.01,
+                            "inf": 239.05
                         }
                     }
                 ]

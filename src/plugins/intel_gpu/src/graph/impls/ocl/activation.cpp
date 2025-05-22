@@ -56,7 +56,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         convert_new_activation_func(*primitive, params.activations);
 
-        bool is_parameterized = !primitive->additional_params_input.empty();
+        bool is_parameterized = primitive->additional_params_input.is_valid();
         if (is_parameterized) {
             const auto& slope_layout = impl_param.input_layouts[1];
             const auto& output_layout = impl_param.get_output_layout();

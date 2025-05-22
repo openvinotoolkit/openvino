@@ -63,6 +63,15 @@ void ISTFTLayerTest::SetUp() {
                  dev] = this->GetParam();
     targetDevice = dev;
 
+    const bool isGPU = std::string(targetDevice).compare(ov::test::utils::DEVICE_GPU) == 0;
+
+    if (isGPU) {
+        abs_threshold = 1e-5;
+        if (data_type == ov::element::f16 || data_type == ov::element::bf16) {
+            abs_threshold = 1e-3;
+        }
+    }
+
     init_input_shapes(data_shapes);
 
     const auto in_signal = std::make_shared<ov::op::v0::Parameter>(data_type, inputDynamicShapes[0]);
