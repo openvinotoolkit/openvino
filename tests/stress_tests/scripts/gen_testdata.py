@@ -6,7 +6,7 @@
 """ Script to generate XML config file with the list of IR models
 Usage: 
     python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
-    optional: --framework=[tf|tf2|onnx|pytorch] --topology=<model_name_1>,<model_name_2>,...
+    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,...
 """
 # pylint:disable=line-too-long
 
@@ -79,10 +79,13 @@ def get_args(parser):
                         default=abs_path('../ir_cache'),
                         help='Directory with IR data cache.')
     parser.add_argument('--topology', action=ListAction, default='',
-                        help="'List of models topology in IR-cache. Examples: --topology=<model_name_1>,<model_name_2>,..."
+                        help="'List of models topology in IR-cache. Example: --topology=<model_name_1>,<model_name_2>,..."
                         )
     parser.add_argument('--framework', action=ListAction, default='',
-                        help="'List of models frameworks in IR-cache. Examples: --framework=onnx,tf,pytorch,..."
+                        help="'List of models frameworks in IR-cache. Example: --framework=onnx,tf,pytorch,..."
+                        )
+    parser.add_argument('--precision', action=ListAction, default='',
+                        help="'Precision of models in IR-cache. Example: --precision=INT8,FP16,FP32..."
                         )
     return parser.parse_args()
 
@@ -112,7 +115,11 @@ def main():
                     _fw = path_parts[-6] if path_parts[-2] != "optimized" else path_parts[-8]
                     if _fw not in args.framework:
                         continue
-
+                if args.precision:
+                    _pr = path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5]
+                    if _pr not in args.precision:
+                        continue
+                
                 model_element = eET.Element("model", {
                     "name": file_name,
                     "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
