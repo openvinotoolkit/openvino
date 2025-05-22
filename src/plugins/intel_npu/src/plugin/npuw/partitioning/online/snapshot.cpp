@@ -9,8 +9,8 @@
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
 #include "group.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/utils.hpp"
@@ -32,7 +32,7 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
     if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node) || ov::op::util::is_output(node)) {
         return false;
     }
-    if (ov::is_type<ov::opset1::Convert>(node)) {
+    if (ov::is_type<ov::op::v0::Convert>(node)) {
         if (node->inputs().size() != 1) {
             // can occur only in Const->Convert->Node case
             return false;
@@ -56,7 +56,7 @@ std::vector<ov::element::Type> getConstsPrecision(const std::shared_ptr<ov::Node
         auto target_input = node->get_input_source_output(i);
         auto ov_node_parent = target_input.get_node()->shared_from_this();
 
-        if (ov::is_type<ov::opset1::Convert>(ov_node_parent)) {
+        if (ov::is_type<ov::op::v0::Convert>(ov_node_parent)) {
             auto target_op_input = ov_node_parent->get_input_source_output(0);
             auto parent_op_node = target_op_input.get_node()->shared_from_this();
 

@@ -5,9 +5,28 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -27,7 +46,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
 
     struct Context {
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        std::vector<std::shared_ptr<ov::op::v0::Parameter>> old_params;
         using Ref = std::reference_wrapper<Context>;
     };
 

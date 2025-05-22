@@ -13,8 +13,10 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -23,8 +25,8 @@ namespace behavior {
 inline std::shared_ptr<ov::Model> getConstantGraph(element::Type type) {
     ResultVector results;
     ParameterVector params;
-    auto op = std::make_shared<ov::op::v1::Add>(opset8::Constant::create(type, {1}, {1}),
-                                                opset8::Constant::create(type, {1}, {1}));
+    auto op = std::make_shared<ov::op::v1::Add>(op::v0::Constant::create(type, {1}, {1}),
+                                                op::v0::Constant::create(type, {1}, {1}));
     op->set_friendly_name("Add");
     auto res = std::make_shared<ov::op::v0::Result>(op);
     res->set_friendly_name("Result");

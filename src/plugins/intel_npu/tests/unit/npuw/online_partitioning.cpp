@@ -8,7 +8,6 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
 #include "partitioning/online/compiler.hpp"
