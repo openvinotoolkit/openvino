@@ -24,5 +24,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("PrevSequenceLengthPattern", "0");
     explicit PrevSequenceLengthPattern(const std::shared_ptr<ov::Node>& unsqueezed_input_ids,
                                        const std::shared_ptr<ov::Node>& max_context_len,
-                                       const std::shared_ptr<ov::Node>& position_ids);
+                                       const std::shared_ptr<ov::Node>& position_ids,
+                                       ResultVector& dbg_res);
 };

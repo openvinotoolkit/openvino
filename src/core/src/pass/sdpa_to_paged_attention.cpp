@@ -9,6 +9,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -18,7 +19,16 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/serialize.hpp"
+
 using namespace ov::op;
+using namespace ov;
+using namespace ov::pass::pattern::op;
+
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -40,6 +50,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
+    ov::pass::VisualizeTree("before_qwen.svg").run_on_model(model);
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
@@ -135,6 +146,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     int layer_index = 0;
+    int layer_index1 = 0;
+
+    ResultVector dbg_results;
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
@@ -153,11 +167,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   rotation_deltas_inputs_for_each_layer,
                                                   model_rotation_trig_lut,
                                                   optional_model_wide_params);
-    manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
+    manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids, dbg_results);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    // manager.register_pass<ReplaceRoPERangeWithPositionIds>(position_ids, dbg_results, layer_index1, model);
+    manager.register_pass<CustomModelPass>(position_ids);
     manager.run_passes(model);
 
     {
@@ -220,9 +236,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters({std::move(model_rotation_trig_lut)});
     }
 
+    model->add_results(dbg_results);
     model->add_parameters(kv_parameters);
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
+    ov::pass::VisualizeTree("after_qwen.svg").run_on_model(model);
     return true;
 }

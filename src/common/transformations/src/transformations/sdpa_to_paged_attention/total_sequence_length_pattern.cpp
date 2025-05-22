@@ -50,6 +50,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     auto seq = wrap_type<v8::Gather>({kv_shape, gather_idx_label, any_input()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
+        std::cout << "TotalSequenceLengthPattern start" << std::endl;
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
         //  use symbolic infra or look at the constant input
         const auto& pattern_map = m.get_pattern_value_map();
@@ -106,6 +107,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         }
 
         replace_node(gather, replacement);
+        std::cout << "TotalSequenceLengthPattern end" << std::endl;
         return true;
     };
 
@@ -132,6 +134,7 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     auto p_total_seq = wrap_type<v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
+        std::cout << "TotalSequenceLengthPatternQwen start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
@@ -141,6 +144,7 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
         align_replacement(replacement, required_shape, target_type);
 
         replace_node(total_seq, replacement);
+        std::cout << "TotalSequenceLengthPatternQwen end" << std::endl;
         return true;
     };
 
