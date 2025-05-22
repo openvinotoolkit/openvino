@@ -17,6 +17,7 @@ dnnl::stream make_stream(const dnnl::engine& engine, std::shared_ptr<ThreadPool>
     }
     stream = dnnl::threadpool_interop::make_stream(engine, cur_thread_pool.get());
 #    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::deactivate_threadpool();
     dnnl::impl::threadpool_utils::activate_threadpool(cur_thread_pool.get());
 #    endif
 #else
