@@ -815,6 +815,7 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
+                    Algorithm::EltwiseSqrt,
                     Algorithm::EltwiseSubtract)) {
             return false;
         }
