@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -96,11 +97,17 @@ public:
 
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
-        return element_type.is_dynamic() ||
-               ((get_element_type() != element::string && element_type != element::string &&
-                 element_type.bitwidth() == get_element_type().bitwidth() &&
-                 element_type.is_real() == get_element_type().is_real()) ||
-                (element_type == element::string && element::string == get_element_type()));
+        if (element_type.is_dynamic()) {
+            return true;
+        } else {
+            // gets type info to reduce validation to access speed, due to performance issues
+            const auto& other_type_info = element::get_type_info(element_type);
+            const auto& this_type_info = element::get_type_info(get_element_type());
+            return (get_element_type() != element::string && element_type != element::string &&
+                    other_type_info.m_bitwidth == this_type_info.m_bitwidth &&
+                    other_type_info.m_is_real == this_type_info.m_is_real) ||
+                   (element_type == element::string && element::string == get_element_type());
+        }
     }
 
     void update_strides() const {
