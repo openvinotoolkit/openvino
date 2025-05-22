@@ -342,7 +342,7 @@ size_t jit_mod_emitter::get_inputs_num() const {
 }
 size_t jit_mod_emitter::aux_vecs_count() const {
     if (exec_prc_ == ov::element::f32) {
-        return 1;
+        return 2;
     } else if (exec_prc_ == ov::element::i32) {
         return 0;
     } else {
@@ -370,24 +370,26 @@ template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
-    VReg tmp1 = VReg(aux_vec_idxs[0]);
-    FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
 
     switch (exec_prc_) {
     case ov::element::i32:
         h->vremu_vv(dst, src0, src1);
         break;
-    case ov::element::f32:
-        h->vfdiv_vv(tmp1, src0, src1);
-        h->vfcvt_x_f_v(dst, tmp1);
-        h->vfcvt_f_x_v(dst, dst);
-        h->vmfgt_vv(mask_vreg(), dst, tmp1);
+    case ov::element::f32: {
+        VReg tmp0 = VReg(aux_vec_idxs[0]);
+        VReg tmp1 = VReg(aux_vec_idxs[1]);
+        FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
+        h->vfdiv_vv(tmp0, src0, src1);
+        h->vfcvt_x_f_v(tmp1, tmp0);
+        h->vfcvt_f_x_v(tmp1, tmp1);
+        h->vmfgt_vv(mask_vreg(), tmp1, tmp0);
         load_table_val("one", fp0);
-        h->vfsub_vf(dst, dst, fp0, VM::masked);
-        h->vfmul_vv(tmp1, dst, src1);
-        h->vfsub_vv(dst, src0, tmp1);
+        h->vfsub_vf(tmp1, tmp1, fp0, VM::masked);
+        h->vfmul_vv(tmp0, tmp1, src1);
+        h->vfsub_vv(dst, src0, tmp0);
         break;
+    }
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
     }
