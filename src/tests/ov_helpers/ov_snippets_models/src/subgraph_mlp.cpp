@@ -46,9 +46,6 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
     std::shared_ptr<Node> current = A_param;
-    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
-                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
@@ -150,9 +147,6 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     if (precisions[0] != ov::element::u8) {
         A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
     }
-    auto b_shape = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length()),
-                             static_cast<unsigned long>(input_shapes[0][1].get_length())};
-    auto b_row = ov::Shape{static_cast<unsigned long>(input_shapes[0][1].get_length())};
 
     // Create subgraph parameters (must be preserved even if similar constants exist).
     auto sub_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
