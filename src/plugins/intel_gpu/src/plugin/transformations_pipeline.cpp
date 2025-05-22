@@ -476,6 +476,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        // In the case of "input -> reshape -> convert -> multiply",
+        // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
+        // To handle this case, "KeepConstPrecision" is executed again.
+        manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
+
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();

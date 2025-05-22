@@ -5,6 +5,8 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <string>
 
@@ -444,6 +446,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
             }
+#    if defined(OPENVINO_ARCH_ARM64)
+            // enforce fp32 inference precision for dynamic quantization
+            // to preserve fp32 matmul output precision
+            if (fcDynamicQuantizationGroupSizeSetExplicitly &&
+                fcDynamicQuantizationGroupSize == std::numeric_limits<uint64_t>::max()) {
+                inferencePrecision = ov::element::f32;
+            }
+#    endif
 #endif
             if (mayiuse(avx512_core_bf16)) {
                 inferencePrecision = ov::element::bf16;
@@ -452,6 +462,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::dynamic;
         }
     }
+
     // enable ACL fast math in PERFORMANCE mode
 #if defined(OV_CPU_WITH_ACL)
     if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {

@@ -178,6 +178,14 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
     auto bytes_to_read = tensor.get_byte_size();
+
+    OPENVINO_ASSERT(bytes_to_read <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "Cannot read ",
+                    bytes_to_read,
+                    " bytes from ",
+                    file_name,
+                    ", because the value exceeds std::streamsize limit");
+
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
     OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
                     "Cannot read ",

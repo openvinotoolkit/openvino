@@ -32,7 +32,7 @@ private:
     void register_primitives() const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;
-    std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id) const;
+    std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
     std::vector<ov::PropertyName> get_caching_properties() const;
     std::vector<ov::PropertyName> get_supported_properties() const;

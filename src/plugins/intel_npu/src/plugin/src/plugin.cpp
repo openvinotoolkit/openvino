@@ -622,7 +622,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
-            stream.read(tensor.data<char>(), tensor.get_byte_size());
+            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+            }
+            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
         } else {
             tensor = ov::Tensor(tensor,
                                 ov::Coordinate{0},

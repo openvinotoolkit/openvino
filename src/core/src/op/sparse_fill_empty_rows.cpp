@@ -34,7 +34,7 @@ void SparseFillEmptyRows::validate_and_infer_types() {
                           indices_element_type);
 
     NODE_VALIDATION_CHECK(this,
-                          merged_type == element::i32 || merged_type == element::i64,
+                          merged_type == element::i32 || merged_type == element::i64 || merged_type.is_dynamic(),
                           "The element type of the indices and dense_shape inputs must be i32 or i64. Got: ",
                           merged_type);
 

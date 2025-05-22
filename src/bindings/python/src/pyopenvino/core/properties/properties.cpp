@@ -147,6 +147,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::queue_priority, "queue_priority");
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::host_task_priority, "host_task_priority");
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::available_device_mem, "available_device_mem");
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::enable_lora_operation, "enable_lora_operation");
 
     // Submodule device
     py::module m_device =

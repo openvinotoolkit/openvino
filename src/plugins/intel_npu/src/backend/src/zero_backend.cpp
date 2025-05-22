@@ -101,6 +101,14 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
                     return it->second;
                 }
             }
+            // if arch number is not found, we also try, one last time, for AUTO_DETECT devices too
+            // Devices with unpublished names will appear report AUTO_DETECT as id
+            // If we find any, we return it (the first one)
+            for (auto it = _devices.begin(); it != _devices.end(); ++it) {
+                if (it->second->getName() == "AUTO_DETECT") {
+                    return it->second;
+                }
+            }
         }
 
         // if we got here, it means there is no device with that arch number

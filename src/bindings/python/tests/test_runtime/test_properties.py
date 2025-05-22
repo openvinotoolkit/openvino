@@ -423,6 +423,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((128, 128),),
         ),
         (
+            intel_gpu_hint.enable_lora_operation,
+            "GPU_ENABLE_LORA_OPERATION",
+            ((False, False),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
