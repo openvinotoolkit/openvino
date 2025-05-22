@@ -341,16 +341,13 @@ size_t jit_mod_emitter::get_inputs_num() const {
     return 2;
 }
 size_t jit_mod_emitter::aux_vecs_count() const {
-    if(exec_prc_ == ov::element::f32) {
+    if (exec_prc_ == ov::element::f32) {
         return 1;
-    }
-    else if(exec_prc_ == ov::element::i32) {
+    } else if (exec_prc_ == ov::element::i32) {
         return 0;
-    }
-    else {
+    } else {
         OPENVINO_THROW("Unsupported precision");
     }
-    
 }
 size_t jit_mod_emitter::aux_fp_gprs_count() const {
     if(exec_prc_ == ov::element::f32) {
