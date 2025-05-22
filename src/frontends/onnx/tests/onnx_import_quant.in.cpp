@@ -191,6 +191,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_no_zero_point) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_one_dim_scale) {
+    auto model = convert_model("dequantize_linear_one_dim_scale.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<std::uint8_t>{19, 100, 21, 10});  // x
+    test_case.add_input(std::vector<float>{2.0f});              // scale
+    test_case.add_input(std::vector<float>{1.0f});              // zero_point
+
+    test_case.add_expected_output<float>(std::vector<float>{36, 198, 40, 18});
+    test_case.run();
+}
+
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     auto model = convert_model("dequantize_linear_21_no_zero_point.onnx");
 
