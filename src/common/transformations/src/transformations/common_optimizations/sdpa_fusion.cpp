@@ -89,7 +89,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
-    auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("Batches..., S_kv, D"));
+    auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
 
     auto sdpa = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
@@ -304,19 +304,26 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         }
 
         ov::OutputVector vec = {q_node, k_node, v_node};
+        int supported_rank = 3;  // this is the min supported rank according to the SDPA spec
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
             if (pshape.rank().is_dynamic()) {
                 return false;
             }
+            // align all inputs
+            supported_rank = std::max(static_cast<int>(pshape.size()), supported_rank);
+        }
 
-            int diff = 4 - static_cast<int>(pshape.size());
+        for (size_t i = 0; i < vec.size(); ++i) {
+            auto pshape = vec[i].get_partial_shape();
+            int diff = supported_rank - static_cast<int>(pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
                 auto axes_node = v0::Constant::create(ov::element::i64, ov::Shape{static_cast<size_t>(diff)}, axes);
                 auto reshape = std::make_shared<v0::Unsqueeze>(vec[i], axes_node);
                 vec[i] = reshape;
+                ov::copy_runtime_info(m.get_matched_nodes(), {reshape, axes_node});
             }
 
             if (i == 1 && !matmul_trasposes_k) {
