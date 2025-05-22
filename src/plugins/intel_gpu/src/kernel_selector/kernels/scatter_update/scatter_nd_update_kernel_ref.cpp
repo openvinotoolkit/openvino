@@ -97,8 +97,8 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, boo
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
-    printf("kernel[%d] dispatchData.gws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
-    printf("kernel[%d] dispatchData.lws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
+    // printf("kernel[%d] dispatchData.gws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
+    // printf("kernel[%d] dispatchData.lws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
 
     return dispatchData;
 }
