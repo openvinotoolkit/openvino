@@ -78,6 +78,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
             // Issue: 168015. Low precision PRelu is not supported on GPU
             R"(.*smoke_LPT.*PReluTransformation.*)",
+            // Issue: 168016. Low precision LSTMSequence/GPUSequence are not supported on GPU
+            R"(.*smoke_LPT.*RecurrentCellTransformation.*)",
             // Issue: expected precision mismatch
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
             // Issue: accuracy mismatch
