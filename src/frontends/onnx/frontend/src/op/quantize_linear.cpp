@@ -139,7 +139,6 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 
 namespace opset_1 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
-    std::cout << "hehexx" << std::endl;
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
@@ -172,7 +171,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
     if (x_shape.rank().is_static()) {
         axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
     }
-    std::cout << "hehe0" << std::endl;
+
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
 

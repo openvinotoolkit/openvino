@@ -203,7 +203,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_one_dim_scale) {
     test_case.run();
 }
 
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     auto model = convert_model("dequantize_linear_21_no_zero_point.onnx");
 
