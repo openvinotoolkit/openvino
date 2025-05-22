@@ -44,16 +44,18 @@ struct LoRAImplementationManager : public ImplementationManager {
         const auto& in0_layout = node.get_input_layout(0);
 
         static constexpr std::array supported_fmts = {format::bfyx};
-
         static constexpr std::array supported_types = {ov::element::f16, ov::element::bf16};
 
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
-            std::cout << "LoRA validate_impl failed in0_layout.format or out_layout.format" << std::endl;
             return false;
         }
 
         if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types)) {
-            std::cout << "LoRA validate_impl failed in0_layout.data_type or out_layout.data_type" << std::endl;
+            return false;
+        }
+
+        const auto lora_count = ((node.get_inputs_count() - 2ul) / 3ul);
+        if (lora_count != 1) {
             return false;
         }
 

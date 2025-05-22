@@ -79,7 +79,7 @@ struct lora_gemm_fused {
         subgroup::elemwise_cvt(matTemp, matAcc);
 #endif
 
-        if (mem_space_temp == mem_space::global) {
+        if (LORA_TEMP_IN_REG != 1) {
             xetla_nbarrier_t<num_threads, num_threads, arch_tag> nbarrier;
             nbarrier.init_nbarrier(
                     barrier_count - 1, nbarrier_role::producer_consumer);

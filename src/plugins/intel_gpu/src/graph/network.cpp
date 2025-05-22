@@ -1017,8 +1017,7 @@ void network::allocate_primitive_instance(program_node const& node) {
             for (size_t state_idx : {2, 4}) {
                 if (is_cm_user_platfom && state_idx == 2) {
                     transpose_required = !lora_prim->transposed_states;
-                }
-                if (lora_prim->input[state_idx].pid == node.id()) {
+                } else if (lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }

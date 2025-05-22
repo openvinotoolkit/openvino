@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace ov::intel_gpu::cm {
-    namespace {
+namespace {
 class XeTLAPostOP {
 protected:
     const uint32_t index;
@@ -98,7 +98,7 @@ public:
         case EltwiseOp::prod:
             return "prod";
         default:
-            throw std::runtime_error("Unknown EltwiseOp");
+            OPENVINO_THROW("Unknown XeTLA EltwiseOp");
         }
     }
 };
@@ -149,7 +149,7 @@ public:
         case ActivationOp::GeLU:
             return "gelu_fwd_op_t";
         default:
-            throw std::runtime_error("Unknown ActivationOp");
+            OPENVINO_THROW("Unknown XeTLA ActivationOp");
         }
     }
 };
@@ -237,5 +237,5 @@ Eltwise::EltwiseOp get_xetla_eltwise_op(cldnn::eltwise_mode mode) {
         return Eltwise::EltwiseOp::none;
     }
 }
-    }
+}  // namespace
 }  // namespace ov::intel_gpu::cm

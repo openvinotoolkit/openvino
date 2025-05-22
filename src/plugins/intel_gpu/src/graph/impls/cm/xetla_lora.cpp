@@ -47,7 +47,7 @@ protected:
         case MemLayout::col_major:
             return "mem_layout::col_major";
         default:
-            assert(false, "Unsupported memory layout!");
+            OPENVINO_THROW("Unsupported XeTLA memory layout!");
         }
     }
 
@@ -60,7 +60,7 @@ protected:
         case ov::element::Type_t::f32:
             return "float";
         default:
-            assert(false, "Unsupported data type!");
+            OPENVINO_THROW("Unsupported XeTLA data type!");
         }
     }
 
@@ -417,10 +417,10 @@ protected:
         }
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});            // lora_input
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});            // state_a
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});            // state_alpha
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // temp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // acc
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // cnt
+        args.push_back({ArgumentDescriptor::Types::INPUT, 3});            // state_alpha
 
         return args;
     }
