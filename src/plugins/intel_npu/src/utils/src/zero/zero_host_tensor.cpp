@@ -19,9 +19,12 @@ ZeroHostTensor::ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& contex
                                                shape,
                                                tensor_type,
                                                ov::intel_npu::MemType::L0_INTERNAL_BUF)) {}
+const void* ZeroHostTensor::data() const {
+    return _impl->get_original_memory();
+}
 
 const void* ZeroHostTensor::data(const ov::element::Type&) const {
-    return _impl->get_original_memory();
+    return data();
 }
 
 const ov::element::Type& ZeroHostTensor::get_element_type() const {

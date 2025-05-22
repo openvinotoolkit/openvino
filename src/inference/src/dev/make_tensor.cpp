@@ -57,6 +57,10 @@ public:
         OPENVINO_ASSERT(m_element_type.is_static());
     }
 
+    const void* data() const override {
+        return m_ptr;
+    }
+
     const void* data(const element::Type& element_type) const override {
         if (!is_pointer_representable(element_type)) {
             OPENVINO_THROW("Tensor data with element type ",
@@ -64,7 +68,7 @@ public:
                            ", is not representable as pointer to ",
                            element_type);
         }
-        return m_ptr;
+        return data();
     }
 
     const element::Type& get_element_type() const override {
@@ -134,8 +138,12 @@ public:
 
     using ViewTensor::data;
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data() override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data(const element::Type& element_type) override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.dataelement_type)'");
     }
 };
 
@@ -414,6 +422,10 @@ public:
 
     void set_shape(ov::Shape new_shape) override {
         BaseRoiTensor::set_shape(new_shape);
+    }
+
+    const void* data() const override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
     }
 
     const void* data(const element::Type& element_type) const override {
