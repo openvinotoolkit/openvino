@@ -43,7 +43,24 @@ BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
     m_with_wei_repacking = !is_fp32 || transposed_b || m_are_wei_constant || m_are_wei_blocked;
 
     // TODO: Add more logic based on shapes and prc
-    m_wei_n_blk = is_superset(m_isa, avx512_core) || !is_fp32 ? 64 : 24;
+    if (m_are_wei_blocked) {
+        m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 48;
+    } else {
+        switch (wei_dt) {
+        case element::i8:
+            m_wei_n_blk = 64;
+            break;
+        case element::bf16:
+        case element::f16:
+            m_wei_n_blk = 32;
+            break;
+        case element::f32:
+            m_wei_n_blk = 16;
+            break;
+        default:
+            OPENVINO_THROW("Unsupport precision of weights", wei_dt);
+        }
+    }
 
     validate();
 }
