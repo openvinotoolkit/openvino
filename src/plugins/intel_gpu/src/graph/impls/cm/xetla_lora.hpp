@@ -85,7 +85,7 @@ struct LoRAImplementationManager : public ImplementationManager {
                     return false;
                 }
 
-                if(eltwise_desc->broadcast_spec.m_axis != 0) {
+                if (eltwise_desc->broadcast_spec.m_axis != 0) {
                     return false;
                 }
 

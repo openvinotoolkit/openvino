@@ -30,16 +30,35 @@ public:
         return KernelGenerator::get_build_options(params) + get_lora_build_options();
     }
 
-protected:
     enum class MemLayout { row_major, col_major };
 
     struct Layouts {
         static constexpr MemLayout mem_layout_a = MemLayout::row_major;
         static constexpr MemLayout mem_layout_state_a = MemLayout::col_major;
         static constexpr MemLayout mem_layout_state_b = MemLayout::row_major;
+        static constexpr MemLayout mem_layout_temp = MemLayout::row_major;
         static constexpr MemLayout mem_layout_c = MemLayout::row_major;
     };
 
+    static bool is_2dload_aligned(size_t size, ov::element::Type dtype) {
+        static constexpr size_t min_size = 64 * 8;
+        static constexpr size_t multiple_of = 16 * 8;
+        auto dtype_size = ov::element::Type(dtype).bitwidth();
+        auto size_in_bits = size * dtype_size;
+        return size_in_bits >= min_size && size_in_bits % multiple_of == 0;
+    }
+
+    struct Tiling {
+        const size_t wg_m;
+        const size_t wg_n;
+        const size_t sg_m;
+        const size_t sg_n;
+        const size_t sg_k;
+        const size_t num_global_kslicing;
+        const size_t num_local_kslicing;
+    };
+
+protected:
     std::string get_xetla_mem_layout(MemLayout layout) const {
         switch (layout) {
         case MemLayout::row_major:
@@ -106,80 +125,71 @@ protected:
         }
     }
 
-    using range_t = std::vector<uint64_t>;
-    static range_t get_group_range(size_t matrix_m, size_t matrix_n, size_t wg_tile_m, size_t wg_tile_n, size_t num_global_kslicing) {
-        size_t group_range_m = (matrix_m + wg_tile_m - 1u) / wg_tile_m;
-        size_t group_range_n = (matrix_n + wg_tile_n - 1u) / wg_tile_n;
-        return {num_global_kslicing, group_range_m, group_range_n};
-    }
-
-    static range_t get_local_range(size_t wg_tile_m, size_t wg_tile_n, size_t sg_tile_m, size_t sg_tile_n, size_t num_local_kslicing) {
-        size_t local_range_m = (wg_tile_m + sg_tile_m - 1u) / sg_tile_m;
-        size_t local_range_n = (wg_tile_n + sg_tile_n - 1u) / sg_tile_n;
-        assert(local_range_m * local_range_n * num_local_kslicing <= 32);
-        return {num_local_kslicing, local_range_m, local_range_n};
-    }
-
-    static std::tuple<range_t, range_t> get_nd_range(size_t matrix_m,
-                                                     size_t matrix_n,
-                                                     size_t wg_tile_m,
-                                                     size_t wg_tile_n,
-                                                     size_t sg_tile_m,
-                                                     size_t sg_tile_n,
-                                                     size_t num_global_kslicing,
-                                                     size_t num_local_kslicing) {
-        auto local_range = get_local_range(wg_tile_m, wg_tile_n, sg_tile_m, sg_tile_n, num_local_kslicing);
-        auto group_range = get_group_range(matrix_m, matrix_n, wg_tile_m, wg_tile_n, num_global_kslicing);
-        return {local_range, group_range};
-    }
-
-    static bool is_2dload_aligned(size_t size, ov::element::Type dtype) {
-        static constexpr size_t min_size = 64 * 8;
-        static constexpr size_t multiple_of = 16 * 8;
-        auto dtype_size = ov::element::Type(dtype).bitwidth();
-        auto size_in_bits = size * dtype_size;
-        return size_in_bits >= min_size && size_in_bits % multiple_of == 0;
-    }
-
-    struct Tiling {
-        const size_t wg_m;
-        const size_t wg_n;
-        const size_t sg_m;
-        const size_t sg_n;
-        const size_t sg_k;
-        const size_t num_global_kslicing;
-        const size_t num_local_kslicing;
-
-        Tiling(const RuntimeParams& params) : wg_m{256}, wg_n{128}, sg_m{32}, sg_n{32}, sg_k{32}, num_global_kslicing{1}, num_local_kslicing{1} {}
-    };
-
 public:
     struct LoraShapeUtils {
-        std::tuple<size_t, size_t, size_t, size_t> get_lora_gemm_shape(const RuntimeParams& params) const {
-            return {LoraShapeUtils::get_total_tokens(params),
-                    LoraShapeUtils::get_lora_rank(params),
-                    LoraShapeUtils::get_hidden_size_input(params),
-                    LoraShapeUtils::get_hidden_size_output(params)};
+        static std::tuple<size_t, size_t, size_t, size_t> get_lora_gemm_shape(const RuntimeParams& params) {
+            return {get_total_tokens(params), get_lora_rank(params), get_hidden_size_input(params), get_hidden_size_output(params)};
+        }
+        static std::tuple<size_t, size_t, size_t, size_t> get_lora_gemm_shape(const cldnn::primitive_inst& instance) {
+            return {get_total_tokens(instance), get_lora_rank(instance), get_hidden_size_input(instance), get_hidden_size_output(instance)};
         }
 
+    private:
+        static size_t get_total_tokens(const cldnn::layout& layout) {
+            assert(layout.format == cldnn::format::bfyx);
+            assert(!(layout.get_partial_shape()[0].is_dynamic() || layout.get_partial_shape()[1].is_dynamic()));
+            return extract_channel(ChannelName::BATCH, layout) * extract_channel(ChannelName::FEATURE, layout);
+        }
+
+        static size_t get_hidden_size_input(const cldnn::layout& layout) {
+            assert(layout.format == cldnn::format::bfyx);
+            assert(!(layout.get_partial_shape()[2].is_dynamic() || layout.get_partial_shape()[3].is_dynamic()));
+            return extract_channel(ChannelName::Y, layout) * extract_channel(ChannelName::X, layout);
+        }
+
+        static size_t get_hidden_size_output(const cldnn::layout& layout) {
+            assert(layout.format == cldnn::format::bfyx);
+            assert(!(layout.get_partial_shape()[2].is_dynamic() || layout.get_partial_shape()[3].is_dynamic()));
+            return extract_channel(ChannelName::Y, layout) * extract_channel(ChannelName::X, layout);
+        }
+
+        static size_t get_lora_rank(const cldnn::layout& layout) {
+            assert(layout.format == cldnn::format::bfyx);
+            assert(!(layout.get_partial_shape()[0].is_dynamic()));
+            return extract_channel(ChannelName::FEATURE, layout);
+        }
+
+    public:
         static size_t get_total_tokens(const RuntimeParams& params) {
-            assert(!params.is_dynamic());
-            return extract_channel(ChannelName::BATCH, params.output_layouts[0]) * extract_channel(ChannelName::FEATURE, params.output_layouts[0]);
+            return get_total_tokens(params.output_layouts[0]);
         }
 
         static size_t get_hidden_size_input(const RuntimeParams& params) {
-            assert(!params.is_dynamic());
-            return extract_channel(ChannelName::Y, params.input_layouts[1]) * extract_channel(ChannelName::X, params.input_layouts[1]);
+            return get_hidden_size_input(params.input_layouts[1]);
         }
 
         static size_t get_hidden_size_output(const RuntimeParams& params) {
-            assert(!params.is_dynamic());
-            return extract_channel(ChannelName::Y, params.output_layouts[0]) * extract_channel(ChannelName::X, params.output_layouts[0]);
+            return get_hidden_size_output(params.output_layouts[0]);
         }
 
         static size_t get_lora_rank(const RuntimeParams& params) {
-            assert(!params.is_dynamic());
-            return extract_channel(ChannelName::FEATURE, params.input_layouts[3]);
+            return get_lora_rank(params.input_layouts[3]);
+        }
+
+        static size_t get_total_tokens(const cldnn::primitive_inst& instance) {
+            return get_total_tokens(instance.get_output_layout(0));
+        }
+
+        static size_t get_hidden_size_input(const cldnn::primitive_inst& instance) {
+            return get_hidden_size_input(instance.get_input_layout(1));
+        }
+
+        static size_t get_hidden_size_output(const cldnn::primitive_inst& instance) {
+            return get_hidden_size_output(instance.get_output_layout(0));
+        }
+
+        static size_t get_lora_rank(const cldnn::primitive_inst& instance) {
+            return get_lora_rank(instance.get_input_layout(3));
         }
 
         static auto get_total_tokens_jit(const RuntimeParams& params) {
@@ -192,7 +202,6 @@ public:
             const auto jit_val = jit.dim(ChannelName::FEATURE);
             return jit_val;
         }
-
         static auto get_hidden_size_input_jit(const RuntimeParams& params) {
             ov::intel_gpu::ocl::LayoutJitter jit(params.input_layouts[1], params.in_port_to_shape_info_offset.at(1));
             const auto jit_val = "(" + jit.dim(ChannelName::Y) + " * " + jit.dim(ChannelName::X) + ")";
@@ -318,8 +327,6 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const Tiling tiling{params};
-
             uint32_t fused_wg_m = 8;
             uint32_t fused_sg_m = 8;
 
@@ -342,14 +349,6 @@ protected:
             uint32_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + fused_wg_m - 1) / fused_wg_m;
             uint32_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + fusedB_total_wg_n - 1) / fusedB_total_wg_n;
 
-            auto [subgroup_range, group_range] = get_nd_range(LoraShapeUtils::get_total_tokens(params),
-                                                              LoraShapeUtils::get_lora_rank(params),
-                                                              tiling.wg_m,
-                                                              tiling.wg_n,
-                                                              tiling.sg_m,
-                                                              tiling.sg_n,
-                                                              tiling.num_global_kslicing,
-                                                              tiling.num_local_kslicing);
             wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, 1};
             wgs.local = {local_range_n, local_range_m, fused_local_kslicing};
         }};
@@ -358,9 +357,13 @@ protected:
 
 class XetlaLoRAGEMMAGenerator : public XeTLALoraBaseGenerator {
     const bool is_aligned;
+    const Tiling tiling;
 
 public:
-    XetlaLoRAGEMMAGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemmA", "A"), is_aligned{is_aligned} {}
+    XetlaLoRAGEMMAGenerator(bool is_aligned, Tiling tiling, std::string_view prefix = "A")
+        : XeTLALoraBaseGenerator("xetla_lora_gemmA", prefix),
+          is_aligned{is_aligned},
+          tiling{tiling} {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -370,7 +373,6 @@ protected:
         const auto mem_layout_b = Layouts::mem_layout_state_a;
         const auto mem_layout_c = Layouts::mem_layout_c;
 
-        const Tiling tiling{params};
         jit.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
                  make_jit_constant("LORA_DTYPE_A", ov_to_xetla_dtype(params.input_layouts[1].data_type)),
                  make_jit_constant("LORA_DTYPE_B", ov_to_xetla_dtype(params.input_layouts[2].data_type)),
@@ -426,30 +428,31 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[tiling = tiling](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const Tiling tiling{params};
-            auto [subgroup_range, group_range] = get_nd_range(LoraShapeUtils::get_total_tokens(params),
-                                                              LoraShapeUtils::get_lora_rank(params),
-                                                              tiling.wg_m,
-                                                              tiling.wg_n,
-                                                              tiling.sg_m,
-                                                              tiling.sg_n,
-                                                              tiling.num_global_kslicing,
-                                                              tiling.num_local_kslicing);
-            wgs.global = {group_range[2] * subgroup_range[2], group_range[1] * subgroup_range[1], 1};
-            wgs.local = {subgroup_range[2], subgroup_range[1], 1};
-        }};
+            size_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tiling.wg_m - 1u) / tiling.wg_m;
+            size_t group_range_n = (LoraShapeUtils::get_lora_rank(params) + tiling.wg_n - 1u) / tiling.wg_n;
+
+            size_t local_range_m = (tiling.wg_m + tiling.sg_m - 1u) / tiling.sg_m;
+            size_t local_range_n = (tiling.wg_n + tiling.sg_n - 1u) / tiling.sg_n;
+
+            wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, tiling.num_global_kslicing * tiling.num_local_kslicing};
+            wgs.local = {local_range_n, local_range_m, tiling.num_local_kslicing};
+            }};
     }
 };
 
 class XetlaLoRAGEMMBGenerator : public XeTLALoraBaseGenerator {
     const bool is_aligned;
+    const Tiling tiling;
 
 public:
-    XetlaLoRAGEMMBGenerator(bool is_aligned) : XeTLALoraBaseGenerator("xetla_lora_gemmB", "B"), is_aligned{is_aligned} {}
+    XetlaLoRAGEMMBGenerator(bool is_aligned, Tiling tiling, std::string_view prefix = "B")
+        : XeTLALoraBaseGenerator("xetla_lora_gemmB", prefix),
+          is_aligned{is_aligned},
+          tiling{tiling} {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -459,7 +462,6 @@ protected:
         const auto mem_layout_b = Layouts::mem_layout_state_b;
         const auto mem_layout_c = Layouts::mem_layout_c;
 
-        const Tiling tiling{params};
         jit.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
                  make_jit_constant("LORA_DTYPE_A", ov_to_xetla_dtype(params.input_layouts[1].data_type)),
                  make_jit_constant("LORA_DTYPE_B", ov_to_xetla_dtype(params.input_layouts[4].data_type)),
@@ -533,40 +535,102 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[tiling = tiling](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const Tiling tiling{params};
-            auto [subgroup_range, group_range] = get_nd_range(LoraShapeUtils::get_total_tokens(params),
-                                                              LoraShapeUtils::get_hidden_size_output(params),
-                                                              tiling.wg_m,
-                                                              tiling.wg_n,
-                                                              tiling.sg_m,
-                                                              tiling.sg_n,
-                                                              tiling.num_global_kslicing,
-                                                              tiling.num_local_kslicing);
-            wgs.global = {group_range[2] * subgroup_range[2], group_range[1] * subgroup_range[1], 1};
-            wgs.local = {subgroup_range[2], subgroup_range[1], 1};
+            size_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tiling.wg_m - 1u) / tiling.wg_m;
+            size_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + tiling.wg_n - 1u) / tiling.wg_n;
+
+            size_t local_range_m = (tiling.wg_m + tiling.sg_m - 1u) / tiling.sg_m;
+            size_t local_range_n = (tiling.wg_n + tiling.sg_n - 1u) / tiling.sg_n;
+
+            wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, tiling.num_global_kslicing * tiling.num_local_kslicing};
+            wgs.local = {local_range_n, local_range_m, tiling.num_local_kslicing};
         }};
     }
 };
 
+enum KernelsTypes { FUSED = 0, GEMM_A_SHORT_S1, GEMM_A_SHORT_S2, GEMM_A_SHORT_S4, GEMM_A_SHORT_S8, GEMM_B_SHORT, GEMM_A_UNALIGNED, GEMM_B_UNALIGNED };
+
+std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
+    std::vector<size_t> stages_order;
+    using lora = XeTLALoraBaseGenerator;
+
+    bool is_empty_lora = instance.get_input_layout(2).count() == 0;
+    // TODO check in impl_val
+    if (is_empty_lora) {
+        assert(!instance.has_fused_primitives());
+    }
+
+    const size_t xecores = instance.get_impl_params()->get_device_info().num_sub_slices_per_slice * instance.get_impl_params()->get_device_info().num_slices;
+
+    auto [tokens, rank, hidden_in, hidden_out] = lora::LoraShapeUtils::get_lora_gemm_shape(instance);
+
+    const auto ld_input = lora::Layouts::mem_layout_a == lora::MemLayout::col_major ? tokens : hidden_in;
+    const auto ld_state_a = lora::Layouts::mem_layout_state_a == lora::MemLayout::col_major ? hidden_out : rank;
+    const auto ld_state_b = lora::Layouts::mem_layout_state_b == lora::MemLayout::col_major ? rank : hidden_in;
+    const auto ld_state_temp = lora::Layouts::mem_layout_temp == lora::MemLayout::col_major ? tokens : rank;
+    const auto ld_state_output = lora::Layouts::mem_layout_c == lora::MemLayout::col_major ? tokens : hidden_out;
+
+    const bool is_aligned_input = lora::is_2dload_aligned(ld_input, instance.get_input_layout(1).data_type);
+    const bool is_aligned_state_a = lora::is_2dload_aligned(ld_state_a, instance.get_input_layout(2).data_type);
+    const bool is_aligned_state_b = lora::is_2dload_aligned(ld_state_b, instance.get_input_layout(4).data_type);
+    const bool is_aligned_temp = lora::is_2dload_aligned(ld_state_temp, instance.get_input_layout(1).data_type);
+    const bool is_aligned_output = lora::is_2dload_aligned(ld_state_output, instance.get_output_layout(0).data_type);
+
+    const bool can_use_fused_reg = rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
+    const bool is_gemmA_aligned = is_aligned_input && is_aligned_state_a && is_aligned_temp;
+    const bool is_gemmB_aligned = is_aligned_temp && is_aligned_state_b && is_aligned_output;
+
+    if (tokens <= 32 && is_gemmA_aligned && is_gemmB_aligned) {
+        size_t iters = (hidden_in + 32 - 1) / 32;
+        if (iters > 16) {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S8);
+        } else if (iters > 8) {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S4);
+        } else if (iters > 4) {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S2);
+        } else {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S1);
+        }
+        stages_order.emplace_back(KernelsTypes::GEMM_B_SHORT);
+    } else {
+        stages_order.emplace_back(KernelsTypes::FUSED);
+    }
+
+    return stages_order;
+}
+
 class LoRAImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LoRAImpl)
-    Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
-    // Stage::Ptr lora_gemm_a = make_stage<XetlaLoRAGEMMAGenerator>(true);
-    // Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false);
 
-    // Stage::Ptr lora_gemm_b = make_stage<XetlaLoRAGEMMBGenerator>(true);
-    // Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false);
+    using lora = XeTLALoraBaseGenerator;
+
+    Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
+
+    Stage::Ptr lora_gemm_a_short_slicing1 =
+        make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_short_s1");  // wg_m, wg_n, sg_m, sg_n, sg_k, global, local
+    Stage::Ptr lora_gemm_a_short_slicing2 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 2}, "a_short_s2");
+    Stage::Ptr lora_gemm_a_short_slicing4 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 4}, "a_short_s4");
+    Stage::Ptr lora_gemm_a_short_slicing8 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 8}, "a_short_s8");
+
+    Stage::Ptr lora_gemm_b_short = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{8, 128, 8, 16, 32, 1, 1}, "b_short");
+
+    Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_unaligned");
+    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8, 16, 8, 128, 32, 1, 1}, "b_unaligned");
 
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {
         add_stage(lora_fused, params);
-        // add_stage(lora_gemm_a, params);
-        // add_stage(lora_gemm_b, params);
+        add_stage(lora_gemm_a_short_slicing1, params);
+        add_stage(lora_gemm_a_short_slicing2, params);
+        add_stage(lora_gemm_a_short_slicing4, params);
+        add_stage(lora_gemm_a_short_slicing8, params);
+        add_stage(lora_gemm_b_short, params);
+        add_stage(lora_gemm_a_unaligned, params);
+        add_stage(lora_gemm_b_unaligned, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -576,6 +640,23 @@ public:
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         size_t buf_size = XeTLALoraBaseGenerator::LoraShapeUtils::get_total_tokens(params) * XeTLALoraBaseGenerator::LoraShapeUtils::get_lora_rank(params);
         return {BufferDescriptor{buf_size, ov::element::f16}, BufferDescriptor{0, ov::element::f32}, BufferDescriptor{0, ov::element::u32}};
+    }
+
+    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        cldnn::stream& stream = instance.get_network().get_stream();
+        if (instance.can_be_optimized()) {
+            return stream.aggregate_events(events, false, instance.is_output());
+        }
+
+        update_rt_params(instance);
+
+        std::vector<cldnn::event::ptr> tmp_events(events);
+        const auto exec_stages = get_stages_execution_order(instance);
+        for (const auto& stage_id : exec_stages) {
+            tmp_events = {execute_stage(tmp_events, instance, *_stages[stage_id])};
+        }
+
+        return tmp_events[0];
     }
 };
 
