@@ -10,7 +10,6 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "base_sync_infer_request.hpp"
-#include "prefill_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
@@ -49,14 +48,12 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
-    void subscribe_subrequest(std::size_t, IInferRequestSubmissionListener::Completed);
-    void complete_subrequest(std::size_t);
-    void on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor);
+    void on_prefill_request_initialize(std::size_t);  // before request started
+    void on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor); // after .wait()
                     
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
-    std::shared_ptr<LLMPrefillInferRequest> m_prefil_request_listener;
 
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;

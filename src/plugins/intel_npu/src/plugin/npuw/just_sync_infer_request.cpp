@@ -160,23 +160,23 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
         asgn_iter->from = from;
         m_table[from] = asgn_iter->ptr;
     } else {
-        // TODO: es - move all logic for tensor reuse here
-        // we might need what
+        // TODO:  we might need following
         // 1. identify that tensor no longer used as part of pipelining of subrequests - can this be done by sim ???
         // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into account
-
         auto allocate_case = false;
 
         // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests 
         // created to servs subgraps chain - same constant appeared in JustInferRequest during subreqs creation
-        const size_t max_simultanenous_subs = m_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>() ? 2 : 0;
-
+        const size_t max_simultanenous_subs = m_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_OUTS_REUSE>() ? 2 : 0;
+        LOG_DEBUG("max_simultanenous_subs: " << max_simultanenous_subs); 
+        
         if (max_simultanenous_subs) {
             // get ouput_proto 
-            if (from.first - real_idx > max_simultanenous_subs)  {
-            } else {
+            if (from.first - real_idx < max_simultanenous_subs)  {
                 // not yet created enough outputs
                 allocate_case = true;
+                // TODO: this search can be improved to not just function PROTOTYPE outputs, since HEAD might have same output tensors
+                // so allocated_case = false, but need to have more changes since those tensors are managed differently
             }
         } else {
             // for unrestricted case always allocate all outputs
@@ -203,9 +203,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
 
             new_tensor = m_alloc(oport.get_element_type(), oshape, device);
         } else {
-            // TODO: have a map here
-            // take output pro output_proto
-            auto actual_outputs_proto = (from.first - real_idx);
+            // bind to outputs, previously allocated for function_prototype
+            auto actual_outputs_proto = (from.first - real_idx) % max_simultanenous_subs + real_idx;
             new_tensor = m_table[{actual_outputs_proto, from.second}];
             LOG_DEBUG("reusing output tensor allocated for submodel: " << actual_outputs_proto << "->" << from.first); 
         }

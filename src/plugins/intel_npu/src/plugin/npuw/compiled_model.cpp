@@ -1428,19 +1428,18 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
-    // avoid extra lock in subscribers chain
-    if (auto shared = m_listener.lock()) {
-        result->add_infer_requests_listener(shared);
-    }
     return result;
 }
 
-void ov::npuw::CompiledModel::set_infer_request_listener(std::weak_ptr<ov::npuw::IInferRequestSubmissionListener> lst) {
-    m_listener = lst;
+void ov::npuw::CompiledModel::on_sync_infer_request_created(ov::npuw::CompiledModel::SyncReqListener listener) {
+    m_sync_r_listener = std::move(listener);
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
+    if (m_sync_r_listener) {
+        m_sync_r_listener(internal_request);
+    }
     return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
 }
 
@@ -1691,6 +1690,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::funcall_outs_reuse, NPUW_FUNCALL_OUTS_REUSE),
                           BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),
@@ -1698,6 +1698,9 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+
+
+
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
                           BIND(npuw::dump::full, NPUW_DUMP_FULL),
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),

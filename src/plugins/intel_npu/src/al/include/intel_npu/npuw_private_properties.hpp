@@ -295,6 +295,16 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
 
+
+/**
+ * @brief
+ * Type: bool.
+ * Pipeline execution of functions (repeating blocks) and their prologues
+ * control wether we need to keep all-output tensors in func-all subrequests
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> funcall_outs_reuse{"NPUW_FUNCALL_OUTS_REUSE"};
+
 /**
  * @brief
  * Type: boolean

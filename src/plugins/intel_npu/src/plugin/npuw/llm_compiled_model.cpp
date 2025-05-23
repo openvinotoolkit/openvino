@@ -580,7 +580,31 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
 }  // namespace
+
+#include <windows.h>
+void logMemoryLoop(std::atomic<bool> &keep_running, int interval_ms = 1000) {
+    MEMORYSTATUSEX memStatus;
+    memStatus.dwLength = sizeof(memStatus);
+
+    while (keep_running.load()) {
+        if (GlobalMemoryStatusEx(&memStatus)) {
+            DWORDLONG availPhysMB = memStatus.ullAvailPhys / (1024 * 1024);
+            DWORDLONG totalPhysMB = memStatus.ullTotalPhys / (1024 * 1024);
+
+            LOG_INFO("[MEM] Free: " << availPhysMB << " MB / Total: " << totalPhysMB << " MB");
+        } else {
+            std::cerr << "[MEM] Failed to get memory status.\n";
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+    }
+}
+ov::npuw::LLMCompiledModel::~LLMCompiledModel(){
+    keep_running = false;
+    m_memLogger.join();
+}
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -588,7 +612,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     : ov::npuw::ICompiledModel(model, plugin),
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
-      m_cfg(m_options_desc) {
+      m_cfg(m_options_desc),
+          // Start memory logger thread
+      m_memLogger(logMemoryLoop, std::ref(keep_running), 100) // log every 1000ms 
+      {
+
     LOG_DEBUG("Creating LLMCompiledModel");
     LOG_BLOCK();
 

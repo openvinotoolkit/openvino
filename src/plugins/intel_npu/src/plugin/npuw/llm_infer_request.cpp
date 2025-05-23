@@ -12,6 +12,28 @@
 #include "util_xarch.hpp"
 
 namespace {
+
+// dispatcher implementation of inferrequest listener
+class InferRequestEventsDispatch final : 
+    public ::ov::npuw::IInferRequestListener {
+
+  std::function<void (std::size_t)> m_submit_dispatch;
+  std::function<void ( std::size_t idx, std::string , ::ov::SoPtr<ov::ITensor>)> m_output_ready_dispatch;
+
+public:
+    InferRequestEventsDispatch() = delete;
+    template <class CB1, class CB2>
+    InferRequestEventsDispatch(CB1 cb1, CB2 cb2) 
+        : m_submit_dispatch(cb1), m_output_ready_dispatch(cb2) { }
+
+    void on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ov::ITensor> tensor) override {
+        m_output_ready_dispatch(idx, name, tensor);
+    }
+    void on_submit(std::size_t idx) override {
+        m_submit_dispatch(idx);
+    }
+  };
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -145,19 +167,26 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
 
     if (m_copy_cache_inline) {
-        m_prefil_request_listener = std::make_shared<LLMPrefillInferRequest>(
-            [this](std::size_t idx, IInferRequestSubmissionListener::Completed cb){
-                subscribe_subrequest(idx, cb);
-            },
-            [this](size_t idx){
-                complete_subrequest(idx);
+        // shared_dispatcher opject
+        auto prefill_requests_dispatch = std::make_shared<InferRequestEventsDispatch>(
+            [this](std::size_t idx){
+                on_prefill_request_initialize(idx);
             },
             [this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
-                on_output_ready(idx, name, tensor);
+                on_prefill_output_ready(idx, name, tensor);
             }
         );
+        // init dispatcher to run copy outputs inline with infer-requests execution
+        compiled_model->m_prefill_compiled->on_sync_infer_request_created([prefill_requests_dispatch](std::shared_ptr<ov::ISyncInferRequest> sync_req){
+            if (auto npuw_sync_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(sync_req)) {
+                npuw_sync_request->subscribe_subrequests(prefill_requests_dispatch);
+            }
+        });
 
-        compiled_model->m_prefill_compiled->set_infer_request_listener(m_prefil_request_listener);
+        // reusing outputs for prefill model
+        std::map<std::string, std::string> npuw_props;
+        npuw_props[std::string(::intel_npu::NPUW_FUNCALL_OUTS_REUSE::key())] = "YES";
+        compiled_model->m_prefill_compiled->m_cfg.update(npuw_props, ::intel_npu::OptionMode::CompileTime);
     }
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
@@ -176,28 +205,23 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 }
 
-void ov::npuw::LLMInferRequest::subscribe_subrequest(std::size_t idx, IInferRequestSubmissionListener::Completed) {
-    LOG_DEBUG("LLMInferRequest::subscribe_subrequest - [" << idx << "]");
+void ov::npuw::LLMInferRequest::on_prefill_request_initialize(std::size_t idx) {
+    LOG_DEBUG("LLMInferRequest::on_prefill_request_initialize - [" << idx << "]");
     
-    // lets rely on only 2 inferrequests are existed, so at the moment we have to start third one - lets wait for the first one to complete
-    if (!tasks_in_progress.empty()) {
-        auto clearing_idx = idx;        
-        for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end(); ) {
-            if (task_it->index == clearing_idx) {
-                LOG_DEBUG("LLMInferRequest::subscribe_subrequest  completing copy request: " << task_it->index);
-                task_it->future.wait();
-                task_it = tasks_in_progress.erase(task_it);
-            } else {
-                ++task_it;
-            }
+    auto clearing_idx = idx;        
+    for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end(); ) {
+        if (task_it->index == clearing_idx) {
+            LOG_DEBUG("LLMInferRequest::subscribe_subrequest  completing copy request: " << task_it->index);
+            task_it->future.wait();
+            task_it = tasks_in_progress.erase(task_it);
+        } else {
+            ++task_it;
         }
     }
 }
-void ov::npuw::LLMInferRequest::complete_subrequest(std::size_t idx)  {
-    LOG_DEBUG("LLMInferRequest::complete_subrequest " << idx << " waiting for produced tensors");
-}
-void ov::npuw::LLMInferRequest::on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor)  {
-    LOG_DEBUG("LLMInferRequest::on_output_ready for: " << idx << ", name: " << name);
+
+void ov::npuw::LLMInferRequest::on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor)  {
+    LOG_DEBUG("LLMInferRequest::on_prefill_output_ready for: " << idx << ", name: " << name);
     
     if (!m_copy_cache_inline) {
         return;
