@@ -372,7 +372,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    config);
 }
 
-<<<<<<< HEAD
 std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
@@ -471,44 +470,36 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
     return graphs;
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> mainBlobPtr,
-                                                     std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
+                                                     std::vector<ov::Tensor> initBlobs,
+                                                     const bool blobAllocatedByPlugin,
                                                      const Config& config,
                                                      const std::shared_ptr<ov::Model>& model) const {
-=======
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
-                                                     bool blobAllocatedByPlugin,
-                                                     const Config& config) const {
->>>>>>> d72b761
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-<<<<<<< HEAD
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlobPtr->get_ptr()), mainBlobPtr->size());
-=======
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
->>>>>>> d72b761
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-<<<<<<< HEAD
-    if (initBlobPtrs.empty()) {
+    if (initBlobs.empty()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
                                        std::move(networkMeta),
-                                       std::move(mainBlobPtr),
+                                       std::move(mainBlob),
+                                       blobAllocatedByPlugin,
                                        config);
     }
 
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
-    for (const auto& initBlobPtr : initBlobPtrs) {
+    for (const auto& initBlob : initBlobs) {
         ze_graph_handle_t initGraphHandle =
-            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlobPtr->get_ptr()), initBlobPtr->size());
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlob.data()), initBlob.get_byte_size());
         initGraphHandles.push_back(initGraphHandle);
         initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphHandle));
     }
@@ -516,22 +507,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              graphHandle,
+                                             blobAllocatedByPlugin,
                                              std::move(networkMeta),
-                                             std::move(mainBlobPtr),
+                                             std::move(mainBlob),
                                              initGraphHandles,
                                              std::move(initMetadata),
-                                             std::move(initBlobPtrs),
+                                             std::move(initBlobs),
                                              model,
                                              config);
-=======
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphHandle,
-                                   std::move(networkMeta),
-                                   std::move(blob),
-                                   blobAllocatedByPlugin,
-                                   config);
->>>>>>> d72b761
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

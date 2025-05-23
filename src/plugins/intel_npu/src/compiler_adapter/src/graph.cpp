@@ -157,7 +157,7 @@ void Graph::initialize(const Config& config) {
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
-    _blobIsReleased = release_blob(config, _blobPtr, _handle);
+    _blobIsReleased = release_blob(config, _blob, _handle);
 
     _batch_size = get_batch_size(_metadata);
 
@@ -169,23 +169,16 @@ void Graph::initialize(const Config& config) {
     }
 }
 
-<<<<<<< HEAD
 void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
     IGraph::set_workload_type(workloadType, _command_queue);
 }
 
-bool Graph::release_blob(const Config& config,
-                         const std::unique_ptr<BlobContainer>& blobPtr,
-                         ze_graph_handle_t handle) {
-    if (blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-=======
-bool Graph::release_blob(const Config& config) {
+bool Graph::release_blob(const Config& config, std::optional<ov::Tensor>& blob, ze_graph_handle_t handle) {
     if (!_blobAllocatedByPlugin) {
         return false;
     }
 
-    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
->>>>>>> d72b761
+    if (blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -198,14 +191,7 @@ bool Graph::release_blob(const Config& config) {
         return false;
     }
 
-<<<<<<< HEAD
-    if (!blobPtr->release_from_memory()) {
-        return false;
-    }
-
-=======
-    _blob = std::nullopt;
->>>>>>> d72b761
+    blob = std::nullopt;
     _logger.debug("Blob is released");
 
     return true;

@@ -117,7 +117,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    _compiler);
 }
 
-<<<<<<< HEAD
 std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
@@ -274,27 +273,17 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
     return {initGraph, mainGraph};
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> mainBlobPtr,
-                                                     std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
+                                                     std::vector<ov::Tensor> initBlobs,
+                                                     const bool blobAllocatedByPlugin,
                                                      const Config& config,
                                                      const std::shared_ptr<ov::Model>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    std::vector<uint8_t> network(mainBlobPtr->size());
-    network.assign(reinterpret_cast<const uint8_t*>(mainBlobPtr->get_ptr()),
-                   reinterpret_cast<const uint8_t*>(mainBlobPtr->get_ptr()) + mainBlobPtr->size());
-=======
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
-                                                     bool blobAllocatedByPlugin,
-                                                     const Config& config) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
-
-    _logger.debug("parse start");
-    std::vector<uint8_t> network(blob.get_byte_size());
-    network.assign(reinterpret_cast<const uint8_t*>(blob.data()),
-                   reinterpret_cast<const uint8_t*>(blob.data()) + blob.get_byte_size());
->>>>>>> d72b761
+    std::vector<uint8_t> network(mainBlob.get_byte_size());
+    network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
+                   reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
     auto networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
@@ -303,63 +292,50 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-<<<<<<< HEAD
         graphHandle =
-            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlobPtr->get_ptr()), mainBlobPtr->size());
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
     }
 
-    if (initBlobPtrs.empty()) {
+    if (initBlobs.empty()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
                                        std::move(networkMeta),
-                                       std::move(mainBlobPtr),
+                                       std::move(mainBlob),
+                                       blobAllocatedByPlugin,
                                        config,
                                        _compiler);
     }
 
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
-    for (const auto& initBlobPtr : initBlobPtrs) {
-        network.reserve(initBlobPtr->size());
-        network.assign(reinterpret_cast<const uint8_t*>(initBlobPtr->get_ptr()),
-                       reinterpret_cast<const uint8_t*>(initBlobPtr->get_ptr()) + initBlobPtr->size());
+    for (const auto& initBlob : initBlobs) {
+        network.reserve(initBlob.get_byte_size());
+        network.assign(reinterpret_cast<const uint8_t*>(initBlob.data()),
+                       reinterpret_cast<const uint8_t*>(initBlob.data()) + initBlob.get_byte_size());
         initMetadata.push_back(_compiler->parse(network, config));
         network.clear();
         network.shrink_to_fit();
         _logger.debug("parse end");
 
         if (_zeGraphExt) {
-            initGraphHandles.push_back(
-                _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlobPtr->get_ptr()),
-                                            initBlobPtr->size()));
+            initGraphHandles.push_back(_zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlob.data()),
+                                                                   initBlob.get_byte_size()));
         }
     }
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              graphHandle,
+                                             blobAllocatedByPlugin,
                                              std::move(networkMeta),
-                                             std::move(mainBlobPtr),
+                                             std::move(mainBlob),
                                              initGraphHandles,
                                              std::move(initMetadata),
-                                             std::move(initBlobPtrs),
+                                             std::move(initBlobs),
                                              model,
                                              config,
                                              _compiler);
-=======
-        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
-    }
-
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphHandle,
-                                   std::move(networkMeta),
-                                   std::move(blob),
-                                   blobAllocatedByPlugin,
-                                   config,
-                                   _compiler);
->>>>>>> d72b761
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

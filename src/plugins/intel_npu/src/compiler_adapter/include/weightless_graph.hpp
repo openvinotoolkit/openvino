@@ -17,12 +17,13 @@ class WeightlessGraph final : public Graph {
 public:
     WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                     const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                    const bool blobAllocatedByPlugin,
                     ze_graph_handle_t mainGraphHandle,
                     NetworkMetadata mainMetadata,
-                    std::unique_ptr<BlobContainer> mainBlobPtr,
+                    std::optional<ov::Tensor>& mainBlob,
                     const std::vector<ze_graph_handle_t>& initGraphHandles,
                     std::vector<NetworkMetadata> initMetadata,
-                    std::vector<std::unique_ptr<BlobContainer>> initBlobPtrs,
+                    std::optional<std::vector<ov::Tensor>>& initBlobs,
                     const std::shared_ptr<ov::Model>& model,
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
@@ -73,7 +74,7 @@ private:
     void free_init_resourcese(const size_t initIndex);
 
     std::vector<ze_graph_handle_t> _initHandles;
-    std::vector<std::unique_ptr<BlobContainer>> _initBlobPtrs;
+    std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initMetadata;
     std::shared_ptr<ov::Model> _model;
 
