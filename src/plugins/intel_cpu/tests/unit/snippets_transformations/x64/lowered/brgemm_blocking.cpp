@@ -119,7 +119,6 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
     const VectorDims layout_b{0, 2, 3, 1};
     const VectorDims layout_c{0, 2, 1, 3};
     const BrgemmConfig brgemm_config(x64::cpu_isa_t::avx512_core, precision, precision, false, false);
-    n_blk = brgemm_config.wei_n_blk();
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -150,7 +149,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating_AVX2) {
     const VectorDims layout_b{0, 2, 3, 1};
     const VectorDims layout_c{0, 2, 1, 3};
     const BrgemmConfig brgemm_config(x64::cpu_isa_t::avx2, precision, precision, false, false);
-    n_blk = brgemm_config.wei_n_blk();
+    n_blk = 24;
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -181,7 +180,6 @@ TEST_F(BrgemmCPUBlockingTest, Floating_LargeK) {
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::f32;
     const BrgemmConfig brgemm_config(x64::cpu_isa_t::avx512_core, precision, precision, false, false);
-    n_blk = brgemm_config.wei_n_blk();
     k_blk = 1024;
 
     {
@@ -238,7 +236,6 @@ TEST_F(BrgemmCPUBlockingTest, WithTransposeB) {
     const auto precision = ov::element::f32;
     const std::vector<size_t> layout_input{0, 1, 3, 2};
     const BrgemmConfig brgemm_config(x64::cpu_isa_t::avx512_core, precision, precision, false, true);
-    n_blk = brgemm_config.wei_n_blk();
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
