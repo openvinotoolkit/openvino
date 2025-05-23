@@ -388,8 +388,7 @@ void deprecation_warning(const std::string& function_name,
 }
 
 void raise_not_implemented() {
-    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
-    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    PyErr_SetString(PyExc_NotImplementedError, "This function is not implemented.");
     throw py::error_already_set();
 }
 

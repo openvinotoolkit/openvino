@@ -476,6 +476,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        // In the case of "input -> reshape -> convert -> multiply",
+        // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
+        // To handle this case, "KeepConstPrecision" is executed again.
+        manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
+
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
@@ -1226,8 +1231,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 auto weight_shape = root->get_input_partial_shape(1);
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-                if (innermost_size < 32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
+                const size_t simd = 16;
+                if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name()
+                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
+                                    << innermost_size << std::endl;
                     return true;
                 }
 
