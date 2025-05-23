@@ -2538,7 +2538,7 @@ struct MHAHelper {
                             score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
                             1,
-                            rnd_up(cur_kv_len, _block_size),
+                            cur_kv_len,
                             0,
                             0,
                             0);
