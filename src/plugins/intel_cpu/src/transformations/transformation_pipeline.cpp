@@ -1176,7 +1176,7 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
+#elif !defined(SNIPPETS_LIBXSMM_TPP) && defined(OPENVINO_ARCH_X86_64)
     const bool isMlpSeqSupported = is_infer_prc_supported_by_brgemm;
 #else
     const bool isMlpSeqSupported = false;
