@@ -388,9 +388,8 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     //    [0, 1, ..., num_of_axes - 1]
     // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
     //    [2, 3, ..., num_of_axes - 1]
-    const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
-
     const int64_t spatial_rank = info.spatial_rank;
+    const int64_t axis_idx_offset = (input_rank == num_of_axes) ? input_rank - spatial_rank : 0;
     const int64_t points_in_neighbor = 1LL << spatial_rank;
 
     const T* xdata = input_data;

@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 #include <map>
 #include <set>
@@ -387,8 +388,7 @@ void deprecation_warning(const std::string& function_name,
 }
 
 void raise_not_implemented() {
-    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
-    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    PyErr_SetString(PyExc_NotImplementedError, "This function is not implemented.");
     throw py::error_already_set();
 }
 
@@ -588,6 +588,21 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
         delete c;
     });
     return callback_sp;
+}
+
+std::filesystem::path to_fs_path(const py::object& path) {
+    // import pathlib.Path
+    py::object Path = py::module_::import("pathlib").attr("Path");
+
+    if (py::isinstance(path, Path) || py::isinstance<py::str>(path) || py::isinstance<py::bytes>(path)) {
+        return path.cast<std::filesystem::path>();
+    }
+
+    std::stringstream str;
+    str << "Path: '" << path << "'"
+        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    OPENVINO_THROW(str.str());
 }
 };  // namespace utils
 };  // namespace Common
