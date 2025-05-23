@@ -80,7 +80,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        "f32",
         false,
     },
 
@@ -144,7 +144,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        "f32",
         true,
     },
 
@@ -308,7 +308,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        "f32",
         false,
     },
 
@@ -368,7 +368,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        "f32",
         true,
     },
 

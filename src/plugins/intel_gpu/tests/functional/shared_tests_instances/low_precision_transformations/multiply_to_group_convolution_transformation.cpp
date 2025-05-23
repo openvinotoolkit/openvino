@@ -19,19 +19,19 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
      {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
      "output/GroupConvolution",
-     "U8",
+     "u8",
      false},
     // zero point
     {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
      {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
      "output/GroupConvolution",
-     "I8",
+     "i8",
      false},
     // zero point
     {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f / 2.f}, {-1.28f}, {1.27f / 2.f}},
      {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
      "output/GroupConvolution",
-     "U8",
+     "u8",
      false},
 
     // Multiply => GroupConvolution optimizations

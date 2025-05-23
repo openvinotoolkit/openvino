@@ -54,8 +54,8 @@ void ConvolutionTransformation::run() {
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
-        expectedPrecision = "FP16";
+    if (expectedPrecision == "f32" && std::get<0>(GetParam()) == ov::element::f16) {
+        expectedPrecision = "f16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }

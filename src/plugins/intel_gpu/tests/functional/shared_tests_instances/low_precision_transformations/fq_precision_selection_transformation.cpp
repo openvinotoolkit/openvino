@@ -56,8 +56,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-// GPU issue
-INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 32, 72, 48 })),
