@@ -18,7 +18,7 @@ public:
     CTCLossGenerator() : KernelGenerator("ctc_loss") {}
 
 protected:
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto& desc = params.typed_desc<ctc_loss>();
 

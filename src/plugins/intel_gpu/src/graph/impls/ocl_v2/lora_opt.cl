@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/fetch_data.cl"
+
 #ifdef SECOND_TOKEN_A
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
@@ -274,26 +276,5 @@ KERNEL(first_token_b)(OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE *main_ptr = main_input + m_idx * N + n_idx;
 
     ADD_AND_STORE_CODE
-}
-#endif
-
-#ifdef FUSED_OPS_KERNEL
-KERNEL(fused_ops)(OPTIONAL_SHAPE_INFO_ARG
-                  __global OUTPUT_TYPE* output
-#if HAS_FUSED_OPS_DECLS
-                , FUSED_OPS_DECLS
-#endif
-                    )
-{
-    const uint b = get_global_id(0);
-    const uint f = get_global_id(1);
-    const uint y = get_global_id(2) / OUTPUT_SIZE_X;
-    const uint x = get_global_id(2) % OUTPUT_SIZE_X;
-    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
-
-#if HAS_FUSED_OPS
-    FUSED_OPS;
-    output[output_idx] = FUSED_OPS_RESULT;
-#endif
 }
 #endif

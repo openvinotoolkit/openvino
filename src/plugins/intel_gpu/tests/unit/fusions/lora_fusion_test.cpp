@@ -92,7 +92,7 @@ public:
     }
 
     layout get_per_last_dim_layout(lora_test_params& p) {
-        return layout{ ov::PartialShape{1, *p.main_input_pshape.rbegin() }, p.input_type, p.planar_format };
+        return layout{ ov::PartialShape{1, 1, *p.main_input_pshape.rbegin()}, p.input_type, p.planar_format };
     }
 
     size_t get_fc_input_rank(lora_test_params& p) {
