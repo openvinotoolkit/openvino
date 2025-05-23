@@ -68,6 +68,7 @@
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/convert_dequantization_fp16.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
@@ -466,6 +467,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool store_original_precision_as_rt_attribute = true;
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
+            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
+
+        manager.register_pass<ov::intel_gpu::ConvertDequantizationFP16>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,

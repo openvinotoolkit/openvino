@@ -9,7 +9,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -351,19 +350,8 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
                 disable_fp16_compression(node_ptr);
             }
         }
-        
-        auto multiply_users = multiply->get_users();
-        for (const auto& user : multiply_users) {
-            for (size_t idx = 0; idx < user->inputs().size(); ++idx) {
-                if (user->get_input_node_shared_ptr(idx) == multiply) {
-                    auto new_convert = std::make_shared<v0::Convert>(multiply, multiply->get_output_element_type(0));
-                    ov::mark_as_precision_sensitive(new_convert->input(0));
-                    user->input(idx).replace_source_output(new_convert->output(0));
-                }
-            }
-        }
 
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
