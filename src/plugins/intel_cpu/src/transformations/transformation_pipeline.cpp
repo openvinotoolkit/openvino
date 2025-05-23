@@ -22,7 +22,6 @@
 #include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/opsets/opset6_decl.hpp"
-#include "openvino/pass/serialize.hpp"
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -1076,9 +1075,6 @@ void Transformations::PostLpt() {
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
-    // DEBUG: Serialize to check the model
-    // postLPTPassManager.register_pass<ov::pass::Serialize>(std::string("/workspace/buffer/codebook_xxx.xml"),
-    //                                                       "/workspace/buffer/codebook_xxx.bin");
     postLPTPassManager.run_passes(model);
 }
 

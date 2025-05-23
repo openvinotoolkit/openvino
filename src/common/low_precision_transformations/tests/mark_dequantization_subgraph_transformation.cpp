@@ -874,24 +874,36 @@ inline std::shared_ptr<ov::Model> make_gather_model(
     ov::element::Type data_type,
     ov::element::Type indices_type,
     bool use_data_convert,
-    bool use_indices_convert)
+    bool use_indices_convert,
+    bool indices_as_param = false)
 {
+    using ov::op::v0::Parameter;
     using ov::op::v0::Constant;
     using ov::op::v0::Convert;
     using ov::op::v8::Gather;
+
+    ov::ParameterVector params;
 
     std::shared_ptr<ov::Node> data = std::make_shared<Constant>(data_type, ov::Shape{4}, 2);
     if (use_data_convert)
         data = std::make_shared<Convert>(data, ov::element::f32);
 
-    std::shared_ptr<ov::Node> indices = std::make_shared<Constant>(indices_type, ov::Shape{3}, 1);
+    std::shared_ptr<ov::Node> indices;
+    if (indices_as_param) {
+        auto param = std::make_shared<Parameter>(indices_type, ov::Shape{3});
+        params.push_back(param);
+        indices = param;
+    } else {
+        indices = std::make_shared<Constant>(indices_type, ov::Shape{3}, 1);
+    }
+
     if (use_indices_convert)
         indices = std::make_shared<Convert>(indices, ov::element::i32);
 
     auto axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
     auto gather = std::make_shared<Gather>(data, indices, axis);
 
-   return std::make_shared<ov::Model>(OutputVector{gather}, ov::ParameterVector{});
+   return std::make_shared<ov::Model>(OutputVector{gather}, params);
 }
 
 TEST_F(TransformationTestsF, MarkGatherSubgraph) {
@@ -947,4 +959,23 @@ TEST(RTInfoCheck, MarkGatherSubgraph) {
 
     EXPECT_EQ(convert_cf_disabled, 2);
     EXPECT_EQ(const_keep_precision, 2);
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph_IndicesAsParam) {
+    auto data_type = ov::element::f8e4m3;
+    auto indices_type = ov::element::i8;
+
+    // the model remains the same, no ref model provided, compare with cloned.
+    model = make_gather_model(data_type, indices_type, true, true, true);
+    manager.register_pass<ov::pass::MarkGatherSubgraph>(
+        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
+        ov::element::TypeVector{ov::element::i8, ov::element::u8}
+    );
+
+    manager.register_pass<ov::pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, ov::element::f32},
+        {indices_type, ov::element::i32},
+    };
+    manager.register_pass<ov::pass::ConvertPrecision>(map);
 }

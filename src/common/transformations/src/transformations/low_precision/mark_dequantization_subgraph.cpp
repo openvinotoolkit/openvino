@@ -374,7 +374,8 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& fp_p
     auto is_integral = [](const Output<Node>& out) {
         return out.get_element_type().is_integral();
     };
-    auto indices_input = wrap_type<op::v0::Constant>(is_integral && check_precision(int_precisions_to_mark));
+    auto indices_pred = is_integral && check_precision(int_precisions_to_mark);
+    auto indices_input = wrap_type<op::v0::Constant, op::v0::Parameter>(indices_pred);
     auto indices_convert = pattern::optional<op::v0::Convert>({indices_input});
 
     // Gather (fp, integral, any)
@@ -393,9 +394,9 @@ ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& fp_p
                 ov::disable_constant_folding(pm.at(node));
         }
 
-        for (const auto& constant : {data_input, indices_input}) {
-            if (pm.count(constant))
-                ov::enable_keep_const_precision(pm.at(constant));
+        for (const auto& node : {data_input, indices_input}) {
+            if (pm.count(node))
+                ov::enable_keep_const_precision(pm.at(node));
         }
 
         return false;
