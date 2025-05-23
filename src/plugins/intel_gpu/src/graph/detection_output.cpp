@@ -143,7 +143,7 @@ std::string detection_output_inst::to_string(detection_output_node const& node) 
     detec_out_info.add("input location id", input_location.id());
     detec_out_info.add("input confidence id", input_confidence.id());
     detec_out_info.add("input prior box id", input_prior_box.id());
-    detec_out_info.add("num_classes:", desc->num_classes);
+    detec_out_info.add("num_classes", desc->num_classes);
     detec_out_info.add("keep_top_k", desc->keep_top_k);
     detec_out_info.add("share_location", share_location);
     detec_out_info.add("background_label_id", desc->background_label_id);
