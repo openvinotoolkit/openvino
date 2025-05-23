@@ -135,8 +135,22 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
                               "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
             }
         }
-        //TODO: Need to know why set to DISABLE.
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED);
+        // Calculate total work items and maximum addressable range
+        size_t total_work_items = dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2];
+        size_t max_addressable_range = dispatchData.dataSetSize * dispatchData.dataSetsCount;
+
+        // Determine if Boundary Check is needed
+        bool exceeds_boundary = total_work_items > max_addressable_range;
+
+        // Dynamic Shape: Always enable Boundary Check
+        BoundaryCheck boundary_check_mode = params.has_dynamic_tensors() || exceeds_boundary
+                                            ? BoundaryCheck::ENABLED
+                                            : BoundaryCheck::DISABLED;
+
+        // Configure FusedOps with the determined BoundaryCheck mode
+        auto conf = FusedOpsConfiguration(
+            "", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, boundary_check_mode);
+
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
