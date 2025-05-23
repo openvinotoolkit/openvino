@@ -20,16 +20,11 @@ const std::vector<ov::PartialShape> dimensions = {
     {1, 3, 16, 16}
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8()
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GemmTransformation::getTestCaseName);
 }  // namespace
 
