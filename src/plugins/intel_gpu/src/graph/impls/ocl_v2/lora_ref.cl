@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/fetch_data.cl"
+
 #ifdef BASE_KERNEL
 #if LORA_COUNT == 1
 KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
