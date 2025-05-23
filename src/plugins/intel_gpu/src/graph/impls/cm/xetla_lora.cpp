@@ -216,8 +216,15 @@ public:
 };
 
 class XetlaLoRAFusedGenerator : public XeTLALoraBaseGenerator {
+    const Tiling tilingA;
+    const Tiling tilingB;
+    const size_t total_wg_n_b = 512;
+
 public:
-    XetlaLoRAFusedGenerator() : XeTLALoraBaseGenerator("xetla_lora_fused", "") {}
+    XetlaLoRAFusedGenerator(Tiling tilingA, Tiling tilingB, std::string_view prefix = "")
+        : XeTLALoraBaseGenerator("xetla_lora_fused", prefix),
+          tilingA{tilingA},
+          tilingB{tilingB} {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -230,35 +237,22 @@ protected:
 
         const uint32_t temp_in_reg = 1;
 
-        uint32_t fused_wg_m = 8;
-        uint32_t fused_sg_m = 8;
-
-        uint32_t fusedA_wg_n = 64;
-        uint32_t fusedA_sg_n = 64;
-        uint32_t fusedA_sg_k = 32;
-        uint32_t fused_local_kslicing = 1;
-
-        uint32_t fusedB_total_wg_n = 256;
-        uint32_t fusedB_wg_n = 128;
-        uint32_t fusedB_sg_n = 32;
-        uint32_t fusedB_sg_k = 32;
-
         jit.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
                  make_jit_constant("LORA_DTYPE_A", ov_to_xetla_dtype(params.input_layouts[1].data_type)),
                  make_jit_constant("LORA_DTYPE_B", ov_to_xetla_dtype(params.input_layouts[2].data_type)),
                  make_jit_constant("LORA_DTYPE_C", ov_to_xetla_dtype(params.output_layouts[0].data_type)),
                  make_jit_constant("LORA_DTYPE_ACC", ov_to_xetla_dtype(ov::element::Type_t::f32)),
                  make_jit_constant("LORA_SIZE_RANK", LoraShapeUtils::get_lora_rank_jit(params)),
-                 make_jit_constant("LORA_WG_M", fused_wg_m),
-                 make_jit_constant("LORA_WG_N_A", fusedA_wg_n),
-                 make_jit_constant("LORA_WG_N_B", fusedB_wg_n),
-                 make_jit_constant("LORA_SG_M", fused_sg_m),
-                 make_jit_constant("LORA_SG_N_A", fusedA_sg_n),
-                 make_jit_constant("LORA_SG_N_B", fusedB_sg_n),
-                 make_jit_constant("LORA_SG_K_A", fusedA_sg_k),
-                 make_jit_constant("LORA_SG_K_B", fusedB_sg_k),
-                 make_jit_constant("LORA_WG_B_TOTAL", fusedB_total_wg_n),
-                 make_jit_constant("LORA_LOCAL_SLICING", fused_local_kslicing),
+                 make_jit_constant("LORA_WG_M", tilingA.wg_m),
+                 make_jit_constant("LORA_WG_N_A", tilingA.wg_n),
+                 make_jit_constant("LORA_WG_N_B", tilingB.wg_n),
+                 make_jit_constant("LORA_SG_M", tilingA.sg_m),
+                 make_jit_constant("LORA_SG_N_A", tilingA.sg_n),
+                 make_jit_constant("LORA_SG_N_B", tilingB.sg_n),
+                 make_jit_constant("LORA_SG_K_A", tilingA.sg_k),
+                 make_jit_constant("LORA_SG_K_B", tilingB.sg_k),
+                 make_jit_constant("LORA_WG_B_TOTAL", total_wg_n_b),
+                 make_jit_constant("LORA_LOCAL_SLICING", tilingA.num_local_kslicing),
                  make_jit_constant("LORA_MMA_ENGINE", "mma_engine::xmx"),
                  make_jit_constant("LORA_MEM_LAYOUT_A", get_xetla_mem_layout(mem_layout_a)),
                  make_jit_constant("LORA_MEM_LAYOUT_STATE_A", get_xetla_mem_layout(mem_layout_state_a)),
@@ -323,35 +317,22 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
+        return DispatchDataFunc{
+            [tilingA = tilingA, tilingB = tilingB, total_wg_n_b = total_wg_n_b](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+                assert(!params.is_dynamic());
+                auto& wgs = kd.params.workGroups;
 
-            uint32_t fused_wg_m = 8;
-            uint32_t fused_sg_m = 8;
+                uint32_t local_range_m = (tilingA.wg_m + tilingA.sg_m - 1) / tilingA.sg_m;
+                uint32_t local_range_nA = (tilingA.wg_n + tilingA.sg_n - 1) / tilingA.sg_n;
+                uint32_t local_range_nB = (tilingB.wg_n + tilingB.sg_n - 1) / tilingB.wg_n;
+                uint32_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
 
-            uint32_t fusedA_wg_n = 64;
-            uint32_t fusedA_sg_n = 64;
-            uint32_t fusedA_sg_k = 32;
-            uint32_t fused_local_kslicing = 1;
+                uint32_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tilingA.wg_m - 1) / tilingA.wg_m;
+                uint32_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + total_wg_n_b - 1) / total_wg_n_b;
 
-            uint32_t fusedB_total_wg_n = 256;
-            uint32_t fusedB_wg_n = 128;
-            uint32_t fusedB_sg_n = 32;
-            uint32_t fusedB_sg_k = 32;
-
-            uint32_t local_range_m = (fused_wg_m + fused_sg_m - 1) / fused_sg_m;
-            uint32_t local_range_nA = (fusedA_wg_n + fusedA_sg_n - 1) / fusedA_sg_n;
-            uint32_t local_range_nB = (fusedB_wg_n + fusedB_sg_n - 1) / fusedB_sg_n;
-            uint32_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
-
-            assert(local_range_m * local_range_n * fused_local_kslicing <= 32);
-            uint32_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + fused_wg_m - 1) / fused_wg_m;
-            uint32_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + fusedB_total_wg_n - 1) / fusedB_total_wg_n;
-
-            wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, 1};
-            wgs.local = {local_range_n, local_range_m, fused_local_kslicing};
-        }};
+                wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, tilingA.num_global_kslicing * tilingB.num_global_kslicing};
+                wgs.local = {local_range_n, local_range_m, tilingA.num_local_kslicing};
+            }};
     }
 };
 
@@ -440,7 +421,7 @@ protected:
 
             wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, tiling.num_global_kslicing * tiling.num_local_kslicing};
             wgs.local = {local_range_n, local_range_m, tiling.num_local_kslicing};
-            }};
+        }};
     }
 };
 
@@ -551,16 +532,35 @@ protected:
     }
 };
 
-enum KernelsTypes { FUSED = 0, GEMM_A_SHORT_S1, GEMM_A_SHORT_S2, GEMM_A_SHORT_S4, GEMM_A_SHORT_S8, GEMM_B_SHORT, GEMM_A_UNALIGNED, GEMM_B_UNALIGNED };
+enum KernelsTypes {
+    FUSED_SHORT_R32 = 0,
+    FUSED_SHORT_R64,
+    FUSED_SHORT_R128,
+    FUSED_LONG_R32,
+    FUSED_LONG_R64,
+    FUSED_LONG_R128,
+    GEMM_A_SHORT_S1,
+    GEMM_A_SHORT_S2,
+    GEMM_A_SHORT_S4,
+    GEMM_A_SHORT_S8,
+    GEMM_A_LONG0_S1,
+    GEMM_A_LONG0_S2,
+    GEMM_A_LONG1_S1,
+    GEMM_B_SHORT,
+    GEMM_B_LONG0,
+    GEMM_B_LONG1,
+    GEMM_A_UNALIGNED,
+    GEMM_B_UNALIGNED
+};
 
 std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
     std::vector<size_t> stages_order;
     using lora = XeTLALoraBaseGenerator;
 
     bool is_empty_lora = instance.get_input_layout(2).count() == 0;
-    // TODO check in impl_val
     if (is_empty_lora) {
         assert(!instance.has_fused_primitives());
+        return stages_order;
     }
 
     const size_t xecores = instance.get_impl_params()->get_device_info().num_sub_slices_per_slice * instance.get_impl_params()->get_device_info().num_slices;
@@ -595,10 +595,71 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
             stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S1);
         }
         stages_order.emplace_back(KernelsTypes::GEMM_B_SHORT);
-    } else {
-        stages_order.emplace_back(KernelsTypes::FUSED);
+        return stages_order;
     }
 
+    if (tokens > 32 && is_gemmA_aligned && is_gemmB_aligned) {
+        size_t gemmA_wg_n = 32;
+        size_t wgsA_n = (rank + gemmA_wg_n - 1) / gemmA_wg_n;
+        size_t gemmA_wg_m = 128;
+        size_t wgsA_m = (tokens + gemmA_wg_m - 1) / gemmA_wg_m;
+
+        if (wgsA_n * wgsA_m > 2 * xecores) {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG1_S1);
+        } else {
+            uint32_t iters = (hidden_in + 32 - 1) / 32;
+            if (iters > 4 && gemmA_wg_m == 128) {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
+            } else {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
+            }
+        }
+
+        size_t gemmB_wg_n = 128;
+        size_t wgsB_n = (hidden_out + gemmB_wg_n - 1) / gemmB_wg_n;
+        size_t gemmB_wg_m = 128;
+        size_t wgsB_m = (tokens + gemmB_wg_m - 1) / gemmB_wg_m;
+
+        if (wgsB_n * wgsB_m > 2 * xecores) {
+            stages_order.emplace_back(KernelsTypes::GEMM_B_LONG1);
+        } else {
+            stages_order.emplace_back(KernelsTypes::GEMM_B_LONG0);
+        }
+
+        return stages_order;
+    }
+
+    if (can_use_fused_reg) {
+        if (tokens <= 32) {
+            KernelsTypes kernel_type = KernelsTypes::FUSED_SHORT_R32;
+            if (rank <= 128) {
+                kernel_type = KernelsTypes::FUSED_SHORT_R128;
+            }
+            if (rank <= 64) {
+                kernel_type = KernelsTypes::FUSED_SHORT_R64;
+            }
+            if (rank <= 32) {
+                KernelsTypes kernel_type = KernelsTypes::FUSED_SHORT_R32;
+            }
+            stages_order.emplace_back(kernel_type);
+        } else {
+            KernelsTypes kernel_type = KernelsTypes::FUSED_LONG_R32;
+            if (rank <= 128) {
+                kernel_type = KernelsTypes::FUSED_LONG_R128;
+            }
+            if (rank <= 64) {
+                kernel_type = KernelsTypes::FUSED_LONG_R64;
+            }
+            if (rank <= 32) {
+                KernelsTypes kernel_type = KernelsTypes::FUSED_LONG_R32;
+            }
+            stages_order.emplace_back(kernel_type);
+        }
+        return stages_order;
+    }
+
+    stages_order.emplace_back(KernelsTypes::GEMM_A_UNALIGNED);
+    stages_order.emplace_back(KernelsTypes::GEMM_B_UNALIGNED);
     return stages_order;
 }
 
@@ -608,27 +669,55 @@ public:
 
     using lora = XeTLALoraBaseGenerator;
 
-    Stage::Ptr lora_fused = make_stage<XetlaLoRAFusedGenerator>();
+    Stage::Ptr lora_fused_short_r32 =  // wg_m, wg_n, sg_m, sg_n, sg_k, global, local
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{8, 32, 8, 32, 32, 1, 1}, lora::Tiling{8, 128, 8, 32, 32, 1, 1}, "short_r32");
+    Stage::Ptr lora_fused_short_r64 =
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{8, 64, 8, 64, 32, 1, 1}, lora::Tiling{8, 128, 8, 32, 32, 1, 1}, "short_r64");
+    Stage::Ptr lora_fused_short_r128 =
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{8, 128, 8, 128, 32, 1, 1}, lora::Tiling{8, 128, 8, 32, 32, 1, 1}, "short_r128");
 
-    Stage::Ptr lora_gemm_a_short_slicing1 =
-        make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_short_s1");  // wg_m, wg_n, sg_m, sg_n, sg_k, global, local
+    Stage::Ptr lora_fused_long_r32 =
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{32 * 4, 32, 32, 32, 32, 1, 1}, lora::Tiling{32 * 4, 128, 32, 32, 32, 1, 1}, "long_r32");
+    Stage::Ptr lora_fused_long_r64 =
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{16 * 4, 64, 16, 64, 32, 1, 1}, lora::Tiling{16 * 4, 128, 16, 32, 32, 1, 1}, "long_r64");
+    Stage::Ptr lora_fused_long_r128 =
+        make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{8 * 4, 128, 8, 128, 32, 1, 1}, lora::Tiling{8 * 4, 128, 8, 32, 32, 1, 1}, "long_128");
+
+    Stage::Ptr lora_gemm_a_short_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_short_s1");
     Stage::Ptr lora_gemm_a_short_slicing2 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 2}, "a_short_s2");
     Stage::Ptr lora_gemm_a_short_slicing4 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 4}, "a_short_s4");
     Stage::Ptr lora_gemm_a_short_slicing8 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 8}, "a_short_s8");
 
+    Stage::Ptr lora_gemm_a_long0_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{128, 32, 32, 16, 32, 1, 1}, "a_long0_s1");
+    Stage::Ptr lora_gemm_a_long0_slicing2 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{128, 32, 32, 16, 32, 1, 2}, "a_long0_s2");
+
+    Stage::Ptr lora_gemm_a_long1_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{256, 32, 32, 16, 32, 1, 1}, "a_long1_s1");
+
     Stage::Ptr lora_gemm_b_short = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{8, 128, 8, 16, 32, 1, 1}, "b_short");
+    Stage::Ptr lora_gemm_b_long0 = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{128, 128, 32, 16, 32, 1, 1}, "b_long0");
+    Stage::Ptr lora_gemm_b_long1 = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{256, 128, 32, 32, 32, 1, 1}, "b_long1");
 
     Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_unaligned");
-    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8, 16, 8, 128, 32, 1, 1}, "b_unaligned");
+    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8, 128, 8, 16, 32, 1, 1}, "b_unaligned");
 
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {
-        add_stage(lora_fused, params);
+        add_stage(lora_fused_short_r32, params);
+        add_stage(lora_fused_short_r64, params);
+        add_stage(lora_fused_short_r128, params);
+        add_stage(lora_fused_long_r32, params);
+        add_stage(lora_fused_long_r64, params);
+        add_stage(lora_fused_long_r128, params);
         add_stage(lora_gemm_a_short_slicing1, params);
         add_stage(lora_gemm_a_short_slicing2, params);
         add_stage(lora_gemm_a_short_slicing4, params);
         add_stage(lora_gemm_a_short_slicing8, params);
+        add_stage(lora_gemm_a_long0_slicing1, params);
+        add_stage(lora_gemm_a_long0_slicing2, params);
+        add_stage(lora_gemm_a_long1_slicing1, params);
         add_stage(lora_gemm_b_short, params);
+        add_stage(lora_gemm_b_long0, params);
+        add_stage(lora_gemm_b_long1, params);
         add_stage(lora_gemm_a_unaligned, params);
         add_stage(lora_gemm_b_unaligned, params);
     }

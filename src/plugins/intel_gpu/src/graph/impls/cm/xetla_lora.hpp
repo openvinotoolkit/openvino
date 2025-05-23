@@ -40,18 +40,30 @@ struct LoRAImplementationManager : public ImplementationManager {
             return false;
         }
 
-        const auto& out_layout = node.get_output_layout(0);
-        const auto& in0_layout = node.get_input_layout(0);
+        bool is_empty_lora = node.get_input_layout(2).count() == 0;
+        if (is_empty_lora && node.has_fused_primitives()) {
+            return false;
+        }
 
         static constexpr std::array supported_fmts = {format::bfyx};
         static constexpr std::array supported_types = {ov::element::f16, ov::element::bf16};
 
-        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
-            return false;
+        for (const auto& input_layout : node.get_input_layouts()) {
+            if (!one_of(input_layout.format, supported_fmts) || !one_of(input_layout.data_type, supported_types)) {
+                return false;
+            }
+            if (input_layout.data_padding != padding()) {
+                return false;
+            }
         }
 
-        if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types)) {
-            return false;
+        for (const auto& output_layout : node.get_output_layouts()) {
+            if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_types)) {
+                return false;
+            }
+            if (output_layout.data_padding != padding()) {
+                return false;
+            }
         }
 
         const auto lora_count = ((node.get_inputs_count() - 2ul) / 3ul);
