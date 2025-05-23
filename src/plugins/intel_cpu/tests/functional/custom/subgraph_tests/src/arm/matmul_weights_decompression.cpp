@@ -13,9 +13,7 @@ namespace test {
 
 namespace {
 
-std::vector<ov::AnyMap> filter_additional_config_kleidiai() {
-    return {{ov::hint::dynamic_quantization_group_size(UINT64_MAX)}};
-}
+const ov::AnyMap enable_dyn_quant_config_kleidiai = {ov::hint::dynamic_quantization_group_size(UINT64_MAX)};
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
@@ -39,16 +37,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_Kleidiai,
                        ::testing::Values(DecompressionType::full),
                        ::testing::Values(DecompressionType::empty),
                        ::testing::Values(false),
-                       ::testing::ValuesIn(filter_additional_config_kleidiai()),
+                       ::testing::Values(enable_dyn_quant_config_kleidiai),
                        ::testing::ValuesIn(fusing_params),
                        ::testing::Values(true)),
     MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::i8};
 
-std::vector<ov::AnyMap> filter_additional_config_basic() {
-    return {{}, {ov::hint::inference_precision(ov::element::f16)}};
-}
+const ov::AnyMap basic_config = {ov::hint::inference_precision(ov::element::f16)};
 
 bool should_use_decompression_impl() {
 #ifdef CPU_DEBUG_CAPS
@@ -78,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
-                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::Values(basic_config),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(should_use_decompression_impl())),
                          MatmulWeightsDecompression::getTestCaseName);
@@ -108,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases,
                                             ::testing::ValuesIn(decompression_multiply_type),
                                             ::testing::ValuesIn(decompression_subtract_type),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::Values(basic_config),
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(should_use_decompression_impl())),
                          MatmulWeightsDecompression::getTestCaseName);
