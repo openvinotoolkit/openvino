@@ -231,7 +231,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_bf16_zero_sca
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
-    test_case.add_input(std::vector<ov::bfloat16>{2.0f});        // scale
+    test_case.add_input(std::vector<ov::bfloat16>{2.0f});       // scale
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
 
     test_case.add_expected_output<ov::bfloat16>({4}, std::vector<ov::bfloat16>{-256.0f, -250.0f, 0.0f, 254.0f});
