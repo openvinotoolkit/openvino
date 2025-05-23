@@ -4,6 +4,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
+#include <iomanip>
+
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -434,23 +436,34 @@ public:
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+            msg.append(" abs_threshold: ")
+                .append(std::to_string(abs_threshold))
+                .append(" rel_threshold: ")
+                .append(std::to_string(rel_threshold));
 #ifndef NDEBUG
-            msg += " incorrect elem counter: ";
-            msg += std::to_string(incorrect_values_abs.size());
-            msg += " among ";
-            msg += std::to_string(tensor_size);
-            msg += " shapes.";
+            msg.append(" incorrect elem counter: ")
+                .append(std::to_string(incorrect_values_abs.size()))
+                .append(" among ")
+                .append(std::to_string(tensor_size))
+                .append(" shapes.");
+            constexpr size_t max_num_to_print = 32;
+#else
+            constexpr size_t max_num_to_print = 1;
 #endif
-            for (auto val : incorrect_values_abs) {
-                std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
-                          << " Coordinate: " << val.coordinate
+            size_t i = 0;
+            for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
+                auto val = incorrect_values_abs[i];
+                std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
+                          << " Actual: " << val.actual_value
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                          << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
-                          << " rel_threshold: " << rel_threshold << "\n";
-#ifdef NDEBUG
-                break;
-#endif
+                          << " abs_threshold: " << val.threshold << "\n";
             }
+
+            if constexpr (max_num_to_print > 1) {
+                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed"
+                          << "\n";
+            }
+
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
