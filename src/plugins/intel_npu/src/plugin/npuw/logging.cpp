@@ -78,7 +78,11 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::strin
     const auto bin_path = base_path + ".bin";
     {
         std::ofstream bin_file(bin_path, std::ios_base::out | std::ios_base::binary);
-        bin_file.write(static_cast<const char*>(tensor->data()), static_cast<std::streamsize>(tensor->get_byte_size()));
+        auto blob_size = tensor->get_byte_size();
+        if (blob_size > static_cast<decltype(blob_size)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+        }
+        bin_file.write(static_cast<const char*>(tensor->data()), static_cast<std::streamsize>(blob_size));
         LOG_INFO("Wrote file " << bin_path << "...");
     }
     const auto meta_path = base_path + ".txt";
