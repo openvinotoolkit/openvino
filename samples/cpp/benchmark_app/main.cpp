@@ -914,7 +914,7 @@ int main(int argc, char* argv[]) {
             device_config.insert(ov::hint::allow_auto_batching(false));
 
             if (!device_config.count(ov::weights_path.name())) {
-                // Temporary solution: build the path to the weights by leveragin the one towards the binary object
+                // Temporary solution: build the path to the weights by leveraging the one towards the binary object
                 std::string weightsPath = FLAGS_m;
                 weightsPath.replace(weightsPath.size() - BLOB_EXTENSION.length(),
                                     BLOB_EXTENSION.length(),

@@ -29,6 +29,12 @@
 
 constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
 constexpr std::string_view BLOB_EXTENSION = ".blob";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
+
+inline bool file_exists(const std::string& file_name) {
+    std::ifstream file(file_name.c_str());
+    return file.good();
+}
 
 using TensorMap = std::map<std::string, ov::Tensor>;
 
@@ -2368,12 +2374,22 @@ static int runSingleImageTest() {
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
 
-            // Temporary solution: build the path to the weights by leveragin the one towards the binary object
             ov::AnyMap device_config;
+            // Temporary solution: build the path to the weights by leveraging the one towards the binary object
             std::string weightsPath = FLAGS_network;
             weightsPath.replace(weightsPath.size() - BLOB_EXTENSION.length(),
                                 BLOB_EXTENSION.length(),
                                 WEIGHTS_EXTENSION);
+
+            if (!file_exists(weightsPath)) {
+                weightsPath.replace(weightsPath.size() - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    ONNX_EXTENSION);
+                if (!file_exists(weightsPath)) {
+                    std::cout << "No weights file could be found by using the path towards the compiled model"
+                              << std::endl;
+                }
+            }
             device_config.insert(ov::weights_path(weightsPath));
 
             compiledModel = core.import_model(file, FLAGS_device, device_config);
