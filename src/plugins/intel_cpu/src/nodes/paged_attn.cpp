@@ -81,8 +81,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
-                    "The input number of PagedAttention should be 13 or 16.");
+    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
+                    "The input number of PagedAttention should be 14 or 17.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -130,7 +130,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[1].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(1)));
 
-    if (orgInputNumber == 16) {
+    // score_aggregation_window, float, [batch_size_in_sequences || 0]
+    config.inConfs[PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW)));
+
+    if (orgInputNumber == 17) {
         // rotated_block_indices, int, [num_rotated_blocks || 0]
         config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)
@@ -152,7 +158,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
 bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
                                       const ov::element::Type precision,
-                                      const bool isKey) noexcept {
+                                      const bool isKey) {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral

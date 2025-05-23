@@ -244,6 +244,7 @@ OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
+OP_CONVERTER(translate_split_with_sizes);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_std);
@@ -337,7 +338,6 @@ OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_slice_scatter_fx);
 OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_sort_fx);
-OP_CONVERTER(translate_split_with_sizes_fx);
 OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_sum_fx);
@@ -710,7 +710,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
         // aten::split - Supported in limited set of patterns
-        // aten::split_with_sizes - Supported in limited set of patterns
+        {"aten::split_with_sizes", op::translate_split_with_sizes},
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
         {"aten::sqrt_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>>},
         {"aten::square", op::translate_square},
@@ -1036,8 +1036,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.slice_scatter.default", op::translate_slice_scatter_fx},
         {"aten.sort.default", op::translate_sort_fx},
         {"aten.split.Tensor", op::translate_chunk_fx},
-        {"aten.split_with_sizes.default", op::translate_split_with_sizes_fx},
-        {"aten.split_with_sizes_copy.default", op::translate_split_with_sizes_fx},
+        {"aten.split_with_sizes.default", op::translate_split_with_sizes},
+        {"aten.split_with_sizes_copy.default", op::translate_split_with_sizes},
         {"aten.sqrt.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten.squeeze.dim", op::translate_squeeze},
         {"aten.squeeze.dims", op::translate_squeeze},
