@@ -27,35 +27,38 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace ai_onnx {
+namespace opset_1 {
 namespace detail {
 std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
+        const auto& scale = inputs[1];
         const auto& zero_point = inputs[2];
 
-        if (zero_point.get_element_type() != ov::element::f32) {
-            return std::make_shared<v0::Convert>(zero_point, ov::element::f32);
+        if (zero_point.get_element_type() != scale.get_element_type()) {
+            return std::make_shared<v0::Convert>(zero_point, scale.get_element_type());
         }
 
         return zero_point.get_node_shared_ptr();
     }
     return nullptr;
 }
-}  // namespace detail
-namespace opset_1 {
-ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector inputs{node.get_ov_inputs()};
 
-    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                            "The DequantizeLinear op expects 2 required and one optional input. Got: ",
-                            inputs.size());
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node, int64_t opset) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
     const auto zero_point = detail::get_zero_point(inputs);
 
-    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
+    std::set<ov::element::Type> valid_types = {ov::element::f32};
+    if (opset >= 13) {
+        valid_types.emplace(ov::element::f16);
+        valid_types.emplace(ov::element::bf16);
+    }
 
-    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
+    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), valid_types);
+
+    const auto converted_x = std::make_shared<v0::Convert>(x, scale.get_element_type());
 
     if (zero_point) {
         common::validate_scalar_input("Zero point", zero_point);
@@ -64,6 +67,14 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v1::Multiply>(converted_x, scale)};
     }
 }
+}  // namespace detail
+
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
+    common::default_op_checks(node, 2);
+
+    return detail::dequantize_linear(node, 1);
+}
+
 ONNX_OP("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
 }  // namespace opset_1
 
@@ -154,7 +165,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
-    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
+    const auto converted_x = std::make_shared<v0::Convert>(x, scale.get_element_type());
 
     if (zero_point) {
         validate_zero_point(zero_point, x, axis);
@@ -176,19 +187,19 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             inputs.size());
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::opset_1::detail::get_zero_point(inputs);
 
     const auto& scale_shape = scale.get_partial_shape();
     // per-tensor quantization, axis attribute ignored
     if ((scale_shape.rank().is_static() && scale_shape.size() == 0) ||
         (scale_shape.is_static() && shape_size(scale_shape.get_shape()) == 1)) {
         if (!zero_point) {
-            return ai_onnx::opset_1::dequantize_linear(node);
+            return ai_onnx::opset_1::detail::dequantize_linear(node, 13);
         }
         const auto& zero_point_shape = zero_point->get_output_partial_shape(0);
         if ((zero_point_shape.rank().is_static() && zero_point_shape.size() == 0) ||
             (zero_point_shape.is_static() && shape_size(zero_point_shape.get_shape()) == 1)) {
-            return ai_onnx::opset_1::dequantize_linear(node);
+            return ai_onnx::opset_1::detail::dequantize_linear(node, 13);
         }
     }
     // these reshapes make sure that dequantization happens over the specified axis
