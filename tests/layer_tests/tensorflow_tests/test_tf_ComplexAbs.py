@@ -36,8 +36,6 @@ class TestComplexAbs(CommonTFLayerTest):
     @pytest.mark.parametrize('input_shape', [[], [2], [1, 3], [2, 3, 4], [3, 4, 5, 6]])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_abs(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
+    def test_complex_abs(self, input_shape, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_abs_net(input_shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

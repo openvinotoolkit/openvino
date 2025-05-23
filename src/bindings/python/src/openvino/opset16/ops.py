@@ -96,3 +96,29 @@ def segment_max(
         as_nodes(*inputs, name=name),
         {"fill_mode": fill_mode},
     )
+
+
+@nameable_op
+def sparse_fill_empty_rows(
+    values: NodeInput,
+    dense_shape: NodeInput,
+    indices: NodeInput,
+    default_value: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Fills empty rows of an input sparse tensor with a default value.
+
+    :param values: 1D tensor containing the values to be inserted at the specified indices.
+    :param dense_shape: 1D tensor indicating the shape of the 2D dense tensor.
+    :param indices: 2D tensor indicating the positions at which values are placed.
+    :param default_value: A scalar value to be inserted into empty rows.
+    :param name: Optional name for the node.
+
+    :return: The new node performing SparseFillEmptyRows operation with three outputs:
+             [output_indices, output_values, empty_row_indicator]
+    """
+    return _get_node_factory_opset16().create(
+        "SparseFillEmptyRows",
+        as_nodes(values, dense_shape, indices, default_value, name=name),
+        {},
+    )

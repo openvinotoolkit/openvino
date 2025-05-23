@@ -17,7 +17,7 @@ class TestReduceArithmeticOps(CommonTFLayerTest):
         inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
-    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_legacy_frontend):
+    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version):
         import tensorflow as tf
         ops_mapping = {
             "Max": tf.raw_ops.Max,
@@ -47,12 +47,9 @@ class TestReduceArithmeticOps(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_legacy_frontend):
-        self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version,
-                                           use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexProd(CommonTFLayerTest):
@@ -66,7 +63,7 @@ class TestComplexProd(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_complex_prod_net(self, shape, axis, keep_dims, ir_version, use_legacy_frontend):
+    def create_complex_prod_net(self, shape, axis, keep_dims, ir_version):
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
@@ -95,13 +92,10 @@ class TestComplexProd(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_legacy_frontend):
+    def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir):
         if platform.machine() in ["aarch64", "arm64", "ARM64"]:
             pytest.skip("GFI-26601: accuracy error on ARM")
         if ie_device == 'GPU' and params['shape'] in [[2, 3, 5], [3, 1, 2, 4]]:
             pytest.skip('GPU plugin accuracy error')
-        self._test(*self.create_complex_prod_net(**params, keep_dims=keep_dims, ir_version=ir_version,
-                                                 use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(*self.create_complex_prod_net(**params, keep_dims=keep_dims, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

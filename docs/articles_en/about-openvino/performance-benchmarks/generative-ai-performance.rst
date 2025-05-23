@@ -3,8 +3,7 @@ Most Efficient Large Language Models for AI PC
 
 This page is regularly updated to help you identify the best-performing LLMs on the
 Intel® Core™ Ultra processor family and AI PCs.
-The current data is as of OpenVINO 2025.0, 06 March 2025 (7-155H and 7-268V)
-and OpenVINO 2024.6, 13 Dec. 2024 (9-288V).
+The current data is as of OpenVINO 2025.1, 13 April 2025.
 
 The tables below list the key performance indicators for inference on built-in GPUs.
 
@@ -12,24 +11,24 @@ The tables below list the key performance indicators for inference on built-in G
 
 .. tab-set::
 
-   .. tab-item:: 9-288V
+   .. tab-item:: 7-255H
 
       .. data-table::
          :class: modeldata stripe
          :name: supportedModelsTable_V1
          :header-rows: 1
-         :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
+         :file:  ../../_static/benchmarks_files/llm_models_7-255H.csv
          :data-column-hidden: [3,4,6]
          :data-order: [[ 0, "asc" ]]
          :data-page-length: 10
 
-   .. tab-item:: 7-268V
+   .. tab-item:: 7-258V
 
       .. data-table::
          :class: modeldata stripe
          :name: supportedModelsTable_V2
          :header-rows: 1
-         :file: ../../_static/benchmarks_files/llm_models_7-268V.csv
+         :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
          :data-column-hidden: [3,4,6]
          :data-order: [[ 0, "asc" ]]
 
@@ -65,19 +64,19 @@ The tables below list the key performance indicators for inference on built-in G
 
          :material-regular:`download;1.5em` Get system descriptions [PDF]
 
-      .. button-link:: ../../_static/benchmarks_files/llm_models_9-288V.csv 
+      .. button-link:: ../../_static/benchmarks_files/llm_models_7-258V.csv 
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`download;1.5em` Get the 9-288V table [CSV]
-
-      .. button-link:: ../../_static/benchmarks_files/llm_models_7-268V.csv 
+         :material-regular:`download;1.5em` Get the 7-258V table [CSV]
+      
+      .. button-link:: ../../_static/benchmarks_files/llm_models_7-255H.csv 
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`download;1.5em` Get the 7-268V table [CSV]
+         :material-regular:`download;1.5em` Get the 7-255H table [CSV]
 
       .. button-link:: ../../_static/benchmarks_files/llm_models_7-155H.csv 
          :color: primary

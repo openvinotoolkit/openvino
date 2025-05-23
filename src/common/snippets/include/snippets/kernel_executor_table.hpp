@@ -131,7 +131,7 @@ public:
         return get_kernel_executor(expr->get_exec_num());
     }
     const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(double expr_exec_num) const {
-        OPENVINO_ASSERT(m_table.count(expr_exec_num), "This expression execution number doesn't have a registered kernel executor");
+        assert(m_table.count(expr_exec_num) && "This expression execution number doesn't have a registered kernel executor");
         return m_table.at(expr_exec_num);
     }
 

@@ -47,8 +47,6 @@ class TestRGBToHSV(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_adjust_hue_basic(self, input_shape, input_type, special_case,
-                              ie_device, precision, ir_version, temp_dir,
-                              use_legacy_frontend):
+                              ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_rgb_to_hsv_net(input_shape, input_type, special_case),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

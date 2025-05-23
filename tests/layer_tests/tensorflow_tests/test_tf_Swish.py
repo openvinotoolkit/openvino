@@ -39,11 +39,10 @@ class TestSwish(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_swish(self, input_type, input_shape,
-                   ie_device, precision, ir_version, temp_dir,
-                   use_legacy_frontend):
+                   ie_device, precision, ir_version, temp_dir):
         custom_eps = None
         if input_type == np.float16:
             custom_eps = 3 * 1e-3
         self._test(*self.create_swish_net(input_type, input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)

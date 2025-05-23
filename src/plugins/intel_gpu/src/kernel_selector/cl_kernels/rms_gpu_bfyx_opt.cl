@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
@@ -41,7 +41,31 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint items_num = data_size / workers_per_data;
     const uint leftovers = data_size % workers_per_data;
 
-    const uint data_offset = data_idx * data_size;
+    #if HAS_DYNAMIC_PADDING
+        uint b_idx = 0;
+        uint f_idx = 0;
+        uint z_idx = 0;
+        uint y_idx = 0;
+        uint x_idx = 0;
+        #if INPUT_RANK == 2
+            b_idx = (data_idx);
+        #elif INPUT_RANK == 3
+            f_idx = (data_idx % (INPUT0_FEATURE_NUM));
+            b_idx = (data_idx / (INPUT0_FEATURE_NUM));
+        #else
+            y_idx = (data_idx % (INPUT0_SIZE_Y));
+            z_idx = (data_idx / (INPUT0_SIZE_Y)) % INPUT0_SIZE_Z;
+            f_idx = (data_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_Z)) % INPUT0_FEATURE_NUM;
+            b_idx = (data_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_FEATURE_NUM)) % INPUT0_BATCH_NUM;
+        #endif
+
+        const uint input_data_offset = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+    #else
+        const uint input_data_offset = data_idx * data_size;
+    #endif
+
+    const uint output_data_offset = data_idx * data_size;
+
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
     ACCUMULATOR_TYPE data[STACK_SIZE];
@@ -54,7 +78,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
         {
-            ACC_TYPE vec_tmp = TO_ACC_TYPE(BLOCK_READ(input, data_offset + subgroup_offset + i * get_sub_group_size()));
+            ACC_TYPE vec_tmp = TO_ACC_TYPE(BLOCK_READ(input, input_data_offset + subgroup_offset + i * get_sub_group_size()));
 #if SUBGROUP_BLOCK_SIZE == 1
             rms += native_powr(vec_tmp, 2);
             data[i] = vec_tmp;
@@ -71,14 +95,14 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     for (; i < items_num; i++)
     {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
         rms += native_powr(tmp, 2);
         data[i] = tmp;
     }
 
     if (in_data_idx < leftovers)
     {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[data_offset + workers_per_data * items_num + in_data_idx]);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + in_data_idx]);
         rms += native_powr(tmp, 2);
         data[items_num] = tmp;
     }
@@ -152,7 +176,7 @@ KERNEL(rms_gpu_bfyx_opt)(
                 vec_tmp[j] = normalized;
             }
 #endif
-            BLOCK_WRITE(output, data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
+            BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
         }
     }
 
@@ -165,7 +189,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+        output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
     }
 
     if (in_data_idx < leftovers)
@@ -177,7 +201,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+        output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
     }
 }
 #undef USE_BLOCK_WRITE

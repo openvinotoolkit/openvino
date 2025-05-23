@@ -18,7 +18,7 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
     decomposing embedding with OpenVINO ops.
     """
     import openvino as ov
-    from openvino.runtime import opset8
+    from openvino import opset8
     from openvino import Core
 
     if vocab_embeddings is None:
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     if paddle.__version__ >= '2.0.0':
         outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim,
-                            padding_idx=np.compat.long(padding_idx), vocab_embeddings=table, compare=False)
+                            padding_idx=np.int64(padding_idx), vocab_embeddings=table, compare=False)
     else:
         import paddle.compat as cpt
         outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim,

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cassert>
+
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"

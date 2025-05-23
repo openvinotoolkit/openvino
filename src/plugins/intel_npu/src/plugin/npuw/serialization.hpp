@@ -28,7 +28,13 @@ using IndicatorType = std::array<uint8_t, 6>;
 const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
+const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
+    {char{0x43}, char{0x4f}, char{0x4d}, char{0x50}, char{0x4d}, char{0x4f}};
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
+    {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.3";
 
 // Forward declaration
 namespace intel_npu {
@@ -50,6 +56,9 @@ class Model;
 enum class CacheMode;
 namespace element {
 class Type;
+}
+namespace hint {
+enum class PerformanceMode;
 }
 
 // Forward declaration
@@ -93,15 +102,13 @@ struct WeightsContext {
     };
     using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
 
-    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
-        : is_weightless(_is_weightless),
-          const_to_offset(_const_to_offset) {}
+    // NOTE: This construtor should only be used when exporting blobs
+    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache)
-        : weights(_weights),
-          consts_cache(_consts_cache) {}
+    // NOTE: This construtor can and should only be used when importing weightless blobs
+    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache);
 
-    bool is_weightless;
+    bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::Weights weights = nullptr;
     ConstsCache consts_cache;
@@ -121,6 +128,7 @@ void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
 void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
 void write(std::ostream& stream, const std::map<std::string, Any>& var);
+void write(std::ostream& stream, const ov::hint::PerformanceMode& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -136,6 +144,7 @@ void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 void read(std::istream& stream, std::map<std::string, Any>& var);
+void read(std::istream& stream, ov::hint::PerformanceMode& var);
 
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);

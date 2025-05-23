@@ -31,7 +31,7 @@ class TestFakeQuantize(CommonTFLayerTest):
         ])}
 
     def create_fake_quantize_net(self, il, ih, num_bits, narrow_range, nudged_il, nudged_ih,
-                                 expected_step, ir_version, use_legacy_frontend):
+                                 expected_step, ir_version):
         # original tf model
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
@@ -102,10 +102,7 @@ class TestFakeQuantize(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_fake_quantize(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
-        self._test(*self.create_fake_quantize_net(**params, ir_version=ir_version,
-                                                  use_legacy_frontend=use_legacy_frontend), ie_device,
+    def test_fake_quantize(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_fake_quantize_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   kwargs_to_prepare_input=params, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   kwargs_to_prepare_input=params, temp_dir=temp_dir)

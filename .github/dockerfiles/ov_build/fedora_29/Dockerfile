@@ -110,3 +110,25 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | b
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
+# To build git and curl from source
+RUN dnf update -y && dnf install -y dh-autoreconf \
+    curl-devel \
+    expat-devel \
+    gettext-devel \
+    openssl-devel \
+    perl-devel \
+    zlib-devel \
+    libpsl-devel
+
+# Build and install newer curl
+RUN wget https://github.com/curl/curl/releases/download/curl-8_13_0/curl-8.13.0.tar.gz && \
+    tar -zxf curl-8.13.0.tar.gz
+RUN cd curl-8.13.0 && \
+    ./configure --prefix=/usr --with-openssl && \
+    make install
+
+# Build and install newer git
+RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49.0.tar.gz && \
+    tar -zxf git-2.49.0.tar.gz
+RUN cd git-2.49.0 && \
+    make configure && ./configure --prefix=/usr && make install

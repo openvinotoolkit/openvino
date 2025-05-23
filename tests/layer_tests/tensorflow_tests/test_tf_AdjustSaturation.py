@@ -45,11 +45,10 @@ class TestAdjustSaturation(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_adjust_saturation_basic(self, input_shape, input_type, special_case,
-                                     ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                     ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and input_shape in [[5, 23, 27, 3], [3, 4, 13, 15, 3]]:
             pytest.skip("151264: accuracy error on GPU")
         if platform.machine() in ["aarch64", "arm64", "ARM64"] and input_shape in [[5, 23, 27, 3], [3, 4, 13, 15, 3]]:
             pytest.skip("151263: accuracy error on ARM")
         self._test(*self.create_adjust_saturation_net(input_shape, input_type, special_case),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

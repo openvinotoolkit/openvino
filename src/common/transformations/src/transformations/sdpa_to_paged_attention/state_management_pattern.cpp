@@ -229,19 +229,22 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
-ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
-                                                         ParameterVector& model_remaining_params,
-                                                         ParameterVector& parameters_to_remove,
-                                                         int& layer_index,
-                                                         Output<Node> max_context_len,
-                                                         ParameterVector& block_indices_inputs_for_each_layer,
-                                                         ResultVector& score_results,
-                                                         bool use_per_layer_block_indices_inputs,
-                                                         bool use_score_outputs,
-                                                         bool allow_cache_rotation,
-                                                         ParameterVector& rotated_block_indices_inputs_for_each_layer,
-                                                         ParameterVector& rotation_deltas_inputs_for_each_layer,
-                                                         std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut) {
+ov::pass::StateManagementPattern::StateManagementPattern(
+    ParameterVector& kv_parameters,
+    ParameterVector& model_wide_params,
+    ParameterVector& parameters_to_remove,
+    int& layer_index,
+    Output<Node> max_context_len,
+    ParameterVector& block_indices_inputs_for_each_layer,
+    ResultVector& score_results,
+    bool use_per_layer_block_indices_inputs,
+    bool use_score_outputs,
+    bool allow_cache_rotation,
+    bool allow_score_aggregation,
+    ParameterVector& rotated_block_indices_inputs_for_each_layer,
+    ParameterVector& rotation_deltas_inputs_for_each_layer,
+    std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut,
+    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -344,7 +347,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
-                                          &model_remaining_params,
+                                          &model_wide_params,
                                           &parameters_to_remove,
                                           &block_indices_inputs_for_each_layer,
                                           &score_results,
@@ -518,7 +521,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        pa_arguments.insert(pa_arguments.end(), model_remaining_params.begin(), model_remaining_params.end());
+        pa_arguments.insert(pa_arguments.end(), model_wide_params.begin(), model_wide_params.end());
 
         std::shared_ptr<Node> sliding_window;
         if (pattern_map.count(phi3_offset)) {
@@ -544,7 +547,17 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 13);
+        if (allow_score_aggregation) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("score_aggregation_window") != optional_model_wide_params.end(),
+                "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
+                "an additional input (Parameter) called score_aggregation_window.");
+            pa_arguments.insert(pa_arguments.end(), optional_model_wide_params.at("score_aggregation_window"));
+        } else {
+            pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 14);
 
         if (allow_cache_rotation) {
             auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
@@ -552,9 +565,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
                                            "rotation_deltas." + std::to_string(layer_index - 1));
 
-            pa_arguments.insert(pa_arguments.begin() + 13, rotated_block_indices);
-            pa_arguments.insert(pa_arguments.begin() + 14, rotation_deltas);
-            pa_arguments.insert(pa_arguments.begin() + 15, model_rotation_trig_lut);
+            pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
+            pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
+            pa_arguments.insert(pa_arguments.begin() + 16, model_rotation_trig_lut);
 
             rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
             rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);

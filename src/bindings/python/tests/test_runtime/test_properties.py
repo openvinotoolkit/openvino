@@ -423,6 +423,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((128, 128),),
         ),
         (
+            intel_gpu_hint.enable_lora_operation,
+            "GPU_ENABLE_LORA_OPERATION",
+            ((False, False),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
@@ -455,6 +460,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.compiler_dynamic_quantization,
             "NPU_COMPILER_DYNAMIC_QUANTIZATION",
+            ((True, True),),
+        ),
+        (
+            intel_npu.run_inferences_sequentially,
+            "NPU_RUN_INFERENCES_SEQUENTIALLY",
             ((True, True),),
         ),
     ],

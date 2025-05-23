@@ -174,7 +174,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         stream << d << " ";
     }
     stream << "(" << data_size << ")"
-           << " by address 0x" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
+           << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
 
     const void* ptr = memory->getData();
 
@@ -245,6 +245,20 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
     }
     case ov::element::i16: {
         auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+        for (size_t i = 0; i < data_size; i++) {
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
+        }
+        break;
+    }
+    case ov::element::boolean: {
+        auto* blob_ptr = reinterpret_cast<const bool*>(ptr);
+        for (size_t i = 0; i < data_size; i++) {
+            stream << (blob_ptr[desc.getElementOffset(i)] ? 1 : 0) << '\n';
+        }
+        break;
+    }
+    case ov::element::string: {
+        auto* blob_ptr = reinterpret_cast<const std::string*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }

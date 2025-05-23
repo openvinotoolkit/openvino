@@ -48,10 +48,8 @@ class TestTruncateDiv(CommonTFLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 126314, 122716')
-    def test_truncate_div_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+    def test_truncate_div_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Requested activation is not supported for integer type or accuracy issue on GPU")
         self._test(*self.create_truncate_div_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

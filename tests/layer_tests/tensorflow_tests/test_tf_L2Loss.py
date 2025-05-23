@@ -34,8 +34,7 @@ class TestL2Loss(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_l2_loss_basic(self, input_shape, input_type,
-                           ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
+                           ie_device, precision, ir_version, temp_dir):
         custom_eps = None
         if input_type == np.float16:
             custom_eps = 3 * 1e-3
@@ -43,4 +42,4 @@ class TestL2Loss(CommonTFLayerTest):
             pytest.skip("150321: Accessing out-of-range dimension on GPU")
         self._test(*self.create_l2_loss_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)

@@ -25,20 +25,14 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 }  // namespace
 
-RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices) : m_device_name(device_name) {
+RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx)
+    : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
-#ifdef OV_GPU_WITH_SYCL
-    const auto engine_type = cldnn::engine_types::sycl;
-#else
-    const auto engine_type = cldnn::engine_types::ocl;
-#endif
+    m_device = devices.front();
 
-    const auto runtime_type = cldnn::runtime_types::ocl;
-
-    m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
-
-    GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
-    init_properties();
+    if (initialize_ctx) {
+        initialize();
+    }
 }
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params) {
@@ -73,19 +67,28 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
     const auto engine_type = cldnn::engine_types::ocl;
     const auto runtime_type = cldnn::runtime_types::ocl;
+    const auto initialize_devices = true;
 
     // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type, context_id, m_va_display, ctx_device_id, target_tile_id);
+    cldnn::device_query device_query(engine_type, runtime_type, context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
     auto device_map = device_query.get_available_devices();
 
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Exactly one device expected in case of context sharing, but ", device_map.size(), " found");
 
-    m_engine = cldnn::engine::create(engine_type, runtime_type, device_map.begin()->second);
-    m_device_name = get_device_name(known_contexts, m_engine->get_device());
+    m_device = device_map.begin()->second;
+    m_device_name = get_device_name(known_contexts, m_device);
 
-    GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+    initialize();
+}
 
-    init_properties();
+cldnn::engine& RemoteContextImpl::get_engine() {
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't obtain engine from uninitialized RemoteContext. Please initialize the context first");
+    return *m_engine;
+}
+
+const cldnn::engine& RemoteContextImpl::get_engine() const {
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't obtain engine from uninitialized RemoteContext. Please initialize the context first");
+    return *m_engine;
 }
 
 void RemoteContextImpl::init_properties() {
@@ -106,6 +109,7 @@ void RemoteContextImpl::init_properties() {
 }
 
 const ov::AnyMap& RemoteContextImpl::get_property() const {
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] get_property() called on uninitialized context. Please initialize the context before use");
     return properties;
 }
 
@@ -114,6 +118,7 @@ std::shared_ptr<RemoteContextImpl> RemoteContextImpl::get_this_shared_ptr() {
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] create_host_tensor() called on uninitialized context. Please initialize the context before use");
     if (m_engine->use_unified_shared_memory()) {
         return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape), nullptr };
     } else {
@@ -122,6 +127,8 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
 }
 
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] create_tensor() called on uninitialized context. Please initialize the context before use");
+
     if (params.empty()) {
         // user wants plugin to allocate tensor by itself and return handle
         return { create_buffer(type, shape), nullptr };
@@ -176,7 +183,7 @@ std::string RemoteContextImpl::get_device_name(const std::map<std::string, Remot
                                                const cldnn::device::ptr current_device) const {
     std::string device_name = "GPU";
     for (auto& c : known_contexts) {
-        if (c.second->get_engine().get_device()->is_same(current_device)) {
+        if (c.second->m_device->is_same(current_device)) {
             device_name = c.second->get_device_name();
             break;
         }
@@ -230,6 +237,26 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_usm(const ov::eleme
 
 void RemoteContextImpl::check_if_shared() const {
     OPENVINO_ASSERT(m_type == ContextType::VA_SHARED, "[GPU] Shared context is required to to share this type of memory");
+}
+
+void RemoteContextImpl::initialize() {
+    std::call_once(m_initialize_flag, [this]() {
+        GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
+
+#ifdef OV_GPU_WITH_SYCL
+        const auto engine_type = cldnn::engine_types::sycl;
+#else
+        const auto engine_type = cldnn::engine_types::ocl;
+#endif
+        const auto runtime_type = cldnn::runtime_types::ocl;
+
+        m_device->initialize();  // Initialize associated device before use
+        m_engine = cldnn::engine::create(engine_type, runtime_type, m_device);
+
+        init_properties();
+
+        m_is_initialized = true;
+});
 }
 
 }  // namespace ov::intel_gpu

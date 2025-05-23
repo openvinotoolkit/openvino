@@ -61,7 +61,7 @@ void DefineBufferClusters::add_buffers_to_cluster(BufferCluster& existing_cluste
 }
 
 size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster) {
-    OPENVINO_ASSERT(!cluster.empty(), "Buffer cluster is empty!");
+    assert(!cluster.empty() && "Buffer cluster is empty!");
     const auto id = cluster.cbegin()->get()->get_reg_group();
     if (std::all_of(cluster.cbegin(), cluster.cend(), [&id](const BufferExpressionPtr& expr) { return expr->get_reg_group() == id; })) {
         return id;

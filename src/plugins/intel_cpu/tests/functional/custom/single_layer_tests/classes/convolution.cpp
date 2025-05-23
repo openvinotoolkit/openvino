@@ -112,7 +112,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
                     ov::OutputVector inputsForShapeInfer;
                     for (size_t j = 0; j < lastNode->get_input_size(); j++) {
                         if (ov::is_type<ov::op::v0::Constant>(lastNode->get_input_node_ptr(j))) {
-                            inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                            inputsForShapeInfer.push_back(lastNode->input_value(j));
                         } else {
                             inputsForShapeInfer.push_back(
                                 std::make_shared<ov::op::v0::Parameter>(lastNode->get_input_element_type(j),
@@ -405,15 +405,15 @@ const std::vector<InputShape>& inputShapes2d() {
             {{}, {{ 1, 64, 7, 7 }}},
             {{}, {{ 1, 67, 7, 7 }}},
             {
-                //dynamic shape
-                { -1, 64, -1, {1, 200} },
+                // dynamic shape (one spatial shape is undefined)
+                { -1, 64, -1, 8 },
                 { //target static shapes
-                    { 2, 64, 7, 7 },
-                    { 1, 64, 9, 9}
+                    { 2, 64, 7, 8 },
+                    { 1, 64, 9, 8}
                 }
             },
             {
-                //dynamic shape
+                // dynamic shape (both spatial shapes are undefined)
                 { -1, 67, -1, {1, 200} },
                 { //target static shapes
                     { 2, 67, 7, 7 },

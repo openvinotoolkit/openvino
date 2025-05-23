@@ -326,6 +326,12 @@ public:
     virtual std::unordered_map<std::string, ov::Any> get_rt_info() const override {
         FRONT_END_NOT_IMPLEMENTED(get_rt_info);
     }
+    virtual bool has_converter() const override {
+        FRONT_END_NOT_IMPLEMENTED(has_converter);
+    }
+    virtual OutputVector convert(const ov::frontend::NodeContext* context) const override {
+        FRONT_END_NOT_IMPLEMENTED(convert);
+    }
 
 private:
     const std::string m_schema = "NONE";

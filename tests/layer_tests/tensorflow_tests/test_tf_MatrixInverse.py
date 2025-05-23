@@ -56,9 +56,8 @@ class TestMatrixInverse(CommonTFLayerTest):
     @pytest.mark.parametrize("adjoint", [None, False, True])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matrix_inverse_basic(self, input_shape, adjoint, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_matrix_inverse_basic(self, input_shape, adjoint, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("GPU does not support Inverse operation")
         self._test(*self.create_matrix_inverse_net(input_shape=input_shape, adjoint=adjoint),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

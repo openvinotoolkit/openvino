@@ -35,40 +35,47 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto sliding_window = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto alibi_slopes = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto max_context_len = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto score_aggregation_window = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto rotated_block_indices = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto rotation_deltas = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto rotation_trig_lut = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
 
-    auto pa_1 = makePattern<op::PagedAttentionExtension>({Q,
-                                                          K,
-                                                          V,
-                                                          key_cache_0,
-                                                          value_cache_0,
-                                                          past_lens,
-                                                          subsequence_begins,
-                                                          block_indices,
-                                                          block_indices_begins,
-                                                          scale,
-                                                          sliding_window,
-                                                          alibi_slopes,
-                                                          max_context_len});
+    auto pa_1 = makePattern<op::PagedAttentionExtension>({
+        Q,
+        K,
+        V,
+        key_cache_0,
+        value_cache_0,
+        past_lens,
+        subsequence_begins,
+        block_indices,
+        block_indices_begins,
+        scale,
+        sliding_window,
+        alibi_slopes,
+        max_context_len,
+        score_aggregation_window,
+    });
 
-    auto pa_2 = makePattern<op::PagedAttentionExtension>({Q,
-                                                          K,
-                                                          V,
-                                                          key_cache_0,
-                                                          value_cache_0,
-                                                          past_lens,
-                                                          subsequence_begins,
-                                                          block_indices,
-                                                          block_indices_begins,
-                                                          scale,
-                                                          sliding_window,
-                                                          alibi_slopes,
-                                                          max_context_len,
-                                                          rotated_block_indices,
-                                                          rotation_deltas,
-                                                          rotation_trig_lut});
+    auto pa_2 = makePattern<op::PagedAttentionExtension>({
+        Q,
+        K,
+        V,
+        key_cache_0,
+        value_cache_0,
+        past_lens,
+        subsequence_begins,
+        block_indices,
+        block_indices_begins,
+        scale,
+        sliding_window,
+        alibi_slopes,
+        max_context_len,
+        score_aggregation_window,
+        rotated_block_indices,
+        rotation_deltas,
+        rotation_trig_lut,
+    });
     auto result = pa_1 | pa_2;
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();

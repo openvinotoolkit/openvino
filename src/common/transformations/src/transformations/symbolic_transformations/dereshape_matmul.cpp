@@ -346,16 +346,12 @@ ov::pass::DeReshapeFullyConnected::DeReshapeFullyConnected() {
     using namespace ov::op;
     using namespace ov::pass::pattern;
 
-    auto transpose_a_false = [](const std::shared_ptr<Node>& node) -> bool {
-        auto mm = as_type_ptr<v0::MatMul>(node);
-        return mm && !mm->get_transpose_a();
-    };
-
     auto input = wrap_type<v1::Reshape>({any_input(shape_matches("BATCHES_1...,Y")), any_input()},
                                         shape_matches("BATCHES_2...,Y"));
     auto converted = pattern::optional<v0::Convert>(input, consumers_count(1));
     auto mm_label = wrap_type<v0::MatMul>({converted, any_input(rank_equals(2))},
-                                          consumers_count(1) && transpose_a_false && shape_matches("BATCHES_2...,Z"));
+                                          consumers_count(1) && shape_matches("BATCHES_2...,Z"),
+                                          {{"transpose_a", false}});
     auto output = wrap_type<v1::Reshape>({mm_label, any_input()}, shape_matches("BATCHES_1...,Z"));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {

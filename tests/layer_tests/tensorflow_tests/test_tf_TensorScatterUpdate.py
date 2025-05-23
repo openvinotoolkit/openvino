@@ -81,9 +81,7 @@ class TestTensorScatterUpdate(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_sparse_tensor_dense_add(self, data_type, indices_type,
                                      tensor_shape, updates_shape, indices_shape,
-                                     ie_device, precision, ir_version, temp_dir,
-                                     use_legacy_frontend):
+                                     ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tensor_scatter_update_net(data_type, indices_type,
                                                           tensor_shape, updates_shape, indices_shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

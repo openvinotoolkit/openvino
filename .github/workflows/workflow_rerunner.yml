@@ -18,6 +18,7 @@ on:
       - "Windows (VS 2022, Python 3.11, Debug)"
       - "Windows Conditional Compilation (VS 2022, Python 3.11)"
       - "Manylinux 2014"
+      - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
   pull_request:

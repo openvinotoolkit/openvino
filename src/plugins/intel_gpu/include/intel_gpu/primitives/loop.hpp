@@ -273,17 +273,19 @@ struct loop : public primitive_base<loop> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        // add external_id in dependencies if not exist
-        for (const auto& mapping : input_primitive_maps) {
-            auto target = std::find_if(input.begin(), input.end(),
-                                    [&](const input_info& info) {
-                                        return info.pid == mapping.external_id.pid;});
-            if (target == input.end()) {
-                ret.push_back(mapping.external_id.pid);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        for (auto& mapping : input_primitive_maps) {
+            auto found = std::any_of(input.begin(), input.end(), [&](const input_info& info) {
+                return info.pid == mapping.external_id.pid;
+            });
+            if (!found) {
+                ret[idx++] = &mapping.external_id;
             }
         }
+
         return ret;
     }
 };

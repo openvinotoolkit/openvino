@@ -8,6 +8,10 @@ on:
       openvinoContribRef:
         description: 'Branch, tag or commit hash to clone openvino_contrib from. Taken from event context if not set'
         type: string
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
@@ -22,7 +26,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   

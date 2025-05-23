@@ -48,7 +48,7 @@ class TestLogicalBinaryOps(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_logical_binary_op(self, x_shape, y_shape, op_type,
                                ie_device, precision, ir_version,
-                               temp_dir, use_legacy_frontend):
+                               temp_dir):
         self._test(*self.create_logical_binary_ops_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   temp_dir=temp_dir)

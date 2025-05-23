@@ -240,7 +240,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.set_partial_shape(new_shape);
 }
 
-int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];
     auto f_padding = l.data_padding._lower_size[1];

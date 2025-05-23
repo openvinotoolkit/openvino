@@ -19,8 +19,9 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
         switch (input_type) {
         case ov::hint::SchedulingCoreType::PCORE_ONLY:
             for (auto& i : result_table) {
-                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
+                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC] + i[LP_EFFICIENT_CORE_PROC];
                 i[EFFICIENT_CORE_PROC] = 0;
+                i[LP_EFFICIENT_CORE_PROC] = 0;
             }
             break;
         case ov::hint::SchedulingCoreType::ECORE_ONLY:
@@ -36,7 +37,8 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
     };
 
     if (((input_type == ov::hint::SchedulingCoreType::PCORE_ONLY) && (proc_type_table[0][MAIN_CORE_PROC] == 0)) ||
-        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0))) {
+        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0) &&
+         (proc_type_table[0][LP_EFFICIENT_CORE_PROC] == 0))) {
         input_type = ov::hint::SchedulingCoreType::ANY_CORE;
     }
 

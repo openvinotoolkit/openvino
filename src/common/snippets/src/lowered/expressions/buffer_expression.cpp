@@ -71,8 +71,8 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     const auto& parent_loop_ids = get_parent_inner_loops(parent_port.get_expr()->get_loop_ids(), get_loop_ids());
     const auto planar_shape = utils::get_preordered_vdims(parent_port);
 
-    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size())
-                                             : planar_shape.size();
+    OPENVINO_ASSERT(allocation_rank > 0, "Allocation size must be positive");
+    const size_t rank = std::min(static_cast<size_t>(allocation_rank), planar_shape.size());
 
     const auto& subtensor = ov::snippets::utils::get_projected_subtensor(parent_port);
 

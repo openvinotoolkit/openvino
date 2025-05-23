@@ -102,6 +102,7 @@ macro(ov_cpack_settings)
         2024.6.0
         2025.0.0 2025.0.1
         2025.1.0
+        2025.2.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)

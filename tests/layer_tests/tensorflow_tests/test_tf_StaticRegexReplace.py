@@ -40,11 +40,9 @@ class TestStaticRegexReplace(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_static_regex_replace(self, input_shape, pattern, rewrite, replace_global,
-                                  ie_device, precision, ir_version, temp_dir,
-                                  use_legacy_frontend):
+                                  ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_static_regex_replace_net(input_shape=input_shape, pattern=pattern, rewrite=rewrite,
                                                          replace_global=replace_global),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

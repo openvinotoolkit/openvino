@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestTFRoll(CommonTFLayerTest):
-    def create_tf_roll_net(self, shift, axis, x_shape, input_type, ir_version, use_legacy_frontend):
+    def create_tf_roll_net(self, shift, axis, x_shape, input_type, ir_version):
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
@@ -36,11 +36,9 @@ class TestTFRoll(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
-        self._test(*self.create_tf_roll_net(**params, ir_version=ir_version,
-                                            use_legacy_frontend=use_legacy_frontend), ie_device,
-                   precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+        self._test(*self.create_tf_roll_net(**params, ir_version=ir_version), ie_device,
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
                    **params)

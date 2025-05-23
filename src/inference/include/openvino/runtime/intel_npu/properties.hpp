@@ -127,5 +127,14 @@ static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"}
  */
 static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows running inferences in async mode sequentially in the order in which they are started to optimize
+ * host scheduling.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
 }  // namespace intel_npu
 }  // namespace ov

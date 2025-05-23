@@ -71,6 +71,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "gru_seq_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -948,16 +949,12 @@ void program::rename(program_node& node, primitive_id const& new_id) {
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
-    const_cast<primitive_id&>(node.desc->id) = new_id;
+    node.desc->id = new_id;
 }
 
 void program::swap_names(program_node& node1, program_node& node2) {
-    const auto _extract_id = [](program_node& node) -> primitive_id& {
-        return const_cast<primitive_id&>(node.desc->id);
-    };
-
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
-    std::swap(_extract_id(node1), _extract_id(node2));
+    std::swap(node1.desc->id, node2.desc->id);
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
@@ -1025,8 +1022,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
-    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
+    new_node.desc->origin_op_name = old_node.desc->origin_op_name;
+    new_node.desc->origin_op_type_name = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -1649,6 +1646,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             } else {
                 if (get_config().get_use_onednn()) {
                     lo.enable_onednn_for<lstm_seq>();
+                    lo.enable_onednn_for<gru_seq>();
                 }
             }
         }

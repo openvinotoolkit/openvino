@@ -88,29 +88,12 @@ private:
  * @ingroup ov_transformation_common_api
  * @brief Fuses special sub-graph into an internal Rotary Positional Embedding operation
  */
-class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
+class ov::pass::RoPEFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("RoPEFusion");
-    RoPEFusion(bool support_2d_rope = false) {
-        add_matcher<ov::pass::RoPEFusionFlux>();
-        add_matcher<ov::pass::RoPEFusionGPTNEOX>();
-        add_matcher<ov::pass::RoPEFusionGPTJ>();
-        // optional heads & tails are fused in separate matcher pass,
-        // after RoPENode has been created.
-        add_matcher<ov::pass::RoPEFusionCosSinPreprocess>();
-        add_matcher<ov::pass::RoPEFusionIOSlicing>();
-        add_matcher<ov::pass::RoPEFusionPreprocess>();
+    OPENVINO_MODEL_PASS_RTTI("RoPEFusion");
+    RoPEFusion(bool support_2d_rope = false);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
-        add_matcher<ov::pass::RoPEFusionChatGLM>(0);
-        add_matcher<ov::pass::RoPEFusionChatGLM>(1);
-        if (support_2d_rope) {
-            add_matcher<ov::pass::RoPEFusionChatGLM>(0, true);
-            add_matcher<ov::pass::RoPEFusionChatGLM>(1, true);
-        }
-
-        add_matcher<ov::pass::RoPEFusionQwen>(0);
-        add_matcher<ov::pass::RoPEFusionQwen>(1);
-
-        add_matcher<ov::pass::RoPEShareCosSin>();
-    }
+private:
+    bool m_support_2d_rope;
 };

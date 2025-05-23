@@ -83,7 +83,6 @@ The OpenVINO Repository includes the following components. Click on the componen
 <pre>
  <code>
  <a href="../../README.md">openvino/</a>                  // OpenVINO Repository
-    .ci/                    // CI settings for Azure
     .github/                // Github actions and PR templates
     cmake/                  // Global CMake scripts
     docs/                   // OpenVINO documentation

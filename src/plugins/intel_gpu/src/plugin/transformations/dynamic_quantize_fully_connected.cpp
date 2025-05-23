@@ -71,10 +71,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             output_type = m_fc->get_input_element_type(0);
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
-                                                                     m_fc->get_input_node_shared_ptr(1),
-                                                                     m_fc->get_input_node_shared_ptr(2),
-                                                                     m_fc->get_input_node_shared_ptr(3),
-                                                                     optional_w_zp,
+                                                                     m_fc->input_value(1),
+                                                                     m_fc->input_value(2),
+                                                                     m_fc->input_value(3),
+                                                                     optional_w_zp->output(0),
                                                                      dyn_quan->output(1),
                                                                      optional_a_zp,
                                                                      output_type);

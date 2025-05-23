@@ -11,7 +11,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Convolution {
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 /* ============= Convolution (Gemm 1D) ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32,
                          ConvolutionLayerCPUTest,

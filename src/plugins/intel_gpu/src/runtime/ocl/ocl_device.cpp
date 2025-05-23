@@ -204,6 +204,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.dev_name = device.getInfo<CL_DEVICE_NAME>();
     info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
     info.dev_type = get_device_type(device);
+    info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
@@ -253,6 +254,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
+#if CL_HPP_TARGET_OPENCL_VERSION >= 300
+    // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
+    // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
+    // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
+    info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
+#elif CL_HPP_TARGET_OPENCL_VERSION >= 200
+    // OpenCL C2.0: work_group_<ops> are mandetory.
+    info.supports_work_group_collective_functions = true;
+#else
+    info.supports_work_group_collective_functions = false;
+#endif
+
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
     } else {
@@ -271,6 +284,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         std::fill_n(std::begin(info.uuid.uuid), ov::device::UUID::MAX_UUID_SIZE, 0);
     }
 
+    bool bus_info_supported = extensions.find("cl_khr_pci_bus_info") != std::string::npos;
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
     bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     info.has_separate_cache = false;
@@ -306,6 +320,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_threads_per_eu = 0;
     }
 
+    if (bus_info_supported) {
+        auto pci_bus_info = device.getInfo<CL_DEVICE_PCI_BUS_INFO_KHR>();
+        info.pci_info.pci_domain = pci_bus_info.pci_domain;
+        info.pci_info.pci_bus = pci_bus_info.pci_bus;
+        info.pci_info.pci_device = pci_bus_info.pci_device;
+        info.pci_info.pci_function = pci_bus_info.pci_function;
+    }
+
     info.num_ccs = 1;
     if (info.supports_queue_families) {
         cl_uint num_queues = 0;
@@ -322,10 +344,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::HW hw = ngen::HW::Unknown;
-    ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    generator_t<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
-    info.arch = convert_ngen_arch(hw);
+    ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
+    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations
     // as OneDNN code generators are not generic and typically requires some updates for the new architectures
@@ -368,14 +389,30 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 
 }  // namespace
 
+void ocl_device::initialize_device(const cl::Device dev, const cl::Context& ctx) {
+    _context = ctx;
+    _device = dev;
+    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory());
+    _is_initialized = true;
+}
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform)
-: _context(ctx)
-, _device(dev)
-, _platform(platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize)
+: _platform(platform)
 , _info(init_device_info(dev, ctx))
-, _mem_caps(init_memory_caps(dev, _info))
-, _usm_helper(new cl::UsmHelper(_context, _device, use_unified_shared_memory())) {
+, _mem_caps(init_memory_caps(dev, _info)) {
+    if (initialize) {
+        initialize_device(dev, ctx);
+    }
+}
+
+ocl_device::ocl_device(const ocl_device::ptr other, bool initialize)
+: _platform(other->_platform)
+, _info(other->_info)
+, _mem_caps(other->_mem_caps) {
+    if (initialize) {
+        OPENVINO_ASSERT(other->is_initialized(), "[GPU] Can't initialize device because the source device is uninitialized");
+        initialize_device(other->_device, other->_context);
+    }
 }
 
 bool ocl_device::is_same(const device::ptr other) {
@@ -383,11 +420,68 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _device == casted->get_device() && _platform == casted->get_platform();
+    // Short path if cl_device is the same
+    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device)
+        return true;
+
+    // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
+    // where the UUID may be missing or incorrectly generated
+    // Therefore, we also validate other attributes
+    if (_info.uuid.uuid != casted->_info.uuid.uuid)
+        return false;
+
+    if (_info.pci_info != casted->_info.pci_info)
+        return false;
+
+    if (_info.sub_device_idx != casted->_info.sub_device_idx)
+        return false;
+
+    if (_info.vendor_id != casted->_info.vendor_id ||
+        _info.dev_name != casted->_info.dev_name ||
+        _info.driver_version != casted->_info.driver_version)
+        return false;
+
+    if (_info.dev_type != casted->_info.dev_type ||
+        _info.gfx_ver != casted->_info.gfx_ver ||
+        _info.arch != casted->_info.arch)
+        return false;
+
+    if (_info.ip_version != casted->_info.ip_version || _info.device_id != casted->_info.device_id)
+        return false;
+
+    if (_info.execution_units_count != casted->_info.execution_units_count || _info.max_global_mem_size != casted->_info.max_global_mem_size)
+        return false;
+
+    return true;
 }
 
-void ocl_device::set_mem_caps(memory_capabilities memory_capabilities) {
+void ocl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
+}
+
+void ocl_device::set_sub_device_idx(uint32_t idx) {
+    _info.sub_device_idx = idx;
+}
+
+void ocl_device::initialize() {
+    if (_is_initialized)
+        return;
+
+    ocl::ocl_device_detector detector;
+    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, true);
+
+    bool found = false;
+    for (auto& device : device_map) {
+        if (this->is_same(device.second)) {
+            OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
+            if (auto casted = downcast<ocl_device>(device.second.get())) {
+                initialize_device(casted->get_device(), casted->get_context());
+                found = true;
+            }
+        }
+    }
+
+    OPENVINO_ASSERT(found, "[GPU] Unable to initialize the requested device ", this->get_info().dev_name, ". Please ensure the device is available");
 }
 
 }  // namespace ocl

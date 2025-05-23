@@ -33,6 +33,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 using namespace dnnl;
 using namespace ov::element;
@@ -55,6 +56,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool 
         supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
     }
     return supportedDataTypes;
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    return {Type_t::i8};
 #else
     return {};
 #endif
@@ -72,6 +75,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 #if defined(OPENVINO_ARCH_X86_64)
     // @todo enable for bf16 as well
     // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else
     return {};
@@ -113,7 +118,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
                                                     size_t IC,
                                                     size_t OC,
                                                     size_t G,
-                                                    ov::element::Type inferencePrecision) noexcept {
+                                                    const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
@@ -126,7 +131,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            inferencePrecision == ov::element::bf16) {
+            config.inferencePrecision == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
@@ -143,8 +148,28 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         if (IC % G != 0 || IC / G < 4 || OC == 1) {
             return false;
         }
+    } catch (...) {
+        return false;
+    }
+    return true;
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+        if (!hasIntDotProductSupport()) {
+            return false;
+        }
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+            return false;
 
-        return true;
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+            return false;
+
+        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            return false;
     } catch (...) {
         return false;
     }
@@ -152,8 +177,10 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    return useMatmulPrim;
+    if (useMatmulPrim)
+        return true;
 #endif
+    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {

@@ -114,4 +114,9 @@ bool ISTFT::get_normalized() const {
     return m_normalized;
 }
 
+void ISTFT::set_normalized(const bool normalized) {
+    OV_OP_SCOPE(v16_ISTFT_set_normalized);
+    m_normalized = normalized;
+}
+
 }  // namespace ov::op::v16

@@ -37,9 +37,12 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
-            return plugin->Plugin::get_device_list(config);
-        });
+        ON_CALL(*plugin, get_device_list)
+            .WillByDefault([this](ov::AnyMap& config,
+                                  const std::shared_ptr<const ov::Model>& model,
+                                  const std::string& model_path) {
+                return plugin->Plugin::get_device_list(config);
+            });
     }
 };
 
@@ -63,11 +66,12 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
 
     EXPECT_CALL(*core, get_available_devices()).Times(expectedTimes);
+    ov::AnyMap properties = {ov::device::priorities(priorityDevices)};
     if (metaDevices == "") {
-        EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
+        EXPECT_THROW(plugin->get_device_list(properties, nullptr, {}), ov::Exception);
     } else {
         std::string result;
-        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list(properties, nullptr, {}));
         EXPECT_EQ(result, metaDevices);
     }
 }
@@ -95,11 +99,12 @@ TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::architecture.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(dgpuArchitecture));
     EXPECT_CALL(*core, get_available_devices()).Times(expectedTimes);
+    ov::AnyMap properties = {ov::device::priorities(priorityDevices)};
     if (metaDevices == "") {
-        EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
+        EXPECT_THROW(plugin->get_device_list(properties, nullptr, {}), ov::Exception);
     } else {
         std::string result;
-        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list(properties, nullptr, {}));
         EXPECT_EQ(result, metaDevices);
     }
 }

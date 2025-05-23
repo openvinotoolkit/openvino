@@ -55,11 +55,10 @@ class TestBlockLSTM(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_block_lstm(self, time_len, seq_len_max, input_size, hidden_size, batch_size,
                         forget_bias, cell_clip, use_peephole,
-                        ie_device, precision, ir_version, temp_dir,
-                        use_legacy_frontend):
+                        ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip BlockLSTM test on GPU")
         self._test(*self.create_block_lstm(time_len, seq_len_max, input_size, hidden_size, batch_size,
                                            forget_bias, cell_clip, use_peephole),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=3 * 1e-3)
+                   custom_eps=3 * 1e-3)

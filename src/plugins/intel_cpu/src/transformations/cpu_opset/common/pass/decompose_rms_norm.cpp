@@ -29,9 +29,9 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }
-        auto data = node->get_input_node_shared_ptr(0);
+        auto data = node->input_value(0);
         auto data_precision = node->get_input_element_type(0);
-        auto scale = node->get_input_node_shared_ptr(1);
+        auto scale = node->input_value(1);
 
         auto power_const = ov::opset10::Constant::create(data_precision, {}, std::vector<float>{2.f});
         auto power = std::make_shared<ov::opset10::Power>(data, power_const);

@@ -62,6 +62,7 @@
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
@@ -108,7 +109,6 @@ TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
-TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
@@ -370,6 +370,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},
         {"SaveV2", CreatorFunction(translate_no_op)},
         {"ScatterNd", CreatorFunction(translate_scatter_nd_op)},
+        {"SegmentMax", CreatorFunction(translate_segment_max_op)},
         {"SegmentSum", CreatorFunction(translate_segment_sum_op)},
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
@@ -380,6 +381,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Snapshot", CreatorFunction(translate_identity_op)},
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
+        {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
         {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_op)},
         {"SparseSegmentSqrtN", CreatorFunction(translate_sparse_segment_op)},
@@ -461,7 +463,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Translators for internal operations
         {"BlockLSTM", CreatorFunction(translate_block_lstm_op)},
         {"GRUBlockCell", CreatorFunction(translate_gru_block_cell_op)},
-        {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
 
