@@ -44,9 +44,8 @@ ConvertDequantizationFP16Matcher::ConvertDequantizationFP16Matcher(const element
     auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
         auto multiply = m.get_match_root();
-        
+
         auto multiply_users = multiply->get_users();
         for (const auto& user : multiply_users) {
             for (size_t idx = 0; idx < user->inputs().size(); ++idx) {
