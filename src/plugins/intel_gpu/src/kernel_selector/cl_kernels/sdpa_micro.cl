@@ -327,8 +327,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Prefetch first K tile. */
     cooperative_prefetch_2d_k(
             /* ptr */ K,
-            /* r */ k,
-            /* c */ d,
+            /* r */ d,
+            /* c */ k,
             /* rmax */ ugemm_kq_wg_tile_m,
             /* cmax */ PREFETCH_D_MAX,
             /* ld */ ldk,
