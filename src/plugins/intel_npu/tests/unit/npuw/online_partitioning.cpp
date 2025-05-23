@@ -525,3 +525,48 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_RepeatedModel) {
         EXPECT_EQ(snap->graphSize(), sizes_fr[iter_fr++]);
     });
 }
+
+TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
+    std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    input->set_friendly_name("input");
+
+    auto n1 = std::make_shared<ov::op::v1::Add>(input, input);
+    n1->set_friendly_name("n1");
+    auto n2 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    n2->set_friendly_name("n2");
+    auto n3 = std::make_shared<ov::op::v1::Divide>(n1, n2, true);
+    n3->set_friendly_name("n3");
+    auto n4 = std::make_shared<ov::op::v0::Sin>(n1);
+    n4->set_friendly_name("n4");
+    auto n5 = std::make_shared<ov::op::v0::Cos>(n1);
+    n5->set_friendly_name("n5");
+    auto n6 = std::make_shared<ov::op::v0::Sin>(n3);
+    n6->set_friendly_name("n6");
+    auto n7 = std::make_shared<ov::op::v0::Cos>(n3);
+    n7->set_friendly_name("n7");
+    auto n8 = std::make_shared<ov::op::v0::Concat>(std::vector<std::shared_ptr<ov::Node>>{n1, n4, n5, n6, n7}, -1);
+    n8->set_friendly_name("n8");
+
+    auto result = std::make_shared<ov::op::v0::Result>(n8);
+    result->set_friendly_name("res");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+
+    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+    ov::npuw::online::PassContext ctx;
+    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Sin", "NPU"}, {ov::npuw::online::PatternType::OP, "Cos", "NPU"}};
+    snap->buildGraph();
+    ctx.min_graph_size = 1;
+    snap->setCtx(ctx);
+    snap->earlyAvoids();
+    snap->repeat([&] {
+        snap->repeat([&] {
+            snap->collectLHF();
+        });
+        snap->repeat([&] {
+            snap->fuseRemnantsExtended();
+        });
+    });
+
+    EXPECT_EQ(snap->graphSize(), 3);
+}

@@ -289,10 +289,7 @@ void Snapshot::fuseRemnants() {
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
-                    if (group->avoidedTargets() != cons_group->avoidedTargets()) {
-                        continue;
-                    }
-                    if (!cons_group->isFrozen()) {
+                    if (!cons_group->isFrozen() && group->avoidedTargets() == cons_group->avoidedTargets()) {
                         group->fuseWith(cons_group);
                         break;
                     }

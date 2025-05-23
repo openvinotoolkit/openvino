@@ -323,6 +323,15 @@ class Compiler {
         LOG_INFO("Online partitioning: compiling single group pipeline...");
         LOG_BLOCK();
 
+        m_snapshot->singleGroup();
+
+        LOG_INFO("Done");
+    }
+
+    void none_with_avoids() {
+        LOG_INFO("Online partitioning: compiling single group with avoids pipeline...");
+        LOG_BLOCK();
+
         // Note: Assuming the context was set with minimum graph size = 1
         // Note: If there are avoids present there will be multiple groups formed instead of 1
         m_snapshot->earlyAvoids();
@@ -397,12 +406,6 @@ public:
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
-        // Parse OV Model into internal data structures. After this
-        // stage each layer = it's own group (excluding Parameters,
-        // Results, Constants and Converts).
-        LOG_INFO("Online partitioning: building initial graph...");
-        m_snapshot->buildGraph();
-
         PassContext ctx;
         ctx.min_graph_size = detail::getMinGraphSize(m_cfg);
         ctx.keep_blocks = detail::getMinRepBlocks(m_cfg);
@@ -411,6 +414,17 @@ public:
         ctx.isolates = detail::getIsolates(m_cfg);
         ctx.nofolds = detail::getNoFolds(m_cfg);
 
+        if (currentPipeline() == Pipeline::NONE && ctx.avoids.empty()) {
+            none();
+            return;
+        }
+
+        // Parse OV Model into internal data structures. After this
+        // stage each layer = it's own group (excluding Parameters,
+        // Results, Constants and Converts).
+        LOG_INFO("Online partitioning: building initial graph...");
+        m_snapshot->buildGraph();
+
         m_snapshot->setCtx(ctx);
 
         switch (currentPipeline()) {
@@ -418,7 +432,7 @@ public:
             // Allow partitioning to merge everything into a single group
             ctx.min_graph_size = 1;
             m_snapshot->setCtx(ctx);
-            none();
+            none_with_avoids();
             break;
         case Pipeline::INIT:
             init();
