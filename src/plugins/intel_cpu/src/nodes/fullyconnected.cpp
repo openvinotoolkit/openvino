@@ -646,9 +646,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
             auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
             auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-            if (element_num == 1) {
-                it->second = zeropoint_mem;
-            } else {
+            if (element_num != 1) {
                 it->second =
                     attrs.weightsNonTransposed
                         ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
