@@ -15,7 +15,8 @@ device_query::device_query(engine_types engine_type,
                            void* user_context,
                            void* user_device,
                            int ctx_device_id,
-                           int target_tile_id) {
+                           int target_tile_id,
+                           bool initialize_devices) {
     switch (engine_type) {
     case engine_types::sycl:
     case engine_types::ocl: {
@@ -23,7 +24,7 @@ device_query::device_query(engine_types engine_type,
             throw std::runtime_error("Unsupported runtime type for ocl engine");
 
         ocl::ocl_device_detector ocl_detector;
-        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
     default: throw std::runtime_error("Unsupported engine type in device_query");
