@@ -404,7 +404,21 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+
+        // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
+        if (MSK_D2 == 1) {
+            // Define mask dimensions for single Query dimension
+            uint mask_m = MSK_D1; // num_heads
+            uint mask_n = MSK_D3; // sequence_length
+
+            tile_load_t(&mask_tile, msk, mask_m, mask_n, 0, k0 + sg_i0_kq);
+        } else {
+            // General case: attention mask matches Q*K^T shape
+            uint mask_m = q; // Q sequence length
+            uint mask_n = k; // K sequence length
+
+            tile_load_t(&mask_tile, msk, mask_m, mask_n, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        }
 #endif
 
 #if REMAINDER_K
