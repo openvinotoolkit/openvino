@@ -44,7 +44,7 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     " vs. ",
                     zeDescriptorName,
                     ". The I/O order may have been altered, which could lead to an erroneous behavior.");
-    OPENVINO_ASSERT(zeroUtils::getZePrecision(ioDescriptor.precision) == zeDescriptor.info.devicePrecision,
+    OPENVINO_ASSERT(ioDescriptor.precision == zeroUtils::toOVElementType(zeDescriptor.info.devicePrecision),
                     "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
 
     const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
