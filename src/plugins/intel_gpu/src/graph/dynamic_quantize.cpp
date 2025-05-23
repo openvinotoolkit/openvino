@@ -20,10 +20,6 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         || !act_layout.is_static())
         return false;
 
-    GPU_DEBUG_IF(node.get_program().get_config().get_apply_dynamic_quantization_b1()) {
-        return false;
-    }
-
     // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
     OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
                     "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
@@ -37,9 +33,12 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (input_batch <= 1) {
+    if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
+        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
+                        << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
         return true;
     }
+
     return false;
 }
 

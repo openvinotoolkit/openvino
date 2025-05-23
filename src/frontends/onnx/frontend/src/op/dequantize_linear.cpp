@@ -225,17 +225,38 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
     const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
 
-    FRONT_END_GENERAL_CHECK(axis == 0, "Axis != 0 isn't supported");
+    FRONT_END_GENERAL_CHECK(axis <= 1, "Axis > 1 isn't supported");
     FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
     FRONT_END_GENERAL_CHECK(
-        src_x.get_shape()[0] % block_size == 0,
-        "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
+        (axis == 0 && src_x.get_shape()[0] % block_size == 0) || (axis == 1 && src_x.get_shape()[1] % block_size == 0),
+        "DequantizeLinear doesn't support case when dimension of X cannot be divided by block_size");
 
-    // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
-    ov::Output<ov::Node> broadcastable_x = op::util::reshape(
-        src_x,
-        Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
+    bool is_cw_quantize =
+        (axis == 0 && src_x.get_shape()[0] == block_size) || (axis == 1 && src_x.get_shape()[1] == block_size);
+    if (is_cw_quantize) {
+        ov::Output<ov::Node> converted_x = std::make_shared<v0::Convert>(src_x, scale.get_element_type());
+        if (inputs.size() > 2) {
+            zp = inputs[2];
+            zp = std::make_shared<v0::Convert>(zp, scale.get_element_type());
+            converted_x = std::make_shared<v1::Subtract>(converted_x, zp);
+        }
+        auto scaled_x = std::make_shared<v1::Multiply>(converted_x, scale);
+        return {scaled_x};
+    }
 
+    // For further broadcasting scales and zp - reshape input to a shape
+    // axis == 0, [x.shape[0]/block_size, block_size, x.shape[1]]
+    // axis == 1, [x.shape[0], block_size, x.shape[1]/block_size]
+    ov::Output<ov::Node> broadcastable_x;
+    if (axis == 0) {
+        broadcastable_x = op::util::reshape(
+            src_x,
+            Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
+    } else {
+        broadcastable_x = op::util::reshape(
+            src_x,
+            Shape{src_x.get_shape()[0], block_size, static_cast<size_t>(src_x.get_shape()[1]) / block_size});
+    }
     const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
 
     const auto scale_type = scale.get_element_type();
