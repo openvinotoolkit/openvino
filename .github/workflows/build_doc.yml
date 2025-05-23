@@ -51,6 +51,10 @@ jobs:
     outputs:
       images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
       - uses: ./.github/actions/handle_docker
         id: handle_docker
         with:
