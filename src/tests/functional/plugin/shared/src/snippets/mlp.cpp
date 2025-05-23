@@ -8,19 +8,19 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "subgraph_mlp.hpp"
+#include "subgraph_mlp_seq.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-void MLPBase::compile_model() {
+void MLPSeqBase::compile_model() {
     if (m_thread_count != default_thread_count)
         core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
     SubgraphBaseTest::compile_model();
 }
 
-void MLPBase::SetUp() {
+void MLPSeqBase::SetUp() {
     std::vector<InputShape> input_shapes;
     ov::element::Type prc;
     ov::AnyMap additional_config;
@@ -39,7 +39,7 @@ void MLPBase::SetUp() {
     setInferenceType(prc);
 }
 
-std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj) {
+std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj) {
     auto [input_shapes,
           elem_types,
           prc,
@@ -74,7 +74,7 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
     return result.str();
 }
 
-void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
+void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
     std::pair <size_t, std::pair<size_t, size_t>> num_hidden_layers_with_expectations;
     std::tie(input_shapes,
              m_input_types,
@@ -89,14 +89,14 @@ void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& 
     std::tie(ref_num_subgraphs, ref_num_nodes) = ref_num_subgraphs_and_nodes;
 }
 
-std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const {
+std::shared_ptr<SnippetsFunctionBase> MLPSeq::get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const {
     return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes,
                                                                 m_input_types,
                                                                 num_hidden_layers,
                                                                 hidden_matmul_size);
 }
 
-std::shared_ptr<SnippetsFunctionBase> MLPQuantized::get_subgraph(size_t num_hidden_layers,
+std::shared_ptr<SnippetsFunctionBase> MLPSeqQuantized::get_subgraph(size_t num_hidden_layers,
                                                                  size_t hidden_matmul_size) const {
     return std::make_shared<ov::test::snippets::MLPSeqQuantizedFunction>(inputDynamicShapes,
                                                                          m_input_types,
@@ -104,13 +104,13 @@ std::shared_ptr<SnippetsFunctionBase> MLPQuantized::get_subgraph(size_t num_hidd
                                                                          hidden_matmul_size);
 }
 
-TEST_P(MLP, CompareWithRefImpl) {
+TEST_P(MLPSeq, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
-TEST_P(MLPQuantized, CompareWithRefImpl) {
+TEST_P(MLPSeqQuantized, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

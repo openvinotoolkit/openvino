@@ -21,9 +21,9 @@ typedef std::tuple<std::vector<InputShape>,                       // Input shape
                                                                   // subgraphs, expected number of nodes}}
                    size_t                                         // hidden matmul layers size
                    >
-    MLPParams;
+    MLPSeqParams;
 
-class MLPBase :  virtual public SnippetsTestsCommon {
+class MLPSeqBase :  virtual public SnippetsTestsCommon {
 public:
     constexpr static size_t default_thread_count = 0;
 
@@ -38,17 +38,17 @@ protected:
     size_t m_num_hidden_layers, m_hidden_matmul_size;
 };
 
-class MLP : public testing::WithParamInterface<ov::test::snippets::MLPParams>,
-            virtual public MLPBase {
+class MLPSeq : public testing::WithParamInterface<ov::test::snippets::MLPSeqParams>,
+            virtual public MLPSeqBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
 };
 
-class MLPQuantized : public MLP {
+class MLPSeqQuantized : public MLPSeq {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const override;
 };

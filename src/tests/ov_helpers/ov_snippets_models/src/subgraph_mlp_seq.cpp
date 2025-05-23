@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_mlp.hpp"
+#include "subgraph_mlp_seq.hpp"
 
 #include "snippets/op/subgraph.hpp"
 

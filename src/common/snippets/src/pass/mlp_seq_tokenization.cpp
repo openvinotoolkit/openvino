@@ -113,7 +113,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         /* ======== Matcher Pass ========== */
 
         /****** Skeleton ******/
-        /* Skeleton on MLP sequence-pattern is:
+        /* Skeleton on MLPSeq sequence-pattern is:
          *            MatMul0
          *               |
          *    Eltwise/FakeQuantize (1 or more)

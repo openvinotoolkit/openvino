@@ -55,6 +55,7 @@ void MHABase::SetUp() {
 
     inType = outType = prc;
     setInferenceType(prc);
+    init_thresholds();
 }
 
  void MHABase::init_thresholds() {

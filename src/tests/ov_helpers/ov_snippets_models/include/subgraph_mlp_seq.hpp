@@ -6,8 +6,8 @@
 
 #include "snippets_helpers.hpp"
 
-/* The file contains graphs with different MLP-patterns:
- * Skeleton of MLP-pattern is:
+/* The file contains graphs with different MLP sequential patterns:
+ * Skeleton of MLP sequential pattern is:
  *       Input
  *         |
  *      MatMul

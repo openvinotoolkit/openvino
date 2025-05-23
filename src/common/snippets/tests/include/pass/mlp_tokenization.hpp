@@ -13,7 +13,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-class TokenizeMLPSnippetsTests : public TransformationTestsF {
+class TokenizeMLPSeqSnippetsTests : public TransformationTestsF {
 public:
     virtual void run();
 

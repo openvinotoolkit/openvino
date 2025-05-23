@@ -12,15 +12,13 @@ namespace snippets {
 
 namespace {
 
-std::vector<std::vector<InputShape>> inputShape_2D(bool with_dynamic = true) {
+std::vector<std::vector<InputShape>> inputShape_2D() {
     auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
         {{1, 64}},
         {{2, 64}},
         {{4, 64}},
         {{8, 64}});
-    if (with_dynamic) {
-        shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
-    }
+    shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
     return shapes;
 }
 
@@ -56,40 +54,40 @@ std::vector<size_t> hiddenMatmulSizes() {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
-                         MLP,
+                         MLPSeq,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::Values(MLP::default_thread_count),
+                                            ::testing::Values(MLPSeq::default_thread_count),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
                                             ::testing::ValuesIn(numHiddenLayersWithExpectations()),
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLP::getTestCaseName);
+                         MLPSeq::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32_prc_bf16,
-                         MLP,
+                         MLPSeq,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
                                             ::testing::Values(ov::element::bf16),
-                                            ::testing::Values(MLP::default_thread_count),
+                                            ::testing::Values(MLPSeq::default_thread_count),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
                                             ::testing::ValuesIn(numHiddenLayersWithExpectationsBf16()),
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLP::getTestCaseName);
+                         MLPSeq::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_Quantized_2D_f32,
-                         MLPQuantized,
+                         MLPSeqQuantized,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
                                             ::testing::ValuesIn(precision_f32(1)),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::Values(MLPQuantized::default_thread_count),
+                                            ::testing::Values(MLPSeqQuantized::default_thread_count),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
                                             ::testing::ValuesIn(numHiddenLayersWithExpectationsQuantized()),
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
-                         MLPQuantized::getTestCaseName);
+                         MLPSeqQuantized::getTestCaseName);
 
 }  // namespace
 }  // namespace snippets

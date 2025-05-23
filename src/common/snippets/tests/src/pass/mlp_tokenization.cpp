@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <pass/mlp_tokenization.hpp>
-#include <subgraph_mlp.hpp>
+#include <subgraph_mlp_seq.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/pass/common_optimizations.hpp"
@@ -15,14 +15,14 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-void TokenizeMLPSnippetsTests::run() {
+void TokenizeMLPSeqSnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeMLPSeqSnippets>(config);
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     disable_rt_info_check();
 }
-class TokenizeMLPSnippetsParamTests : public TokenizeMLPSnippetsTests,
+class TokenizeMLPSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
                                        public testing::WithParamInterface<std::tuple<std::vector<PartialShape>, ov::element::Type, int>> {
 protected:
     void SetUp() override {
