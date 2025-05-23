@@ -366,7 +366,10 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_cpu.tbb_partitioner,
             "TBB_PARTITIONER",
-            ((intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.AUTO),),
+            (
+                (intel_cpu.TbbPartitioner.STATIC, intel_cpu.TbbPartitioner.STATIC),
+                (intel_cpu.TbbPartitioner.AUTO, intel_cpu.TbbPartitioner.AUTO),
+            ),
         ),
         (
             intel_auto.device_bind_buffer,
