@@ -43,6 +43,9 @@ GraphContext::GraphContext(Config config,
         m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
     }
 
+    if (!m_cpuParallel) {
+        m_cpuParallel = std::make_shared<CpuParallel>(m_config.tbbPartitioner, 32);
+    }
     m_threadPool = std::make_shared<ThreadPool>(m_cpuParallel);
 }
 
