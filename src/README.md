@@ -59,7 +59,7 @@ OpenVINO provides bindings for different languages. To get the full list of supp
 ## Core developer topics
 
  * [OpenVINO architecture](./docs/architecture.md)
- * [Plugin Development](https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library.html)
+ * [Plugin Development](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html)
  * [Thread safety](#todo)
  * [Performance](#todo)
 

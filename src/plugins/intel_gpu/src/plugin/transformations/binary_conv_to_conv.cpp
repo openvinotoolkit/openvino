@@ -18,9 +18,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 template <typename DST_T>
@@ -36,7 +36,7 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
     using namespace ov::pass::pattern;
 
     auto binary_fq = [](const Output<Node>& node) {
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(node.get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node.get_node_shared_ptr());
         if (!fq)
             return false;
 
@@ -56,9 +56,9 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto binary_conv = std::dynamic_pointer_cast<ov::op::v1::BinaryConvolution>(pattern_map.at(binary_conv_m).get_node_shared_ptr());
+        auto binary_conv = ov::as_type_ptr<ov::op::v1::BinaryConvolution>(pattern_map.at(binary_conv_m).get_node_shared_ptr());
         auto activations = pattern_map.at(activations_input_m);
-        auto weights = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_input_m).get_node_shared_ptr());
+        auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_input_m).get_node_shared_ptr());
         auto fp_element_type = activations.get_element_type();
 
         ov::Tensor new_weights_data(fp_element_type, weights->get_output_shape(0));
@@ -116,5 +116,4 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

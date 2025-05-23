@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ enum DataLayout {
     bfxy,                   // 3D+batch
     byfx,
     bxfy,
+    ybfx,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
@@ -194,8 +195,9 @@ struct Pad {
     Pad(size_t before, size_t after, bool is_dynamic = false) : before(before), after(after), is_dynamic(is_dynamic) {}
 
     static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
-    size_t Total() const {
-        OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
+    size_t Total(bool is_runtime = false) const {
+        if (!is_runtime)
+            OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
         return before + after;
     }
 };
@@ -255,6 +257,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::fb:
         case DataLayout::bfyx:
         case DataLayout::yxfb:
+        case DataLayout::ybfx:
         case DataLayout::byxf:
         case DataLayout::byfx:
         case DataLayout::bxfy:

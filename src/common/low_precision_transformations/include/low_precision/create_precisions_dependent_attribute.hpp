@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/matcher_pass.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "rt_info/precision_preserved_attribute.hpp"
 #include "network_helper.hpp"
 #include "lpt_itt.hpp"
@@ -40,6 +39,7 @@ class CreatePrecisionsDependentAttribute;
 template <typename AttributeType, typename OperationType>
 class ov::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::CreatePrecisionsDependentAttribute");
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
 

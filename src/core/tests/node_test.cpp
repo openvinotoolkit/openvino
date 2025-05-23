@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,9 @@ using namespace testing;
 class TestNode : public ov::Node {
 public:
     TestNode() : Node() {}
-
-    static const type_info_t& get_type_info_static() {
-        static const type_info_t info{"TestNode", ""};
-        info.hash();
-        return info;
-    }
-
-    const type_info_t& get_type_info() const override {
-        return get_type_info_static();
-    }
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
+    OPENVINO_RTTI_BASE("TestNode", "")
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector&) const override {
         return std::make_shared<TestNode>();

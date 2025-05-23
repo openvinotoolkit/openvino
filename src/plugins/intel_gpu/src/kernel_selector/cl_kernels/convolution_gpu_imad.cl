@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -282,12 +282,6 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 
                         out[br * OUT_BLOCK_WIDTH + bc] = TO_ACCUMULATOR_TYPE(IMAD(out[br * OUT_BLOCK_WIDTH + bc], inputs, AS_FILTER_TYPE_4(w[wi])));
 
-                        #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-                            ACCUMULATOR_TYPE dotProdAxWZP = 0;
-                            dotProdAxWZP = TO_ACCUMULATOR_TYPE(IMAD(dotProdAxWZP, inputs, AS_FILTER_TYPE_4(weights_zp_val)));
-                            out[br * OUT_BLOCK_WIDTH + bc] -= dotProdAxWZP;
-                        #endif
-
                         #if !defined COMPENSATION_TERM && defined ASYMMETRIC_DATA_QUANTIZATION
                             out[br * OUT_BLOCK_WIDTH + bc] -= dotProdAZPxW;
                         #endif
@@ -296,6 +290,12 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                                 defined ASYMMETRIC_DATA_QUANTIZATION && \
                                 defined ASYMMETRIC_WEIGHTS_QUANTIZATION)
                             out[br * OUT_BLOCK_WIDTH + bc] += dotProdAZPxWZP;
+                        #endif
+
+                        #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+                            ACCUMULATOR_TYPE dotProdAxWZP = 0;
+                            dotProdAxWZP = TO_ACCUMULATOR_TYPE(IMAD(dotProdAxWZP, inputs, AS_FILTER_TYPE_4(weights_zp_val)));
+                            out[br * OUT_BLOCK_WIDTH + bc] -= dotProdAxWZP;
                         #endif
                     }
                 }

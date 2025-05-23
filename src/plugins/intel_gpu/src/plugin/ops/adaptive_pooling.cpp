@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateAdaptiveAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::AdaptiveAvgPool>& op) {
     validate_inputs_count(op, {2});
@@ -93,5 +92,4 @@ static void CreateAdaptiveMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov:
 REGISTER_FACTORY_IMPL(v8, AdaptiveAvgPool);
 REGISTER_FACTORY_IMPL(v8, AdaptiveMaxPool);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

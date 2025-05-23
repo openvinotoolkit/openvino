@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,8 @@ add_subdirectory(snippets)
 
 set(ENABLE_CPP_API OFF CACHE BOOL "Build with C/C++ API.")
 set(ENABLE_PYTHON_API OFF CACHE BOOL "Build with Python API.")
+set(ENABLE_GENAI_API OFF CACHE BOOL "Build with GenAI API.")
 set(ENABLE_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks.")
-set(ENABLE_OMZ OFF CACHE BOOL "Build with open_model_zoo.")
 set(ENABLE_OVMS OFF CACHE BOOL "Build with ovms.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 
@@ -61,21 +61,13 @@ function(build_docs)
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO C/C++ API reference")
     endif()
 
-    if(${ENABLE_PYTHON_API})
+    if(${ENABLE_PYTHON_API} OR ${ENABLE_GENAI_API})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO Python API")
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${OV_INSTALLATION_SCRIPT}
         --ov_dir=${SPHINX_SETUP_DIR}
-        --python=${Python3_EXECUTABLE})
+        --python=${Python3_EXECUTABLE}
+        --enable_genai=${ENABLE_GENAI_API})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
-    endif()
-
-    if(${ENABLE_NOTEBOOKS})
-        set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO notebooks")
-        list(PREPEND commands
-            COMMAND ${Python3_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${SPHINX_SOURCE_DIR}/notebooks"
-        )
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO notebooks")
     endif()
 
     if(${ENABLE_OVMS})
@@ -83,22 +75,11 @@ function(build_docs)
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
         --filetype=md
         --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${SPHINX_SOURCE_DIR}
+        --output_dir=${SPHINX_SOURCE_DIR}/model-server
         --exclude_dir=${SPHINX_SOURCE_DIR})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OVMS")
     endif()
 
-    if(${ENABLE_OMZ})
-        list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OMZ")
-        list(APPEND commands
-            COMMAND ${Python3_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/thirdparty/open_model_zoo/ci/prepare-documentation.py ${CMAKE_BINARY_DIR}/open_model_zoo)
-        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
-            --filetype=md
-            --input_dir=${CMAKE_BINARY_DIR}/open_model_zoo
-            --output_dir=${SPHINX_SOURCE_DIR}
-            --exclude_dir=${SPHINX_SOURCE_DIR})
-        list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OMZ")
-    endif()
 
     # Preprocess docs
     add_custom_target(preprocess_docs

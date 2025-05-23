@@ -19,8 +19,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 MultiTensorState::MultiTensorState(const std::vector<VariableStateInfo>& infos,
                                    std::shared_ptr<RemoteContextImpl> context,
@@ -87,10 +86,10 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
         for (size_t f = 0; f < kv_shape[1]; f++) {
             for (size_t y = 0; y < kv_shape[2]; y++) {
                 for (size_t x = 0; x < kv_shape[3]; x++) {
-                    size_t b_kv = bt_in_ptr[b* kv_shape[concat_axis] + y];
-
-                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
                     auto out_idx = std::vector<int>{static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
+
+                    size_t b_kv = bt_in_ptr[b * kv_shape[concat_axis] + out_idx[concat_axis]]; // bt_idx = b * total_seq_len + seq_len_idx
+                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
 
                     cldnn::tensor in(cldnn::format::bfyx, in_idx, 0);
                     cldnn::tensor out(cldnn::format::bfyx, out_idx, 0);
@@ -152,5 +151,63 @@ VariableState::Ptr VariableStateIndirectKVCache::get_beam_table_state() const {
     return m_hidden_states[1];
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
+    const VariableStateInfo& info,
+    std::shared_ptr<RemoteContextImpl> context,
+    std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
+    const std::vector<cldnn::layout>& output_layouts,
+    size_t beam_idx,
+    size_t concat_idx,
+    bool has_zp_state = false)
+    : VariableStateIndirectKVCache(info, context, shape_predictor, beam_idx, concat_idx),
+      m_has_zp_state(has_zp_state) {
+    OPENVINO_ASSERT((has_zp_state && output_layouts.size() == 3) ||
+                    (!has_zp_state && output_layouts.size() == 2),
+                    "[GPU] Unexpected number of output layouts for VariableStateIndirectKVCacheCompressed");
+
+    const auto compression_scale_layout = output_layouts[1];
+    VariableStateInfo compression_scale_state_info(info.m_id + "/comp_scale", compression_scale_layout);
+    m_hidden_states.push_back(std::make_shared<VariableState>(compression_scale_state_info, context, shape_predictor));
+
+    if (has_zp_state) {
+        const auto compression_zp_layout = output_layouts[2];
+        VariableStateInfo compression_zp_state_info(info.m_id + "/comp_zp", compression_zp_layout);
+        m_hidden_states.push_back(std::make_shared<VariableState>(compression_zp_state_info, context, shape_predictor));
+    }
+
+    OPENVINO_ASSERT((!m_has_zp_state && m_hidden_states.size() == 3) || (m_has_zp_state && m_hidden_states.size() == 4),
+                    "[GPU] VariableStateIndirectKVCacheCompressed expects 3 or 4 internal states to be initialized, "
+                    "actual number is ", m_hidden_states.size());
+}
+
+VariableState::Ptr VariableStateIndirectKVCacheCompressed::get_compression_scale_state() const {
+    return m_hidden_states[2];
+}
+
+void VariableStateIndirectKVCacheCompressed::set_compression_scale_layout(const cldnn::layout& new_layout) {
+    m_hidden_states[2]->set_layout(new_layout);
+}
+
+VariableState::Ptr VariableStateIndirectKVCacheCompressed::get_compression_zp_state() const {
+    OPENVINO_ASSERT(m_has_zp_state);
+    return m_hidden_states[3];
+}
+
+void VariableStateIndirectKVCacheCompressed::set_compression_zp_layout(const cldnn::layout& new_layout) {
+    OPENVINO_ASSERT(m_has_zp_state);
+    m_hidden_states[3]->set_layout(new_layout);
+}
+
+bool VariableStateIndirectKVCacheCompressed::has_zp_state() const {
+    return m_has_zp_state;
+}
+
+void VariableStateIndirectKVCacheCompressed::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    OPENVINO_THROW("[GPU] set_state API is supported only when KV-cache compression is disabled");
+}
+
+ov::SoPtr<ov::ITensor> VariableStateIndirectKVCacheCompressed::get_state() const {
+    OPENVINO_THROW("[GPU] get_state API is supported only when KV-cache compression is disabled");
+}
+
+}  // namespace ov::intel_gpu

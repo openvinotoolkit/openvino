@@ -81,12 +81,11 @@ protected:
 };
 
 
-/// There are 2 subgraphs: Add + Convert(Stub) and Relu
 /// Tokenized simply by starting subgraph.
 //    in1    in2           in1     in2
-//       Add                 Subgraph
-//     Convert        ->        |
-//       Relu                Subgraph
+//       Add                    |
+//     Convert        ->     Subgraph
+//       Relu                   |
 //      Result                Result
 class ConvertStubFunction : public SnippetsFunctionBase {
 public:

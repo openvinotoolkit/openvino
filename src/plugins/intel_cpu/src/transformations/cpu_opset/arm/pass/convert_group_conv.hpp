@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 /*
  * Description:
@@ -13,7 +13,7 @@
  *     equals to number of groups.
  *
  * Before:
- * 
+ *
  * +--------------+    +---------------+
  * | Input tensor |    | Kernel tensor |
  * +-----------+--+    +-+-------------+
@@ -25,9 +25,9 @@
  *           +------v------+
  *           |   Result    |
  *           +-------------+
- * 
+ *
  * After:
- * 
+ *
  * +--------------+    +--------------+ +---------------+   +--------------+
  * | Input tensor |    | Constant (1) | | Kernel tensor |   | Constant (0) |
  * +-----------+--+    +-+------------+ +-----------+---+   +-+------------+
@@ -53,16 +53,14 @@
  *                         +----------v------------+
  *                         |        Result         |
  *                         +-----------------------+
- * 
+ *
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-class ConvertGroupConvolution: public ov::pass::MatcherPass {
+class ConvertGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGroupConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGroupConvolution");
     ConvertGroupConvolution();
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

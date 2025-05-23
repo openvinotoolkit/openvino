@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
+#include "ov_ops/glu.hpp"
 #include "swiglu_inst.h"
 
 using namespace cldnn;
@@ -63,7 +64,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(swiglu("swiglu", input_info("input"), -1, 3, ov::intel_gpu::op::SwiGLU::GluType::Swish, 0, tensor()));
+    topology.add(swiglu("swiglu", input_info("input"), -1, 3, ov::op::internal::GLU::GluType::Swish, 0, tensor()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

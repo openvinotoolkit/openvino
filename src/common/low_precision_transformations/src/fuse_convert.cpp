@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -40,7 +41,7 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Cle
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     this->register_matcher(matcher, callback);
@@ -68,9 +69,9 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 
 } // namespace
 
-bool FuseConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto op = m.get_match_root();
-    if (!canBeTransformed(context, op)) {
+    if (!canBeTransformed(op)) {
         return false;
     }
 
@@ -114,8 +115,8 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ov::pa
     return true;
 }
 
-bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!CleanupTransformation::canBeTransformed(context, op)) {
+bool FuseConvertTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!CleanupTransformation::canBeTransformed(op)) {
         return false;
     }
 

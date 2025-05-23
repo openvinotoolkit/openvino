@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         };
 
         auto out_ptr = int4_iterator(static_cast<uint8_t*>(out.data()));
-        auto in_ptr = int4_iterator(static_cast<uint8_t*>(arg.data()));
+        // The int4_iterator not supports const pointer but these data are not modified
+        auto in_ptr = int4_iterator(static_cast<uint8_t*>(const_cast<void*>(arg.data())));
         if ((arg_type == ov::element::i4 || arg_type == ov::element::u4) && arg.get_shape().size() == 2) {
             for (size_t i = 0; i < out_shape[0]; i++) {
                 size_t off = i;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto maximum = std::make_shared<op::v1::Maximum>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{maximum}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{maximum}, ParameterVector{in1, in2});
     }
 };
 

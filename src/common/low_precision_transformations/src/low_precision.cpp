@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 #include "transformations/utils/utils.hpp"
@@ -88,6 +88,20 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 ov::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
@@ -112,7 +126,7 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
     auto p_node = std::make_shared<pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
 
     ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        auto l_node = ov::as_type_ptr<BaseOp>(m.get_match_root());
         if (!l_node) {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
         }

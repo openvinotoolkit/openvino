@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -334,7 +334,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     const auto model = convert_model("max_pool_empty_auto_pad.onnx");
 
     for (const auto& op : model->get_ops()) {
-        if (const auto max_pool = std::dynamic_pointer_cast<op::v8::MaxPool>(op)) {
+        if (const auto max_pool = ov::as_type_ptr<op::v8::MaxPool>(op)) {
             EXPECT_EQ(max_pool->get_auto_pad(), op::PadType::EXPLICIT);
             return;
         }
@@ -426,14 +426,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
 
     test_case.add_input_from_file<float>(util::path_join({ov::test::utils::getExecutableDirectory(),
                                                           TEST_ONNX_MODELS_DIRNAME,
-                                                          "files/convtranspose_output_shape/x.bin"}));
+                                                          "files/convtranspose_output_shape/x.bin"})
+                                             .string());
     test_case.add_input_from_file<float>(util::path_join({ov::test::utils::getExecutableDirectory(),
                                                           TEST_ONNX_MODELS_DIRNAME,
-                                                          "files/convtranspose_output_shape/w.bin"}));
+                                                          "files/convtranspose_output_shape/w.bin"})
+                                             .string());
     test_case.add_expected_output_from_file<float>({1, 2, 10, 8},
                                                    util::path_join({ov::test::utils::getExecutableDirectory(),
                                                                     TEST_ONNX_MODELS_DIRNAME,
-                                                                    "files/convtranspose_output_shape/y.bin"}));
+                                                                    "files/convtranspose_output_shape/y.bin"})
+                                                       .string());
 
     test_case.run();
 }

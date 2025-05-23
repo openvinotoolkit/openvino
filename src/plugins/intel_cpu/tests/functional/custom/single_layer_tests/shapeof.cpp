@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -55,7 +56,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        auto netPrecision = ElementType::undefined;
+        auto netPrecision = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netPrecision) = basicParamsSet;
         init_input_shapes({inputShape});

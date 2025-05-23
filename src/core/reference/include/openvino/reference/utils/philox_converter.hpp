@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class PhiloxConverter {
 public:
     PhiloxConverter() = delete;
 
-    virtual ~PhiloxConverter(){};
+    virtual ~PhiloxConverter() = default;
 
     /// \brief Returns the number of generated elements per execution
     /// based on the requested data type.

@@ -9,9 +9,7 @@
 #include "group_convolution_shape_inference.hpp"
 #include "openvino/op/group_conv.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Convolution::Convolution(const ov::Output<Node>& data_batch,
                          const ov::Output<Node>& filters,
@@ -66,8 +64,7 @@ void Convolution::validate_and_infer_types() {
     const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
-
-    if (m_output_type != ov::element::undefined) {
+    if (m_output_type != ov::element::dynamic) {
         result_et = m_output_type;
     } else if (data_batch_et.compatible(filters_et)) {
         NODE_VALIDATION_CHECK(this,
@@ -156,6 +153,4 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
    }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

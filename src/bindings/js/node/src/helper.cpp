@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/helper.hpp"
@@ -413,10 +413,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     // Check for int
     else if (value.is<int>()) {
         return Napi::Number::New(info.Env(), value.as<int>());
-    }
-    // Check for ov::Affinity
-    else if (value.is<ov::Affinity>()) {
-        return Napi::String::New(info.Env(), value.as<std::string>());
     }
     // Check for ov::element::Type
     else if (value.is<ov::element::Type>()) {

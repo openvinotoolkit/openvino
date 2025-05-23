@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,72 @@
 
 #pragma once
 
+#include <chrono>
+
 #include "openvino/op/op.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace snippets {
+
+namespace op {
+class PerfCountEnd;
+} // namespace op
+
+namespace utils {
+
+/**
+ * @interface Dumper
+ * @brief Dumper for node debug properties
+ * @ingroup snippets
+ */
+class Dumper {
+public:
+    Dumper() = default;
+    virtual ~Dumper() = default;
+
+    void init(const std::string &params);
+    virtual void update(const op::PerfCountEnd* node) = 0;
+protected:
+    std::map<std::string, std::string> m_debug_params_map;
+    std::string m_params;
+};
+
+/**
+ * @interface ConsoleDumper
+ * @brief Dumper for node debug properties (output: stdout)
+ * @ingroup snippets
+ */
+class ConsoleDumper : public Dumper {
+public:
+    ConsoleDumper() = default;
+    ~ConsoleDumper() override;
+
+    void update(const op::PerfCountEnd* node) override;
+
+private:
+    ov::threading::ThreadLocal<uint64_t> m_accumulation;
+    ov::threading::ThreadLocal<uint32_t> m_iteration;
+};
+
+/**
+ * @interface CSVDumper
+ * @brief Dumper for node debug properties (output: .csv file)
+ * @ingroup snippets
+ */
+class CSVDumper : public Dumper {
+public:
+    CSVDumper(const std::string csv_path);
+    ~CSVDumper() override;
+
+    void update(const op::PerfCountEnd* node) override;
+
+private:
+    const std::string csv_path;
+};
+
+} // namespace utils
+
 namespace op {
 
 /**
@@ -73,20 +134,30 @@ private:
 class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountEnd(const Output<Node>& pc_begin);
-    PerfCountEnd() = default;
-    ~PerfCountEnd() {
-        output_perf_count();
-    }
-    void output_perf_count();
+    PerfCountEnd(const Output<Node>& pc_begin,
+                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                 const std::string& params = "");
+    PerfCountEnd();
+    ~PerfCountEnd();
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     void init_pc_begin();
     void set_accumulated_time();
 
+    const ov::threading::ThreadLocal<uint64_t> &get_accumulation() const {
+        return accumulation;
+    }
+
+    const ov::threading::ThreadLocal<uint32_t> &get_iteration() const {
+        return iteration;
+    }
+
 private:
     ov::threading::ThreadLocal<uint64_t> accumulation;
     ov::threading::ThreadLocal<uint32_t> iteration;
+
+    std::vector<std::shared_ptr<utils::Dumper>> dumpers;
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 

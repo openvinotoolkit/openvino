@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 
 #include <climits>
@@ -31,8 +32,7 @@ using namespace ov::util::pugixml;
 #define CheckIntAttrAndReturnError(node, attr, value) \
     CheckAndReturnError(get_int_attr(node, attr, -1) != (value), "Wrong attribute value! expected: " << value << " found: " << get_int_attr(node, attr, -1))
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 void CustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
     // Root checks
@@ -280,5 +280,4 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
     }
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -50,9 +50,14 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion1) {
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, target_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, pattern_b);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, pattern, true);
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, reshape, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              reshape,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -69,9 +74,9 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion1) {
                                                               order_a,
                                                               order_b,
                                                               order_c,
-                                                              ov::element::undefined);
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -98,9 +103,14 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion2) {
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, abs, ov::op::BroadcastType::BIDIRECTIONAL);
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, pattern_b);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, pattern, true);
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, reshape, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              reshape,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx, abs_param });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx, abs_param});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -117,9 +127,9 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion2) {
                                                               order_a,
                                                               order_b,
                                                               order_c,
-                                                              ov::element::undefined);
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -140,9 +150,14 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion3) {
         auto broadcast_b = std::make_shared<ov::op::v3::Broadcast>(unsqueeze_b, broadcast_b_const, ov::op::BroadcastType::BIDIRECTIONAL);
         auto reshape_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, pattern_b);
         auto reshape_b = std::make_shared<ov::op::v1::Reshape>(broadcast_b, reshape_b_const, true);
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, reshape_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              reshape_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, input_b});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -167,9 +182,14 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion4) {
         auto broadcast_b = std::make_shared<ov::op::v3::Broadcast>(unsqueeze_b, broadcast_b_const, ov::op::BroadcastType::BIDIRECTIONAL);
         auto reshape_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, pattern_b);
         auto reshape_b = std::make_shared<ov::op::v1::Reshape>(broadcast_b, reshape_b_const, true);
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, reshape_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              reshape_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, input_b});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {

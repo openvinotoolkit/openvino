@@ -5,9 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-
-
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -17,6 +15,7 @@
 #include "openvino/op/matmul.hpp"
 
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -25,7 +24,8 @@ typedef std::tuple<ov::element::Type,                // netPrecision
                    std::vector<InputShape>,          // shape
                    bool,                             // is_causal
                    bool,                             // has_attn
-                   bool                              // has_scale
+                   bool,                             // has_scale
+                   std::vector<std::vector<int64_t>> // input_transpose
                    > ScaledAttnGPUTestParams;
 
 class ScaledAttnLayerGPUTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>,
@@ -36,6 +36,7 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose);
     bool is_causal;
     bool has_attn;
     bool has_scale;
@@ -44,11 +45,14 @@ protected:
 std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj) {
     ov::element::Type inType;
     std::vector<InputShape> inputShapes;
+    std::vector<std::vector<int64_t>> input_transpose;
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = obj.param;
+    bool transpose_enable;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = obj.param;
 
+    transpose_enable = (input_transpose.size() != 0);
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=";
@@ -65,6 +69,7 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
     result << "is_causal=" << is_causal << "_";
     result << "has_attn=" << has_attn << "_";
     result << "has_scale=" << has_scale << "_";
+    result << "with_transpose" << transpose_enable << "_";
 
     return result.str();
 }
@@ -72,17 +77,20 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
 void ScaledAttnLayerGPUTest::SetUp() {
     ov::element::Type inType;
     std::vector<InputShape> inputShapes;
+    std::vector<std::vector<int64_t>> input_transpose;
 
     targetDevice = ov::test::utils::DEVICE_GPU;
 
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = this->GetParam();
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = this->GetParam();
 
+    transpose_prepare(inputShapes, input_transpose);
     init_input_shapes(inputShapes);
+
     ov::ParameterVector inputParams;
     // q, k, v
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]));
-    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]));
+    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[2]));
     inputParams[0]->set_friendly_name("q");
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
@@ -96,7 +104,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
         inputParams.back()->set_friendly_name("scale");
     } else {
         if (has_attn) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[2]));
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[3]));
             inputParams.back()->set_friendly_name("attention_mask");
         }
         if (has_scale) {
@@ -106,9 +114,32 @@ void ScaledAttnLayerGPUTest::SetUp() {
         }
     }
 
-    ov::OutputVector inputs;
+    ov::OutputVector inputParams_transpose;
     for (size_t i = 0; i < inputParams.size(); i++) {
-        inputs.push_back(inputParams[i]);
+        inputParams_transpose.push_back(inputParams[i]);
+    }
+    if (input_transpose.size() != 0) {
+        auto rank = input_transpose[0].size();
+        // deal with transpose.
+        auto tranpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[0]);
+        auto tranpose_a = std::make_shared<ov::op::v1::Transpose>(inputParams[0], tranpose_a_const);
+        tranpose_a->set_friendly_name("tranpose_a");
+        inputParams_transpose[0] = tranpose_a;
+
+        auto tranpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[1]);
+        auto tranpose_b = std::make_shared<ov::op::v1::Transpose>(inputParams[1], tranpose_b_const);
+        tranpose_b->set_friendly_name("tranpose_b");
+        inputParams_transpose[1] = tranpose_b;
+
+        auto tranpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[2]);
+        auto tranpose_c = std::make_shared<ov::op::v1::Transpose>(inputParams[2], tranpose_c_const);
+        tranpose_c->set_friendly_name("tranpose_c");
+        inputParams_transpose[2] = tranpose_c;
+    }
+
+    ov::OutputVector inputs;
+    for (size_t i = 0; i < inputParams_transpose.size(); i++) {
+        inputs.push_back(inputParams_transpose[i]);
     }
 
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
@@ -126,12 +157,18 @@ void ScaledAttnLayerGPUTest::SetUp() {
     manager.run_passes(functionRefs);
 
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
-        return shape[2] >= 384 || shape[3] >= 128;
+        return shape[0] >= 128 || shape[2] >= 384 || shape[3] >= 128;
     });
 
+    bool has_diff_head_size = inputShapes[1].first.begin()[3] != inputShapes[2].first.begin()[3];
+
     bool has_long_seq = it != inputShapes[1].second.end();
+
     if (inType == ov::element::f16) {
-        if (has_long_seq) {
+        if (has_diff_head_size && !has_scale) {
+            abs_threshold = 0.1;
+            rel_threshold = 0.1;
+        } else if (has_long_seq) {
             abs_threshold = 0.025;
             rel_threshold = 0.025;
         } else {
@@ -141,43 +178,136 @@ void ScaledAttnLayerGPUTest::SetUp() {
     }
 }
 
+void ScaledAttnLayerGPUTest::transpose_prepare(std::vector<InputShape>& shapes,
+    const std::vector<std::vector<int64_t>>& input_transpose) {
+    auto transpose_pshape = [](InputShape& pshapes, const std::vector<int64_t>& order) {
+        auto transposed_pshape = ov::PartialShape::dynamic(pshapes.first.rank());
+        std::vector<ov::Shape> transposed_cshapes(pshapes.second);
+        auto& pshape = pshapes.first;
+        auto& cshape = pshapes.second;
+        for (size_t i = 0; i < order.size(); i++) {
+            transposed_pshape[i] = pshape[order[i]];
+            for (size_t j = 0; j < cshape.size(); j++) {
+                transposed_cshapes[j][i] = cshape[j][order[i]];
+            }
+        }
+
+        for (size_t i = 0; i < order.size(); i++) {
+            pshape[i] = transposed_pshape[i];
+            for (size_t j = 0; j < cshape.size(); j++) {
+                cshape[j][i] = transposed_cshapes[j][i];
+            }
+        }
+    };
+
+    if (shapes.empty()) {
+        return;
+    }
+
+    if (input_transpose.empty()) {
+        return;
+    }
+
+    for (size_t i = 0; i < input_transpose.size(); i++) {
+        transpose_pshape(shapes[i], input_transpose[i]);
+    }
+}
+
 void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& model_inputs = function->inputs();
+    inputs.clear();
     std::vector<ov::Shape> shapes(3);
-    shapes[0] = targetInputStaticShapes[0];
-    shapes[1] = targetInputStaticShapes[1];
-    shapes[2] = targetInputStaticShapes[1];
+    {
+        // Generate QKV
+        for (int i = 0; i < 3; ++i) {
+            shapes[i] = targetInputStaticShapes[i];
+            ov::test::utils::InputGenerateData data(0, 8, 32);
+            ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
+            inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
+        }
+    }
+    ov::test::utils::InputGenerateData attn_data(-1.0f, 2, 1);
+    ov::test::utils::InputGenerateData scale_data(0.1f, 1, 10);
     if (!has_attn && has_scale) {
         shapes.push_back(ov::Shape{});
         shapes.push_back(ov::Shape{1});
+        ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[3], attn_data);
+        inputs.insert({model_inputs[3].get_node_shared_ptr(), attn_tensor});
+        ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[4], scale_data);
+        inputs.insert({model_inputs[4].get_node_shared_ptr(), scale_tensor});
     } else {
+        int idx = 3;
         if (has_attn) {
-            shapes.push_back(targetInputStaticShapes[2]);
+            shapes.push_back(targetInputStaticShapes[3]);
+            ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], attn_data);
+            inputs.insert({model_inputs[idx++].get_node_shared_ptr(), attn_tensor});
         }
         if (has_scale) {
             shapes.push_back(ov::Shape{1});
+            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], scale_data);
+            inputs.insert({model_inputs[idx].get_node_shared_ptr(), scale_tensor});
         }
     }
-    SubgraphBaseTest::generate_inputs(shapes);
 }
 
 TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     ov::element::Type inType;
     std::vector<InputShape> inputShapes;
+    std::vector<std::vector<int64_t>> input_transpose;
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = this->GetParam();
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = this->GetParam();
     run();
 }
 
-const std::vector<std::vector<InputShape>> shapes{
+const std::vector<std::vector<InputShape>> dynamic_shapes_3D {
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
+        },
+        // attn shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, -1},
+            {ov::Shape{1, 128, 128}, ov::Shape{1, 1, 1}, ov::Shape{1, 10, 10}}}
+        },
+    },
+};
+
+const std::vector<std::vector<int64_t>> disable_transpose{};
+const std::vector<std::vector<int64_t>> transpose_all_3D{{1, 0, 2}, {1, 0, 2}, {1, 0, 2}};
+const auto dynamic_shape_params_3D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+                                                      testing::ValuesIn(dynamic_shapes_3D),
+                                                      testing::Values(false),
+                                                      testing::Values(true, false),
+                                                      testing::Values(true, false),
+                                                      testing::ValuesIn({disable_transpose, transpose_all_3D}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic3D_GPU,
+                         ScaledAttnLayerGPUTest,
+                         dynamic_shape_params_3D,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
     // normal case, shapes of q,k,v are same
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
@@ -191,7 +321,11 @@ const std::vector<std::vector<InputShape>> shapes{
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
             {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
             {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
         },
@@ -205,7 +339,11 @@ const std::vector<std::vector<InputShape>> shapes{
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
             {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
             {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
@@ -220,7 +358,11 @@ const std::vector<std::vector<InputShape>> shapes{
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
+            {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
             {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
         },
@@ -229,13 +371,36 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
         },
     },
+    // heads number of qkv is 1, attn mask: [B, H, L1, L0+L1]
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
+            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
+            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
+            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
+        },
+        // attn shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 128, 128}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    },
     // large head size
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
             {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
             {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
         },
@@ -244,13 +409,109 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
+    // head size not aligned to 16
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 32, 32}, ov::Shape{1, 1, 1, 1}}}
+        },
+    },
+    // different head size
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 32},
+            {ov::Shape{2, 5, 100, 32}, ov::Shape{2, 5, 1, 32}, ov::Shape{2, 5, 387, 32}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 387, 387}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 96},
+            {ov::Shape{1, 8, 100, 96}, ov::Shape{1, 8, 1, 96}, ov::Shape{2, 8, 10, 96}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    }
+};
+
+const std::vector<std::vector<int64_t>> transpose_value{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
+const std::vector<std::vector<int64_t>> transpose_all_4D{{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}};
+
+const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+                                                   testing::ValuesIn(dynamic_shapes_4D),
+                                                   testing::Values(true, false),
+                                                   testing::Values(true, false),
+                                                   testing::Values(true, false),
+                                                   testing::ValuesIn({disable_transpose, transpose_value}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_GPU,
+                         ScaledAttnLayerGPUTest,
+                         dynamic_shape_params_4D,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> static_shapes{
     // static shapes
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
             {ov::Shape{1, 8, 100, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
+            {ov::Shape{1, 8, 100, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
             {ov::Shape{1, 8, 100, 128}}}
         },
@@ -259,17 +520,71 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 1, 100, 100}}}
         },
     },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 64, 128},
+            {ov::Shape{1, 8, 64, 128}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 13, 128},
+            {ov::Shape{1, 8, 13, 128}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 13, 128},
+            {ov::Shape{1, 8, 13, 128}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 64, 13},
+            {ov::Shape{1, 1, 64, 13}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 100, 100},
+            {ov::Shape{1, 1, 100, 100}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 1, 72},
+            {ov::Shape{1, 8, 1, 72}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 1, 100},
+            {ov::Shape{1, 1, 1, 100}}}
+        },
+    },
 };
 
-const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
-                                                 testing::ValuesIn(shapes),
-                                                 testing::Values(true, false),
-                                                 testing::Values(true, false),
-                                                 testing::Values(true, false));
+const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16),
+                                                  testing::ValuesIn(static_shapes),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::ValuesIn({disable_transpose, transpose_all_4D}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          ScaledAttnLayerGPUTest,
-                         params,
+                         static_shape_params,
                          ScaledAttnLayerGPUTest::getTestCaseName);
-
 } // namespace

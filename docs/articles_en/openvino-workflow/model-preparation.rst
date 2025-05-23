@@ -1,5 +1,5 @@
-Model Preparation
-=================
+Conventional Model Preparation
+===============================================================================================
 
 
 .. meta::
@@ -29,7 +29,7 @@ The easiest way to obtain a model is to download it from an online database, suc
 `Kaggle <https://www.kaggle.com/models>`__, `Hugging Face <https://huggingface.co/>`__, and
 `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and :doc:`run inference <running-inference/integrate-openvino-with-your-application>`
+* Skip model conversion and :doc:`run inference <running-inference>`
   directly from the **TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle** source format.
   Conversion will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as fewer
@@ -51,16 +51,10 @@ The easiest way to obtain a model is to download it from an online database, suc
   Once saved as :doc:`OpenVINO IR <model-preparation/convert-model-to-ir>`
   (a set of ``.xml`` and ``.bin`` files), the model may be deployed with maximum performance.
   Because it is already optimized for
-  :doc:`OpenVINO inference <running-inference/integrate-openvino-with-your-application>`,
+  :doc:`OpenVINO inference <running-inference>`,
   it can be read, compiled, and inferred with no additional delay.
 
 .. note::
-
-   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. Existing and new
-   projects are recommended to transition to the new solutions, keeping in mind that they are
-   not fully backwards compatible with ``openvino.tools.mo.convert_model`` or the ``mo``
-   CLI tool. For more details, see the
-   :doc:`Model Conversion API Transition Guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
 
    For PyTorch and JAX/Flax models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
@@ -298,15 +292,4 @@ follow:
 * :doc:`Post-training optimization <model-optimization-guide/quantizing-models-post-training>`
 * :doc:`Model inference in OpenVINO Runtime <running-inference>`
 
-If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``),
-refer to the following materials:
-
-* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <../documentation/legacy-features/transition-legacy-conversion-api>`
-* :doc:`Legacy Model Conversion API <../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-
-
-
-
 .. need to investigate python api article generation - api/ie_python_api/_autosummary/openvino.Model.html does not exist, api/ie_python_api/_autosummary/openvino.runtime.Model.html does.
-
-

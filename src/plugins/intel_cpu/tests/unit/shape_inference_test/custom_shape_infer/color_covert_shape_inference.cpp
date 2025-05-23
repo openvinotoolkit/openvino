@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/op/ops.hpp"
 #include "custom_shape_infer.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -107,4 +110,3 @@ INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_I420toRGB, CpuShapeInferenceTest_Co
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

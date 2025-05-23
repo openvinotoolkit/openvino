@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
+#include "gather.hpp"
 #include "gather_inst.h"
 #include "gather/gather_kernel_selector.h"
 #include "gather/gather_kernel_ref.h"
@@ -64,12 +65,12 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<gather_impl>(*this);
+        return make_deep_copy<gather_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -176,6 +177,11 @@ public:
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
+
+std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<gather>());
+    return typed_primitive_impl_ocl<gather>::create<gather_impl>(static_cast<const gather_node&>(node), params);
+}
 
 namespace detail {
 

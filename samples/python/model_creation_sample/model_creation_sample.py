@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 import sys
@@ -9,7 +9,7 @@ from functools import reduce
 
 import numpy as np
 import openvino as ov
-from openvino.runtime import op, opset1, opset8
+from openvino import op, opset1, opset8
 
 from data import digits
 

@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include "memory_desc/cpu_memory_desc.h"
+#include <utility>
+
 #include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -26,6 +28,7 @@ public:
         return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
     }
     virtual MemoryDescPtr getMemDesc() const = 0;
+
 protected:
     virtual bool compareImpl(const PortDescBase& rhs) const = 0;
 };
@@ -33,7 +36,7 @@ protected:
 using PortDescBasePtr = std::shared_ptr<PortDescBase>;
 using PortDescBaseCPtr = std::shared_ptr<const PortDescBase>;
 
-template<class T>
+template <class T>
 class PortDescBase_ : public PortDescBase {
 protected:
     PortDescBase_() = default;
@@ -44,7 +47,7 @@ protected:
 
 class PortDescGeneric : public PortDescBase_<PortDescGeneric> {
 public:
-    explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(memDesc) {
+    explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(std::move(memDesc)) {
         if (nullptr == _memDesc) {
             OPENVINO_THROW("ParameterMismatch: PortDescGeneric constructor got nullptr");
         }
@@ -63,8 +66,9 @@ private:
 class PortDescBlocked : public PortDescBase_<PortDescBlocked> {
 public:
     using CmpMask = BlockedMemoryDesc::CmpMask;
+
 public:
-    PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(memDesc), _cmpMask(cmpMask) {
+    PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(std::move(memDesc)), _cmpMask(cmpMask) {
         if (nullptr == _memDesc) {
             OPENVINO_THROW("ParameterMismatch: PortDescBlocked constructor got nullptr");
         }
@@ -85,7 +89,7 @@ class PortConfig {
 public:
     PortConfig() = default;
 
-    PortConfig(MemoryDescPtr desc,
+    PortConfig(const MemoryDescPtr& desc,
                BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
                int inPlacePort = -1,
                bool isConstant = false)
@@ -94,10 +98,7 @@ public:
           _constant(isConstant) {}
 
     // prevent implicit convertion of cmpMask
-    PortConfig(MemoryDescPtr desc,
-               int cmpMask,
-               int inPlacePort = -1,
-               bool isConstant = false) = delete;
+    PortConfig(MemoryDescPtr desc, int cmpMask, int inPlacePort = -1, bool isConstant = false) = delete;
 
     PortConfig(const PortConfig& rhs) = default;
 
@@ -130,23 +131,28 @@ public:
         return _desc;
     }
 
-    void setMemDesc(MemoryDescPtr desc) {
+    void setMemDesc(const MemoryDescPtr& desc) {
         _desc = createPortDesc(desc, BlockedMemoryDesc::FULL_MASK);
     }
 
-    void setMemDesc(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
+    void setMemDesc(const BlockedMemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
         _desc = createPortDesc(desc, cmpMask);
     }
 
+    bool hasZeroDims() const {
+        const auto desc = getMemDesc();
+        return desc->getShape().hasZeroDims() && !desc->empty();
+    }
+
 private:
-    PortDescBasePtr createPortDesc(MemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
+    PortDescBasePtr createPortDesc(const MemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
         if (desc->getType() & Blocked)
             return createPortDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), cmpMask);
 
         return std::make_shared<PortDescGeneric>(desc);
     }
 
-    PortDescBasePtr createPortDesc(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
+    PortDescBasePtr createPortDesc(const BlockedMemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
         return std::make_shared<PortDescBlocked>(desc, cmpMask);
     }
 
@@ -159,12 +165,12 @@ struct NodeConfig {
     NodeConfig() = default;
 
     NodeConfig(std::vector<PortConfig> inConfs, std::vector<PortConfig> outConfs)
-        : inConfs(std::move(inConfs)), outConfs(std::move(outConfs))
-    {}
+        : inConfs(std::move(inConfs)),
+          outConfs(std::move(outConfs)) {}
 
     std::vector<PortConfig> inConfs;
     std::vector<PortConfig> outConfs;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

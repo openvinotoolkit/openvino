@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,10 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class TENSORFLOW_API ConversionExtension : public ConversionExtensionBase {
+class ConversionExtension : public ConversionExtensionBase {
 public:
+    OPENVINO_RTTI("frontend::tensorflow::ConversionExtension", "", ConversionExtensionBase);
+
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension() = delete;
@@ -31,8 +33,6 @@ public:
     const ov::frontend::tensorflow::CreatorFunction& get_converter() const {
         return m_converter;
     }
-
-    ~ConversionExtension() override;
 
 private:
     ov::frontend::tensorflow::CreatorFunction m_converter;

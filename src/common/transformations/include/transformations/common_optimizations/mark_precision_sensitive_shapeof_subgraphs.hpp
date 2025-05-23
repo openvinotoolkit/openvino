@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API MarkShapeOfSubgraphs;
  */
 class ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs : public ModelPass {
 public:
-    OPENVINO_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs", "0");
+    OPENVINO_MODEL_PASS_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs");
     MarkPrecisionSensitiveShapeOfSubgraphs();
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
@@ -41,7 +41,7 @@ protected:
  */
 class ov::pass::MarkShapeOfSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkShapeOfSubgraphs", "0");
+    OPENVINO_RTTI("MarkShapeOfSubgraphs", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkShapeOfSubgraphs();
 };
 
@@ -53,7 +53,7 @@ public:
  */
 class ov::pass::MarkPrecisionSensitiveConstants : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkPrecisionSensitiveConstants", "0");
+    OPENVINO_RTTI("MarkPrecisionSensitiveConstants", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkPrecisionSensitiveConstants();
 };
 
@@ -65,6 +65,6 @@ public:
  */
 class ov::pass::MarkDividesInShapeSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkDividesInShapeSubgraphs", "0");
+    OPENVINO_RTTI("MarkDividesInShapeSubgraphs", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkDividesInShapeSubgraphs();
 };

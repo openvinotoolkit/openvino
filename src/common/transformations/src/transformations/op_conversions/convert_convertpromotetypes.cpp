@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_promote_types.hpp"
@@ -14,7 +15,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     MATCHER_SCOPE(ConvertConvertPromoteTypes);
 
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
-        return !pattern::type_matches_any({element::dynamic, element::undefined})(output);
+        return !pattern::type_matches_any({element::dynamic})(output);
     };
     auto convert_promote_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 

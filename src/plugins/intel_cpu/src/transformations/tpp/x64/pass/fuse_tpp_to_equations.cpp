@@ -3,25 +3,22 @@
 //
 #include "fuse_tpp_to_equations.hpp"
 
-#include "transformations/tpp/x64/op/eltwise.hpp"
-#include "transformations/tpp/x64/op/equation.hpp"
-#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
+#include "transformations/tpp/x64/op/equation.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
-using snippets::lowered::ExpressionPtr;
+namespace ov::intel_cpu::tpp::pass {
 using snippets::lowered::ExpressionPort;
+using snippets::lowered::ExpressionPtr;
 using NodePtr = std::shared_ptr<Node>;
 
 bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_ptr<ov::Model>& m) {
     using snippets::lowered::PortDescriptorUtils;
     OutputVector eq_ivals;
     std::vector<op::OpDescTPP> op_descs;
-    std::unordered_map<NodePtr , NodePtr> node_replace_map;
+    std::unordered_map<NodePtr, NodePtr> node_replace_map;
     // Only ops with one out are supported due to Equations restrictions
     auto supported_num_out = [](const Output<ov::Node>& out) {
         const auto& n = out.get_node_shared_ptr();
@@ -30,26 +27,27 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     auto get_tpp_op = [](const NodePtr& n) {
         auto tpp = std::dynamic_pointer_cast<op::EltwiseTPP>(n);
         bool not_supported_op =
-                // ticket: 152532
-                ov::is_type<ov::snippets::op::ReduceBase>(n) ||
-                // ticket: 152510
-                ov::is_type<ov::op::v0::Relu>(n);
+            // tickets: 152532, 152510
+            ov::is_type_any_of<ov::snippets::op::ReduceBase, ov::op::v0::Relu>(n);
         return not_supported_op ? nullptr : tpp;
     };
 
     // Note: we don't support exprs with more than 1 output yet. It's a technical limitation, but there are no use cases
     const auto tpp_root = get_tpp_op(root);
-    if (!tpp_root || !supported_num_out(root->output(0)))
+    if (!tpp_root || !supported_num_out(root->output(0))) {
         return false;
+    }
 
     const auto root_subtensor = PortDescriptorUtils::get_port_descriptor_ptr(root->output(0))->get_subtensor();
     auto supported_subtensor = [&root_subtensor](const snippets::VectorDims& subtensor) {
         const auto size = subtensor.size();
-        if (size != root_subtensor.size())
+        if (size != root_subtensor.size()) {
             return false;
+        }
         for (size_t i = 0; i < size; i++) {
-            if (subtensor[i] != root_subtensor[i] && subtensor[i] != 1)
+            if (subtensor[i] != root_subtensor[i] && subtensor[i] != 1) {
                 return false;
+            }
         }
         return true;
     };
@@ -78,16 +76,26 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
         }
     }
 
-
     auto equation = std::make_shared<op::EquationTPP>(eq_ivals, op_descs);
 
     for (auto& kv : node_replace_map)
         kv.second = equation;
     replace_nodes(m, {}, node_replace_map);
     for (const auto& in : equation->inputs()) {
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, root_subtensor);
+        auto subtensor = root_subtensor;
+        if (in.get_partial_shape().size() < root_subtensor.size()) {
+            subtensor.erase(subtensor.begin(),
+                            subtensor.begin() + (root_subtensor.size() - in.get_partial_shape().size()));
+        }
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, subtensor);
     }
-    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), root_subtensor);
+    auto subtensor = root_subtensor;
+    const auto& out = equation->output(0);
+    if (out.get_partial_shape().size() < root_subtensor.size()) {
+        subtensor.erase(subtensor.begin(),
+                        subtensor.begin() + (root_subtensor.size() - out.get_partial_shape().size()));
+    }
+    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), subtensor);
     return true;
 }
 
@@ -110,8 +118,4 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return modified;
 }
 
-
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

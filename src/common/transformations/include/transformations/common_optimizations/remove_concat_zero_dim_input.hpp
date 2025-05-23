@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class OPENVINO_API DisableRemoveConcatZeroDimInput;
 
 class RemoveConcatZeroDimInput : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveConcatZeroDimInput", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RemoveConcatZeroDimInput");
     RemoveConcatZeroDimInput();
 };
 
@@ -36,7 +36,7 @@ OPENVINO_API bool remove_concat_zerodim_input_is_disabled(const std::shared_ptr<
 
 class DisableRemoveConcatZeroDimInput : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("DisableRemoveConcatZeroDimInput");
+    OPENVINO_RTTI("DisableRemoveConcatZeroDimInput", "0", ov::RuntimeAttribute);
     DisableRemoveConcatZeroDimInput() = default;
     bool is_copyable() const override {
         return false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
     auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
+        auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
         }

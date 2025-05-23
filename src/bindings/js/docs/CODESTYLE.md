@@ -1,8 +1,13 @@
 # Code Style Guide
 
+Node.js bindings contain two parts: C++ and Typescript/JavaScript.
+
 This article presents the coding standards for JavaScript and TypeScript parts of **openvino-node** package. The following rules will help maintain code quality and consistency throughout the codebase.
 
+For C++ codestyle rules, refer to [this document](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/coding_style.md).
+
 Make sure your IDE has ESLint plugin installed. Its rules are specified in the [.eslint-global.js file](../.eslintrc-global.js). Keep in mind that your PR will not be approved if it does not meet the following requirements.
+
 
 ## General Rules
 
@@ -88,6 +93,7 @@ Make sure your IDE has ESLint plugin installed. Its rules are specified in the [
 - **Rule**: Maintain consistent spacing around keywords.
   - Special case for the `catch` keyword: No space after `catch`
 - **Enforced By**: `keyword-spacing: ['error', { overrides: { catch: { after: false } } }]`
+
 
 ## Additional Resources
 

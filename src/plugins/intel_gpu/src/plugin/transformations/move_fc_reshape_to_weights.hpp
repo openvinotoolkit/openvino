@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * This transformation is applied to the FC with compressed 3D u8 weights. It moves Reshape at the weights path to the constants
@@ -30,9 +29,8 @@ namespace intel_gpu {
  */
 class MoveFCReshapeToWeights: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveFCReshapeToWeights", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveFCReshapeToWeights");
     MoveFCReshapeToWeights();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

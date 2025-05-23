@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,9 +22,9 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public FuseElementwiseToFakeQuantizeTransformation {
 public:
-    OPENVINO_RTTI("FuseMultiplyToFakeQuantizeTransformation", "0");
+    OPENVINO_RTTI("FuseMultiplyToFakeQuantizeTransformation", "0", FuseElementwiseToFakeQuantizeTransformation);
     FuseMultiplyToFakeQuantizeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,8 @@ primitive_db::primitive_db()
 std::vector<code> primitive_db::get(const primitive_id& id) const {
 #ifndef NDEBUG
     {
-        std::ifstream kernel_file{id + ".cl", std::ios::in | std::ios::binary};
+        std::string filename = id + ".cl";
+        std::ifstream kernel_file{filename, std::ios::in | std::ios::binary};
         if (kernel_file.is_open()) {
             code ret;
             auto beg = kernel_file.tellg();

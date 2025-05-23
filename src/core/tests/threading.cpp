@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,14 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;
@@ -22,26 +29,26 @@ using namespace std;
 
 static std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
-        auto relu = std::make_shared<ov::opset8::Relu>(input);
+        auto relu = std::make_shared<ov::op::v0::Relu>(input);
         auto type_relaxed =
-            std::make_shared<ov::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+            std::make_shared<ov::op::TypeRelaxed<ov::op::v0::Asin>>(std::vector<element::Type>{element::f32},
                                                                     std::vector<element::Type>{element::f32},
                                                                     relu);
-        auto axis_node = ov::opset8::Constant::create(ov::element::i64, Shape{}, {1});
-        auto split = std::make_shared<ov::opset8::Split>(type_relaxed, axis_node, 2);
+        auto axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
+        auto split = std::make_shared<ov::op::v1::Split>(type_relaxed, axis_node, 2);
         return split->outputs();
     };
     const auto& concat_subgraph = [](const ov::OutputVector& inputs) -> ov::Output<ov::Node> {
-        auto concat = std::make_shared<ov::opset8::Concat>(inputs, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(inputs, 1);
         auto type_relaxed =
-            std::make_shared<ov::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+            std::make_shared<ov::op::TypeRelaxed<ov::op::v0::Asin>>(std::vector<element::Type>{element::f32},
                                                                     std::vector<element::Type>{element::f32},
                                                                     concat);
-        auto relu = std::make_shared<ov::opset8::Relu>(concat);
+        auto relu = std::make_shared<ov::op::v0::Relu>(concat);
         return relu->output(0);
     };
 
-    auto parameter = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
     std::queue<ov::Output<ov::Node>> nodes;
     {
         auto outputs = split_subgraph(parameter->output(0));
@@ -69,28 +76,28 @@ static std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
 
         nodes.push(out);
     }
-    auto result = std::make_shared<ov::opset8::Result>(nodes.front());
+    auto result = std::make_shared<ov::op::v0::Result>(nodes.front());
     return std::make_shared<Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
 }
 
 TEST(threading, get_friendly_name) {
     const size_t number = 20;
     Shape shape{};
-    auto a = make_shared<ov::opset8::Parameter>(element::i32, shape);
-    auto iconst0 = ov::opset8::Constant::create(element::i32, Shape{}, {0});
-    auto add_a1 = make_shared<ov::opset8::Add>(a, iconst0);
-    auto add_a2 = make_shared<ov::opset8::Add>(add_a1, iconst0);
-    auto add_a3 = make_shared<ov::opset8::Add>(add_a2, iconst0);
-    auto abs_add_a3 = std::make_shared<ov::opset8::Abs>(add_a3);
+    auto a = make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto iconst0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto add_a1 = make_shared<ov::op::v1::Add>(a, iconst0);
+    auto add_a2 = make_shared<ov::op::v1::Add>(add_a1, iconst0);
+    auto add_a3 = make_shared<ov::op::v1::Add>(add_a2, iconst0);
+    auto abs_add_a3 = std::make_shared<ov::op::v0::Abs>(add_a3);
 
     auto b = make_shared<ov::op::v0::Parameter>(element::i32, shape);
-    auto add_b1 = make_shared<ov::opset8::Add>(b, iconst0);
-    auto add_b2 = make_shared<ov::opset8::Add>(add_b1, iconst0);
-    auto abs_add_b2 = std::make_shared<ov::opset8::Abs>(add_b2);
+    auto add_b1 = make_shared<ov::op::v1::Add>(b, iconst0);
+    auto add_b2 = make_shared<ov::op::v1::Add>(add_b1, iconst0);
+    auto abs_add_b2 = std::make_shared<ov::op::v0::Abs>(add_b2);
 
-    auto graph = make_shared<ov::opset8::Multiply>(abs_add_a3, abs_add_b2);
+    auto graph = make_shared<ov::op::v1::Multiply>(abs_add_a3, abs_add_b2);
 
-    auto f = std::make_shared<Model>(ov::NodeVector{graph}, ParameterVector{a, b});
+    auto f = std::make_shared<Model>(ov::OutputVector{graph}, ParameterVector{a, b});
 
     const auto compare_names = [](const std::vector<std::string>& names) {
         static std::unordered_set<std::string> ref_names;
@@ -158,11 +165,11 @@ TEST(threading, clone_with_new_inputs) {
 
             const auto inSize = op->get_input_size();
             for (size_t i = 0; i < inSize; i++) {
-                if (dynamic_cast<ov::opset8::Constant*>(op->get_input_node_ptr(i))) {
+                if (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(i))) {
                     inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
                 } else {
                     inputsForShapeInfer.push_back(
-                        std::make_shared<ov::opset8::Parameter>(op->get_input_element_type(i),
+                        std::make_shared<ov::op::v0::Parameter>(op->get_input_element_type(i),
                                                                 op->get_input_partial_shape(i)));
                 }
             }

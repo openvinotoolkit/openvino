@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,4 +30,3 @@ void PartitionedMemoryBlock::registerMemory(Memory* memPtr) {
 void PartitionedMemoryBlock::unregisterMemory(Memory* memPtr) {
     m_pBlock->unregisterMemory(memPtr);
 }
-

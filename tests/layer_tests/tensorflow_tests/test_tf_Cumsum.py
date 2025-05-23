@@ -49,11 +49,9 @@ class TestCumsum(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexCumsum(CommonTFLayerTest):
@@ -109,8 +107,6 @@ class TestComplexCumsum(CommonTFLayerTest):
     @pytest.mark.parametrize("reverse", [False, True, None])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

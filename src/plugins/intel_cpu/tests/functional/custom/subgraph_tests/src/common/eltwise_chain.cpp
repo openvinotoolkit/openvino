@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,27 +22,28 @@ using namespace ov::test::eltwise_chain;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes())),
-                                ::testing::Values(InputLayerType::CONSTANT),
-                                ::testing::ValuesIn(inputPrecisions()),
-                                ::testing::ValuesIn(eltwiseOps()),
-                                ::testing::Values(false),
-                                ::testing::Values(ov::element::undefined),
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        EltwiseChainTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain,
+                         EltwiseChainTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapes())),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(inputPrecisions()),
+                                            ::testing::ValuesIn(eltwiseOps()),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EltwiseChainTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_MergeConvert, EltwiseChainTest,
-                             ::testing::Combine(
-                                     ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesConvert())),
-                                     ::testing::Values(InputLayerType::CONSTANT),
-                                     ::testing::ValuesIn(inputPrecisionsConvert()),
-                                     ::testing::ValuesIn(eltwiseOpsConvert()),
-                                     ::testing::Values(false),
-                                     ::testing::Values(ov::element::f32),
-                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                             EltwiseChainTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_EltwiseChain_MergeConvert,
+    EltwiseChainTest,
+    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesConvert())),
+                       ::testing::Values(InputLayerType::CONSTANT),
+                       ::testing::ValuesIn(inputPrecisionsConvert()),
+                       ::testing::ValuesIn(eltwiseOpsConvert()),
+                       ::testing::Values(false),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ov::Shape>> inputShapesFQ = {
     {{1, 2, 2, 3}, {1, 2, 2, 3}, {1, 2, 2, 3}, {1, 2, 2, 3}},
@@ -65,16 +66,16 @@ std::vector<std::vector<ElementType>> inputPrecisionsFQ {
         { ElementType::f32, ElementType::f32, ElementType::f32, ElementType::f32 }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
-                    ::testing::Combine(
-                            ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesFQ)),
-                            ::testing::Values(InputLayerType::CONSTANT),
-                            ::testing::ValuesIn(inputPrecisionsFQ),
-                            ::testing::ValuesIn(eltwiseOps()),
-                            ::testing::Values(true),
-                            ::testing::Values(ov::element::undefined),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        EltwiseChainTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ,
+                         EltwiseChainTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesFQ)),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(inputPrecisionsFQ),
+                                            ::testing::ValuesIn(eltwiseOps()),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EltwiseChainTest::getTestCaseName);
 
 // =============================================== dynamic ==============================================
 std::vector<std::vector<InputShape>> inputShapes_dyn = {
@@ -324,16 +325,16 @@ std::vector<std::vector<InputShape>> inputShapes_dyn = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn, EltwiseChainTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inputShapes_dyn),
-                                ::testing::Values(InputLayerType::PARAMETER),
-                                ::testing::ValuesIn(inputPrecisions()),
-                                ::testing::ValuesIn(eltwiseOps()),
-                                ::testing::Values(false),
-                                ::testing::Values(ov::element::undefined),
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        EltwiseChainTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn,
+                         EltwiseChainTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_dyn),
+                                            ::testing::Values(InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(inputPrecisions()),
+                                            ::testing::ValuesIn(eltwiseOps()),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EltwiseChainTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

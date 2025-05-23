@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,7 @@ using IndirectGemm = ov::intel_gpu::op::IndirectGemm;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::MatMul>& op) {
     validate_inputs_count(op, {2});
@@ -214,5 +213,4 @@ REGISTER_FACTORY_IMPL(v0, MatMul);
 REGISTER_FACTORY_IMPL(internal, Gemm);
 REGISTER_FACTORY_IMPL(internal, IndirectGemm);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

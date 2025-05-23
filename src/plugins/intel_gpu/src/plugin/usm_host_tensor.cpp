@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 USMHostTensor::USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type, const Shape& shape)
     : m_impl(std::make_shared<RemoteTensorImpl>(context, shape, element_type, TensorType::BT_USM_HOST_INTERNAL)) {}
@@ -16,7 +15,7 @@ USMHostTensor::USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const e
 USMHostTensor::USMHostTensor(std::shared_ptr<RemoteTensorImpl> tensor)
     : m_impl(tensor) {}
 
-void* USMHostTensor::data(const element::Type& element_type) const {
+const void* USMHostTensor::data(const element::Type& element_type) const {
     return m_impl->get_original_memory()->buffer_ptr();
 }
 
@@ -45,5 +44,4 @@ std::shared_ptr<RemoteTensorImpl> USMHostTensor::get_impl() const {
     return m_impl;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_inst.h"
@@ -132,6 +132,12 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
                                                                           prim->output_transpose_order);
 
     cldnn::format output_format = input0_layout.format;
+    if (output_shapes[0].size() > output_format.dimension()) {
+        // This happened when input0.rank=2, input1.rank=5, output0.rank=5.
+        // Output should use format like bfzyx, but it was taken from input0_layout which is bfyx.
+        // Therefore, adjust output_format to proper rank.(say, bfzyx)
+        output_format = cldnn::format::adjust_to_rank(output_format, output_shapes[0].size());
+    }
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
@@ -141,7 +147,37 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts) {
+                                                       const std::vector<layout>& input_layouts,
+                                                       const bool allow_new_shape_infer) {
+    auto get_transposed_padding = [&](const padding& input_padding, size_t input_rank, size_t format_rank, bool transpose, bool first_input) {
+        if (format_rank <= input_rank) {
+            return input_padding;
+        }
+
+        std::vector<int32_t> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
+        std::vector<int32_t> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
+
+        if (input_rank == 1) {
+            if (first_input) {
+                pad_low.insert(pad_low.begin(), 0);
+                pad_up.insert(pad_up.begin(), 0);
+            } else {
+                pad_low.insert(pad_low.end(), 0);
+                pad_up.insert(pad_up.end(), 0);
+            }
+
+            if (transpose) {
+                std::swap(pad_low[0], pad_low[1]);
+                std::swap(pad_up[0], pad_up[1]);
+            }
+        }
+
+        pad_low.insert(pad_low.begin(), format_rank - pad_low.size(), 0);
+        pad_up.insert(pad_up.begin(), format_rank - pad_up.size(), 0);
+
+        return padding(pad_low, pad_up, input_padding._dynamic_dims_mask);
+    };
+
     auto get_transposed_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
         ov::PartialShape transposed_input_pshape;
 
@@ -181,15 +217,24 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 
     bool reordered = primitive->input_rank > 4 || primitive->weight_rank > 4;
     size_t output_rank = std::max(primitive->input_rank, primitive->weight_rank);
-    size_t input_rank = reordered ? output_rank : primitive->input_rank;
-    size_t weight_rank = reordered ? output_rank : primitive->weight_rank;
+
+    size_t input_format_rank = input_layouts[0].get_rank();
+    size_t weight_format_rank = input_layouts[1].get_rank();
+    // No need to get output_rank for rank>4 inputs when allow_new_shape_infer=true
+    size_t input_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->input_rank;
+    size_t weight_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->weight_rank;
 
     auto transposed_input0_pshape = get_transposed_input_shape(input0_pshape, input_rank, output_rank, primitive->transpose_input0, true);
     auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
 
     std::vector<layout> layouts = input_layouts;
+    // Format update for rank > 4 case
+    if (layouts[0].format.dimension() < transposed_input0_pshape.size())
+        layouts[0].format = cldnn::format::get_default_format(transposed_input0_pshape.size());
     layouts[0].set_partial_shape(transposed_input0_pshape);
+    layouts[0].data_padding = get_transposed_padding(layouts[0].data_padding, input_rank, input_format_rank, primitive->transpose_input0, true);
     layouts[1].set_partial_shape(transposed_input1_pshape);
+    layouts[1].data_padding = get_transposed_padding(layouts[1].data_padding, weight_rank, weight_format_rank, primitive->transpose_input1, false);
 
     if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
@@ -229,7 +274,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
                                 (i == 1) ? transposed_input1_pshape :
                                 input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
-                ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
+                if (input_pshape[j].get_max_length() != input_pshape[j].get_min_length())
+                    ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
             }
         }
 

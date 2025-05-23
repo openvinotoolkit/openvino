@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -37,7 +37,6 @@ class TestLeakyRelu(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_leaky_relu(self, features_shape, features_type, alpha,
                         ie_device, precision, ir_version,
-                        temp_dir, use_legacy_frontend):
+                        temp_dir):
         self._test(*self.create_leaky_relu_net(features_shape, features_type, alpha),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

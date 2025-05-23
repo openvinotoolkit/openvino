@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,7 +197,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
                             index,
                             " does not exist.");
     auto input_val = get_input(index);
-    if (auto input = std::dynamic_pointer_cast<JaxFrameworkNode>(input_val.get_node_shared_ptr())) {
+    if (auto input = ov::as_type_ptr<JaxFrameworkNode>(input_val.get_node_shared_ptr())) {
         const auto& attrs = input->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return {};

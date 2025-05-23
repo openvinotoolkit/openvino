@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief Add Reshape to modify output of Reduce and modify keep_dims to true : reduce-reshape
@@ -17,6 +16,8 @@ namespace intel_gpu {
  */
 class DecomposeReduceForFalseKeepDims : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("DecomposeReduceForFalseKeepDims");
+
     // Decompose reduce if keep_dims is false and it reduces batch and spatial axes
     DecomposeReduceForFalseKeepDims();
 
@@ -24,5 +25,4 @@ public:
     bool need_transformation_for_reordered_axes(std::vector<int64_t> reduce_axes, size_t num_dim, size_t num_spatial);
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

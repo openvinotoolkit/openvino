@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -284,6 +284,39 @@ def elementwise_floordiv(name: str, x, y, in_dtype, axis=-1):
     return outs[0]
 
 
+def elementwise_less_equal(name: str, x, y, in_dtype, cast_to_fp32=False):
+    paddle.enable_static()
+
+    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+        node_x = paddle.static.data(
+            name='input_x', shape=x.shape, dtype=in_dtype)
+        node_y = paddle.static.data(
+            name='input_y', shape=y.shape, dtype=in_dtype)
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.less_equal(x=node_x, y=node_y, name='less_equal')
+        else:
+            out = paddle.fluid.layers.less_equal(x=node_x, y=node_y, name='less_equal')
+        # FuzzyTest framework doesn't support boolean so cast to fp32/int32
+
+        if cast_to_fp32:
+            in_dtype = "float32"
+
+        out = paddle.cast(out, in_dtype)
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+        # startup program will call initializer to initialize the parameters.
+        exe.run(paddle.static.default_startup_program())
+
+        outs = exe.run(
+            feed={'input_x': x, 'input_y': y},
+            fetch_list=[out])
+
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
+                  inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
+
+    return outs[0]
+
+
 def elementwise_ops(name: str, data_x, data_y, in_dtype, axis=-1):
     elementwise_add("elementwise_add" + name, data_x, data_y, in_dtype, axis)
     elementwise_sub("elementwise_sub" + name, data_x, data_y, in_dtype, axis)
@@ -349,6 +382,20 @@ def main():
     data_x = np.random.choice(sample_arr, size=(2, 3, 4))
     data_y = np.random.choice(sample_arr, size=(1, 3, 4))
     elementwise_mul_bool("elementwise_mul_bool1", data_x, data_y)
+
+    test_cases = [
+        "float32",
+        "int32",
+        "int64"
+    ]
+
+    for test in test_cases:
+        x = np.array([0, 1, 2, 3]).astype(test)
+        y = np.array([1, 0, 2, 4]).astype(test)
+        if ((test == "float64") or (test == "int64")):
+            elementwise_less_equal("less_equal_" + test, x, y, test, True)
+        else:
+            elementwise_less_equal("less_equal_" + test, x, y, test, False)
 
 
 if __name__ == "__main__":

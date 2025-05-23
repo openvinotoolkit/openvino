@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,14 +39,6 @@ std::vector<std::string> ov::util::split(const std::string& src, char delimiter,
         rc.push_back(token);
     }
     return rc;
-}
-
-size_t ov::util::hash_combine(const std::vector<size_t>& list) {
-    size_t seed = 0;
-    for (size_t v : list) {
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
 }
 
 std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {

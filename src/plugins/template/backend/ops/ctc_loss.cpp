@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/ctc_loss.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/ctc_loss.hpp"
 
 namespace ctc_loss_v4 {
 template <
@@ -32,12 +34,12 @@ inline void evaluate(const std::shared_ptr<ov::op::v4::CTCLoss>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<ET1>::value_type;
     using T2 = typename ov::element_type_traits<ET2>::value_type;
-    ov::reference::CTCLoss<T1, T2>(static_cast<T1*>(inputs[0].data()),
+    ov::reference::CTCLoss<T1, T2>(static_cast<const T1*>(inputs[0].data()),
                                    inputs[0].get_shape(),
-                                   static_cast<T2*>(inputs[1].data()),
-                                   static_cast<T2*>(inputs[2].data()),
-                                   static_cast<T2*>(inputs[3].data()),
-                                   static_cast<T2*>(inputs[4].data()),
+                                   static_cast<const T2*>(inputs[1].data()),
+                                   static_cast<const T2*>(inputs[2].data()),
+                                   static_cast<const T2*>(inputs[3].data()),
+                                   static_cast<const T2*>(inputs[4].data()),
                                    op->get_preprocess_collapse_repeated(),
                                    op->get_ctc_merge_repeated(),
                                    op->get_unique(),

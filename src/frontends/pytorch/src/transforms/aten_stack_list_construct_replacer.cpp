@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "aten_stack_list_construct_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -37,7 +38,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& input_node = pattern_map.at(list_construct).get_node_shared_ptr();
         auto axis_node = pattern_map.at(axis).get_node_shared_ptr();
-        auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
+        auto axis_const = ov::as_type_ptr<v0::Constant>(axis_node);
         auto axis = axis_const->cast_vector<int64_t>();
         if (axis.size() != 1) {
             add_exception_to_fw_node(stack, "aten::stack has multiple axes, only one is supported.");

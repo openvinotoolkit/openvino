@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include <atomic>
 #include <string>
 
+#include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
 
@@ -57,8 +58,13 @@ public:
         bool dump_custom_program;
         bool has_microkernels;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
+        kernel_language language;
 
-        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::map<std::string, std::string>& batch_headers)
+        explicit batch_program(int32_t _bucket_id,
+                               int32_t _batch_id,
+                               std::string _options,
+                               const std::map<std::string, std::string>& batch_headers,
+                               kernel_language _language)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
               hash_value(0),
@@ -67,17 +73,20 @@ public:
               options(_options),
               dump_custom_program(false),
               has_microkernels(false),
-              entry_point_to_id({}) {
-            static const std::vector<std::string> micro_kernel_include_names {
-                "generic_vector_ops",
-                "tile_ops",
-                "sdpa_utils"
-            };
-            for (const auto& kv : batch_headers) {
-                if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
-                    source.push_back(kv.second);
-                } else {
-                    micro_headers.push_back(kv.second);
+              entry_point_to_id({}),
+              language(_language) {
+            if (language == kernel_language::OCLC) {
+                static const std::vector<std::string> micro_kernel_include_names {
+                    "generic_vector_ops",
+                    "tile_ops",
+                    "sdpa_utils"
+                };
+                for (const auto& kv : batch_headers) {
+                    if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
+                        source.push_back(kv.second);
+                    } else {
+                        micro_headers.push_back(kv.second);
+                    }
                 }
             }
         }
@@ -103,7 +112,6 @@ private:
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
-    size_t get_max_kernels_per_batch() const;
 
     bool _reuse_kernels = false;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ private:
             throw std::runtime_error("Incorrect type of Comparison operation");
         }
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{in0, in1});
+        return std::make_shared<ov::Model>(ov::OutputVector{comp}, ov::ParameterVector{in0, in1});
     }
 };
 }  // namespace ComparisonOpsRefTestDefinitions

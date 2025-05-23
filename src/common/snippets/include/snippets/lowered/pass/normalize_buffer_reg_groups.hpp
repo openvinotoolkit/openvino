@@ -25,7 +25,7 @@ namespace pass {
 
 class NormalizeBufferRegisterGroups : public RangedPass {
 public:
-    OPENVINO_RTTI("NormalizeBufferRegisterGroups", "RangedPass")
+    OPENVINO_RTTI("NormalizeBufferRegisterGroups", "", RangedPass);
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR

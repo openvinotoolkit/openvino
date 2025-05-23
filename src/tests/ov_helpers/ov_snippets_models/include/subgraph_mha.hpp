@@ -57,6 +57,23 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
+class MHA2DFunction : public SnippetsFunctionBase {
+public:
+    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        for (const auto& shape : input_shapes) {
+            OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 2, "All input shapes must be 2D");
+        }
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    const std::vector<ov::element::Type> precisions;
+};
+
 class MHASplitMFunction : public MHAFunction {
 public:
     explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
@@ -235,9 +252,7 @@ protected:
  *            FakeQuantize i8
  *                 \   /
  *                  Add
- *                Reshape0
- *                Softmax
- *                Reshape1  Transpose2[0,2,1,3]
+ *                Softmax   Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
  *                   FakeQuantize i8
@@ -261,9 +276,7 @@ protected:
  *            FakeQuantize i8
  *                 \   /
  *                  Add
- *                Reshape0
- *                Softmax
- *                Reshape1   FakeQuantize i8
+ *                Softmax    FakeQuantize i8
  *            FakeQuantize u8 Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
@@ -281,20 +294,17 @@ protected:
 };
 
 /* Graph:
- *   FakeQuantize i8      Reshape1
- *       Reshape0       Transpose1[0,2,3,1]
+ *   FakeQuantize i8      Transpose1[0,2,3,1]
  * Transpose0[0,2,1,3] FakeQuantize i8
  *              \     /
  *              MatMul0
  *                 \   /
- *                  Add        Reshape2
+ *                  Add
  *                Softmax   Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
  *                  FakeQuantize i8
  *                  Transpose3[0,2,1,3]
- *                    Reshape3
- * Note: Reshapes are tosplit Tokenization between FQs and deq Mul and MHA since Snippets::Ignore_Callback may be enabled
  */
 class MHAQuantMatMul0Function : public SnippetsFunctionBase {
 public:
@@ -448,6 +458,40 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 private:
     bool add_2nd_reshape = false;
+};
+
+/* Graph:
+ *           input0   input1
+ *              \     /
+ *              MatMul0  input2
+ *                 |     /
+ *              Eltwise1
+ *                 |
+ *              Reshape input3
+ *                 |    /
+ *              Eltwise2
+ *                 |
+ *              Reshape
+ *                 |
+ *              Softmax
+ *                 |       input4
+ *                  \      /
+ *                   MatMul1
+ */
+class MHARankUpgradeToReductionFunction : public SnippetsFunctionBase {
+public:
+    explicit MHARankUpgradeToReductionFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+        bool are_static_shapes = std::all_of(input_shapes.cbegin(), input_shapes.cend(), [](const PartialShape& shape) {
+            return shape.is_static();
+        });
+        OPENVINO_ASSERT(are_static_shapes, "Expect static shape, got dynamic shape");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
 };
 
 }  // namespace snippets

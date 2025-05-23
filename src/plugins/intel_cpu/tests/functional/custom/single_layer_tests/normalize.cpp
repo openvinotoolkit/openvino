@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 using namespace CPUTestUtils;
 
@@ -64,7 +65,13 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = makeSelectedTypeStr("unknown", inType);
+
+        if (!with_cpu_x86_avx512_core() && inType == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr("unknown", ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr("unknown", inType);
+        }
+
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

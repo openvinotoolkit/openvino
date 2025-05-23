@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,8 +43,6 @@ class TestLinSpace(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_lin_space_basic(self, start_value, stop_value, num_value, input_type, num_type,
-                             ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
+                             ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_lin_space_net(start_value, stop_value, num_value, input_type, num_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -16,9 +16,8 @@ class TestConv3DBackprop(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_legacy_frontend - common parameter
     def create_conv3dbackprop_placeholder_const_net(self, input_shape, input_filter, out_backprop, input_strides,
-                                                    input_padding, dilations, ir_version, use_legacy_frontend):
+                                                    input_padding, dilations, ir_version):
         """
             TensorFlow net                                 IR net
 
@@ -81,11 +80,8 @@ class TestConv3DBackprop(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_conv3dbackprop_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                              use_legacy_frontend):
+    def test_conv3dbackprop_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Unable to convert data format b_fs_zyx_fsv16 to weights format issue on GPU")
-        self._test(*self.create_conv3dbackprop_placeholder_const_net(**params, ir_version=ir_version,
-                                                                     use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(*self.create_conv3dbackprop_placeholder_const_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

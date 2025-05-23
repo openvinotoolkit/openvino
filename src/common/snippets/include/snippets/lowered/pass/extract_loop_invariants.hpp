@@ -20,7 +20,7 @@ namespace pass {
  */
 class ExtractLoopInvariants : public RangedPass {
 public:
-    OPENVINO_RTTI("ExtractLoopInvariants", "RangedPass")
+    OPENVINO_RTTI("ExtractLoopInvariants", "", RangedPass);
     ExtractLoopInvariants() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };

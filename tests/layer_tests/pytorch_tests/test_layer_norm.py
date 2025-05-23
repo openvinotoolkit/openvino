@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -49,5 +49,6 @@ class TestLayerNorm(PytorchLayerTest):
     @pytest.mark.parametrize("eps", [1e-5, 0.005])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_layer_norm(self, normalized_shape, weight, bias, eps, ie_device, precision, ir_version):
         self._test(*self.create_model(normalized_shape, weight, bias, eps), ie_device, precision, ir_version)

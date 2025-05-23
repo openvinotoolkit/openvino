@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/concat.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -14,6 +13,13 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace builder {
@@ -51,7 +57,8 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     }
 
     const auto concat = std::make_shared<ov::opset1::Concat>(concatInputs, concatAxis);
-    if (precisionAfter != ov::element::undefined && (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
+    if (precisionAfter != ov::element::dynamic &&
+        (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
         throw std::runtime_error("Concat builder: requested precision after operation could't be set");
     }
 
@@ -925,7 +932,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReference(
         throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ov::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
-    if (fqOnDataPrecision != ov::element::undefined) {
+    if (fqOnDataPrecision != ov::element::dynamic) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
             throw std::runtime_error("FakeQuantize operation precisions are different");
         }

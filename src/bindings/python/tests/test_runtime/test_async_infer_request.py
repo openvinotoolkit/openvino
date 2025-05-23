@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Iterable
@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import time
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     InferRequest,
@@ -223,7 +223,7 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
         def __init__(self, array) -> None:
             self.data = array
 
-        def __array__(self):
+        def __array__(self, dtype=None, copy=None):
             return self.data
 
     jobs = 8
@@ -364,7 +364,7 @@ def test_array_like_input_async(device, share_inputs):
         def __init__(self, array) -> None:
             self.data = array
 
-        def __array__(self):
+        def __array__(self, dtype=None, copy=None):
             return np.array(self.data)
 
     _, request, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.single)

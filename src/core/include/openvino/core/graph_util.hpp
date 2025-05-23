@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <list>
 #include <memory>
@@ -288,21 +289,25 @@ bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::sh
 /// \param bin_path Path where .bin file will be saved (optional).
 ///                 The same name as for xml_path will be used by default.
 /// \param version Version of the generated IR (optional).
+/// \{
 OPENVINO_API
 void serialize(const std::shared_ptr<const ov::Model>& m,
-               const std::string& xml_path,
-               const std::string& bin_path = "",
+               const std::filesystem::path& xml_path,
+               const std::filesystem::path& bin_path = {},
                ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
+/// \}
 
 /// \brief Save given model into IR. Floating point weights are compressed to FP16 by default.
 /// This method saves a model to IR applying all necessary transformations that usually applied
-/// in model conversion flow provided by mo tool. Paricularly, floatting point weights are compressed to FP16.
+/// in model conversion flow provided by OVC tool. Particularly, floating point weights are compressed to
+/// FP16.
 /// \param model Model which will be converted to IR representation.
-/// \param output_model Path to the output model file, must have extension .xml
-/// \param compress_to_fp16 Whether to compress floatting point weights to FP16 (true by default)
+/// \param output_model Path to the output model file, must have extension .xml.
+/// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default).
+/// /// \{
 OPENVINO_API
 void save_model(const std::shared_ptr<const ov::Model>& model,
-                const std::string& output_model,
+                const std::filesystem::path& output_model,
                 bool compress_to_fp16 = true);
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
@@ -311,4 +316,7 @@ void save_model(const std::shared_ptr<const ov::Model>& model,
                 const std::wstring& output_model,
                 bool compress_to_fp16 = true);
 #endif
+
+/// \}
+
 }  // namespace ov

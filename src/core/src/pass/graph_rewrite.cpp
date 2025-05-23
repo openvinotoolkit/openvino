@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -117,7 +118,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
         // pattern::op::AnyOutput operation automatically appends for multi output operations inside
         // Matcher and to gen actual root node we need to take it's parent.
-        if (auto any_type = std::dynamic_pointer_cast<pattern::op::AnyOutput>(root)) {
+        if (auto any_type = ov::as_type_ptr<pattern::op::AnyOutput>(root)) {
             root = any_type->input_value(0).get_node_shared_ptr();
         }
 
@@ -126,7 +127,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
         if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = std::dynamic_pointer_cast<ov::pass::pattern::op::WrapType>(p)) {
+            if (auto any_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(p)) {
                 for (const auto& root_type_info : any_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
@@ -186,7 +187,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             if (sub_graph_node->get_transformations_allowed()) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
@@ -253,6 +254,8 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
     // For example:
     //
     // class ExampleGraphRewrite: public pass::GraphRewrite {
+    // public:
+    //      OPENVINO_GRAPH_REWRITE_RTTI("ExampleGraphRewrite");
     //      ExampleGraphRewrite() {
     //          add_mather<TestMatcher1, false /* disabled by default */>();
     //          add_mather<TestMatcher2>();
@@ -280,21 +283,22 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " trying to match ", node);
+        OPENVINO_LOG_GRAPH_REWRITE1(m, node);
         if (m->match(node->output(0))) {
-            OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " matched ", node);
             OV_PASS_CALLBACK(m);
 
             try {
                 const bool status = callback(*m.get());
-                OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " callback ", (status ? "succeded" : "failed"));
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
+                OPENVINO_LOG_GRAPH_REWRITE2(m, status);
                 return status;
             } catch (const std::exception& exp) {
-                OPENVINO_THROW("[MATCHER] ", m->get_name(), "node: ", node, " callback has thrown: ", exp.what());
+                OPENVINO_LOG_GRAPH_REWRITE3(m, exp);
+                OPENVINO_THROW("[", m->get_name(), "] END: node: ", node, " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
+        OPENVINO_LOG_GRAPH_REWRITE4(m);
         m->clear_state();
         return false;
     };

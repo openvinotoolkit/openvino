@@ -3,14 +3,14 @@
 //
 
 #include "jit_scalar_emitter.hpp"
+
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 ScalarTppEmitter::ScalarTppEmitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
@@ -18,7 +18,7 @@ ScalarTppEmitter::ScalarTppEmitter(jit_generator* h, cpu_isa_t isa, const ov::sn
     in_out_type_ = gpr_to_gpr;
 }
 
-void ScalarTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void ScalarTppEmitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto it = entry_map_.find("scalar_tpp");
     OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
     const auto& out_reg = Reg64(static_cast<int>(out[0]));
@@ -26,5 +26,4 @@ void ScalarTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     h->add(out_reg, (*it).second.off);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

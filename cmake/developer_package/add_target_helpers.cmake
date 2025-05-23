@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,7 +91,7 @@ function(ov_add_target)
     # defining a target
     if (ARG_TYPE STREQUAL EXECUTABLE)
         add_executable(${ARG_NAME} ${all_sources})
-    elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED)
+    elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED OR ARG_TYPE STREQUAL OBJECT)
         add_library(${ARG_NAME} ${ARG_TYPE} ${all_sources})
     else()
         message(SEND_ERROR "Invalid target type ${ARG_TYPE} specified for target name ${ARG_NAME}")
@@ -123,10 +123,6 @@ function(ov_add_target)
     if (ARG_ADD_CLANG_FORMAT)
         # code style
         ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
-    endif()
-    if(WIN32)
-        # Provide default compile pdb name equal to target name
-        set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
     endif()
 endfunction()
 
@@ -160,7 +156,7 @@ function(ov_add_test_target)
         set(JS_BIN_NAME "${ARG_NAME}.js")
         set(JS_APP_NAME "${ARG_NAME}_js.js")
         set(JS_TEST_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
-        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2024 Intel Corporation\n")
+        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2025 Intel Corporation\n")
         file(APPEND  ${JS_TEST_APP} "// SPDX-License-Identifier: Apache-2.0\n")
         file(APPEND  ${JS_TEST_APP} "//\n")
         file(APPEND  ${JS_TEST_APP} "// JS test app\n")

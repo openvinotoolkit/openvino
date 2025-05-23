@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 import pytest
 import numpy as np
 
 from openvino import Model, PartialShape, Shape, Core
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import (
+from openvino import opset13 as ops
+from openvino.passes import (
     Manager,
     ConstantFolding,
     MakeStateful,
@@ -17,7 +17,7 @@ from openvino.runtime.passes import (
 )
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
 
 
 def get_model():
@@ -132,10 +132,10 @@ def test_low_latency2():
 )
 def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
 
     model = get_relu_model()
 
@@ -153,3 +153,14 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+@pytest.mark.parametrize(("transformation", "arguments"),
+                         [(ConstantFolding, []),
+                          (MakeStateful, [{"parameter": "result"}]),
+                          (ConvertFP32ToFP16, []),
+                          (LowLatency2, [])])
+def test_run_on_model_transformations(transformation, arguments):
+    model = get_model()
+    transformation(*arguments).run_on_model(model)
+    assert model is not None

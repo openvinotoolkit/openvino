@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [imports]
@@ -40,22 +40,22 @@ compression_ctrl.distributed() # call it before the training
 #! [distributed]
 
 #! [tune_model]
-... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
+... # fine-tuning preparations, e.g. dataset, loss, optimization setup, etc.
 
 # create compression callbacks to control pruning parameters and dump compression statistics
-# all the setting are being taked from compression_ctrl, i.e. from NNCF config 
+# all the setting are being taked from compression_ctrl, i.e. from NNCF config
 compression_callbacks = create_compression_callbacks(compression_ctrl, log_dir="./compression_log")
 
 # tune quantized model for 50 epochs as the baseline
-model.fit(train_dataset, epochs=50, callbacks=compression_callbacks) 
+model.fit(train_dataset, epochs=50, callbacks=compression_callbacks)
 #! [tune_model]
 
 #! [export]
 compression_ctrl.export_model("compressed_model.pb") #export to Frozen Graph
-#! [export] 
+#! [export]
 
 #! [save_checkpoint]
-from nncf.tensorflow.utils.state import TFCompressionState 
+from nncf.tensorflow.utils.state import TFCompressionState
 from nncf.tensorflow.callbacks.checkpoint_callback import CheckpointManagerCallback
 
 checkpoint = tf.train.Checkpoint(model=model,

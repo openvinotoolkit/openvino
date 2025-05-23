@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -508,7 +508,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type) {
     // invalid element type for step scalar
     try {
         auto start = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
-        auto stop = make_shared<ov::op::v0::Parameter>(element::undefined, Shape{});
+        auto stop = make_shared<ov::op::v0::Parameter>(element::dynamic, Shape{});
         auto step = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{});
         auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
         FAIL() << "Exception expected";
@@ -895,3 +895,21 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                            RangeParams{-1, 1, 0.25, PartialShape{8}},
                                            RangeParams{-1, 0.875, 0.25, PartialShape{8}}),
                          PrintToDummyParamName());
+
+TEST(type_prop, range_symbol_start_0_stop_A_step_1) {
+    auto stop_symbol = std::make_shared<ov::Symbol>();
+    auto source_shape = PartialShape::dynamic(1);
+    source_shape[0].set_symbol(stop_symbol);
+    auto symbol_source =
+        make_shared<ov::op::v0::ShapeOf>(make_shared<ov::op::v0::Parameter>(element::i64, source_shape));
+
+    auto start = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0);
+    auto stop = make_shared<ov::op::v8::Gather>(symbol_source,
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0),
+                                                make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 0));
+    auto step = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, 1);
+
+    auto range = make_shared<op::v0::Range>(start, stop, step);
+
+    ASSERT_TRUE(ov::symbol::are_equal(range->get_output_partial_shape(0)[0].get_symbol(), stop_symbol));
+}

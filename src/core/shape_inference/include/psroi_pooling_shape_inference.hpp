@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "compare.hpp"
 #include "dimension_util.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 #include "openvino/op/roi_pooling.hpp"
 #include "roi_pooling_shape_inference.hpp"
 

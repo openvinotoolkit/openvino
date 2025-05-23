@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,3 +55,5 @@ void ov::AttributeAdapter<ov::AxisSet>::set(const std::vector<int64_t>& value) {
     }
     m_buffer_valid = false;
 }
+
+ov::AttributeAdapter<ov::AxisSet>::~AttributeAdapter() = default;

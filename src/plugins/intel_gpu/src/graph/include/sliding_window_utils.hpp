@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@
 #include <cassert>
 #include <stdexcept>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using cldnn::tensor;
 using cldnn::padding;
@@ -455,5 +454,4 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
                         std::max(needed_upad.spatial[0], actual_upad[2])});
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

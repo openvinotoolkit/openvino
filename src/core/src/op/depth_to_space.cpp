@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ bool DepthToSpace::evaluate(TensorVector& outputs, const TensorVector& inputs) c
     OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto& in = inputs[0];
-    const auto& out = outputs[0];
+    auto& out = outputs[0];
     reference::depth_to_space(static_cast<const char*>(in.data()),
                               in.get_shape(),
                               static_cast<char*>(out.data()),
@@ -90,4 +90,6 @@ EnumNames<op::v0::DepthToSpace::DepthToSpaceMode>::get() {
          {"depth_first", op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST}});
     return enum_names;
 }
+
+AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>::~AttributeAdapter() = default;
 }  // namespace ov

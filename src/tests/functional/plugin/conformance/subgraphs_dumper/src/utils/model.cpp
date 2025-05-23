@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ get_input_info_by_model(const std::shared_ptr<ov::Model>& model) {
         ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE, ov::conformance::DEFAULT_MAX_VALUE);
         bool is_const = false;
         if (ov::shape_size(node->get_output_shape(0)) != 0 && ov::op::util::is_constant(node)) {
-            std::shared_ptr<ov::op::v0::Constant> constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            std::shared_ptr<ov::op::v0::Constant> constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             auto const_ranges = get_const_ranges(constant,
                                                  constant->get_default_output().get_element_type());
             ranges = const_ranges;
@@ -82,14 +82,14 @@ bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
     size_t second_paired_op_cnt = 0;
 
     for (auto& node : fist_model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) ||
-            std::dynamic_pointer_cast<ov::op::util::AssignBase>(node))
+        if (ov::as_type_ptr<ov::op::util::ReadValueBase>(node) ||
+            ov::as_type_ptr<ov::op::util::AssignBase>(node))
             fist_paired_op_cnt++;
     }
 
     for (auto& node : second_model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) ||
-            std::dynamic_pointer_cast<ov::op::util::AssignBase>(node))
+        if (ov::as_type_ptr<ov::op::util::ReadValueBase>(node) ||
+            ov::as_type_ptr<ov::op::util::AssignBase>(node))
             second_paired_op_cnt++;
     }
 
@@ -99,11 +99,11 @@ bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
 bool build_control_dependency(std::shared_ptr<ov::Model> &model) {
     std::map<std::string, std::pair<std::shared_ptr<ov::op::util::ReadValueBase>, std::shared_ptr<ov::op::util::AssignBase>>> dependency_pairs;
     for (auto& node : model->get_ordered_ops()) {
-        if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+        if (const auto& read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
             dependency_pairs[read_value->get_variable_id()].first = read_value;
         }
 
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
+        if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(node)) {
             dependency_pairs[assign->get_variable_id()].second = assign;
         }
     }

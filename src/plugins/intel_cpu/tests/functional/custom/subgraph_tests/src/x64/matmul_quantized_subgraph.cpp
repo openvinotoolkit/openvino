@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,7 +145,6 @@ const std::vector<ov::Shape> supportedInputShapes = {
 
 const std::vector<CPUSpecificParams>matmulSpecificFilterParams = {
     {{}, {}, {"brgemm_avx2"}, "brgemm_avx2"},
-    {{}, {}, {"jit_gemm"}, "jit_gemm"}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_matmulBrgemmInt8,

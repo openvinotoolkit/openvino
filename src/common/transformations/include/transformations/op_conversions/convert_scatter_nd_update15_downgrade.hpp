@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertScatterNDUpdate15ToScatterNDUpdate3 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertScatterNDUpdate15ToScatterNDUpdate3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertScatterNDUpdate15ToScatterNDUpdate3");
     ConvertScatterNDUpdate15ToScatterNDUpdate3();
 };
 

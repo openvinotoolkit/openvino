@@ -22,7 +22,7 @@ namespace pass {
 class UpdateSubtensors : public pass::RangedPass {
 public:
     UpdateSubtensors(size_t tail_size);
-    OPENVINO_RTTI("UpdateSubtensors", "RangedPass")
+    OPENVINO_RTTI("UpdateSubtensors", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
 

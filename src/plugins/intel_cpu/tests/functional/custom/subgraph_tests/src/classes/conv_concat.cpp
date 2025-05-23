@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
+#include "openvino/op/concat.hpp"
 
 using namespace CPUTestUtils;
 

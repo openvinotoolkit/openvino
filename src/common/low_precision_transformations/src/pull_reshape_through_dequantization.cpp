@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,13 @@
 #include <memory>
 #include <queue>
 #include <vector>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace ov;
 
@@ -101,7 +102,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
 
 void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
     ov::OutputVector result(1);
-    reshape->constant_fold(result, { constant, reshape->input_value(1) });
+    OPENVINO_ASSERT(reshape->constant_fold(result, { constant, reshape->input_value(1) }), "Reshape constant folding failed");
     const auto newConstant = result[0].get_node_shared_ptr();
     replace_node(reshape, newConstant);
     copy_runtime_info({ constant, reshape }, newConstant);
@@ -133,13 +134,21 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
+        if (reshape == nullptr) {
+            return false;
+        }
 
-        auto child = reshape->get_output_target_inputs(0).begin()->get_node();
+        auto reshape_target_inputs = reshape->get_output_target_inputs(0);
+        if (reshape_target_inputs.empty()) {
+            return false;
+        }
+
+        auto child = reshape_target_inputs.begin()->get_node();
         if (ov::is_type<opset1::GroupConvolution>(child)) {
             return false;
         }
 
-        while (reshape != nullptr) {
+        do {
             const auto parent = reshape->get_input_node_shared_ptr(0);
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughElementwise(reshape, parent);
@@ -149,9 +158,9 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
                 pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
                 reshape = nullptr;
             } else {
-                THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
+                THROW_IE_LPT_EXCEPTION(*parent) << " unexpected operation type";
             }
-        }
+        } while (reshape != nullptr);
 
         return true;
     };

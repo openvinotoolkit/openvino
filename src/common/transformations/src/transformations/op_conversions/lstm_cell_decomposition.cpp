@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
@@ -24,7 +25,7 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto any_lstm = pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>();
 
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<op::util::RNNCellBase>(m.get_match_root());
+        auto lstm_cell = ov::as_type_ptr<op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }

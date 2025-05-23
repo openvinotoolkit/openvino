@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,14 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
-using namespace ov;
 using namespace testing;
+
+namespace ov {
+namespace test {
+using op::v0::Constant;
+using op::v0::Parameter;
+using op::v0::Result;
+using op::v1::Add;
 
 std::shared_ptr<ov::Model> get_then_body() {
     auto Xt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
@@ -76,7 +82,7 @@ std::shared_ptr<ov::Model> create_if_model(bool condition) {
     auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
     if_result->set_friendly_name("if_result");
 
-    return std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+    return std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 }
 
 TEST(TransformationTests, UnrollIfCondIsTrue) {
@@ -164,7 +170,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -181,7 +187,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
             std::make_shared<ov::op::v1::Split>(X, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
         auto mul_op = std::make_shared<ov::op::v1::Multiply>(split->output(1), Y);
         auto if_result = std::make_shared<ov::op::v0::Result>(mul_op);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -209,7 +215,7 @@ TEST(TransformationTests, UnrollNestedIfThenBody) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollIf>();
@@ -246,7 +252,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         if_op->set_output(then_op_result, else_op_result);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
+        f = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{data});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -262,7 +268,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
                                                              ov::op::v0::Constant::create(element::i32, {1}, {0}),
                                                              ov::op::v0::Constant::create(element::i32, {2}, {1, 2}));
         auto if_result = std::make_shared<ov::op::v0::Result>(X->output(1));
-        f_ref = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
+        f_ref = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -330,7 +336,7 @@ TEST(TransformationTests, UnrollIfInsideIf) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
@@ -350,3 +356,60 @@ TEST(TransformationTests, UnrollIfInsideIf) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, UnrollIfToParameterResultModel) {
+    constexpr auto et = element::f32;
+    std::shared_ptr<Model> model, model_ref;
+
+    {
+        const auto a = std::make_shared<Parameter>(et, PartialShape{5, 7});
+        const auto b = std::make_shared<Parameter>(et, PartialShape{1});
+        const auto c = std::make_shared<Parameter>(et, PartialShape{5, 7});
+
+        const auto then_add = std::make_shared<Add>(a, b);
+        auto then_result = std::make_shared<Result>(then_add);
+        auto else_result = std::make_shared<Result>(c);
+
+        const auto then_body = std::make_shared<Model>(OutputVector{then_result}, ParameterVector{a, b});
+        const auto else_body = std::make_shared<Model>(OutputVector{else_result}, ParameterVector{c});
+
+        const auto if_input_0 = std::make_shared<Parameter>(et, a->get_output_partial_shape(0));
+        const auto if_input_1 = std::make_shared<Parameter>(et, b->get_output_partial_shape(0));
+        const auto condition = Constant::create(element::boolean, {1}, {false});
+        const auto if_op = std::make_shared<op::v8::If>(condition);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(if_input_0, a, c);
+        if_op->set_input(if_input_1, b, nullptr);
+        const auto if_result = if_op->set_output(then_result, else_result);
+
+        const auto results = ResultVector{std::make_shared<Result>(if_result)};
+        model = std::make_shared<Model>(results, ParameterVector{if_input_0, if_input_1}, "simple_if");
+        model->input(0).set_names({"Input.0"});
+        model->input(1).set_names({"Input.1"});
+        model->output(0).set_names({"Output"});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::UnrollIf>();
+        manager.run_passes(model);
+
+        OV_ASSERT_NO_THROW(check_rt_info(model));
+    }
+    {
+        const auto p = std::make_shared<Parameter>(et, PartialShape{5, 7});
+        const auto r = std::make_shared<Result>(p);
+        model_ref = std::make_shared<Model>(ResultVector{r}, ParameterVector{p}, "simple_if");
+        model_ref->input(0).set_names({"Input.0"});
+        model_ref->output(0).set_names({"Output"});
+    }
+
+    const auto cmp_result = compare_functions(model, model_ref);
+    ASSERT_TRUE(cmp_result.first) << cmp_result.second;
+
+    EXPECT_THAT(model->input(0).get_names(), UnorderedElementsAre("Input.0", "Output"));
+    EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Output"));
+}
+
+}  // namespace test
+}  // namespace ov

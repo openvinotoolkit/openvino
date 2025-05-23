@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,7 +235,7 @@ protected:
         for (const auto& op : model->get_ops()) {
             if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
-                    const auto roi = std::dynamic_pointer_cast<ov::op::v3::ROIAlign>(op);
+                    const auto roi = ov::as_type_ptr<ov::op::v3::ROIAlign>(op);
                     ASSERT_TRUE(roi);
                     ASSERT_EQ(roi->get_pooled_h(), 7);
                     ASSERT_EQ(roi->get_pooled_w(), 7);
@@ -244,7 +244,7 @@ protected:
                 }
             } else {
                 if (op->get_friendly_name() == "LSTMCell") {
-                    const auto lstm_seq = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+                    const auto lstm_seq = ov::as_type_ptr<ov::op::util::RNNCellBase>(op);
                     ASSERT_TRUE(lstm_seq);
                     ASSERT_EQ(lstm_seq->get_clip(), 0.0f);
                     ASSERT_EQ(lstm_seq->get_hidden_size(), 256);

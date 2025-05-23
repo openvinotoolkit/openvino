@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,15 @@ private:
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
+namespace frontend {
+class ConversionExtensionBase;
+}  // namespace frontend
+
+template <typename T>
+constexpr bool use_ov_dynamic_cast() {
+    return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
+}
+
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
 template <typename Type, typename Value>
@@ -85,7 +94,13 @@ typename std::enable_if<
                         bool>::value,
     bool>::type
 is_type(Value value) {
-    return value->get_type_info().is_castable(Type::get_type_info_static());
+    return value && value->get_type_info().is_castable(Type::get_type_info_static());
+}
+
+/// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
+template <typename Type, typename... Types, typename Value>
+bool is_type_any_of(Value value) {
+    return is_type<Type>(value) || (is_type_any_of<Types>(value) || ...);
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
@@ -93,7 +108,10 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,
                         Type*>::type
 as_type(Value value) {
-    return ov::is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+    if constexpr (use_ov_dynamic_cast<Type>())
+        return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+    else
+        return dynamic_cast<Type*>(value);
 }
 
 namespace util {
@@ -112,9 +130,12 @@ struct AsTypePtr<std::shared_ptr<In>> {
 
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
 /// Type, nullptr otherwise
-template <typename T, typename U>
-auto as_type_ptr(const U& value) -> decltype(::ov::util::AsTypePtr<U>::template call<T>(value)) {
-    return ::ov::util::AsTypePtr<U>::template call<T>(value);
+template <typename Type, typename Value>
+auto as_type_ptr(const Value& value) -> decltype(::ov::util::AsTypePtr<Value>::template call<Type>(value)) {
+    if constexpr (use_ov_dynamic_cast<Type>())
+        return ::ov::util::AsTypePtr<Value>::template call<Type>(value);
+    else
+        return std::dynamic_pointer_cast<Type>(value);
 }
 }  // namespace ov
 

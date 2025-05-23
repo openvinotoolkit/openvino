@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,17 +24,23 @@ public:
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
-        const ov::PartialShape inputShape1,
-        const ov::PartialShape inputShape2,
+        const ov::PartialShape& inputShape1,
+        const ov::PartialShape& inputShape2,
         const bool transpose1,
-        const bool transpose2);
+        const bool transpose2,
+        const bool signedWeights,
+        const bool bias,
+        const bool perChannelWeightsDequantization,
+        const bool relu,
+        const bool fq);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape1,
         const FakeQuantizeOnData& fqOnData1,
         const ov::Shape& inputShape2,
-        const FakeQuantizeOnData& fqOnData2);
+        const FakeQuantizeOnData& fqOnData2,
+        const bool requantization = false);
 
     static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type netPrecision,
                                                   const ov::PartialShape& inputShape1,

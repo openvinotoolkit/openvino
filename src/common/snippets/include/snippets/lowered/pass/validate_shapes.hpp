@@ -18,7 +18,7 @@ namespace pass {
  */
 class ValidateShapes : public RangedPass {
 public:
-    OPENVINO_RTTI("ValidateShapes", "RangedPass")
+    OPENVINO_RTTI("ValidateShapes", "", RangedPass)
     ValidateShapes() = default;
     bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };

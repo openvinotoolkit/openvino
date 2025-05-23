@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -207,17 +207,17 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
             nodes.push_back(op);
         }
         if (is_extract_body) {
-            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+            if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
                 auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
                 auto tmp_res = extract(ti_body);
                 matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
-            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
                 auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 auto tmp_res = extract(loop_body);
                 matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
-            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v8::If>(op)) {
                 auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
                 std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {

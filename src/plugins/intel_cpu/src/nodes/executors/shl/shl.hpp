@@ -11,10 +11,7 @@
 
 #include <memory>
 
-
-namespace ov {
-namespace intel_cpu {
-
+namespace ov::intel_cpu {
 
 template <typename T>
 struct ShlStructureTraits {};
@@ -24,11 +21,11 @@ struct ShlStructure {
 public:
     ShlStructure() = default;
     ShlStructure(const ShlStructure<T, traits>&) = default;
-    ShlStructure(ShlStructure<T, traits>&&) = default;
+    ShlStructure(ShlStructure<T, traits>&&) noexcept = default;
     explicit ShlStructure(T t) { reset(t); }
 
     ShlStructure<T, traits> &operator=(const ShlStructure<T, traits>&) = default;
-    ShlStructure<T, traits> &operator=(ShlStructure<T, traits>&&) = default;
+    ShlStructure<T, traits>& operator=(ShlStructure<T, traits>&&) noexcept = default;
 
     void reset(T t) {
         m_ptr.reset(t, traits::destructor);
@@ -56,7 +53,7 @@ public:
     }
 
 private:
-    std::shared_ptr<typename std::remove_pointer<T>::type> m_ptr = nullptr;
+    std::shared_ptr<std::remove_pointer_t<T>> m_ptr = nullptr;
 
 protected:
     bool operator==(const T other) const { return other == m_ptr.get(); }
@@ -110,23 +107,24 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         csinn_tensor_copy(get(), another.get());
     }
 
-    csinn_layout_enum getLayout() const {
+    [[nodiscard]] csinn_layout_enum getLayout() const {
         // csinn_tensor contains `layout` as int32_t
         return static_cast<csinn_layout_enum>(get()->layout);
     }
 
-    csinn_dtype_enum getPrecision() const {
+    [[nodiscard]] csinn_dtype_enum getPrecision() const {
         return get()->dtype;
     }
 
-    VectorDims getShape() const {
+    [[nodiscard]] VectorDims getShape() const {
         VectorDims shape(get()->dim_count);
-        for (size_t i = 0; i < shape.size(); ++i)
+        for (size_t i = 0; i < shape.size(); ++i) {
             shape[i] = static_cast<size_t>(get()->dim[i]);
+        }
         return shape;
     }
 
-    void* getData() const {
+    [[nodiscard]] void* getData() const {
         return get()->data;
     }
 
@@ -134,7 +132,7 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         get()->data = data;
     }
 
-    ShlTensor cloneWithNewShape(const VectorDims& shape) const {
+    [[nodiscard]] ShlTensor cloneWithNewShape(const VectorDims& shape) const {
         ShlTensor cloned(*this);
         cloned.setShape(shape);
         return cloned;
@@ -161,8 +159,9 @@ private:
     void setShape(const VectorDims& shape) {
         get()->dim_count = shape.size();
         OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
-        for (int i = 0; i < get()->dim_count; ++i)
+        for (int i = 0; i < get()->dim_count; ++i) {
             get()->dim[i] = static_cast<int32_t>(shape[i]);
+        }
     };
 };
 
@@ -170,19 +169,19 @@ private:
 struct IShlParams {
 public:
     virtual ~IShlParams() = default;
-    virtual void* get(bool allow_empty = false) const = 0;
+    [[nodiscard]] virtual void* get() const = 0;
 };
 
 template <typename T, typename traits = ShlStructureTraits<T>>
 struct ShlParams : public ShlStructure<T>, public IShlParams {
     ShlParams() {
-        T params = static_cast<T>(csinn_alloc_params(sizeof(typename std::remove_pointer<T>::type), nullptr));
+        T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), nullptr));
         OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
         this->reset(params);
     }
 
     ShlParams(const ShlSession& session) {
-        T params = static_cast<T>(csinn_alloc_params(sizeof(typename std::remove_pointer<T>::type), session.get()));
+        T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), session.get()));
         OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
         this->reset(params);
     }
@@ -191,13 +190,13 @@ struct ShlParams : public ShlStructure<T>, public IShlParams {
         setAPI(api);
     }
 
-    void* get(bool allow_empty = false) const override {
-        return this->ShlStructure<T, traits>::get(allow_empty);
+    [[nodiscard]] void* get() const override {
+        return this->ShlStructure<T, traits>::get();
     }
 
 private:
     void setAPI(csinn_api_enum api) {
-        auto params = static_cast<typename std::remove_pointer<T>::type*>(this->get());
+        auto params = static_cast<std::remove_pointer_t<T>*>(this->get());
         params->base.api = api;
     }
 };
@@ -295,5 +294,4 @@ struct ShlClipParams : public ShlParams<csinn_clip_params*> {
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -230,6 +230,12 @@ public:
         return equal_parameters(lhs.m_parameter, rhs.m_parameter);
     }
 
+#ifndef NDEBUG
+    const Parameter* get_parameter() const {
+        return m_parameter;
+    }
+#endif
+
 private:
     const InputNode m_input;
     const Parameter* m_parameter;
@@ -274,7 +280,7 @@ public:
         OPENVINO_THROW(ss.str());
     }
 
-    bool result_and_output_match(size_t num_iterations) const {
+    bool result_and_output_match(int64_t num_iterations) const {
         if (const auto concat_desciption = ov::as_type<const SubGraphOp::ConcatOutputDescription>(m_description)) {
             if (m_result->output(0).get_element_type() != m_output.get_element_type()) {
                 return false;
@@ -282,7 +288,8 @@ public:
 
             const auto& output_partial_shape = m_output.get_partial_shape();
             const auto& result_partial_shape = m_result->output(0).get_partial_shape();
-            if (result_partial_shape.is_dynamic() && output_partial_shape.is_dynamic()) {
+            if (output_partial_shape.is_dynamic() &&
+                (result_partial_shape.is_dynamic() || (result_partial_shape.is_static() && num_iterations == -1))) {
                 return true;
             }
             if (!result_partial_shape.is_static() || !output_partial_shape.is_static()) {
@@ -294,7 +301,7 @@ public:
                 return false;
             }
             for (size_t i = 0; i != result_shape.size(); ++i) {
-                const auto axis_multiplier = i == concat_desciption->m_axis ? num_iterations : 1;
+                const auto axis_multiplier = i == concat_desciption->m_axis ? static_cast<size_t>(num_iterations) : 1;
                 if (result_shape[i] * axis_multiplier != output_shape[i]) {
                     return false;
                 }
@@ -319,6 +326,12 @@ public:
         }
         return equal_results(lhs.m_result, rhs.m_result);
     }
+
+#ifndef NDEBUG
+    const Result* get_result() const {
+        return m_result;
+    }
+#endif
 
 private:
     const OutputNode m_output;
@@ -527,6 +540,22 @@ private:
 
         if (lhs_sub_inputs.size() != rhs_sub_inputs.size() ||
             !std::is_permutation(begin(lhs_sub_inputs), end(lhs_sub_inputs), begin(rhs_sub_inputs))) {
+#ifndef NDEBUG
+            std::stringstream ss;
+            if (lhs_sub_inputs.size() != rhs_sub_inputs.size()) {
+                ss << "Different number of inputs: lhs_sub_inputs.size() = " << lhs_sub_inputs.size()
+                   << ", rhs_sub_inputs.size() == " << rhs_sub_inputs.size() << '\n';
+            }
+            ss << "Left subgraph inputs (" << lhs_sub_inputs.size() << "):\n";
+            for (size_t i = 0; i < lhs_sub_inputs.size(); i++) {
+                ss << "  " << i << ": " << lhs_sub_inputs[i].get_parameter()->get_partial_shape() << '\n';
+            }
+            ss << "Right subgraph inputs (" << rhs_sub_inputs.size() << "):\n";
+            for (size_t i = 0; i < rhs_sub_inputs.size(); i++) {
+                ss << "  " << i << ": " << rhs_sub_inputs[i].get_parameter()->get_partial_shape() << '\n';
+            }
+            std::cerr << ss.str() << std::endl;
+#endif
             return Result::error("different SubGraph InputDescription");
         }
         return Result::ok();
@@ -549,6 +578,22 @@ private:
 
         if (lhs_sub_outputs.size() != rhs_sub_outputs.size() ||
             !std::is_permutation(begin(lhs_sub_outputs), end(lhs_sub_outputs), begin(rhs_sub_outputs))) {
+#ifndef NDEBUG
+            std::stringstream ss;
+            if (lhs_sub_outputs.size() != rhs_sub_outputs.size()) {
+                ss << "Different number of outputs: lhs_sub_outputs.size() = " << lhs_sub_outputs.size()
+                   << ", rhs_sub_outputs.size() == " << rhs_sub_outputs.size() << '\n';
+            }
+            ss << "Left subgraph outputs (" << lhs_sub_outputs.size() << "):\n";
+            for (size_t i = 0; i < lhs_sub_outputs.size(); i++) {
+                ss << "  " << i << ": " << lhs_sub_outputs[i].get_result()->output(0).get_partial_shape() << '\n';
+            }
+            ss << "Right subgraph outputs (" << rhs_sub_outputs.size() << "):\n";
+            for (size_t i = 0; i < rhs_sub_outputs.size(); i++) {
+                ss << "  " << i << ": " << rhs_sub_outputs[i].get_result()->output(0).get_partial_shape() << '\n';
+            }
+            std::cerr << ss.str() << std::endl;
+#endif
             return Result::error("different SubGraph OutputDescription");
         }
         return Result::ok();
@@ -579,10 +624,10 @@ private:
     }
 
     static int64_t get_num_iterations(ov::op::util::SubGraphOp* sub) {
-        if (const auto ti = dynamic_cast<const ov::op::v0::TensorIterator*>(sub)) {
+        if (const auto ti = ov::as_type<const ov::op::v0::TensorIterator>(sub)) {
             return ti->get_num_iterations();
         }
-        if (const auto l = dynamic_cast<const ov::op::v5::Loop*>(sub)) {
+        if (const auto l = ov::as_type<const ov::op::v5::Loop>(sub)) {
             return l->get_num_iterations();
         }
 
@@ -724,8 +769,8 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
-    auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
-    auto subgraph2 = dynamic_cast<ov::op::util::SubGraphOp*>(node2);
+    auto subgraph1 = ov::as_type<ov::op::util::SubGraphOp>(node1);
+    auto subgraph2 = ov::as_type<ov::op::util::SubGraphOp>(node2);
 
     const bool subgraph_nodes = subgraph1 && subgraph2;
 

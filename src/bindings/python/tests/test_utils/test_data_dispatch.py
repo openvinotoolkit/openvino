@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,8 +10,8 @@ import numpy as np
 from tests.utils.helpers import generate_add_compiled_model, generate_relu_compiled_model
 
 from openvino import Core, Model, Type, Shape, Tensor, PartialShape
-import openvino.runtime.opset13 as ops
-from openvino.runtime.utils.data_helpers import _data_dispatch
+import openvino.opset13 as ops
+from openvino.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 
@@ -195,7 +195,7 @@ class FakeTensor():
     def __init__(self, array):
         self.array = array
 
-    def __array__(self):
+    def __array__(self, dtype=None, copy=None):
         return self.array
 
 

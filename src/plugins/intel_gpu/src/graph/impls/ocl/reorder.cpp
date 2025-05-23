@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,19 +22,15 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return make_deep_copy<reorder_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            if (!_kernel_data.kernelName.empty()) {
-                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
-            }
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 
@@ -61,7 +57,7 @@ public:
         auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
 
         auto inputs_count = primitive->input.size();
-        bool has_mean = !primitive->mean.empty();
+        bool has_mean = primitive->mean.is_valid();
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
@@ -157,10 +153,12 @@ public:
         r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
+        r_params.original_input_rank = weights_params->get_input_layout().get_partial_shape().size();
+        r_params.original_output_rank = weights_params->get_output_layout().get_partial_shape().size();
 
         auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
-        return make_unique<reorder_impl>(best_kernel);
+        return std::make_unique<reorder_impl>(best_kernel);
     }
 };
 

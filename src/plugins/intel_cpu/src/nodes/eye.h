@@ -5,9 +5,11 @@
 #pragma once
 
 #include <node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
 #include "dnnl_extension_utils.h"
 
 namespace ov {
@@ -22,67 +24,73 @@ public:
     static constexpr size_t BATCH_SHAPE = 3lu;
 
 public:
-    Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
-    bool needPrepareParams() const override {return false;};
-    bool needShapeInfer() const override {return true;};
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    bool needPrepareParams() const override {
+        return false;
+    };
+    bool needShapeInfer() const override {
+        return true;
+    };
+    void executeDynamicImpl(const dnnl::stream& strm) override {
+        execute(strm);
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::string errorPrefix = "";
-    ov::element::Type outType = ov::element::Type_t::undefined;
+    ov::element::Type outType = ov::element::Type_t::dynamic;
     template <typename inputType>
     void executeSpecified();
-    template<typename T>
+    template <typename T>
     struct EyeExecute;
     inline const size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
         if (rowMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain row_count data");
-        const int *rowPtr = rowMem->getDataAs<const int>();
+            THROW_CPU_NODE_ERR("doesn't contain row_count data");
+        const int* rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
     }
     inline const size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
         if (colMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain col_count data");
-        const int *colPtr =  colMem->getDataAs<const int>();
+            THROW_CPU_NODE_ERR("doesn't contain col_count data");
+        const int* colPtr = colMem->getDataAs<const int>();
 
         return colPtr[0];
     }
     inline const int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
         if (diagIndMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain diag_index data");
-        const int *diagIndexPtr = diagIndMem->getDataAs<const int>();
+            THROW_CPU_NODE_ERR("doesn't contain diag_index data");
+        const int* diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];
     }
     inline const std::vector<int> getBatchShape() const {
         if (withBatchShape) {
-            const int batchShapeSize = static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
+            const int batchShapeSize =
+                static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
             std::vector<int> batchShape(batchShapeSize);
-            const int *batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
+            const int* batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
             batchShape.assign(batchShapePtr, batchShapePtr + batchShapeSize);
             return batchShape;
         } else {
-            return std::vector<int> {};
+            return std::vector<int>{};
         }
     }
 
-    inline const size_t getBatchVolume(const std::vector<int> &batchShape) {
-        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<size_t>());
+    inline const size_t getBatchVolume(const std::vector<int>& batchShape) {
+        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

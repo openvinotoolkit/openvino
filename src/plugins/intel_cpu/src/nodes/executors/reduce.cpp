@@ -4,10 +4,10 @@
 
 #include "reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#include <utility>
 
-ReduceExecutor::ReduceExecutor(const ExecutorContext::CPtr context) : context(context) {}
+namespace ov::intel_cpu {
 
-}   // namespace intel_cpu
-}   // namespace ov
+ReduceExecutor::ReduceExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
+
+}  // namespace ov::intel_cpu

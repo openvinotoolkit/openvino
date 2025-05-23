@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 
 #include "intel_gpu/primitives/roi_pooling.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
     if (method == "bilinear")
@@ -121,5 +120,4 @@ REGISTER_FACTORY_IMPL(v1, DeformablePSROIPooling);
 REGISTER_FACTORY_IMPL(v0, PSROIPooling);
 REGISTER_FACTORY_IMPL(v0, ROIPooling);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

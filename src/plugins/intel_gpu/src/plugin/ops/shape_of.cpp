@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/shape_of.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateShapeOfOpCommon(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     validate_inputs_count(op, {1, 2});
@@ -35,5 +34,4 @@ static void CreateShapeOfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3:
 REGISTER_FACTORY_IMPL(v0, ShapeOf);
 REGISTER_FACTORY_IMPL(v3, ShapeOf);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

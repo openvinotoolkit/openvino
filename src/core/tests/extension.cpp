@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/so_extension.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/util/file_util.hpp"
 
 inline std::string get_extension_path() {
@@ -89,7 +88,7 @@ TEST(extension, create_model_from_extension) {
         // Create model to check evaluate for custom operation
         std::shared_ptr<ov::Model> model;
         {
-            auto parameter = std::make_shared<ov::opset9::Parameter>(ov::element::i32, ov::Shape{1, 2, 2, 2});
+            auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 2, 2, 2});
 
             DummyAdapter visitor;
 
@@ -99,7 +98,7 @@ TEST(extension, create_model_from_extension) {
             EXPECT_NE(nullptr, outputs[0].get_node());
             const std::string ref_name = "Identity";
             EXPECT_EQ(ref_name, outputs[0].get_node()->get_type_info().name);
-            auto result = std::make_shared<ov::opset9::Result>(outputs[0]);
+            auto result = std::make_shared<ov::op::v0::Result>(outputs[0]);
             model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
         }
 

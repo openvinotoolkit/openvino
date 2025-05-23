@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,11 +37,15 @@ public:
 
         auto format = format::get_default_format(params.output_shape.size());
         auto shape = engine.allocate_memory(
-                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, data_type, format});
+                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, ov::element::Type_t::i32, format});
         auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
         auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
 
-        set_values(shape, params.output_shape);
+        std::vector<int32_t> out_shapes;
+        for (auto x : params.output_shape)
+            out_shapes.push_back(static_cast<int32_t>(x));
+
+        set_values(shape, out_shapes);
         set_values(min_val, {params.min_val});
         set_values(max_val, {params.max_val});
 

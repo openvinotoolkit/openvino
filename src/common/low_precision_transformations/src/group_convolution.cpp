@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,7 +26,7 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -37,15 +38,12 @@ bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Nod
     return GroupConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
-bool GroupConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool GroupConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
-
-    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
+    if (!WeightableLayerTransformation::canBeTransformed(convolution)) {
         return false;
     }
-
-    ConvolutionTransformation::transform(context, m);
-    return true;
+    return ConvolutionTransformation::transform(m);
 }
 
 bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,

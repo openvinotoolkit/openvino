@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class Generator {
+class Generator : public std::enable_shared_from_this<Generator>{
 public:
     /**
      * @brief Default constructor

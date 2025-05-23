@@ -2,7 +2,7 @@
 
 OpenVINO Core is a part of OpenVINO Runtime library.
 The component is responsible for:
- * Model representation - component provides classes for manipulation with models inside the OpenVINO Runtime. For more information please read [Model representation in OpenVINO Runtime User Guide](https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation.html)
+ * Model representation - component provides classes for manipulation with models inside the OpenVINO Runtime. For more information please read [Model representation in OpenVINO Runtime User Guide](https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-representation.html)
  * Operation representation - contains all from the box supported OpenVINO operations and opsets. For more information read [Operations enabling flow guide](./docs/operation_enabling_flow.md).
  * Model modification - component provides base classes which allow to develop transformation passes for model modification. For more information read [Transformation enabling flow guide](#todo).
 
@@ -26,7 +26,7 @@ OpenVINO Core has the next structure:
 ## Tutorials
 
  * [How to add new operations](./docs/operation_enabling_flow.md).
- * [How to add OpenVINO Extension](https://docs.openvino.ai/2024/documentation/openvino-extensibility.html). This document is based on the [template_extension](./template_extension/new/).
+ * [How to add OpenVINO Extension](https://docs.openvino.ai/2025/documentation/openvino-extensibility.html). This document is based on the [template_extension](./template_extension/new/).
  * [How to debug the component](./docs/debug_capabilities.md).
 
 ## See also

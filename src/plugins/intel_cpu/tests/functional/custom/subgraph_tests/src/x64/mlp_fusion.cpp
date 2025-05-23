@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
 
 namespace ov {
 namespace test {
@@ -17,6 +22,7 @@ struct LLMMLPFusionParams {
     size_t down_size;
     size_t up_size;
     std::string act_type;
+    bool use_dynamic_quant;
 };
 
 class LLMMLPFusionTest : public testing::WithParamInterface<LLMMLPFusionParams>, public ov::test::SubgraphBaseTest {
@@ -32,6 +38,7 @@ public:
         result << "down_size=" << obj.param.down_size << "_";
         result << "up_size=" << obj.param.up_size << "_";
         result << "act_type=" << obj.param.act_type << "_";
+        result << "use_dynamic_quant=" << obj.param.use_dynamic_quant << "_";
         result << obj.index;
         return result.str();
     }
@@ -48,19 +55,42 @@ protected:
 
         auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
 
-        auto create_const = [](ov::Shape shape, int resolution) {
+        auto create_const = [&](size_t OC, size_t IC, int resolution) -> std::shared_ptr<ov::Node> {
+            if (param.use_dynamic_quant) {
+                ov::test::utils::InputGenerateData in_data;
+                // range [-128, +127]
+                in_data.start_from = -64;
+                in_data.range = 63;
+                in_data.resolution = 128;
+                auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i8, ov::Shape{OC, IC}, in_data);
+                auto weight_const_i8 = std::make_shared<ov::op::v0::Constant>(tensor);
+                auto weight_const_f32 = std::make_shared<ov::op::v0::Convert>(weight_const_i8, ov::element::f32);
+
+                // range after dequantize, [-1, +1]
+                in_data.start_from = 0;
+                in_data.range = 1;
+                in_data.resolution = 128;
+                auto tensor_scale_per_oc = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, 1}, in_data);
+                auto scale_per_oc = std::make_shared<ov::op::v0::Constant>(tensor_scale_per_oc);
+
+                auto weight_deq = std::make_shared<ov::op::v1::Multiply>(weight_const_f32, scale_per_oc);
+                return weight_deq;
+            }
+
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -0.5;
             in_data.range = 1;
             in_data.resolution = resolution;
-            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, in_data);
+            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, IC}, in_data);
             return std::make_shared<ov::op::v0::Constant>(tensor);
         };
+        if (param.use_dynamic_quant)
+            configuration.insert({ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
 
-        auto gate_weight = create_const(ov::Shape{param.up_size, param.down_size}, 100);
-        auto up_weight = create_const(ov::Shape{param.up_size, param.down_size}, 100);
+        auto gate_weight = create_const(param.up_size, param.down_size, 100);
+        auto up_weight = create_const(param.up_size, param.down_size, 100);
         // down_proj has special cache blocking along K dimension requires lower weight resolution
-        auto down_weight = create_const(ov::Shape{param.down_size, param.up_size}, 16);
+        auto down_weight = create_const(param.down_size, param.up_size, 16);
 
         auto gate_proj = std::make_shared<ov::op::v0::MatMul>(src, gate_weight, false, true);
         auto up_proj = std::make_shared<ov::op::v0::MatMul>(src, up_weight, false, true);
@@ -74,7 +104,7 @@ protected:
         auto gate_up = std::make_shared<ov::op::v1::Multiply>(gate_act, up_proj);
         auto output = std::make_shared<ov::op::v0::MatMul>(gate_up, down_weight, false, true);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{output}, ov::ParameterVector{src});
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{src});
     }
 
     void check_results() {
@@ -99,15 +129,13 @@ TEST_P(LLMMLPFusionTest, CompareWithRefs) {
 
 namespace {
 
+static ov::test::InputShape ishape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}};
+
 const std::vector<LLMMLPFusionParams> mlp_params = {
-    {ov::test::InputShape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}},
-     4096 / 4,
-     11008 / 4,
-     "Gelu"},
-    {ov::test::InputShape{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 37, 4096 / 4}}},
-     4096 / 4,
-     11008 / 4,
-     "Swish"},
+    {ishape, 4096 / 4, 11008 / 4, "Gelu", false},
+    {ishape, 4096 / 4, 11008 / 4, "Gelu", true},
+    {ishape, 4096 / 4, 11008 / 4, "Swish", false},
+    {ishape, 4096 / 4, 11008 / 4, "Swish", true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LLMMLPFusion,

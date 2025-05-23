@@ -24,11 +24,11 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
     // Parameters, Results or Constants are ignored. They can't be in Loops
     auto is_loop_outside_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Result>(node) ||
-               ov::is_type<ov::op::v0::Constant>(node) ||
-               ov::is_type<ov::op::v0::Parameter>(node) ||
-               ov::is_type<op::RankNormalization>(node) ||
-               ov::is_type<op::Reshape>(node);
+        return ov::is_type_any_of<ov::op::v0::Result,
+                                  ov::op::v0::Constant,
+                                  ov::op::v0::Parameter,
+                                  op::RankNormalization,
+                                  op::Reshape>(node);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {

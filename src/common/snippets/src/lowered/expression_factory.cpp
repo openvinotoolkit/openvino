@@ -20,6 +20,10 @@ std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>
         return create(loop_begin, inputs, m_shape_infer_factory);
     } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
         return create(loop_end, inputs, m_shape_infer_factory);
+    } else if (const auto spill_begin = ov::as_type_ptr<op::RegSpillBegin>(n)) {
+        return create(spill_begin, inputs, m_shape_infer_factory);
+    } else if (const auto spill_end = ov::as_type_ptr<op::RegSpillEnd>(n)) {
+        return create(spill_end, inputs, m_shape_infer_factory);
     } else if (const auto buffer = ov::as_type_ptr<op::Buffer>(n)) {
         return create<BufferExpression>(buffer, inputs, m_shape_infer_factory);
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -105,6 +109,36 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, c
     init_expression_inputs(expr, inputs);
     // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
     // The port descriptors are automatically created in constructor. We manually clean output ports.
+    expr->m_output_port_descriptors.clear();
+    expr->validate();
+    return expr;
+}
+
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillBegin>& n, const std::vector<PortConnectorPtr>& inputs,
+                                        const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+    auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
+    OPENVINO_ASSERT(inputs.empty(), "RegSpillBegin expression expects no inputs");
+    const auto num_to_spill = n->get_regs_to_spill().size();
+    expr->m_output_port_descriptors.resize(num_to_spill, nullptr);
+    for (size_t i = 0; i < num_to_spill; i++)
+        expr->m_output_port_descriptors[i] = std::make_shared<PortDescriptor>();
+    expr->m_output_port_connectors.resize(num_to_spill, nullptr);
+    for (size_t i = 0; i < num_to_spill; i++) {
+        const auto source = expr->get_output_port(i);
+        expr->m_output_port_connectors[i] = std::make_shared<PortConnector>(source);
+    }
+    expr->validate();
+    return expr;
+}
+
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillEnd>& n, const std::vector<PortConnectorPtr>& inputs,
+                                        const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+    auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
+    const auto spill_begin_node = n->get_reg_spill_begin();
+    const auto num_to_spill = spill_begin_node->get_regs_to_spill().size();
+    OPENVINO_ASSERT(inputs.size() == num_to_spill, "Invalid num inputs for RegSpillEnd expression");
+    expr->m_input_port_descriptors.resize(num_to_spill, std::make_shared<PortDescriptor>());
+    init_expression_inputs(expr, inputs);
     expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParamsResults;
 
 class ov::pass::RemoveMultiSubGraphOpDanglingParamsResults : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("RemoveMultiSubGraphOpDanglingParamsResults", "0");
+    OPENVINO_MODEL_PASS_RTTI("RemoveMultiSubGraphOpDanglingParamsResults");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ std::string getExecutableDirectory() {
         throw "Can't get test executable path name";
     }
     path = std::string(buffer, len);
-    return ov::util::get_directory(path);
+    return ov::util::get_directory(path).string();
 }
 
 std::string getCurrentWorkingDir() {
@@ -150,7 +150,7 @@ std::string getCurrentWorkingDir() {
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath) {
-    return ov::util::path_join({getExecutableDirectory(), relModelPath});
+    return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
 std::string getRelativePath(const std::string& from, const std::string& to) {

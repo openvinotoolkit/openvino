@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void TopKImpl(ProgramBuilder& p,
                      const std::shared_ptr<ov::Node>& op,
@@ -28,7 +27,7 @@ static void TopKImpl(ProgramBuilder& p,
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 
-        auto topk_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+        auto topk_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                             inputs[0],
                                             inputs[1],
@@ -109,5 +108,4 @@ static void CreateTopKOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v11::T
 REGISTER_FACTORY_IMPL(v1, TopK);
 REGISTER_FACTORY_IMPL(v11, TopK);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

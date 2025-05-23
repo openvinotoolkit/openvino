@@ -4,23 +4,22 @@
 
 #pragma once
 
-#include <vector>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 #include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OPENVINO_ARCH_ARM64)
-#define SNIPPETS_MAX_DATA_PTR_COUNT 23
+#    define SNIPPETS_MAX_DATA_PTR_COUNT 23
 #else
-#define SNIPPETS_MAX_DATA_PTR_COUNT 11
+#    define SNIPPETS_MAX_DATA_PTR_COUNT 11
 #endif
 
-#define GET_OFF(field) offsetof(jit_snippets_call_args, field)
+#define GET_OFF(field)           offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
 
 struct amx_tile_config_t {
@@ -37,9 +36,9 @@ struct jit_snippets_call_args {
 
     void register_loops(const std::vector<loop_args_t>& loops);
 
-    const void *src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
-    void *dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
-    void *buffer_scratchpad_ptr = nullptr;
+    const void* src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
+    void* dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
+    void* buffer_scratchpad_ptr = nullptr;
 
     // Note: Ideally loop_args must be private, since we manage this pointer manually.
     // However, standard-layout class definition (to use offset_of) requires the same access specifier
@@ -51,14 +50,18 @@ struct jit_snippets_call_args {
 
 struct jit_snippets_call_args::loop_args_t {
     loop_args_t() = default;
-    loop_args_t(int64_t work_amount, const std::vector<int64_t>& ptr_increments, const std::vector<int64_t>& finalization_offsets);
+    loop_args_t(int64_t work_amount,
+                const std::vector<int64_t>& ptr_increments,
+                const std::vector<int64_t>& finalization_offsets);
     loop_args_t(const loop_args_t& other);
     ~loop_args_t();
 
     loop_args_t& operator=(loop_args_t other);
-    friend void swap(loop_args_t& first, loop_args_t& second);
+    friend void swap(loop_args_t& first, loop_args_t& second) noexcept;
 
-    void init_pointers_and_copy_data(const int64_t num_elements, const int64_t* ptr_increments, const int64_t* finalization_offsets);
+    void init_pointers_and_copy_data(const int64_t num_elements,
+                                     const int64_t* ptr_increments,
+                                     const int64_t* finalization_offsets);
 
     int64_t m_work_amount = 0;
     int64_t m_num_data_ptrs = 0;
@@ -71,5 +74,4 @@ struct jit_snippets_compile_args {
     std::vector<size_t> exec_domain = {};
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

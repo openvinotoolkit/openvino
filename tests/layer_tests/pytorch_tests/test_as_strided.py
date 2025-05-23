@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,6 +43,40 @@ class TestAsStrided(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_as_strided(self, size, stride, offset, ie_device, precision, ir_version):
+        self._test(*self.create_model(size, stride, offset), ie_device, precision, ir_version, trace_model=True)
+
+class TestAsStridedCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(8, 8).astype(np.float32),)
+
+    def create_model(self, size, stride, offset):
+        class aten_as_strided_copy(torch.nn.Module):
+            def __init__(self, size, stride, offset):
+                super().__init__()
+                self.size = size
+                self.stride = stride
+                self.offset = offset
+
+            def forward(self, x):
+                return torch.as_strided_copy(x, self.size, self.stride, self.offset)
+
+        ref_net = None
+
+        return aten_as_strided_copy(size, stride, offset), ref_net, "aten::as_strided_copy"
+
+    @pytest.mark.parametrize(
+        "size,stride",
+        [
+            ([1], [1]),
+            ([2, 2], [1, 1]),
+            ([5, 4, 3], [1, 3, 7]),
+            ([5, 5, 5], [5, 0, 5]),
+            ([1, 2, 3, 4], [4, 3, 2, 1]),
+        ],
+    )
+    @pytest.mark.parametrize("offset", [None, 1, 3, 7])
+    @pytest.mark.precommit_fx_backend
+    def test_as_strided_copy(self, size, stride, offset, ie_device, precision, ir_version):
         self._test(*self.create_model(size, stride, offset), ie_device, precision, ir_version, trace_model=True)
 
 

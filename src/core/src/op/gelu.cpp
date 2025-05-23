@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,4 +141,6 @@ OPENVINO_API EnumNames<op::GeluApproximationMode>& EnumNames<op::GeluApproximati
 std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::GeluApproximationMode>::~AttributeAdapter() = default;
 }  // namespace ov

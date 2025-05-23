@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ using namespace std;
 
 class TestAttributeNoCopyable : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("TestAttributeNoCopyable");
+    OPENVINO_RTTI("TestAttributeNoCopyable", "0", RuntimeAttribute);
     TestAttributeNoCopyable() = default;
     bool is_copyable() const override {
         return false;
@@ -40,7 +40,7 @@ public:
 
 class TestAttributeCopyable : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("TestAttributeCopyable");
+    OPENVINO_RTTI("TestAttributeCopyable", "0", RuntimeAttribute);
     TestAttributeCopyable() = default;
 
     static void set(std::shared_ptr<Node> node) {
@@ -56,7 +56,7 @@ public:
 
 class TestAttributeMergable : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("TestAttributeMergable");
+    OPENVINO_RTTI("TestAttributeMergable", "0", RuntimeAttribute);
     TestAttributeMergable() = default;
 
     static void set(std::shared_ptr<Node> node) {

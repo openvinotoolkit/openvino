@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,7 +144,6 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
     default:
         return {};
     }
-    return {};
 }
 
 ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {

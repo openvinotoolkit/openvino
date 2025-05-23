@@ -1,23 +1,40 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/any.hpp"
 
+#include <array>
 #include <limits>
 #include <string>
+#include <string_view>
+
+#include "openvino/util/common_util.hpp"
+namespace {
+template <class Container>
+bool contains_type_index(Container&& types, const std::type_info& user_type) {
+    for (auto&& type : types) {
+        if (ov::util::equal(type, user_type)) {
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
 
 namespace ov {
 
 bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
-#if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
+#if (defined(__ANDROID__) || defined(__APPLE__) || defined(__CHROMIUMOS__)) && defined(__clang__)
     if (!result) {
         result = std::strcmp(lhs.name(), rhs.name()) == 0;
     }
 #endif
     return result;
 }
+
+Any::Base::~Base() = default;
 
 bool Any::Base::is(const std::type_info& other) const {
     return util::equal(type_info(), other);
@@ -66,6 +83,48 @@ void Any::Base::read_to(Base& other) const {
         if (!strm.str().empty())
             other.read(strm);
     }
+}
+
+bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
+    return contains_type_index(base_type_info(), user_type);
+}
+
+bool Any::Base::is_signed_integral() const {
+    return std::is_signed<char>::value ? contains_type_index(std::initializer_list<std::type_index>{typeid(char),
+                                                                                                    typeid(signed char),
+                                                                                                    typeid(short),
+                                                                                                    typeid(int),
+                                                                                                    typeid(long),
+                                                                                                    typeid(long long)},
+                                                             type_info())
+                                       : contains_type_index(std::initializer_list<std::type_index>{typeid(signed char),
+                                                                                                    typeid(short),
+                                                                                                    typeid(int),
+                                                                                                    typeid(long),
+                                                                                                    typeid(long long)},
+                                                             type_info());
+}
+
+bool Any::Base::is_unsigned_integral() const {
+    return std::is_signed<char>::value
+               ? contains_type_index(std::initializer_list<std::type_index>{typeid(unsigned char),
+                                                                            typeid(unsigned short),
+                                                                            typeid(unsigned int),
+                                                                            typeid(unsigned long),
+                                                                            typeid(unsigned long long)},
+                                     type_info())
+               : contains_type_index(std::initializer_list<std::type_index>{typeid(char),
+                                                                            typeid(unsigned char),
+                                                                            typeid(unsigned short),
+                                                                            typeid(unsigned int),
+                                                                            typeid(unsigned long),
+                                                                            typeid(unsigned long long)},
+                                     type_info());
+}
+bool Any::Base::is_floating_point() const {
+    return contains_type_index(
+        std::initializer_list<std::type_index>{typeid(float), typeid(double), typeid(long double)},
+        type_info());
 }
 
 Any::~Any() {
@@ -147,9 +206,14 @@ namespace util {
 void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
-    if (str == "YES") {
+
+    constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
+    constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
+    str = util::to_lower(str);
+
+    if (std::find(on.begin(), on.end(), str) != on.end()) {
         value = true;
-    } else if (str == "NO") {
+    } else if (std::find(off.begin(), off.end(), str) != off.end()) {
         value = false;
     } else {
         OPENVINO_THROW("Could not convert to bool from string " + str);
@@ -293,4 +357,42 @@ void Write<Any>::operator()(std::ostream& os, const Any& any) const {
 }
 
 }  // namespace util
+
+template <class U>
+[[noreturn]] U Any::Base::convert_impl() const {
+    OPENVINO_THROW("Bad cast from: ", type_info().name(), " to: ", typeid(U).name());
+}
+
+template <class U, class T, class... Others>
+U Any::Base::convert_impl() const {
+    return is<T>() ? static_cast<U>(as<T>()) : convert_impl<U, Others...>();
+}
+
+template <>
+long long Any::Base::convert<long long>() const {
+    return std::is_signed<char>::value ? convert_impl<long long, char, signed char, short, int, long, long long>()
+                                       : convert_impl<long long, signed char, short, int, long, long long>();
+}
+
+template <>
+unsigned long long Any::Base::convert<unsigned long long int>() const {
+    return std::is_signed<char>::value ? convert_impl<unsigned long long,
+                                                      unsigned char,
+                                                      unsigned short,
+                                                      unsigned int,
+                                                      unsigned long,
+                                                      unsigned long long>()
+                                       : convert_impl<unsigned long long,
+                                                      char,
+                                                      unsigned char,
+                                                      unsigned short,
+                                                      unsigned int,
+                                                      unsigned long,
+                                                      unsigned long long>();
+}
+
+template <>
+double Any::Base::convert<double>() const {
+    return convert_impl<double, float, double>();
+}
 }  // namespace ov

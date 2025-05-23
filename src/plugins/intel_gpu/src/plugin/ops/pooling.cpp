@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/pooling.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::AvgPool>& op) {
     validate_inputs_count(op, {1});
@@ -125,5 +124,4 @@ REGISTER_FACTORY_IMPL(v1, MaxPool);
 REGISTER_FACTORY_IMPL(v8, MaxPool);
 REGISTER_FACTORY_IMPL(v1, AvgPool);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

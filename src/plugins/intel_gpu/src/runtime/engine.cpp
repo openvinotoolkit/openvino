@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,8 +72,7 @@ const device::ptr engine::get_device() const {
 }
 
 bool engine::use_unified_shared_memory() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_usm) {
+    GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
     if (_device->get_mem_caps().supports_usm()) {
@@ -218,11 +217,9 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     const auto add_stat = [&](allocation_type type) {
         auto idx = static_cast<size_t>(type);
         auto value = _memory_usage_data[idx].load();
-        if (value != 0) {
-            std::ostringstream oss;
-            oss << type;
-            statistics[oss.str()] = value;
-        }
+        std::ostringstream oss;
+        oss << type;
+        statistics[oss.str()] = value;
     };
 
     add_stat(allocation_type::unknown);
@@ -275,7 +272,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
-    device_query query(engine_type, runtime_type);
+    device_query query(engine_type, runtime_type, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
 
     OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"

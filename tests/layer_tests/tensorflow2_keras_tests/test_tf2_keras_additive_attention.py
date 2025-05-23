@@ -32,10 +32,9 @@ class TestKerasAdditiveAttention(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_additive_attention_float32_case1(self, params, ie_device, precision, ir_version,
-                                                    temp_dir, use_legacy_frontend):
+                                                    temp_dir):
         self._test(*self.create_keras_additive_attention_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, **params)
 
     test_data_extended_float32 = [
         dict(use_scale=False, dropout=0.5,
@@ -67,7 +66,6 @@ class TestKerasAdditiveAttention(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_extended_float32)
     @pytest.mark.nightly
     def test_keras_additive_attention_float32_case2(self, params, ie_device, precision, ir_version,
-                                                    temp_dir, use_legacy_frontend):
+                                                    temp_dir):
         self._test(*self.create_keras_additive_attention_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, **params)

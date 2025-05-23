@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ void regmodule_experimental(py::module m) {
                     using Dimension(min, max) for each element.
 
                     :param output: Node output pointing to the tensor for estimation.
-                    :type output: openvino.runtime.Output
+                    :type output: openvino.Output
                     :param partial_shape: The resulting estimation will be stored in this PartialShape.
                     :type partial_shape: openvino.PartialShape
                     :return: True if estimation evaluation was successful, false otherwise.
@@ -37,7 +37,7 @@ void regmodule_experimental(py::module m) {
                     It traverses the graph upwards to deduce the estimation.
 
                     :param output: Node output pointing to the tensor for estimation.
-                    :type output: openvino.runtime.Output
+                    :type output: openvino.Output
                     :return: Tensors representing the lower and upper bound value estimations.
                     :rtype: Tuple[openvino.Tensor, openvino.Tensor]
                 )");

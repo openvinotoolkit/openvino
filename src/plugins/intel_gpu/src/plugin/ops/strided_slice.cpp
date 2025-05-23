@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@
 
 #include <climits>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::StridedSlice>& op) {
     validate_inputs_count(op, {4});
@@ -33,7 +32,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         return casted_val;
     };
 
-    auto begin_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    auto begin_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     std::vector<int64_t> begin;
     if (begin_constant) {
         auto const_vals = begin_constant->cast_vector<int64_t>();
@@ -41,7 +40,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
             begin.push_back(convert_max_val(val, begin_constant->get_element_type()));
         }
     }
-    auto end_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
+    auto end_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
     std::vector<int64_t> end;
     if (end_constant) {
        auto const_vals = end_constant->cast_vector<int64_t>();
@@ -49,7 +48,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
             end.push_back(convert_max_val(val, end_constant->get_element_type()));
         }
     }
-    auto stride_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
+    auto stride_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
     std::vector<int64_t> strides = stride_constant ? stride_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
     do {
@@ -253,7 +252,9 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
             }
 
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, false, output_pattern, output_pshape);
+            auto output_ts = tensor_from_dims(output_shape);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, output_ts);
+
             p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }
@@ -295,5 +296,4 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
 REGISTER_FACTORY_IMPL(v1, StridedSlice);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

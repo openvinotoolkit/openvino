@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "custom_shape_infer.hpp"
@@ -8,10 +8,10 @@
 #include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "shape_inference/custom/adaptive_pooling.hpp"
 #include "shape_inference/custom/color_convert.hpp"
+#include "shape_inference/custom/convolution.hpp"
 #include "shape_inference/custom/eltwise.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
 #include "shape_inference/custom/gather.hpp"
@@ -26,6 +26,7 @@
 #include "shape_inference/custom/strided_slice.hpp"
 #include "shape_inference/custom/transpose.hpp"
 #include "shape_inference/shape_inference_status.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -62,6 +63,7 @@ public:
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::SDPAShapeInferFactory, Type::ScaledDotProductAttention);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::ConvolutionShapeInferFactory, Type::Convolution);
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +67,8 @@ void op::v0::Parameter::set_partial_shape(const PartialShape& partial_shape) {
 }
 
 AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
+
+AttributeAdapter<ParameterVector>::~AttributeAdapter() = default;
 
 bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();

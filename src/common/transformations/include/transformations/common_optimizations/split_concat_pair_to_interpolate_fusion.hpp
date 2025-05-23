@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SplitConcatPairToInterpolateFusion;
  */
 class ov::pass::SplitConcatPairToInterpolateFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SplitConcatPairToInterpolateFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SplitConcatPairToInterpolateFusion");
     SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination = true);
 };

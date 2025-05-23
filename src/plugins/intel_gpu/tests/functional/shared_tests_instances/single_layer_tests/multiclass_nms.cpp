@@ -10,6 +10,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 namespace ov {
 namespace test {
@@ -237,8 +238,8 @@ void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedO
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
-        const auto actualBuffer = static_cast<uint8_t*>(actual.data());
-        const auto expectedBuffer = static_cast<uint8_t*>(expected.data());
+        const auto actualBuffer = static_cast<const uint8_t*>(actual.data());
+        const auto expectedBuffer = static_cast<const uint8_t*>(expected.data());
 
         const auto expected_shape = expected.get_shape();
         const auto actual_shape = actual.get_shape();
@@ -270,7 +271,7 @@ void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedO
                         break;
                     }
 
-                    const auto fBuffer = static_cast<float*>(actual.data());
+                    const auto fBuffer = static_cast<const float*>(actual.data());
                     for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
                         ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
                             << "Invalid default value: " << fBuffer[i] << " at index: " << i;

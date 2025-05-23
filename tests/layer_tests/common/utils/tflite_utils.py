@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import itertools
 import os
 import warnings
@@ -80,7 +83,7 @@ def save_pb_to_tflite(pb_model):
     return tflite_model_path
 
 
-def get_tflite_results(use_legacy_frontend, inputs_dict, model_path):
+def get_tflite_results(inputs_dict, model_path):
     interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()

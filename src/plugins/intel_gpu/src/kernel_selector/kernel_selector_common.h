@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@ namespace kernel_selector {
 
 std::string GetStringEnv(const char* varName);
 
+using KernelLanguage = cldnn::kernel_language;
 using KernelString = cldnn::kernel_string;
 using WorkGroupSizes = cldnn::work_group_sizes;
 using ScalarDescriptor = cldnn::scalar_desc;
@@ -86,12 +87,26 @@ struct WeightsReorderParams {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// InternalBuffer
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct InternalBuffer {
+    InternalBuffer() : lockable(false), byte_count(0) {}
+    InternalBuffer(size_t byte_count, bool lockable = false) : lockable(lockable), byte_count(byte_count) {}
+
+    bool lockable = false;
+    size_t byte_count = 0;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KernelData
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct KernelData {
     std::shared_ptr<Params> params;
     std::vector<clKernelData> kernels;
-    std::vector<size_t> internalBufferSizes;
+    std::vector<InternalBuffer> internalBuffers;
     Datatype internalBufferDataType = Datatype::UNSUPPORTED;
     uint64_t runTime = std::numeric_limits<uint64_t>::max();  // kernel run time in nanoseconds
 

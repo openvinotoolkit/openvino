@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/reduce_base_transformation.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,8 +17,8 @@ namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ReduceBaseTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -29,13 +30,13 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
-    const auto newOperation = moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+    const auto newOperation = moveDequantizationAfter(reduce, dequantization, updatePrecision);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
         return false;

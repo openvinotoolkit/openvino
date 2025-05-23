@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace tensorflow_lite {
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
-class TENSORFLOW_LITE_API FrontEnd : public ov::frontend::FrontEnd {
+class TENSORFLOW_LITE_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     FrontEnd();
     /// \brief Completely convert the model

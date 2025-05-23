@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ std::shared_ptr<ov::Model> StatefulModelSupportedTest::create_dynamic_output_mod
                                                                score_threshold);
     auto res = std::make_shared<ov::op::v0::Result>(nms);
     res->set_friendly_name("output_dynamic");
-    return std::make_shared<ov::Model>(ov::NodeVector{nms}, ov::ParameterVector{boxes, scores});
+    return std::make_shared<ov::Model>(ov::OutputVector{nms}, ov::ParameterVector{boxes, scores});
 }
 
 std::shared_ptr<ov::Model> StatefulModelSupportedTest::create_stateful_model() {

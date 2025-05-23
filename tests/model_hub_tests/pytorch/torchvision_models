@@ -3,9 +3,9 @@ convnext_base,none
 convnext_large,none
 convnext_small,none
 convnext_tiny,none
-deeplabv3_mobilenet_v3_large,none,xfail_export,Requested None inlined input
-deeplabv3_resnet101,none,xfail_export,Requested None inlined input
-deeplabv3_resnet50,none,xfail_export,Requested None inlined input
+deeplabv3_mobilenet_v3_large,none
+deeplabv3_resnet101,none
+deeplabv3_resnet50,none
 densenet121,none
 densenet161,none
 densenet169,none
@@ -25,13 +25,13 @@ fasterrcnn_mobilenet_v3_large_320_fpn,none,skip,Not supported
 fasterrcnn_mobilenet_v3_large_fpn,none,skip,Not supported
 fasterrcnn_resnet50_fpn,none,skip,Not supported
 fasterrcnn_resnet50_fpn_v2,none,skip,Not supported
-fcn_resnet101,none,xfail_export,Requested None inlined input
-fcn_resnet50,none,xfail_export,Requested None inlined input
+fcn_resnet101,none
+fcn_resnet50,none
 fcos_resnet50_fpn,none,skip,Not supported
 googlenet,none
 inception_v3,none
 keypointrcnn_resnet50_fpn,none,skip,Not supported
-lraspp_mobilenet_v3_large,none,xfail_export,Requested None inlined input
+lraspp_mobilenet_v3_large,none
 maskrcnn_resnet50_fpn,none,skip,Not supported
 maskrcnn_resnet50_fpn_v2,none,skip,Not supported
 maxvit_t,none

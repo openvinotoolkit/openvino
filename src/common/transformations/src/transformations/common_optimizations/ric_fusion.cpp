@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,6 +224,7 @@ void add_node_with_inputs_to_vector(const std::shared_ptr<ov::Node>& node, NodeV
 }  // namespace
 class SplitConcat : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::init::SplitConcat");
     SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<ov::op::v1::Split>();
@@ -280,6 +281,7 @@ public:
 
 class Gather : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::init::Gather");
     Gather(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(Gather);
         auto input_p = pattern::any_input(pattern::has_static_rank());
@@ -341,6 +343,7 @@ namespace prop {
 
 class Binary : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
         auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
@@ -426,6 +429,7 @@ public:
 
 class Convolution : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::Convolution");
     Convolution() {
         MATCHER_SCOPE(Convolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
@@ -448,6 +452,7 @@ public:
 
 class GroupConvolution : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::GroupConvolution");
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
@@ -504,6 +509,7 @@ public:
 
 class ShapeOf : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::ShapeOf");
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
         auto pattern_root = pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>();
@@ -520,6 +526,7 @@ public:
 
 class PassThrough : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::PassThrough");
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
         auto pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
@@ -542,6 +549,7 @@ public:
 
 class Transpose : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::Transpose");
     Transpose() {
         MATCHER_SCOPE(Transpose);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
@@ -570,6 +578,7 @@ public:
 
 class Unsupported : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::prop::Unsupported");
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
         auto pattern_root = pattern::any_input();
@@ -605,6 +614,7 @@ bool need_to_erase_ric(const Output<Node>& output) {
 
 class InsertReverseInputChannel : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::fuse::InsertReverseInputChannel");
     InsertReverseInputChannel(NodeVector& fused_nodes) {
         MATCHER_SCOPE(InsertReverseInputChannel);
         auto pattern_root = pattern::any_input();
@@ -628,6 +638,7 @@ public:
 
 class EraseSplitConcat : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::fuse::EraseSplitConcat");
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = pattern::any_input();
@@ -649,6 +660,7 @@ public:
 
 class EraseGather : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::fuse::EraseGather");
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
@@ -672,6 +684,7 @@ public:
 namespace back_prop {
 class Binary : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::back_prop::Binary");
     Binary() {
         MATCHER_SCOPE(Binary);
         auto fake_quantize_pattern =
@@ -755,6 +768,7 @@ public:
 
 class ConvertPassThrough : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("pass::back_prop::ConvertPassThrough");
     ConvertPassThrough() {
         MATCHER_SCOPE(ConvertPassThrough);
         auto pattern_root = pattern::wrap_type<ov::op::v0::Convert>(pattern::has_static_rank());
@@ -804,12 +818,12 @@ public:
 
 class Constant : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Constant", "0");
+    OPENVINO_MODEL_PASS_RTTI("Constant");
     Constant() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
-            if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
+            if ((ov::as_type_ptr<op::util::BinaryElementwiseArithmetic>(node) ||
                  ov::as_type_ptr<ov::op::v0::FakeQuantize>(node) || ov::as_type_ptr<ov::op::v0::Convert>(node)) &&
                 node->get_output_partial_shape(0).rank().is_static()) {
                 continue;

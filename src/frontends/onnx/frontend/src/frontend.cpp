@@ -1,14 +1,19 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <google/protobuf/port_def.inc>
+#ifndef PROTOBUF_VERSION
+#    include <google/protobuf/runtime_version.h>
+#endif
 #if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
 #    define OV_PROTOBUF_ABSL_IS_USED
 #endif
 #include <google/protobuf/port_undef.inc>
 
-#ifndef OV_PROTOBUF_ABSL_IS_USED
+#ifdef OV_PROTOBUF_ABSL_IS_USED
+#    include <absl/log/globals.h>
+#else
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
@@ -32,6 +37,8 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
+using ::ONNX_NAMESPACE::ModelProto;
+using ::ONNX_NAMESPACE::Version;
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
@@ -45,7 +52,9 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     };
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
-#    ifndef OV_PROTOBUF_ABSL_IS_USED
+#    ifdef OV_PROTOBUF_ABSL_IS_USED
+    absl::SetGlobalVLogLevel(0);
+#    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
 #endif
@@ -83,6 +92,17 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #endif
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
+    // !!! Experimental feature, it may be changed or removed in the future !!!
+    if (variants[0].is<uint64_t>()) {
+        void* model_proto_addr = reinterpret_cast<void*>(variants[0].as<uint64_t>());
+        FRONT_END_GENERAL_CHECK(model_proto_addr != 0, "Wrong address of a ModelProto object is passed");
+        ModelProto* model_proto_ptr = static_cast<ModelProto*>(model_proto_addr);
+        FRONT_END_GENERAL_CHECK(
+            model_proto_ptr->has_ir_version() && model_proto_ptr->ir_version() < Version::IR_VERSION,
+            "A ModelProto object contains unsupported IR version");
+        return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
+    }
+    // !!! End of Experimental feature
     return nullptr;
 }
 
@@ -213,7 +233,23 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         StreamRewinder rwd{*stream};
         return is_valid_model(*stream);
     }
-
+    // !!! Experimental feature, it may be changed or removed in the future !!!
+    if (variants[0].is<uint64_t>()) {
+        void* model_proto_addr = reinterpret_cast<void*>(variants[0].as<uint64_t>());
+        if (model_proto_addr == 0) {
+            return false;
+        }
+        ModelProto* model_proto_ptr = static_cast<ModelProto*>(model_proto_addr);
+        try {
+            if (!model_proto_ptr->has_ir_version() || model_proto_ptr->ir_version() > Version::IR_VERSION) {
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+    // !!! End of Experimental feature
     return false;
 }
 
@@ -225,9 +261,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_other_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_extensions.conversions.push_back(common_conv_ext);
-    } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<onnx::ConversionExtension>(extension)) {
+    } else if (const auto onnx_conv_ext = ov::as_type_ptr<onnx::ConversionExtension>(extension)) {
         m_extensions.conversions.push_back(onnx_conv_ext);
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;

@@ -15,19 +15,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
      (all x86_64 / arm64 architectures)
    * macOS offers support only for CPU inference
 
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      - Windows, Linux, macOS
-      - x86, ARM (Windows ARM not supported)
-
-   .. tab-item:: Software Requirements
-      :sync: software-requirements
-
-      `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/>`__
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Installing OpenVINO Node.js
 ###########################
@@ -43,7 +32,7 @@ Installing OpenVINO Node.js
 .. note::
 
    The *openvino-node* npm package runs in Node.js environment only and provides
-   a subset of `OpenVINO Runtime C++ API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__cpp__api.html>`__.
+   a subset of `OpenVINO Runtime C++ API <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__cpp__api.html>`__.
 
 What's Next?
 ####################

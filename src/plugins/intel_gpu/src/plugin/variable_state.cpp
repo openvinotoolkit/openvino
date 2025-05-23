@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,14 +13,14 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
     : VariableStateBase{info.m_id, context}
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
+    , m_transpose_required(info.transpose_required)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
@@ -59,16 +59,23 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
     cldnn::padding::DynamicDimsMask dynamic_pad_dims;
-    for (size_t i = 0; i < src_rank; i++) dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
+    for (size_t i = 0; i < src_rank; i++) {
+        dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
+    }
     m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
                                            std::vector<int32_t>(src_rank, 0),
                                            dynamic_pad_dims);
     auto src_stride = state->get_strides();
     for (size_t i = 0; i < src_rank; ++i) {
-        src_stride[i] = src_stride[i] / (state->get_element_type().bitwidth()/8);
+        src_stride[i] /= state->get_element_type().bitwidth() / 8;
     }
     m_layout.set_partial_shape(src_shape);
     update_device_buffer();
+
+    if (actual_size == 0) {
+        set();
+        return;
+    }
 
     // check whether the src tensor is padded
     std::vector<size_t> src_stride_no_pad(src_rank, 1);
@@ -89,11 +96,12 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_fmt = cldnn::format::get_default_format(src_rank);
     auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
 
-    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout);
+    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout, m_transpose_required);
     set();
 }
 
 void VariableState::update_device_buffer() {
+    OPENVINO_ASSERT(m_context != nullptr, "m_context should not be null.");
     if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
         m_shape_predictor->reset();
         m_memory.reset();
@@ -110,14 +118,22 @@ void VariableState::update_device_buffer() {
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
+
+    OPENVINO_ASSERT(m_memory != nullptr, "m_memory is nullptr!!!");
     m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+    return m_user_specified_type != ov::element::dynamic ? m_user_specified_type : ov::element::Type(m_layout.data_type);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {
+    if (m_memory == nullptr) {
+        const auto& pshape = m_layout.get_partial_shape();
+        const auto& shape = get_tensor_shape(pshape);
+        return m_context->create_host_tensor(get_user_specified_type(), shape);
+    }
+
     auto tensor = m_context->create_host_tensor(get_user_specified_type(), m_memory->get_layout().get_shape());
 
     convert_and_copy(m_memory, tensor._ptr.get(), m_context->get_engine().get_service_stream());
@@ -125,5 +141,4 @@ ov::SoPtr<ov::ITensor> VariableState::get_state() const {
     return tensor;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

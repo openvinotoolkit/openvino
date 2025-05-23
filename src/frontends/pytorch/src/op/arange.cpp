@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,8 +64,7 @@ OutputVector translate_arange(const NodeContext& context) {
         PYTORCH_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
     if (dtype_port >= 0 && !context.input_is_none(dtype_port)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
             dtype_applied = true;
         } else if (const auto& fw_node =

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ private:
         }
         }
         EXPECT_TRUE(bitwise_op) << "Incorrect type of Bitwise operation";
-        return std::make_shared<ov::Model>(ov::NodeVector{bitwise_op}, ov::ParameterVector{params_vec});
+        return std::make_shared<ov::Model>(ov::OutputVector{bitwise_op}, ov::ParameterVector{params_vec});
     }
 };
 }  // namespace BitwiseOpsRefTestDefinitions

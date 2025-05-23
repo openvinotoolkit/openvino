@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,19 +22,20 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
+using namespace ov::builder::subgraph;
 
 class FuseMultiplyToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ov::builder::subgraph::DequantizationOperations dequantization;
+        FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ov::builder::subgraph::DequantizationOperations dequantization;
+        FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        DequantizationOperations dequantization;
     };
 
     TestTransformationParams params;
@@ -62,7 +63,7 @@ public:
             testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
         }
 
-        actualFunction = ov::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
+        actualFunction = FuseMultiplyToFakeQuantizeFunction::get(
             inputShape,
             testValues.actual.fakeQuantizeOnData,
             testValues.actual.dequantization);
@@ -71,7 +72,7 @@ public:
         transformer.add<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
+        referenceFunction = FuseMultiplyToFakeQuantizeFunction::get(
             inputShape,
             testValues.expected.fakeQuantizeOnData,
             testValues.expected.dequantization);
@@ -91,6 +92,7 @@ public:
 
         std::ostringstream result;
         result << inputShape << "_" <<
+            testValues.params.deqPrecision << "_" <<
             testValues.params.updatePrecisions << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
@@ -130,11 +132,11 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
     {
         LayerTransformation::createParamsU8I8(),
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
+            { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f }, element::i8 },
             { {element::f32}, {}, { 0.5f } },
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
+            { 256ul, {}, { -1.28f }, { 1.27f }, { -0.64f }, { 0.635f } },
             { {}, {}, {} },
         }
     },
@@ -161,6 +163,17 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
                 { 0.f }, { 2.55f },
                 { 0.f }, { 127.5f, 102.f, 76.5f }
             },
+            { {}, {}, {} },
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8().setDeqPrecision(ov::element::f16),
+        {
+            FakeQuantizeOnDataWithConstant(256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8).setConstantPrecision(ov::element::f16),
+            { {}, {}, { 0.5f } },
+        },
+        {
+            FakeQuantizeOnDataWithConstant(256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f }).setConstantPrecision(ov::element::f16),
             { {}, {}, {} },
         }
     },

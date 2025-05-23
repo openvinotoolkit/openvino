@@ -60,6 +60,15 @@ public:
         }
     } dumpLIR;
 
+    struct : PropertyGroup {
+        std::string csv_path;
+        std::vector<PropertySetterPtr> getPropertySetters() override {
+            return {
+                PropertySetterPtr(new StringPropertySetter("path", csv_path, "path to dumped brgemm params")),
+            };
+        }
+    } dumpParams;
+
     // Snippets performance count mode
     // Disabled - default, w/o perf count for snippets
     // Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,7 +106,7 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     const char* pad_value = nullptr;
     const std::vector<char> pad_zero_value(elem_size, 0);
     if (get_input_size() == 4) {
-        pad_value = static_cast<char*>(inputs[3].data());
+        pad_value = static_cast<const char*>(inputs[3].data());
     } else {
         pad_value = pad_zero_value.data();
     }
@@ -127,7 +127,7 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     }
     outputs[0].set_shape(padded_shape);
 
-    ov::reference::pad(static_cast<char*>(inputs[0].data()),
+    ov::reference::pad(static_cast<const char*>(inputs[0].data()),
                        pad_value,
                        static_cast<char*>(outputs[0].data()),
                        elem_size,

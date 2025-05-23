@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ class Factory;
 
 template <typename Key, typename T, typename... Args>
 class Factory<Key, T(Args...)> {
-    Factory(Factory const&) = delete;
-    Factory& operator=(Factory const&) = delete;
+    Factory(const Factory&) = delete;
+    Factory& operator=(const Factory&) = delete;
 
 public:
     using builder_t = std::function<T(Args...)>;

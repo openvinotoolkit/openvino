@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ OutputVector translate_conj_op(const NodeContext& node) {
     std::shared_ptr<Node> conj{x.get_node_shared_ptr()};
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        auto x = complex_type_mark->input_value(0);
+        auto x = complex_type_mark->get_data();
         auto conj = get_conj_ptr(x);
 
         set_node_name(node.get_name(), conj);
@@ -65,7 +65,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        auto x = complex_type_mark->input_value(0);
+        auto x = complex_type_mark->get_data();
         auto conj_tensor = get_conj_ptr(x);
 
         OutputVector concat_inputs;

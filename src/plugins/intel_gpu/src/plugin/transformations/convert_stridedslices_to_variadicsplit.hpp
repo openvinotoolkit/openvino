@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class ConvertStridedSlicesToVariadicSplit : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertStridedSlicesToVariadicSplit", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertStridedSlicesToVariadicSplit");
     ConvertStridedSlicesToVariadicSplit();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

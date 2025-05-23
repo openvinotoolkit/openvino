@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/unique.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -123,7 +124,7 @@ protected:
             ov::Tensor tensor;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
-                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<size_t>());
+                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<>());
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -range / 2;
                 in_data.range = range;

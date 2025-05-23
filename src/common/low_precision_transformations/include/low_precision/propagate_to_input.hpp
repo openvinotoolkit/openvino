@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,8 @@ class PropagateToInput;
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
-    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 }) {
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::PropagateToInput");
+    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = {ov::element::u8, ov::element::i8}) {
         ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {

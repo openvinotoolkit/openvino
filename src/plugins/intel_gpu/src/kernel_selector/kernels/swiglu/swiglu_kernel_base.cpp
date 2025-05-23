@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,10 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     jit.AddConstants({MakeJitConstant("LWS1", dispatchData.lws[1])});
     jit.AddConstants({MakeJitConstant("LWS2", dispatchData.lws[2])});
     const std::string type_suffix = (GetAccumulatorType(params) == Datatype::F32) ? "f" : "h";
-    if (params.glu_type == ov::intel_gpu::op::SwiGLU::GluType::Gelu) {
+    if (params.glu_type == ov::op::internal::GLU::GluType::Gelu) {
         jit.AddConstants({MakeJitConstant("GEGLU_HALF", "0.5" + type_suffix)});
         jit.AddConstants({MakeJitConstant("GEGLU_MULT", "0.7071067811865475" + type_suffix)});
-    } else if (params.glu_type == ov::intel_gpu::op::SwiGLU::GluType::Gelu_Tanh) {
+    } else if (params.glu_type == ov::op::internal::GLU::GluType::Gelu_Tanh) {
         jit.AddConstants({MakeJitConstant("GEGLU_HALF", "0.5" + type_suffix)});
         jit.AddConstants({MakeJitConstant("GEGLU_MULT", "0.044715" + type_suffix)});
         jit.AddConstants({MakeJitConstant("GEGLU_SQUARE_2_OVER_PI", "0.79788458347320556640625" + type_suffix)});

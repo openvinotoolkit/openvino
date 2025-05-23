@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-from openvino.runtime import Input, RTMap
+from openvino import Input, RTMap
 from openvino._pyopenvino import DescriptorTensor
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 from openvino import Core, OVAny, Shape, PartialShape, Type, Tensor, Symbol
 from tests.utils.helpers import get_relu_model
@@ -27,7 +27,7 @@ def test_const_output_docs(device):
     compiled_model = core.compile_model(model, device)
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
-    exptected_string = "openvino.runtime.Input wraps ov::Input<Node>"
+    exptected_string = "openvino.Input wraps ov::Input<Node>"
     assert input_node.__doc__ == exptected_string
 
 
@@ -75,7 +75,8 @@ def test_input_get_source_output(device):
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
     name = input_node.get_source_output().get_node().get_friendly_name()
-    assert name == "relu"
+    # Expected ReLu node name can be changed if conversion precision applied (new Convert node added)
+    assert name in ("relu", "relu.0")
 
 
 def test_input_get_tensor(device):

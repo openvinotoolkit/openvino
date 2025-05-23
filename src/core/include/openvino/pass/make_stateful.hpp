@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace pass {
  */
 class OPENVINO_API MakeStateful : public ModelPass {
 public:
-    OPENVINO_RTTI("MakeStateful");
+    OPENVINO_MODEL_PASS_RTTI("MakeStateful");
 
     using ParamResPairs =
         std::vector<std::pair<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Result>>>;

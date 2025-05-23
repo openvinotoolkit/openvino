@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -50,6 +50,7 @@ class TestOr(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_or_tensor(self, ie_device, precision, ir_version):
         self.input_data = (
             np.array([True, False, False], dtype=np.bool_),
@@ -59,12 +60,14 @@ class TestOr(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_or_bool(self, ie_device, precision, ir_version):
         self.input_data = (np.array(True, dtype=np.bool_), np.array(True, dtype=np.bool_))
         self._test(*self.create_model_bool_input(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_or_int(self, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="bitwise ops are not supported on GPU")
@@ -73,6 +76,7 @@ class TestOr(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_or_int_tensor(self, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="bitwise ops are not supported on GPU")

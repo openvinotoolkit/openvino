@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API ConcatReduceFusion;
  */
 class ov::pass::ReplaceConcatReduceByMinOrMax : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReplaceConcatReduceByMinOrMax", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReplaceConcatReduceByMinOrMax");
     ReplaceConcatReduceByMinOrMax();
 };
 
@@ -34,7 +34,7 @@ public:
  */
 class ov::pass::PullSqueezeThroughEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PullSqueezeThroughEltwise", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PullSqueezeThroughEltwise");
     PullSqueezeThroughEltwise();
 };
 
@@ -76,6 +76,6 @@ public:
 
 class ov::pass::ConcatReduceFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConcatReduceFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConcatReduceFusion");
     ConcatReduceFusion();
 };

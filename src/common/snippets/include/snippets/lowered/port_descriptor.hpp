@@ -42,8 +42,8 @@ public:
     const Reg& get_reg() const { return m_reg; }
 
     void set_shape(const VectorDims& tensor);
-    void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
-    void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
+    void set_layout(const std::vector<size_t>& layout);
+    void set_subtensor(const VectorDims& subtensor);
     void set_reg(Reg reg) { m_reg = std::move(reg); }
     void set_reg_type(RegType type) { m_reg.type = type; }
     void set_reg_idx(size_t idx) { m_reg.idx = idx; }

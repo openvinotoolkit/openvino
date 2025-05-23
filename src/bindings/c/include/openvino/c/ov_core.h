@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -236,6 +236,16 @@ ov_core_compile_model_from_file(const ov_core_t* core,
                                 const size_t property_args_size,
                                 ov_compiled_model_t** compiled_model,
                                 ...);
+
+/**
+ * @brief Adds an extension to the core.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param path Path to the extension.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_add_extension(const ov_core_t* core, const char* path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**

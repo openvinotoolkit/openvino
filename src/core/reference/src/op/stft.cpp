@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,9 @@ void stft(const float* signal,
           const int64_t frame_size,
           const int64_t frame_step,
           const bool transpose_frames) {
-    constexpr size_t signal_axis = 1;
-    const auto batch_size = signal_shape[0];
+    const auto is_signal_1D = signal_shape.size() == 1;
+    const size_t batch_size = is_signal_1D ? 1 : signal_shape[0];
+    const size_t signal_axis = is_signal_1D ? 0 : 1;
     const auto signal_length = signal_shape[signal_axis];
     const auto num_frames = static_cast<size_t>((signal_length - frame_size) / frame_step) + 1;
     const auto frame_size_dim = static_cast<size_t>(frame_size);

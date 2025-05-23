@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace pass {
  */
 class OPENVINO_API StatefulToStateless : public ModelPass {
 public:
-    OPENVINO_RTTI("StatefulToStateless");
+    OPENVINO_MODEL_PASS_RTTI("StatefulToStateless");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

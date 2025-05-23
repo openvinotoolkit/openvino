@@ -1,16 +1,15 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require('node:fs');
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
-
-const { xml: modelPath, bin: weightsPath } = getModelPath();
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('Tests for reading model.', () => {
+  const { testModelFP32 } = testModels;
   let modelFile = null;
   let modelStr = null;
   let weightsFile = null;
@@ -18,10 +17,10 @@ describe('Tests for reading model.', () => {
   let core = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    modelFile = fs.readFileSync(modelPath);
-    modelStr = fs.readFileSync(modelPath, 'utf8');
-    weightsFile = fs.readFileSync(weightsPath);
+    await isModelAvailable(testModelFP32);
+    modelFile = fs.readFileSync(testModelFP32.xml);
+    modelStr = fs.readFileSync(testModelFP32.xml, 'utf8');
+    weightsFile = fs.readFileSync(testModelFP32.bin);
   });
 
   beforeEach(() => {
@@ -35,13 +34,13 @@ describe('Tests for reading model.', () => {
 
   describe('Core.readModeSync', () => {
     it('readModeSync(xmlPath) ', () => {
-      const model = core.readModelSync(modelPath);
+      const model = core.readModelSync(testModelFP32.xml);
       assert.ok(model instanceof ov.Model);
       assert.equal(model.inputs.length, 1);
     });
 
     it('readModeSync(xmlPath, weightsPath) ', () => {
-      const model = core.readModelSync(modelPath, weightsPath);
+      const model = core.readModelSync(testModelFP32.xml, testModelFP32.bin);
       assert.ok(model instanceof ov.Model);
       assert.equal(model.inputs.length, 1);
     });
@@ -71,12 +70,12 @@ describe('Tests for reading model.', () => {
 
   describe('Core.readModel', () => {
     it('readModel(xmlPath) ', async () => {
-      const model = await core.readModel(modelPath);
+      const model = await core.readModel(testModelFP32.xml);
       assert.equal(model.inputs.length, 1);
     });
 
     it('readModel(xmlPath, weightsPath) ', async () => {
-      const model = await core.readModel(modelPath, weightsPath);
+      const model = await core.readModel(testModelFP32.xml, testModelFP32.bin);
       assert.equal(model.inputs.length, 1);
     });
 

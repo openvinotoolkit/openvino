@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,7 +183,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     const auto& prog = network.get_program();
     auto& pool_node = prog->get_node("pool");
@@ -191,7 +191,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     ASSERT_EQ(pool_layout.format.value, format::yxfb);
 
-    auto out_mem = network.get_output("pool").get_memory();
+    auto out_mem = outputs.at("pool").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 4u);
@@ -239,7 +239,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     auto prog = network.get_program();
     auto& node = prog->get_node("actv");
@@ -250,7 +250,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     ASSERT_EQ(actv_layout.format.value, format::yxfb);
     ASSERT_EQ(kernel_name, actv_impl.kernel_name);
 
-    auto out_mem = network.get_output("actv").get_memory();
+    auto out_mem = outputs.at("actv").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 8u);
@@ -579,5 +579,42 @@ TEST(reorder_inputs, has_reshape_user) {
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(static_cast<float>(ref_output[x]), output_ptr[x]);
     }
+}
+
+TEST(reorder_inputs, two_connections_with_different_format) {
+    // Topology:
+    // convolution(fsv16) ___ convolution
+    //                    \__ deformable_conv
+    //                     \_ reshape
+    // Purpose:
+    // When convolution has reshape as a user, its layout may be chosen in a confusing way from get_preferred_format.
+    // This test mimics the behavior.
+    //
+    // Expectation:
+    // Reorder should be added only to deformable_conv as deformable_conv supports bfyx only.
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 128, 128 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 1, 1 } });
+    auto trans = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 2, 128, 128 } });
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(data("trans", trans));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("conv2", input_info("conv1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("deform_conv", {input_info("conv1"), input_info("trans")}, "weights", "", true, 1, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}));
+    topology.add(reshape("reshape", input_info("conv1"), tensor(2, 16, 128, 128), cldnn::reshape::reshape_mode::base));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config);
+
+    auto& node = prog->get_node("deform_conv");
+    ASSERT_NE(node.get_selected_impl(), nullptr);
+    auto kernel_name = node.get_selected_impl()->get_kernel_name();
+    ASSERT_EQ(kernel_name, "deformable_convolution_gpu_bfyx_opt");
 }
 #endif

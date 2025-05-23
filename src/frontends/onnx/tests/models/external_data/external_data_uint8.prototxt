@@ -1,0 +1,75 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    input: "B"
+    output: "Y"
+    name: "add_node1"
+    op_type: "Add"
+  }
+  name: "test_graph"
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 2
+    name: "A"
+    external_data {
+        key: "location",
+        value: "tensors_data/tensor.data"
+    }
+    external_data {
+        key: "length",
+        value: "4"
+    }
+    data_location: 1
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

@@ -131,7 +131,7 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
         new_ports.resize(ports.size());
         for (size_t i = 0; i < ports.size(); ++i) {
             const auto& port = ports[i];
-            new_ports[i] = *port.clone_with_new_expr(expression_map[port.expr_port->get_expr().get()]);
+            new_ports[i] = *port.clone_with_new_expr(expression_map[port.get_expr_port()->get_expr().get()]);
         }
     };
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);

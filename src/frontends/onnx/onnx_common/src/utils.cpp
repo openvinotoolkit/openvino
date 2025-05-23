@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,10 +30,8 @@ size_t get_onnx_data_size(int32_t onnx_type) {
         return sizeof(ov::float8_e4m3);
     case TensorProto_DataType_FLOAT8E5M2:
         return sizeof(ov::float8_e5m2);
-#ifdef ONNX_VERSION_116
     case TensorProto_DataType_INT4:
         return sizeof(int8_t);
-#endif
     case TensorProto_DataType_INT8:
         return sizeof(int8_t);
     case TensorProto_DataType_INT16:
@@ -42,10 +40,8 @@ size_t get_onnx_data_size(int32_t onnx_type) {
         return sizeof(int32_t);
     case TensorProto_DataType_INT64:
         return sizeof(int64_t);
-#ifdef ONNX_VERSION_116
     case TensorProto_DataType_UINT4:
         return sizeof(uint8_t);
-#endif
     case TensorProto_DataType_UINT8:
         return sizeof(uint8_t);
     case TensorProto_DataType_UINT16:
@@ -66,16 +62,12 @@ const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
     {ov::element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
     {ov::element::Type_t::f32, TensorProto_DataType::TensorProto_DataType_FLOAT},
     {ov::element::Type_t::f64, TensorProto_DataType::TensorProto_DataType_DOUBLE},
-#ifdef ONNX_VERSION_116
     {ov::element::Type_t::i4, TensorProto_DataType::TensorProto_DataType_INT4},
-#endif
     {ov::element::Type_t::i8, TensorProto_DataType::TensorProto_DataType_INT8},
     {ov::element::Type_t::i16, TensorProto_DataType::TensorProto_DataType_INT16},
     {ov::element::Type_t::i32, TensorProto_DataType::TensorProto_DataType_INT32},
     {ov::element::Type_t::i64, TensorProto_DataType::TensorProto_DataType_INT64},
-#ifdef ONNX_VERSION_116
     {ov::element::Type_t::u4, TensorProto_DataType::TensorProto_DataType_UINT4},
-#endif
     {ov::element::Type_t::u8, TensorProto_DataType::TensorProto_DataType_UINT8},
     {ov::element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
     {ov::element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},

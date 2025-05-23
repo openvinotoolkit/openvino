@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
         // BATCH/TEMPLATE plugin doesn't support this case
         R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)",
+        // requires export_model be implemented
+        R"(.*Behavior.*OVCompiledModelBaseTest.*import_from_weightless_blob.*targetDevice=(BATCH).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*compile_from.*_blob.*targetDevice=(BATCH).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*use_blob_hint.*targetDevice=(BATCH).*)",
     };
 
     return disabled_items;

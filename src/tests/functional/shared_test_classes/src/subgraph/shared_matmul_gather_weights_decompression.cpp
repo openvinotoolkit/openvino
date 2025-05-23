@@ -7,6 +7,8 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {

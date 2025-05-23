@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,3 +59,6 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_dev_object_handle;
 
 //!< Read-write property<uint32_t string>: video decoder surface plane in a shared memory blob parameter map.
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
+
+//!< Read-write property to pass config file.
+OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_config_file;

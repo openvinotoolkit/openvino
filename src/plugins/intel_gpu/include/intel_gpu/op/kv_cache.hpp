@@ -7,10 +7,9 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_extension.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 /// \brief Operator that implements Key-Values cache subgraph for large language models.
 /// This operation updates data of the corresponding Variable
@@ -22,17 +21,17 @@ public:
 
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
+            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            int64_t concat_axis,
+            const ov::element::Type output_type = ov::element::dynamic);
+
+    KVCache(const Output<Node>& past,
+            const Output<Node>& new_token_data,
             const Output<Node>& beam_idx,
             const std::shared_ptr<ov::op::util::Variable>& past_values,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::undefined);
-
-    KVCache(const Output<Node>& past,
-            const Output<Node>& new_token_data,
-            const std::shared_ptr<ov::op::util::Variable>& past_values,
-            int64_t concat_axis,
-            const ov::element::Type output_type = ov::element::undefined);
+            const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -53,15 +52,21 @@ public:
 
     bool get_indirect() const { return m_indirect; }
 
-private:
+protected:
+    KVCache(const OutputVector& inputs,
+            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            bool indirect,
+            int64_t concat_axis,
+            int64_t gather_axis,
+            const ov::element::Type output_type = ov::element::dynamic);
+
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;
     bool m_indirect = false;
+
     ov::element::Type m_output_type;
 };
 
-std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::PartialShape> input_shapes);
+std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<ov::PartialShape>& input_shapes);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

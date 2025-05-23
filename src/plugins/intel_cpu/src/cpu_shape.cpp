@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_shape.h"
+
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-bool Shape::isCompatible(const VectorDims &vecDims) const {
+bool Shape::isCompatible(const VectorDims& vecDims) const {
     if (getRank() != vecDims.size()) {
         return false;
     }
@@ -21,17 +21,21 @@ bool Shape::isCompatible(const VectorDims &vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs >= rhs; })) {
+    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+            return lhs >= rhs;
+        })) {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs <= rhs; })) {
+    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+            return lhs <= rhs;
+        })) {
         return false;
     }
     return true;
 }
 
-std::string Shape::toString() const  {
+std::string Shape::toString() const {
     std::stringstream output;
     output << "{";
 
@@ -50,10 +54,10 @@ std::string Shape::toString() const  {
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
     OPENVINO_ASSERT(lhs.getRank() == rhs.getRank(),
-        "Couldn't merge shapes of different ranks: shape 1:",
-        lhs.toString(),
-        " shape 2: ",
-        rhs.toString());
+                    "Couldn't merge shapes of different ranks: shape 1:",
+                    lhs.toString(),
+                    " shape 2: ",
+                    rhs.toString());
 
     const auto& lhsMinDims = lhs.getMinDims();
     const auto& lhsMaxDims = lhs.getMaxDims();
@@ -66,10 +70,10 @@ Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
     for (size_t i = 0; i < resultMinDims.size(); ++i) {
         resultMinDims[i] = std::max(lhsMinDims[i], rhsMinDims[i]);
         resultMaxDims[i] = std::min(lhsMaxDims[i], rhsMaxDims[i]);
-        OPENVINO_ASSERT(resultMinDims[i] <= resultMaxDims[i], "Couldn't merge shapes as the dims intervals are not overlapping.");
+        OPENVINO_ASSERT(resultMinDims[i] <= resultMaxDims[i],
+                        "Couldn't merge shapes as the dims intervals are not overlapping.");
     }
     return Shape{resultMinDims, resultMaxDims};
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

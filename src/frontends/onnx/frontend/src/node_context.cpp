@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ ov::frontend::onnx::NodeContext::NodeContext(const ov::frontend::onnx::Node& con
 
 ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) const {
     return m_inputs.at(port_idx);
+}
+
+const std::string& ov::frontend::onnx::NodeContext::get_name() const {
+    return m_context.get_name();
 }
 
 ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string& name) const {

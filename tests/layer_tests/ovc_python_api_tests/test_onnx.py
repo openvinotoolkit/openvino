@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import io
@@ -6,9 +6,9 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import Model
+from openvino import Model
 from openvino.test_utils import compare_functions
 
 from common.mo_convert_test_class import CommonMOConvertTest

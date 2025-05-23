@@ -35,6 +35,8 @@ public:
 
     RegInfo get_reg_info() const;
     void set_reg_info(const RegInfo& rinfo);
+    const std::set<Reg>& get_live_regs() const {return m_live_regs; }
+    void set_live_regs(std::set<Reg> live_regs) { m_live_regs = std::move(live_regs); }
 
     double get_exec_num() const { return m_exec_num; }
 
@@ -130,6 +132,7 @@ protected:
     //   2. This number can be changed and updated during whole pipeline, so its absolute values are meaningless.
     //   3. This number can be negative, positive and zero.
     double m_exec_num = 0;
+    std::set<Reg> m_live_regs{};
 };
 
 } // namespace lowered

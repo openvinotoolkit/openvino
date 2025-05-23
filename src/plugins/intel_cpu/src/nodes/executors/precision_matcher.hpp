@@ -4,10 +4,8 @@
 
 #include "nodes/executors/precision_translation.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool match(const InOutTypeMask& patterns, const InOutTypes& values);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

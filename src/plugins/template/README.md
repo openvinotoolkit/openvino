@@ -35,11 +35,11 @@ $ make -j8
 
 ## Tutorials
 
-* [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library.html)
+* [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html)
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [OpenVINO Plugins](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
- * [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library.html)
+ * [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html)

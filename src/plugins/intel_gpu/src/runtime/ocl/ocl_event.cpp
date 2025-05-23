@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,16 +217,6 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         unsigned long long sum = 0;
         for (auto& duration : all_durations[period.stage]) {
             sum += (duration.second - duration.first);
-        }
-
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->print_multi_kernel_perf) {
-            if (period.stage == instrumentation::profiling_stage::executing) {
-                GPU_DEBUG_TRACE << "Multi-kernel time: ";
-                for (auto& duration : all_durations[period.stage])
-                    GPU_DEBUG_TRACE << "  " << (duration.second - duration.first) / 1000;
-                GPU_DEBUG_TRACE << " Total " << sum / 1000 << std::endl;
-            }
         }
 
         info.push_back(get_profiling_interval(period.stage, 0, sum));

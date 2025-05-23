@@ -26,7 +26,7 @@ private:
     float m_beta;
 
 public:
-    OPENVINO_OP("CustomOp");
+    OPENVINO_OP("CustomOp", "gpu_opset");
 
     CustomOp() = default;
 

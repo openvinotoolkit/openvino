@@ -17,6 +17,7 @@
 #include "to_string_utils.h"
 
 #include "program_wrapper.h"
+#include "program_helpers.h"
 
 #include <memory>
 
@@ -48,7 +49,7 @@ TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primiti
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
 
-    prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
@@ -56,4 +57,44 @@ TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primiti
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node(*prog, "eltwise"));
     ASSERT_FALSE(has_node(*prog, "prelu"));
+}
+
+TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory(layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx});
+    auto weight = engine.allocate_memory(layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weight", weight));
+    topology.add(convolution("conv1", input_info("input"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("conv2", input_info("conv1"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("conv3", input_info("conv2"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(eltwise("eltwise", input_info("conv1"), input_info("conv3"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltwise"), format::bfyx, data_types::f32));
+
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto &conv3 = prog->get_node("conv3");
+    auto &cldnn_post_ops = conv3.get_fused_primitives();
+    ASSERT_EQ(cldnn_post_ops.size(), 1);
+    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(conv3, cldnn_post_ops[0]);
+
+    // Check whether fusing_type is properly selected as sum for residual connection pattern
+    ASSERT_EQ(fusing_type, add_fusing_type::sum);
+
 }

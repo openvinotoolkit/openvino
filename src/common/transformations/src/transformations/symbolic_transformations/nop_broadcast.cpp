@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/shape_of.hpp"

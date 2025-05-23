@@ -6,6 +6,7 @@
 #pragma once
 
 #include <any>
+#include <cstdint>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -105,12 +106,14 @@ class Node {
 public:
     explicit Node() = delete;
     explicit Node(const std::weak_ptr<Graph>& graph) : m_graph(graph) {}
-    Nodes srcNodes() const;
+    Nodes srcNodes();
     Nodes dstNodes() const;
     Edges srcEdges() const;
     Edges dstEdges() const;
 
 private:
+    Nodes cached_src_nodes;
+    bool src_nodes_cache_dirty = true;
     EdgeSet m_src_edges;
     EdgeSet m_dst_edges;
     std::weak_ptr<Graph> m_graph;

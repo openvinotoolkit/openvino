@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -226,4 +226,6 @@ OPENVINO_API EnumNames<op::v15::ScatterNDUpdate::Reduction>& EnumNames<op::v15::
                                                         {"max", op::v15::ScatterNDUpdate::Reduction::MAX}});
     return enum_names;
 }
+
+AttributeAdapter<op::v15::ScatterNDUpdate::Reduction>::~AttributeAdapter() = default;
 }  // namespace ov

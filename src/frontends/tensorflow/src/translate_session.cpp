@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -529,7 +529,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 const auto& input_outputs_vector = ov_tensors_map->at(producer_name);
                 if (input_outputs_vector.size() <= producer_port_idx) {
                     auto producer_node = input_outputs_vector[0].port.get_node_shared_ptr();
-                    if (std::dynamic_pointer_cast<FrameworkNode>(producer_node)) {
+                    if (ov::as_type_ptr<FrameworkNode>(producer_node)) {
                         // FrameworkNode node does not know in advance how many output ports will be used
                         // so we can increase number of outputs by demand
                         producer_node->set_output_type(producer_port_idx, element::dynamic, PartialShape::dynamic());
@@ -583,13 +583,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,
                 // which we might need to remove from graph
                 if (ov::as_type_ptr<KeepInGraphOp>(node)) {
-                    sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(node));
+                    sinks.push_back(ov::as_type_ptr<ov::op::Sink>(node));
                 } else {
-                    auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+                    auto multi_subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
                     if (multi_subgraph) {
                         for (const auto& body_model : multi_subgraph->get_functions()) {
                             if (body_model->get_sinks().size()) {
-                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                                sinks.push_back(ov::as_type_ptr<ov::op::Sink>(multi_subgraph));
                                 break;
                             }
                         }
@@ -738,7 +738,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
                 auto output = node_output_vector.second[output_ind].port;
                 if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<ov::op::v0::Result>(output.get_node_shared_ptr())) {
+                    !ov::as_type_ptr<ov::op::v0::Result>(output.get_node_shared_ptr())) {
                     auto model_output_name =
                         output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
                     auto result_node = std::make_shared<ov::op::v0::Result>(output);

@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class UnsqueezeBroadcastReshapeSDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UnsqueezeBroadcastReshapeSDPAFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UnsqueezeBroadcastReshapeSDPAFusion");
     UnsqueezeBroadcastReshapeSDPAFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

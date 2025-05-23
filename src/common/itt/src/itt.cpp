@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,11 @@ static size_t callStackDepth() {
 
 static thread_local uint32_t call_stack_depth = 0;
 
-domain_t domain(char const* name) {
+domain_t domain(const char* name) {
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
 
-handle_t handle(char const* name) {
+handle_t handle(const char* name) {
     return reinterpret_cast<handle_t>(__itt_string_handle_create(name));
 }
 
@@ -51,11 +51,11 @@ void threadName(const char* name) {
 
 #else
 
-domain_t domain(char const*) {
+domain_t domain(const char*) {
     return nullptr;
 }
 
-handle_t handle(char const*) {
+handle_t handle(const char*) {
     return nullptr;
 }
 

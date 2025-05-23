@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ case_wrapper<C, T> make_case_wrapper(C&& val, const char* name) {
 }
 
 template <openvino::itt::domain_t (*domain)(), template <typename...> class Fn, typename Ctx, typename T, typename Case>
-bool match(char const* region, Ctx&& ctx, T&& val, Case&& cs) {
+bool match(const char* region, Ctx&& ctx, T&& val, Case&& cs) {
     const bool is_matched = val == cs.value;
     if (is_matched) {
         openvino::itt::ScopedTask<domain> task(openvino::itt::handle(std::string(region) + "$" + cs.name));
@@ -148,7 +148,7 @@ template <openvino::itt::domain_t (*domain)(),
           typename T,
           typename Case,
           typename... Cases>
-bool match(char const* region, Ctx&& ctx, T&& val, Case&& cs, Cases&&... cases) {
+bool match(const char* region, Ctx&& ctx, T&& val, Case&& cs, Cases&&... cases) {
     if (match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Case>(cs)))
         return true;
     return match<domain, Fn>(region, std::forward<Ctx>(ctx), std::forward<T>(val), std::forward<Cases>(cases)...);

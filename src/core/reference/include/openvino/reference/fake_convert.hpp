@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,23 +18,25 @@ namespace func {
  *
  * @param arg_f       Pointer to the input data.
  * @param out_f       Pointer to the otuput data.
- * @param count     Number of elements in the data input.
+ * @param count       Number of elements in the data input.
+ * @param use_clamp   If use clamp.
  */
-void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count);
+void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count, bool use_clamp = true);
 
 /**
  * @brief Emulation of conversion fp16 value to f8e4m3 format
  *
  * @param arg_f       Pointer to the input data.
  * @param out_f       Pointer to the otuput data.
- * @param count     Number of elements in the data input.
+ * @param count       Number of elements in the data input.
+ * @param use_clamp   If use clamp.
  *
  * Exponent denormal values 0 -7
  * Exponent normal values 1..15 -6..8 (7 - exponent)
  * Exponent NaN values 15 8
  *
  */
-void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count);
+void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, bool use_clamp = true);
 }  // namespace func
 
 namespace fake_convert_details {

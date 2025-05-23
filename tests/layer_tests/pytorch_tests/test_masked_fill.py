@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,7 +6,7 @@ import torch
 from packaging.version import parse as parse_version
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestMaskedFill(PytorchLayerTest):
@@ -51,9 +51,10 @@ class TestMaskedFill(PytorchLayerTest):
         "mask_fill", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("input_dtype", [np.float32, np.float64, int, np.int32])
     @pytest.mark.parametrize("mask_dtype", [bool])  # np.float32 incorrectly casted to bool
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_masked_fill(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
@@ -69,6 +70,7 @@ class TestMaskedFill(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_masked_fill_non_bool_mask(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
                    ie_device, precision, ir_version,

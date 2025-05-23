@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/deformable_convolution.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset8;
+using ov::op::v0::Parameter;
+using ov::op::v8::DeformableConvolution;
 using namespace testing;
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {

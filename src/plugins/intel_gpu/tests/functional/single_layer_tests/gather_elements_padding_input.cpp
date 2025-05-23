@@ -1,6 +1,7 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -44,6 +45,7 @@ public:
     }
 
 protected:
+    int64_t axis_gatherElements;
     std::shared_ptr<ov::Model> init_subgraph(std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>>& input_params,
                                              const ov::element::Type input_precision) {
         std::vector<ov::Shape> input_shape;
@@ -52,12 +54,14 @@ protected:
         std::tie(input_shape, axis, numSplits) = input_params;
 
         int64_t axis_variadicSplit = axis[0];
-        int64_t axis_gatherElements = axis[1];
+        axis_gatherElements = axis[1];
         std::vector<size_t> connectIndexes = {0, 1};
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(input_precision, ov::Shape(input_shape[0])),
-                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[1])),
-                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[2]))};
-
+                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[1])),
+                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[2]))};
+        input[0]->set_friendly_name("input_data");
+        input[1]->set_friendly_name("gather0");
+        input[2]->set_friendly_name("gather1");
         // Use VariadicSplit to make padding input for GatherElements. Padding is generated from buffer fusing pass
         auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis_variadicSplit);
         auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
@@ -83,6 +87,34 @@ protected:
         inType = outType = input_precision;
         function = init_subgraph(input_params, input_precision);
     }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        ov::Shape inputDataShape;
+        for (auto op : function->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v6::GatherElements>(op)) {
+                inputDataShape = op->get_input_shape(0);
+                break;
+            }
+        }
+        const auto& funcInputs = function->inputs();
+
+        for (size_t i = 0lu; i < funcInputs.size(); i++) {
+            const auto& funcInput = funcInputs[i];
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.resolution = 1;
+            in_data.range = 4096u;
+
+            if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
+                // to not go beyond range due to uint32 to half conversion error - it can cause go beyond range
+                in_data.range = std::min(static_cast<unsigned int>(inputDataShape[axis_gatherElements]), in_data.range);
+            }
+
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
 };
 
 TEST_P(GatherElementsPaddingInputTest, Inference) {
@@ -100,7 +132,7 @@ const std::vector<std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::
     {{{1, 20, 30, 5, 5, 20}, {1, 20, 15, 5, 5, 5}, {1, 20, 15, 5, 5, 5}}, {2, 5}, {15, 15}},
 };
 
-INSTANTIATE_TEST_SUITE_P(Smoke_GatherElementsPaddingInput,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElementsPaddingInput,
                          GatherElementsPaddingInputTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions)),

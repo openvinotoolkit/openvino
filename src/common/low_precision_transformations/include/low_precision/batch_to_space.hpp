@@ -22,10 +22,10 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API BatchToSpaceTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("BatchToSpaceTransformation", "0");
+    OPENVINO_RTTI("BatchToSpaceTransformation", "0", LayerTransformation);
     BatchToSpaceTransformation(const Params& params = Params());
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

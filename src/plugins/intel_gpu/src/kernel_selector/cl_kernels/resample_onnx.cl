@@ -64,9 +64,6 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
 
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
 
-    if (feature_num >= OUTPUT_FEATURE_NUM)
-        return;
-
     const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
     const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
     const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);

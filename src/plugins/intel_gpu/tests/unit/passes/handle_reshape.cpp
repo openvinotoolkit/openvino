@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
     reorder_factory rf;
 
     program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf);

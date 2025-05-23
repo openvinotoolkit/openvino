@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,6 @@ std::shared_ptr<ov::op::v0::Constant> get_constant_lowest_of_type(ov::element::T
         OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u32);
         OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u64);
 
-    case ov::element::undefined:
     case ov::element::dynamic:
     default:
         return nullptr;

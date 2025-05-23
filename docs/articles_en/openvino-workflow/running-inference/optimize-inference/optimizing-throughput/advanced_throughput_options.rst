@@ -18,7 +18,7 @@ This configurable method of this device-side parallelism is commonly referred as
 
 .. note::
 
-   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, while individual requests can have different shapes.
+   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, while individual requests can have different shapes.
 
 .. note::
 
@@ -74,7 +74,7 @@ One possible throughput optimization strategy is to **set an upper bound for lat
 
 .. note::
 
-   When playing with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
+   When playing with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
 
 .. note::
 
@@ -85,12 +85,12 @@ Number of Streams Considerations
 
 * Select the number of streams that is **less or equal** to the number of requests that the application would be able to run simultaneously.
 * To avoid wasting resources, the number of streams should be enough to meet the *average* parallel slack rather than the peak load.
-* Use the `ov::streams::AUTO <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gaddb29425af71fbb6ad3379c59342ff0e>`__ as a more portable option (that also respects the underlying hardware configuration).
+* Use the `ov::streams::AUTO <../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv44AUTO>`__ as a more portable option (that also respects the underlying hardware configuration).
 * It is very important to keep these streams busy, by running as many inference requests as possible (for example, start the newly-arrived inputs immediately):
 
-  * A bare minimum of requests to saturate the device can be queried as the `ov::optimal_number_of_infer_requests <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga087c6da667f7c3d8374aec5f6cbba027>`__ of the  ``ov:Compiled_Model``.
+  * A bare minimum of requests to saturate the device can be queried as the `ov::optimal_number_of_infer_requests <../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv432optimal_number_of_infer_requests>`__ of the  ``ov:Compiled_Model``.
 
-* *The maximum number of streams* for the device (per model) can be queried as the `ov::range_for_streams <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga8a5d84196f6873729167aa512c34a94a>`__.
+* *The maximum number of streams* for the device (per model) can be queried as the `ov::range_for_streams <../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv417range_for_streams>`__.
 
 Batch Size Considerations
 +++++++++++++++++++++++++
@@ -99,7 +99,7 @@ Batch Size Considerations
 
   * Otherwise (or if the number of "available" requests fluctuates), you may need to keep several instances of the network (reshaped to the different batch size) and select the properly sized instance in the runtime accordingly.
 
-* For OpenVINO devices that implement a dedicated heuristic internally, the `ov::optimal_batch_size <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga129bad2da2fc2a40a7d746d86fc9c68d>`__ is a *device* property (that accepts the actual model as a parameter) to query the recommended batch size for the model.
+* For OpenVINO devices that implement a dedicated heuristic internally, the `ov::optimal_batch_size <../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv418optimal_batch_size>`__ is a *device* property (that accepts the actual model as a parameter) to query the recommended batch size for the model.
 
 
 A Few Device-specific Details

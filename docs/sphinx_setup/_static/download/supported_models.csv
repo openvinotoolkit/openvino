@@ -1,914 +1,1792 @@
-Model,Category,Framework,Precision,AI PC CPU,AI PC GPU,AI PC NPU
-aclnet,Sound Classification,onnx,FP16,+,+,+
-aclnet,Sound Classification,onnx,FP16-INT8,+,+,+
-aclnet,Sound Classification,onnx,FP32,+,+,+
-aclnet-int8,Sound Classification,onnx,FP16-INT8,,,+
-adv_inception_v3,Image Classification,pytorch,FP32,+,,
-albert-base-v2,Natural Language Processing,pytorch,intel-optimum default,,+,
-albert-base-v2-sst2,Natural Language Processing,pytorch,intel-optimum default,,+,
-albert-large-v2,Natural Language Processing,pytorch,intel-optimum default,,+,
-albert-large-v2-finetuned-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
-alexnet-caffe,Image Classification,caffe,FP16,+,+,
-alexnet-caffe,Image Classification,caffe,FP32,+,+,
-alexnet-onnx,Image Classification,onnx,FP16,+,+,+
-alexnet-onnx,Image Classification,onnx,FP16-INT8,+,+,
-alexnet-onnx,Image Classification,onnx,FP32,+,+,+
-Aquila2-7B,Large Language Model,pytorch,intel-optimum default,,+,
-Aquila-7B,Large Language Model,pytorch,intel-optimum default,,+,
-AquilaChat2-7B,Large Language Model,pytorch,intel-optimum default,,+,
-AquilaChat-7B,Large Language Model,pytorch,intel-optimum default,,+,
-arcfaceresnet100-8_resnet100,Object Detection,onnx,FP16,,,+
-arcfaceresnet100-8_resnet100,Object Detection,onnx,FP32,+,+,+
-ast-finetuned-speech-commands-v2,Audio Classification,pytorch,intel-optimum default,,+,
-Baichuan2-13B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Baichuan2-7B-Base,Large Language Model,pytorch,intel-optimum default,,+,
-Baichuan2-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-bart-base-japanese,Natural Language Processing,pytorch,intel-optimum default,,+,
-began,"Image Processing, Enhancement",onnx,FP16,+,+,+
-began,"Image Processing, Enhancement",onnx,FP32,+,+,+
-beit_base_patch16_224,Image Classification,pytorch,FP32,+,,
-beit-base-patch16-224-pt22k-ft22k,Image Classification,pytorch,intel-optimum default,,+,
-bert-base-cased-conversational,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-base-cased-onnx,Natural Language Processing,onnx,FP16,+,+,+
-bert-base-cased-onnx,Natural Language Processing,onnx,FP16-INT8,+,+,+
-bert-base-cased-onnx,Natural Language Processing,onnx,FP32,+,,+
-bert-base-cased-paddle,Natural Language Processing,paddle,FP16,+,+,
-bert-base-cased-paddle,Natural Language Processing,paddle,FP16-INT8,+,+,
-bert-base-cased-paddle,Natural Language Processing,paddle,FP32,+,,
-bert-base-cased-squad2,Natural Language Processing,onnx,FP16,+,+,
-bert-base-cased-squad2,Natural Language Processing,onnx,FP32,+,,
-bert-base-chinese-xnli-zh,Natural Language Processing,tf,FP16,,,+
-bert-base-chinese-xnli-zh,Natural Language Processing,tf,FP32,,,+
-bert-base-ner,Natural Language Processing,onnx,FP16,+,+,+
-bert-base-ner,Natural Language Processing,onnx,FP16-INT8,+,+,+
-bert-base-ner,Natural Language Processing,onnx,FP32,+,,
-bert-base-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-base-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16,,,+
-bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16-INT8,,,+
-bert-base-uncased-mrpc,Natural Language Processing,onnx,FP32,,,+
-bert-base-uncased-yelp-polarity,Natural Language Processing,pytorch,intel-optimum default,,+,
-BERT-Large-CT-STSb,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-large-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-large-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-large-uncased-whole-word-masking-finetuned-sst-2,Natural Language Processing,pytorch,intel-optimum default,,+,
-bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP16,+,+,+
-bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP32,+,+,+
-bert-large-uncased-whole-word-masking-squad-int8-0001,Natural Language Processing,onnx,FP16-INT8,+,+,+
-bert-small-finetuned-squadv2,Large Language Model,pytorch,intel-optimum default,,+,
-bertsquad-12,Natural Language Processing,onnx,FP16,,,+
-bertsquad-12,Natural Language Processing,onnx,FP32,+,+,+
-bge-base-en-v1.5,Natural Language Processing,pytorch,intel-optimum default,,+,
-bge-large-en-v1.5,Natural Language Processing,pytorch,intel-optimum default,,+,
-bge-reranker-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-bge-reranker-large,Natural Language Processing,pytorch,intel-optimum default,,+,
-BioMedLM,Large Language Model,pytorch,intel-optimum default,,+,
-bisenet-v2,Semantic Segmentation,paddle,FP16,+,+,+
-bisenet-v2,Semantic Segmentation,paddle,FP32,+,,
-blenderbot-400M-distill,Natural Language Processing,pytorch,intel-optimum default,,+,
-bloom-560m,Large Language Model,pytorch,intel-optimum default,,+,
-bloomz-1b1,Large Language Model,pytorch,intel-optimum default,,+,
-bloomz-3b,Large Language Model,pytorch,intel-optimum default,,+,
-bloomz-7b1-mt,Large Language Model,pytorch,intel-optimum default,,+,
-botnet26t_256,Image Classification,pytorch,FP32,+,,
-brain-tumor-segmentation-0002,Image Classification,onnx,FP16,+,,
-brain-tumor-segmentation-0002,Image Classification,onnx,FP16-INT8,+,,
-bvlcalexnet-12,Image Classification,onnx,FP16,,,+
-bvlcalexnet-12,Image Classification,onnx,FP32,+,+,+
-caffenet-12,Image Classification,onnx,FP16,,,+
-caffenet-12,Image Classification,onnx,FP32,+,+,+
-cait_m36_384,Image Classification,pytorch,FP32,+,,
-candy-8_candy,Vision Style Transfer,onnx,FP16,,,+
-candy-8_candy,Vision Style Transfer,onnx,FP32,+,+,+
-coat_lite_mini,Image Classification,pytorch,FP32,+,,
-codegemma-1.1-2b,Large Language Model,pytorch,intel-optimum default,,+,
-codegemma-1.1-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
-codegemma-2b,Large Language Model,pytorch,intel-optimum default,,+,
-codegemma-7b,Large Language Model,pytorch,intel-optimum default,,+,
-codegen2-1B_P,Large Language Model,pytorch,intel-optimum default,,+,
-codegen2-3_7B_P,Large Language Model,pytorch,intel-optimum default,,+,
-codegen2-7B_P,Large Language Model,pytorch,intel-optimum default,,+,
-codegen-2B-multi,Large Language Model,pytorch,intel-optimum default,,+,
-codegen-350M-mono,Large Language Model,pytorch,intel-optimum default,,+,
-codegen-6B-multi,Large Language Model,pytorch,intel-optimum default,,+,
-CodeQwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-colorization-siggraph,Colorization,onnx,FP16,+,,
-colorization-siggraph,Colorization,onnx,FP16,,+,+
-colorization-siggraph,Colorization,onnx,FP32,+,,
-colorization-siggraph,Colorization,onnx,FP32,,,+
-colorization-v2,Colorization,onnx,FP16-INT8,,,+
-common-sign-language-0001,Image Classification,onnx,FP16,+,+,+
-common-sign-language-0001,Image Classification,onnx,FP32,+,+,+
-convbert-base-turkish-mc4-toxicity-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
-convit_base,Image Classification,pytorch,FP32,+,,
-convmixer_768_32,Image Classification,pytorch,FP32,+,,
-convnext_base,Image Classification,pytorch,FP32,+,,
-convnext-base-224,Image Classification,pytorch,intel-optimum default,,+,
-crnn-tf,Image-to-Text,tf,FP16,+,+,
-crnn-tf,Image-to-Text,tf,FP32,+,,
-crossvit_9_240,Image Classification,pytorch,FP32,+,,
-cspdarknet53,Image Classification,pytorch,FP32,+,,
-darknet19,Image Classification,tf,FP16,+,+,+
-darknet19,Image Classification,tf,FP16-INT8,+,+,+
-darknet19,Image Classification,tf,FP32,+,+,
-deberta-v3-large,Natural Language Processing,pytorch,intel-optimum default,,+,
-deeplabv3,Semantic Segmentation,tf,FP16,+,+,
-deeplabv3,Semantic Segmentation,tf,FP16-INT8,+,+,
-deeplabv3,Semantic Segmentation,tf,FP32,+,+,
-deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP16,+,+,
-deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP16-INT8,+,+,
-deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP32,+,+,
-deit_base_distilled_patch16_224,Image Classification,pytorch,FP32,+,,
-Denoise,Audio Enhancement,tf,FP16,+,+,+
-Denoise,Audio Enhancement,tf,FP32,+,,+
-densenet-121-caffe,Image Classification,caffe,FP16,+,+,+
-densenet-121-caffe,Image Classification,caffe,FP32,,,+
-densenet-121-onnx,Image Classification,onnx,FP16,+,+,+
-densenet-121-onnx,Image Classification,onnx,FP16-INT8,+,+,
-densenet-121-tf,Image Classification,tf,FP16,+,+,+
-densenet-121-tf,Image Classification,tf,FP32,+,+,
-densenet-121-tf2,Image Classification,tf2,FP16,+,+,+
-densenet-121-tf2,Image Classification,tf2,FP32,+,+,+
-detr_resnet50,Object Detection,onnx,FP16,+,+,
-detr_resnet50,Object Detection,onnx,FP32,+,,
-dien_alibaba,Behavior / Decision Prediction,tf,FP16,+,,
-dien_alibaba,Behavior / Decision Prediction,tf,FP32,+,,
-distilbert-base-cased,Natural Language Processing,onnx,FP16,+,+,+
-distilbert-base-cased,Natural Language Processing,onnx,FP32,+,+,+
-distilbert-base-nli-mean-tokens,Natural Language Processing,pytorch,intel-optimum default,,+,
-distilbert-base-uncased,Natural Language Processing,onnx,FP16,,,+
-distilbert-base-uncased,Natural Language Processing,onnx,FP16-INT8,,,+
-distilbert-base-uncased-distilled-squad,Natural Language Processing,pytorch,intel-optimum default,,+,
-distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16,+,+,+
-distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16-INT8,+,+,
-distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP32,+,,+
-distilbert-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
-distil-large-v3,Speech Recognition,pytorch,intel-optimum default,,+,
-distil-medium.en,Speech Recognition,pytorch,intel-optimum default,,+,
-dla102,Image Classification,pytorch,FP32,+,,
-dm_nfnet_f0,Image Classification,pytorch,FP32,+,,
-dna_r9.4.1@v3,DNA Classification,onnx,FP16,+,,
-dna_r9.4.1@v3,DNA Classification,onnx,FP32,+,,
-dpn107,Image Classification,pytorch,FP32,+,,
-dpn-68,"Image Classification, Dual Path Network",onnx,FP16,+,+,+
-dpn-68,"Image Classification, Dual Path Network",onnx,FP16-INT8,+,,
-dpn-68,"Image Classification, Dual Path Network",onnx,FP32,+,+,+
-east_resnet_v1_50,Image Classification,tf,FP16,+,+,+
-east_resnet_v1_50,Image Classification,tf,FP16-INT8,+,+,
-east_resnet_v1_50,Image Classification,tf,FP32,+,+,
-ebgan,"Image Processing, Enhancement",onnx,FP16,+,+,+
-ebgan,"Image Processing, Enhancement",onnx,FP32,+,,+
-eca_botnext26ts_256,Image Classification,pytorch,FP32,+,,
-eca_halonext26ts,Image Classification,pytorch,FP32,+,,
-edsr3_super_resolution,"Image Processing, Enhancement",tf,FP16,+,+,+
-edsr3_super_resolution,"Image Processing, Enhancement",tf,FP32,+,+,+
-edsr3-nas,"Image Processing, Enhancement",onnx,FP16,+,+,+
-edsr3-nas,"Image Processing, Enhancement",onnx,FP32,+,+,+
-efficientdet-d0-tf,Object Detection,tf,FP16,+,,
-efficientdet-d0-tf,Object Detection,tf,FP16,,+,+
-efficientdet-d0-tf,Object Detection,tf,FP16-INT8,+,,
-efficientdet-d0-tf,Object Detection,tf,FP16-INT8,,+,+
-efficientnet-b0-onnx,Object Detection,onnx,FP16,+,+,+
-efficientnet-b0-onnx,Object Detection,onnx,FP16-INT8,+,+,+
-efficientnet-b0-onnx,Object Detection,onnx,FP32,+,+,+
-efficientnet-b0-tf,Object Detection,tf,FP16,+,+,+
-efficientnet-b0-tf,Object Detection,tf,FP16-INT8,+,+,+
-efficientnet-b0-tf,Object Detection,tf,FP32,+,+,
-efficientnet-lite4-11_efficientnet-lite4,Image Classification,onnx,FP16,,,+
-efficientnet-lite4-11_efficientnet-lite4,Image Classification,onnx,FP32,+,+,+
-efficientnet-v2-m,Object Detection,onnx,FP16,+,+,+
-efficientnet-v2-m,Object Detection,onnx,FP16-INT8,+,+,+
-efficientnet-v2-m,Object Detection,onnx,FP32,+,+,+
-electra-base-french-europeana-cased-generator,Natural Language Processing,pytorch,intel-optimum default,,+,
-electra-large-discriminator-nli-efl-tweeteval,Natural Language Processing,pytorch,intel-optimum default,,+,
-emotion-ferplus-8_model,Object Detection,onnx,FP16,,,+
-emotion-ferplus-8_model,Object Detection,onnx,FP32,+,+,+
-emotions-recognition-retail-0003,"Image Classification, Emotion",caffe,FP16,,,+
-emotions-recognition-retail-0003,"Image Classification, Emotion",caffe,FP16-INT8,,,+
-ese_vovnet19b_dw,Image Classification,pytorch,FP32,+,,
-esrgan,"Image Processing, Enhancement",onnx,FP16,+,,
-esrgan,"Image Processing, Enhancement",onnx,FP16,,,+
-esrgan,"Image Processing, Enhancement",onnx,FP32,+,,
-f3net,Object Detection,onnx,FP16,,,+
-f3net,Object Detection,onnx,FP16-INT8,,,+
-f3net,Object Detection,onnx,FP32,,,+
-faceboxes-caffe,Object Detection,caffe,FP16,+,+,+
-faceboxes-caffe,Object Detection,caffe,FP32,+,+,
-faceboxes-onnx,Object Detection,onnx,FP16,+,+,+
-faceboxes-onnx,Object Detection,onnx,FP16-INT8,+,+,+
-faceboxes-onnx,Object Detection,onnx,FP32,+,+,+
-face-detection-0200,Object Detection,onnx,FP16,,,+
-face-detection-0202,Object Detection,onnx,FP16,,,+
-face-detection-0202,Object Detection,onnx,FP32,,,+
-face-detection-0204,Object Detection,onnx,FP16,,,+
-face-detection-adas-0001,Object Detection,caffe,FP16,,,+
-face-detection-adas-0001,Object Detection,caffe,FP32,,,+
-face-detection-retail-0004,Object Detection,caffe,FP16,,,+
-face-detection-retail-0004,Object Detection,caffe,FP32,,,+
-face-detection-retail-0044,Object Detection,caffe,FP16,,,+
-face-detection-retail-0044,Object Detection,caffe,FP32,,,+
-facenet,Object Detection,onnx,FP16,,,+
-facenet,Object Detection,onnx,FP16-INT8,,,+
-facenet-20180408-102900,Object Detection,tf,FP16,+,+,+
-facenet-20180408-102900,Object Detection,tf,FP32,+,+,
-face-reidentification-retail-0095,Object Detection,onnx,FP16,,,+
-face-reidentification-retail-0095,Object Detection,onnx,FP16-INT8,,,+
-facial-landmarks-35-adas-0002,Object Detection,caffe,FP16,,,+
-facial-landmarks-35-adas-0002,Object Detection,caffe,FP16-INT8,,,+
-facial-landmarks-98-detection-0001,Object Detection,onnx,FP16,+,+,+
-facial-landmarks-98-detection-0001,Object Detection,onnx,FP32,+,+,+
-falcon-11B,Large Language Model,pytorch,intel-optimum default,,+,
-falcon-7b,Large Language Model,pytorch,intel-optimum default,,+,
-falcon-7b-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-faster_rcnn_inception_resnet_v2_atrous_coco,Object Detection,tf,FP16,+,+,
-faster_rcnn_inception_resnet_v2_atrous_coco,Object Detection,tf,FP32,+,,
-faster_rcnn_inception_v2_coco,Object Detection,tf,FP16,+,+,
-faster_rcnn_inception_v2_coco,Object Detection,tf,FP32,+,,
-faster_rcnn_resnet101_coco,Object Detection,tf,FP16,+,+,
-faster_rcnn_resnet101_coco,Object Detection,tf,FP32,,+,
-faster_rcnn_resnet101_kitti,Object Detection,tf,FP16,+,+,
-faster_rcnn_resnet101_kitti,Object Detection,tf,FP32,+,,
-faster_rcnn_resnet50_coco,Object Detection,tf,FP16,+,+,
-faster_rcnn_resnet50_coco,Object Detection,tf,FP16-INT8,+,+,
-faster_rcnn_resnet50_coco,Object Detection,tf,FP32,+,,
-faster_rcnn_resnet50_fpn_coco,Object Detection,onnx,FP16,+,,
-faster-rcnn-resnet101-coco-sparse-60-0001,Object Detection,tf,FP16,+,+,
-faster-rcnn-resnet101-coco-sparse-60-0001,Object Detection,tf,FP32,+,+,
-fastscnn,Object Detection,paddle,FP16,+,+,+
-fastscnn,Object Detection,paddle,FP32,+,,
-fastseg-small,Semantic Segmentation,onnx,FP16,+,+,
-fastseg-small,Semantic Segmentation,onnx,FP16-INT8,+,+,
-fastseg-small,Semantic Segmentation,onnx,FP32,+,+,
-fbnetc_100,Image Classification,pytorch,FP32,+,,
-fbnetv3_b,Image Classification,pytorch,FP32,+,,
-fcn-resnet101-11,Object Detection,onnx,FP16,,,+
-fcn-resnet101-11,Object Detection,onnx,FP32,+,+,+
-fcn-resnet50-11,Object Detection,onnx,FP16,,,+
-fcn-resnet50-11,Object Detection,onnx,FP32,+,+,+
-fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP16,,,+
-fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP16-INT8,,,+
-fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP32,,,+
-flaubert_base_cased,Natural Language Processing,pytorch,intel-optimum default,,+,
-flaubert-base-uncased-finetuned-cooking,Natural Language Processing,pytorch,intel-optimum default,,+,
-forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP16,+,,+
-forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP32,+,,+
-fsrcnn-x4,"Image Processing, Enhancement",tf,FP16,+,+,+
-fsrcnn-x4,"Image Processing, Enhancement",tf,FP32,+,,
-gaze-estimation-adas-0002,Object Detection,onnx,FP16,,,+
-gemma-1.1-2b-it,Large Language Model,pytorch,intel-optimum default,,+,
-gemma-1.1-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
-gemma-2b,Large Language Model,pytorch,intel-optimum default,,+,
-gemma-2b-it,Large Language Model,pytorch,intel-optimum default,,+,
-gemma-7b,Large Language Model,pytorch,intel-optimum default,,+,
-gemma-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
-gernet_l,Image Classification,pytorch,FP32,+,,
-ghostnet_100,Image Classification,pytorch,FP32,+,,
-gluon_inception_v3,Image Classification,pytorch,FP32,+,,
-gmixer_24_224,Image Classification,pytorch,FP32,+,,
-gmlp_s16_224,Image Classification,pytorch,FP32,+,,
-googlenet-12,Image Classification,onnx,FP16,,,+
-googlenet-12,Image Classification,onnx,FP32,+,+,+
-googlenet-v4-caffe,Image Classification,caffe,FP16,+,+,+
-googlenet-v4-caffe,Image Classification,caffe,FP32,+,,
-googlenet-v4-tf,Image Classification,tf,FP16,+,+,
-googlenet-v4-tf,Image Classification,tf,FP16-INT8,+,+,
-googlenet-v4-tf,Image Classification,tf,FP32,+,,
-GPT-2,Large Language Model,onnx,FP16,+,+,
-GPT-2,Large Language Model,onnx,FP32,+,+,
-gpt2-lm-head-10_GPT-2-LM-HEAD,Large Language Model,onnx,FP16,,,+
-gpt2-lm-head-10_GPT-2-LM-HEAD,Large Language Model,onnx,FP32,+,+,+
-GPT2Neo1.3BPoints,Large Language Model,pytorch,intel-optimum default,,+,
-granite-3b-code-base,Large Language Model,pytorch,intel-optimum default,,+,
-granite-3b-code-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-granite-8b-code-base,Large Language Model,pytorch,intel-optimum default,,+,
-granite-8b-code-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-handwritten-japanese-recognition-0001,Text Detection,onnx,FP16-INT8,,,+
-hg-s8-b1-mpii,Object Detection,onnx,FP16,+,+,+
-hg-s8-b1-mpii,Object Detection,onnx,FP16-INT8,+,+,
-higher-hrnet-w32-512,Object Detection,onnx,FP16,+,+,
-higher-hrnet-w32-512,Object Detection,onnx,FP32,+,,
-horizontal-text-detection-0001,Text Detection,onnx,FP16,+,+,
-horizontal-text-detection-0001,Text Detection,onnx,FP16-INT8,+,+,
-horizontal-text-detection-0001,Text Detection,onnx,FP32,+,+,
-hrnet_w18,Image Classification,pytorch,FP32,+,,
-hubert-large-ls960-ft,Speech Recognition,pytorch,intel-optimum default,,+,
-human-pose-estimation-3d-0001,Object Detection,onnx,FP16,+,+,+
-human-pose-estimation-3d-0001,Object Detection,onnx,FP32,+,+,+
-hybrid-cs-model-mri,"Image Processing, Enhancement",tf2,FP16,,,+
-hybrid-cs-model-mri,"Image Processing, Enhancement",tf2,FP32,,,+
-i3d-flow,Action Recognition,tf,FP16,+,+,
-i3d-flow,Action Recognition,tf,FP16-INT8,+,,
-i3d-flow,Action Recognition,tf,FP32,+,+,
-ibert-roberta-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-ibert-roberta-base-finetuned-mrpc,Natural Language Processing,pytorch,intel-optimum default,,+,
-inception_v3,Image Classification,pytorch,FP32,+,,
-inception-v1-12,Image Classification,onnx,FP16,,,+
-inception-v1-12,Image Classification,onnx,FP32,+,+,+
-inception-v2-7_model,Image Classification,onnx,FP16,,,+
-inception-v2-7_model,Image Classification,onnx,FP32,+,+,+
-instance-segmentation-security-0002,Instance Segmentation,onnx,FP16,+,,
-instance-segmentation-security-0002,Instance Segmentation,onnx,FP32,+,,
-instance-segmentation-security-0010,Instance Segmentation,onnx,FP16,+,,
-instance-segmentation-security-0010,Instance Segmentation,onnx,FP32,+,,
-internlm2-1_8b,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-7b,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-chat-1_8b,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-chat-7b,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-chat-7b-sft,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-math-7b,Large Language Model,pytorch,intel-optimum default,,+,
-internlm2-math-base-7b,Large Language Model,pytorch,intel-optimum default,,+,
-jx_nest_base,Image Classification,pytorch,FP32,+,,
-klue-roberta-base-ner,Natural Language Processing,pytorch,intel-optimum default,,+,
-LCM_Dreamshaper_v7,Text-to-Image,pytorch,intel-optimum default,,+,
-lcnet_050,Image Classification,pytorch,FP32,+,,
-levit_128,Image Classification,pytorch,FP32,+,,
-levit-256,Image Classification,pytorch,intel-optimum default,,+,
-Llama-2-13b-chat-hf,Large Language Model,pytorch,intel-optimum default,,+,
-Llama-2-13b-hf,Large Language Model,pytorch,intel-optimum default,,+,
-Llama-2-7b-chat-hf,Large Language Model,pytorch,intel-optimum default,,+,
-Llama-2-7b-hf,Large Language Model,pytorch,intel-optimum default,,+,
-m2m100_418M,Natural Language Processing,pytorch,intel-optimum default,,+,
-Magicoder-CL-7B,Large Language Model,pytorch,intel-optimum default,,+,
-Magicoder-DS-6.7B,Large Language Model,pytorch,intel-optimum default,,+,
-Magicoder-S-CL-7B,Large Language Model,pytorch,intel-optimum default,,+,
-Magicoder-S-DS-6.7B,Large Language Model,pytorch,intel-optimum default,,+,
-MarianCausalLM,Large Language Model,pytorch,intel-optimum default,,+,
-marian-finetuned-kde4-en-to-cn-accelerate,Natural Language Processing,pytorch,intel-optimum default,,+,
-mask_rcnn_inception_resnet_v2_atrous_coco,Instance Segmentation,tf,FP16,+,+,
-mask_rcnn_inception_resnet_v2_atrous_coco,Instance Segmentation,tf,FP32,+,+,
-mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP16,+,+,
-mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP16-INT8,+,+,
-mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP32,+,+,
-mask_rcnn_resnet101_atrous_coco,Instance Segmentation,tf,FP16,+,+,
-mask_rcnn_resnet101_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
-mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16,+,+,
-mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
-mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP32,+,+,
-MaskRCNN-12,Object Detection,onnx,FP16,,,+
-MaskRCNN-12,Object Detection,onnx,FP32,+,+,+
-mbart-large-50-many-to-one-mmt,Natural Language Processing,pytorch,intel-optimum default,,+,
-Meta-Llama-3-8B,Large Language Model,pytorch,intel-optimum default,,+,
-Meta-Llama-3-8B-Instruct,Large Language Model,pytorch,intel-optimum default,,+,
-Meta-Llama-Guard-2-8B,Large Language Model,pytorch,intel-optimum default,,+,
-midasnet,Monodepth,onnx,FP16,,,+
-midasnet,Monodepth,onnx,FP16-INT8,,,+
-midasnet,Monodepth,onnx,FP32,,,+
-MindChat-Qwen2-4B,Large Language Model,pytorch,intel-optimum default,,+,
-MiniCPM-2B-sft-bf16,Large Language Model,pytorch,intel-optimum default,,+,
-Mistral-7B-Instruct-v0.2,Large Language Model,pytorch,intel-optimum default,,+,
-Mistral-7B-Instruct-v0.3,Large Language Model,pytorch,intel-optimum default,,+,
-Mistral-7B-v0.3,Large Language Model,pytorch,intel-optimum default,,+,
-mixer_b16_224,Image Classification,pytorch,FP32,+,,
-mixnet_l,Image Classification,pytorch,FP32,+,,
-mnasnet_100,Image Classification,pytorch,FP32,+,,
-mnist-12,Image Classification,onnx,FP16,,,+
-mnist-12,Image Classification,onnx,FP32,+,+,+
-mobilebert,Natural Language Processing,onnx,FP16-INT8,+,,
-mobilebert,Natural Language Processing,onnx,FP16-INT8,,+,
-mobilenet-ssd,Object Detection,caffe,FP16,+,+,+
-mobilenet-ssd,Object Detection,caffe,FP32,+,,
-mobilenetv2_100,Image Classification,pytorch,FP32,+,,
-mobilenet-v2-1.0-224-tf,Object Detection,tf,FP16,+,+,+
-mobilenet-v2-1.0-224-tf,Object Detection,tf,FP16-INT8,+,+,+
-mobilenet-v2-1.0-224-tf,Object Detection,tf,FP32,+,,
-mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP16,+,+,+
-mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP16-INT8,+,+,+
-mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP32,+,,
-mobilenet-v2-caffe,Object Detection,caffe,FP16,+,+,+
-mobilenet-v2-caffe,Object Detection,caffe,FP32,+,,
-mobilenet-v2-onnx,Object Detection,onnx,FP16,+,+,+
-mobilenet-v2-onnx,Object Detection,onnx,FP16-INT8,+,+,+
-mobilenet-v2-onnx,Object Detection,onnx,FP32,+,,
-mobilenet-v2-paddle,Object Detection,paddle,FP16,+,+,+
-mobilenet-v2-paddle,Object Detection,paddle,FP16-INT8,+,+,+
-mobilenet-v2-paddle,Object Detection,paddle,FP32,+,+,+
-mobilenetv3_large_100,Image Classification,pytorch,FP32,+,,
-mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP16,+,+,+
-mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP32,+,,+
-mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP16,+,+,+
-mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP32,+,+,+
-mobilenet-v3-large-1.0-224-tf,Object Detection,tf,FP16,+,+,+
-mobilenet-v3-large-1.0-224-tf,Object Detection,tf,FP32,+,+,+
-mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP16,+,+,+
-mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP32,+,,+
-mobilenet-yolo-v4-syg,Object Detection,tf,FP16-INT8,,,+
-mobilenet-yolo-v4-syg,Object Detection,tf,FP32,,,+
-mobilevit_s,Image Classification,pytorch,FP32,+,,
-mobilevit-xx-small,Image Classification,pytorch,intel-optimum default,,+,
-modnet_webcam_portrait_matting,Background Matting,onnx,FP16-INT8,,,+
-mosaic-8_mosaic,Vision Style Transfer,onnx,FP16,,,+
-mosaic-8_mosaic,Vision Style Transfer,onnx,FP32,+,+,+
-mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP16,+,,
-mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP16-INT8,+,,+
-mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP32,+,,+
-mpt-7b,Large Language Model,pytorch,intel-optimum default,,+,
-mpt-7b-8k,Large Language Model,pytorch,intel-optimum default,,+,
-mpt-7b-8k-chat,Large Language Model,pytorch,intel-optimum default,,+,
-mpt-7b-chat,Large Language Model,pytorch,intel-optimum default,,+,
-mpt-7b-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-mpt-7b-storywriter,Large Language Model,pytorch,intel-optimum default,,+,
-ms-marco-electra-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-mt5-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-mt5-large,Natural Language Processing,pytorch,intel-optimum default,,+,
-mt5-small,Natural Language Processing,pytorch,intel-optimum default,,+,
-mt5-tiny-random,Natural Language Processing,pytorch,intel-optimum default,+,,
-neural-chat-7b-v1-1,Large Language Model,pytorch,intel-optimum default,,+,
-neural-chat-7b-v3-3,Large Language Model,pytorch,intel-optimum default,,+,
-nfnet_l0,Image Classification,pytorch,FP32,+,,
-ocrnet-hrnet-w18,Text Detection,paddle,FP16,+,+,+
-ocrnet-hrnet-w18,Text Detection,paddle,FP16-INT8,+,+,
-ocrnet-hrnet-w18,Text Detection,paddle,FP32,+,,
-ocrnet-hrnet-w48,Text Detection,paddle,FP16,+,,
-ocrnet-hrnet-w48,Text Detection,paddle,FP32,+,,
-openchat-3.6-8b-20240522,Large Language Model,pytorch,intel-optimum default,,+,
-open-closed-eye-0001,Image Classification,onnx,FP16,,,+
-open-closed-eye-0001,Image Classification,onnx,FP16-INT8,,,+
-open-closed-eye-0001,Image Classification,onnx,FP32,,,+
-opt-1.3b,Large Language Model,pytorch,intel-optimum default,,+,
-opt-125m,Large Language Model,pytorch,intel-optimum default,,+,
-opt-13b,Large Language Model,pytorch,intel-optimum default,,+,
-opt-2.7b,Large Language Model,pytorch,intel-optimum default,,+,
-opt-350m,Large Language Model,pytorch,intel-optimum default,,+,
-opt-6.7b,Large Language Model,pytorch,intel-optimum default,,+,
-opt-iml-1.3b,Large Language Model,pytorch,intel-optimum default,,+,
-pedestrian-detection-adas-0002,Object Detection,caffe,FP16,,,+
-pedestrian-detection-adas-0002,Object Detection,caffe,FP16-INT8,,,+
-pedestrian-detection-adas-0002,Object Detection,caffe,FP32,,,+
-Pegasus-7b-slerp,Large Language Model,pytorch,intel-optimum default,,+,
-pegasus-samsum,Large Language Model,pytorch,intel-optimum default,,+,
-persimmon-8b-chat,Large Language Model,pytorch,intel-optimum default,,+,
-person-detection-0100,Object Detection,onnx,FP16,,,+
-person-detection-0101,Object Detection,onnx,FP16,,,+
-person-detection-0201,Object Detection,onnx,FP16,,,+
-person-detection-0201,Object Detection,onnx,FP32,,,+
-person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP16,+,+,+
-person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP16-INT8,+,+,+
-person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP32,,+,
-phi-2,Large Language Model,pytorch,intel-optimum default,,+,
-Phi-3-medium-4k-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-Phi-3-mini-128k-instruct,Large Language Model,pytorch,intel-optimum default,,+,
-pit_b_224,Image Classification,pytorch,FP32,+,,
-pix2struct-base,Image-to-Text,pytorch,intel-optimum default,,+,
-pix2struct-tiny-random,Image-to-Text,pytorch,intel-optimum default,+,,
-pnasnet5large,Image Classification,pytorch,FP32,+,,
-pointilism-8_pointilism,Vision Style Transfer,onnx,FP16,,,+
-pointilism-8_pointilism,Vision Style Transfer,onnx,FP32,+,+,+
-Polish_RoBERTa_large_OPI,Natural Language Processing,pytorch,intel-optimum default,,+,
-poolformer_m36,Image Classification,pytorch,FP32,+,,
-pp-ocr-det,Object Detection,paddle,FP16,+,,
-pp-ocr-det,Object Detection,paddle,FP16-INT8,+,+,+
-pp-ocr-det,Object Detection,paddle,FP32,+,,
-pp-ocr-rec,Object Detection,paddle,FP16,+,,
-pp-ocr-rec,Object Detection,paddle,FP32,+,,
-pp-yolo,Object Detection,paddle,FP16,+,,
-pp-yolo,Object Detection,paddle,FP32,+,,
-prnet,Object Detection,tf,FP16,,,+
-prnet,Object Detection,tf,FP16-INT8,,,+
-prnet,Object Detection,tf,FP32,,,+
-product-detection-0001,Object Detection,onnx,FP16,,,+
-product-detection-0001,Object Detection,onnx,FP16-INT8,,,+
-product-detection-0001,Object Detection,onnx,FP32,,,+
-pythia-1.4b,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-12b,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-14m,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-160m,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-1b,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-2.8b,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-410m,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-6.9b,Large Language Model,pytorch,intel-optimum default,,+,
-pythia-70m,Large Language Model,pytorch,intel-optimum default,,+,
-Pythia-Chat-Base-7B,Large Language Model,pytorch,intel-optimum default,,+,
-quartznet-15x5-en,Speech Recognition,onnx,FP16,+,,
-quartznet-15x5-en,Speech Recognition,onnx,FP16-INT8,+,,
-quartznet-15x5-en,Speech Recognition,onnx,FP32,+,,
-Qwen1.5-0.5B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-0.5B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-1.8B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-1.8B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-4B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-4B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-7B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen-1_8B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen-1_8B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen-7B,Large Language Model,pytorch,intel-optimum default,,+,
-Qwen-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-rain-princess-8_rain_princess,Vision Style Transfer,onnx,FP16,,,+
-rain-princess-8_rain_princess,Vision Style Transfer,onnx,FP32,+,+,+
-rcnn-ilsvrc13-7_model,Image Classification,onnx,FP16,,,+
-rcnn-ilsvrc13-7_model,Image Classification,onnx,FP32,+,+,+
-really-tiny-falcon-testing,Large Language Model,pytorch,INT4,+,,
-RedPajama-INCITE-7B-Base,Large Language Model,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-7B-Instruct,Large Language Model,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-Chat-3B-v1,Large Language Model,pytorch,intel-optimum default,,+,
-regnety_002,Image Classification,pytorch,FP32,+,,
-repvgg_a2,Image Classification,pytorch,FP32,+,,
-res2net101_26w_4s,Image Classification,pytorch,FP32,+,,
-res2net50_14w_8s,Image Classification,pytorch,FP32,+,,
-res2next50,Image Classification,pytorch,FP32,+,,
-resmlp_12_224,Image Classification,pytorch,FP32,+,,
-resnest101e,Image Classification,pytorch,FP32,+,,
-ResNet101-DUC-12,Object Detection,onnx,FP16,,,+
-ResNet101-DUC-12,Object Detection,onnx,FP32,+,+,+
-resnet101-v1-7,Image Classification,onnx,FP16,,,+
-resnet101-v1-7,Image Classification,onnx,FP32,+,+,+
-resnet101-v2-7,Image Classification,onnx,FP16,,,+
-resnet101-v2-7,Image Classification,onnx,FP32,+,+,+
-resnet152-v1-7,Image Classification,onnx,FP16,,,+
-resnet152-v1-7,Image Classification,onnx,FP32,+,+,+
-resnet152-v2-7,Image Classification,onnx,FP16,,,+
-resnet152-v2-7,Image Classification,onnx,FP32,+,+,+
-resnet-18,Image Classification,onnx,FP16,+,+,+
-resnet-18,Image Classification,onnx,FP16-INT8,+,+,+
-resnet-18,Image Classification,onnx,FP32,+,,+
-resnet18-v1-7,Image Classification,onnx,FP16,,,+
-resnet18-v1-7,Image Classification,onnx,FP32,+,+,+
-resnet18-v2-7,Image Classification,onnx,FP16,,,+
-resnet18-v2-7,Image Classification,onnx,FP32,+,+,+
-resnet34-v1-7,Image Classification,onnx,FP16,,,+
-resnet34-v1-7,Image Classification,onnx,FP32,+,+,+
-resnet34-v2-7,Image Classification,onnx,FP16,,,+
-resnet34-v2-7,Image Classification,onnx,FP32,+,+,+
-resnet50-caffe2-v1-7_model,Image Classification,onnx,FP16,,,+
-resnet50-caffe2-v1-7_model,Image Classification,onnx,FP32,+,+,+
-resnet-50-onnx,Image Classification,onnx,FP16,+,+,+
-resnet-50-onnx,Image Classification,onnx,FP16-INT8,+,+,+
-resnet-50-onnx,Image Classification,onnx,FP32,+,+,+
-resnet-50-paddle,Image Classification,paddle,FP16,+,+,+
-resnet-50-paddle,Image Classification,paddle,FP16-INT8,+,+,+
-resnet-50-paddle,Image Classification,paddle,FP32,+,+,
-resnet-50-pytorch,Image Classification,onnx,FP16,+,+,+
-resnet-50-pytorch,Image Classification,onnx,FP16-INT8,+,+,+
-resnet-50-pytorch,Image Classification,onnx,FP32,+,+,+
-resnet-50-tf,Image Classification,tf,FP16,+,+,+
-resnet-50-tf,Image Classification,tf,FP16-INT8,+,+,+
-resnet-50-tf,Image Classification,tf,FP32,+,,+
-resnet50-v2-7,Image Classification,onnx,FP16,,,+
-resnet50-v2-7,Image Classification,onnx,FP32,+,+,+
-resnext101-32x16d-swsl,Image Classification,onnx,FP16,+,+,
-resnext101-32x16d-swsl,Image Classification,onnx,FP16-INT8,+,+,+
-resnext101-32x16d-swsl,Image Classification,onnx,FP32,+,,
-resnext-101-32x8d,Image Classification,onnx,FP16,+,+,
-resnext-101-32x8d,Image Classification,onnx,FP32,+,,
-retinanet,Image Classification,tf2,FP16,+,+,+
-retinanet,Image Classification,tf2,FP32,+,+,+
-retinanet_resnet34,Image Classification,onnx,FP16,,,+
-retinanet_resnet34,Image Classification,onnx,FP16-INT8,,,+
-retinanet_resnet34,Image Classification,onnx,FP32,,,+
-retinanet-9_test_retinanet_resnet101,Object Detection,onnx,FP16,,,+
-retinanet-9_test_retinanet_resnet101,Object Detection,onnx,FP32,+,+,+
-rexnet_100,Image Classification,pytorch,FP32,+,,
-rnnt,Speech Recognition,onnx,FP16,+,,
-rnnt,Speech Recognition,onnx,FP32,+,,
-road-segmentation-adas-0001,Semantic Segmentation,caffe,FP16,,,+
-roberta-base,Natural Language Processing,onnx,FP16,+,+,
-roberta-base,Natural Language Processing,onnx,FP16-INT8,+,+,
-roberta-base,Natural Language Processing,onnx,FP32,+,,
-roberta-base-mrpc,Natural Language Processing,onnx,FP16-INT8,+,,
-roberta-base-mrpc,Natural Language Processing,onnx,FP16-INT8,,+,+
-roberta-base-squad2,Large Language Model,pytorch,intel-optimum default,,+,
-roberta-large,Natural Language Processing,onnx,FP16,+,+,
-roberta-large,Natural Language Processing,onnx,FP32,+,+,
-roberta-large-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
-roberta-large-ner-english,Natural Language Processing,pytorch,intel-optimum default,,+,
-roberta-large-squadv2,Large Language Model,pytorch,intel-optimum default,,+,
-roformer_small_generator,Natural Language Processing,pytorch,intel-optimum default,,+,
-sbert-base-mean-tokens,Natural Language Processing,onnx,FP16,,,+
-sbert-base-mean-tokens,Natural Language Processing,onnx,FP16-INT8,,,+
-sbert-base-mean-tokens,Natural Language Processing,onnx,FP32,,,+
-sebotnet33ts_256,Image Classification,pytorch,FP32,+,,
-selecsls42b,Image Classification,pytorch,FP32,+,,
-semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP16,+,+,
-semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP16-INT8,+,,
-semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP32,+,,
-se-resnet-50,Image Classification,caffe,FP16,+,+,+
-se-resnet-50,Image Classification,caffe,FP32,+,,+
-se-resnext-101,Image Classification,caffe,FP16,+,+,+
-se-resnext-101,Image Classification,caffe,FP32,,+,
-se-resnext-50-caffe,Image Classification,caffe,FP16,+,+,+
-se-resnext-50-caffe,Image Classification,caffe,FP32,+,+,
-se-resnext-50-onnx,Image Classification,onnx,FP16,+,+,+
-se-resnext-50-onnx,Image Classification,onnx,FP16-INT8,+,,
-se-resnext-50-onnx,Image Classification,onnx,FP32,+,+,+
-se-resnext-50-tf,Image Classification,tf,FP16,+,+,+
-se-resnext-50-tf,Image Classification,tf,FP32,+,+,
-sew-d-tiny-100k-ft-ls100h,Speech Recognition,pytorch,intel-optimum default,+,,
-Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP16,+,+,+
-Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP16-INT8,,+,
-Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP32,+,+,+
-Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP16,+,+,+
-Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP16-INT8,+,+,+
-Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP32,+,+,+
-Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP16,+,+,+
-Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP16-INT8,+,+,
-Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP32,+,+,+
-shufflenet-7_model,Image Classification,onnx,FP16,,,+
-shufflenet-7_model,Image Classification,onnx,FP32,+,+,+
-shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP16,+,+,+
-shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP16-INT8,+,+,+
-shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP32,+,,
-shufflenet-v2-x1.0-tf,Image Classification,tf,FP16,+,+,+
-shufflenet-v2-x1.0-tf,Image Classification,tf,FP16-INT8,+,+,+
-shufflenet-v2-x1.0-tf,Image Classification,tf,FP32,+,+,
-single-image-super-resolution-1032,"Image Processing, Enhancement",onnx,FP16,+,+,+
-Sphereface,Image Classification,caffe,FP16,+,+,+
-Sphereface,Image Classification,caffe,FP32,+,+,+
-spnasnet_100,Image Classification,pytorch,FP32,+,,
-squeezenet1.0-12,Image Classification,onnx,FP16,,,+
-squeezenet1.0-12,Image Classification,onnx,FP32,+,+,+
-squeezenet1.1-caffe,Image Classification,caffe,FP16,+,+,+
-squeezenet1.1-caffe,Image Classification,caffe,FP32,+,+,+
-squeezenet1.1-onnx,Image Classification,onnx,FP32,+,,
-srgan-onnx,"Image Processing, Enhancement",onnx,FP16,+,,+
-srgan-tf,"Image Processing, Enhancement",tf,FP16,+,+,
-srgan-tf,"Image Processing, Enhancement",tf,FP16-INT8,+,+,+
-srgan-tf,"Image Processing, Enhancement",tf,FP32,+,,
-ssd_mobilenet_v1_10_ssd_mobilenet_v1,Object Detection,onnx,FP16,,,+
-ssd_mobilenet_v1_coco,Object Detection,tf,FP16,+,+,+
-ssd_mobilenet_v1_coco,Object Detection,tf,FP16-INT8,+,+,+
-ssd_mobilenet_v1_coco,Object Detection,tf,FP32,+,+,+
-ssd-10,Object Detection,onnx,FP16,,,+
-ssd-10,Object Detection,onnx,FP32,+,+,+
-ssd300-onnx-0001,Object Detection,onnx,FP16,,,+
-ssd300-onnx-0001,Object Detection,onnx,FP16-INT8,,,+
-ssdlite_mobilenet_v2,Object Detection,tf,FP16,+,+,+
-ssdlite_mobilenet_v2,Object Detection,tf,FP16-INT8,+,+,
-ssdlite_mobilenet_v2,Object Detection,tf,FP32,+,+,+
-ssdlite-mobilenet-v3-small-320-coco,Object Detection,paddle,FP16,+,,
-ssdlite-mobilenet-v3-small-320-coco,Object Detection,paddle,FP32,+,,
-ssd-resnet34-1200,Object Detection,onnx,FP16,+,+,
-ssd-resnet34-1200,Object Detection,onnx,FP16-INT8,+,+,
-ssd-resnet34-1200,Object Detection,onnx,FP32,+,,
-stable-diffusion-2-1,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
-stable-diffusion-v1-4,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
-stable-diffusion-v1-5,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
-stable-diffusion-xl-base-1.0,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
-stablelm-2-1_6b,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-2-1_6b-chat,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-2-12b,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-2-12b-chat,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-2-zephyr-1_6b,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-3b-4e1t,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-base-alpha-3b,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-tuned-alpha-7b,Large Language Model,pytorch,intel-optimum default,,+,
-stablelm-zephyr-3b,Large Language Model,pytorch,intel-optimum default,,+,
-stsb-bert-tiny-safetensors,Natural Language Processing,pytorch,intel-optimum default,+,,
-style_transfer,Image Processing,onnx,FP16,+,+,+
-style_transfer,Image Processing,onnx,FP16-INT8,+,+,+
-style_transfer,Image Processing,onnx,FP32,+,+,+
-stylegan2,Image Processing,tf,FP16,+,+,
-stylegan2,Image Processing,tf,FP32,+,,
-super-resolution-10_super_resolution,Image Manipulation,onnx,FP16,,,+
-super-resolution-10_super_resolution,Image Manipulation,onnx,FP32,+,+,+
-sup-simcse-roberta-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-swin_base_patch4_window7_224,Image Classification,pytorch,FP32,+,,
-swin-tiny-patch4-window7-224,Image Classification,onnx,FP16,+,+,
-swin-tiny-patch4-window7-224,Image Classification,onnx,FP16-INT8,+,+,+
-swin-tiny-patch4-window7-224,Image Classification,onnx,FP32,+,+,
-swsl_resnext101_32x16d,Image Classification,pytorch,FP32,+,,
-t2t-vit-7,Image Classification,onnx,FP16,+,+,
-t2t-vit-7,Image Classification,onnx,FP16-INT8,+,+,
-t2t-vit-7,Image Classification,onnx,FP32,+,+,
-t5-base,Natural Language Processing,pytorch,intel-optimum default,,+,
-t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,Natural Language Processing,onnx,FP16,,,+
-t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,Natural Language Processing,onnx,FP32,+,+,+
-t5-encoder-12_t5-encoder,Natural Language Processing,onnx,FP16,,,+
-t5-encoder-12_t5-encoder,Natural Language Processing,onnx,FP32,+,+,+
-t5-large,Natural Language Processing,pytorch,intel-optimum default,,+,
-t5-small,Natural Language Processing,pytorch,intel-optimum default,,+,
-tedlium_dnn4_smbr,Speech Recognition,kaldi,FP16,+,+,+
-tedlium_dnn4_smbr,Speech Recognition,kaldi,FP16-INT8,+,+,
-tedlium_dnn4_smbr,Speech Recognition,kaldi,FP32,+,,
-text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP16,+,+,+
-text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP16-INT8,+,+,+
-text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP32,+,+,+
-text-recognition-0012,Text Detection,tf,FP16,+,+,+
-text-recognition-0012,Text Detection,tf,FP32,+,+,
-text-recognition-0013,Text Detection,onnx,FP16,,,+
-text-recognition-0013,Text Detection,onnx,FP32,,,+
-text-recognition-0014,Text Detection,onnx,FP16,,,+
-text-recognition-0014,Text Detection,onnx,FP16-INT8,,,+
-text-recognition-0014,Text Detection,onnx,FP32,,,+
-text-to-speech-en-multi-0001,Text-to-Speech,null,FP32,+,,
-tf_efficientnet_b0,Image Classification,pytorch,FP32,+,,
-tf_mixnet_l,Image Classification,pytorch,FP32,+,,
-tiny_yolo_v2,Object Detection,onnx,FP16,,,+
-tiny_yolo_v2,Object Detection,onnx,FP32,,,+
-tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16,,,+
-tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16-INT8,,,+
-tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP32,,,+
-tiny-doc-qa-vision-encoder-decoder,Image-to-Text,pytorch,intel-optimum default,+,,
-tiny-llama-fast-tokenizer,Large Language Model,pytorch,INT4,+,,
-tiny-marian-en-de,Large Language Model,pytorch,INT4,+,,
-tiny-mixtral,Large Language Model,pytorch,INT4,+,,
-tinynet_a,Image Classification,pytorch,FP32,+,,
-tiny-random-albert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-aquila2,Large Language Model,pytorch,INT4,+,,
-tiny-random-aquilachat,Large Language Model,pytorch,INT4,+,,
-tiny-random-baichuan2,Large Language Model,pytorch,INT4,+,,
-tiny-random-baichuan2-13b,Large Language Model,pytorch,INT4,+,,
-tiny-random-bart,Large Language Model,pytorch,INT4,+,,
-tiny-random-BeitForImageClassification,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-bert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-BlenderbotModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-BloomModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-chatglm2,Large Language Model,pytorch,INT4,+,,
-tiny-random-codegen2,Large Language Model,pytorch,INT4,+,,
-tiny-random-CodeGenForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-CohereForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-ConvBertForSequenceClassification,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-convnext,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-Data2VecAudioModel,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-dbrx,Large Language Model,pytorch,INT4,+,,
-tiny-random-deberta,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-distilbert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-electra,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-falcon-40b,Large Language Model,pytorch,INT4,+,,
-tiny-random-flaubert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-GemmaForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-gpt2,Large Language Model,pytorch,INT4,+,,
-tiny-random-GPTNeoModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-GPTNeoXForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-HubertModel,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-ibert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-internlm,Large Language Model,pytorch,INT4,+,,
-tiny-random-internlm2,Large Language Model,pytorch,INT4,+,,
-tiny-random-latent-consistency,Text-to-Image,pytorch,intel-optimum default,+,,
-tiny-random-LevitModel,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-m2m_100,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-mbart,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-minicpm,Large Language Model,pytorch,INT4,+,,
-tiny-random-mistral,Large Language Model,pytorch,INT4,+,,
-tiny-random-MobileNetV2Model,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-mobilevit,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-MptForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-olmo-hf,Large Language Model,pytorch,INT4,+,,
-tiny-random-OPTModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-orion,Large Language Model,pytorch,INT4,+,,
-tiny-random-pegasus,Large Language Model,pytorch,INT4,+,,
-tiny-random-PersimmonForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-phi3,Large Language Model,pytorch,INT4,+,,
-tiny-random-PhiForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-qwen,Large Language Model,pytorch,INT4,+,,
-tiny-random-qwen1.5-moe,Large Language Model,pytorch,INT4,+,,
-tiny-random-resnet,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-roberta,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-roformer,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-SEWModel,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-squeezebert,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-stable-diffusion-xl,Text-to-Image,pytorch,intel-optimum default,+,,
-tiny-random-stable-diffusion-xl-refiner,Text-to-Image,pytorch,intel-optimum default,+,,
-tiny-random-StableLmForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-Starcoder2ForCausalLM,Large Language Model,pytorch,INT4,+,,
-tiny-random-t5,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-unispeech,Audio Classification,pytorch,intel-optimum default,+,,
-tiny-random-UnispeechSatModel,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-VisionEncoderDecoderModel-vit-gpt2,Image-to-Text,pytorch,intel-optimum default,+,,
-tiny-random-vit,Image Classification,pytorch,intel-optimum default,+,,
-tiny-random-wav2vec2-conformer,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-Wav2Vec2Model,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-WavlmModel,Speech Recognition,pytorch,intel-optimum default,+,,
-tiny-random-xlm,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiny-random-xverse,Large Language Model,pytorch,INT4,+,,
-tiny-stable-diffusion-torch,Text-to-Image,pytorch,intel-optimum default,+,,
-tiny-xlm-roberta,Natural Language Processing,pytorch,intel-optimum default,+,,
-tiramisu-fc-densenet-103,Object Detection,tf2,FP16,,,+
-tiramisu-fc-densenet-103,Object Detection,tf2,FP16-INT8,,,+
-tiramisu-fc-densenet-103,Object Detection,tf2,FP32,,,+
-tnt_s_patch16_224,Image Classification,pytorch,FP32,+,,
-topaz_video_super_resolution,"Image Processing, Enhancement",tf,FP16,+,+,+
-topaz_video_super_resolution,"Image Processing, Enhancement",tf,FP32,+,+,+
-trocr-base-handwritten,Image-to-Text,pytorch,intel-optimum default,,+,
-trocr-small-handwritten,Image-to-Text,pytorch,intel-optimum default,+,,
-twins_pcpvt_base,Image Classification,pytorch,FP32,+,,
-twitter-roberta-base-sentiment-latest,Natural Language Processing,pytorch,intel-optimum default,,+,
-udnie-8_udnie,Neural Style Transfer,onnx,FP16,,,+
-udnie-8_udnie,Neural Style Transfer,onnx,FP32,+,+,+
-ultra-lightweight-face-detection-rfb-320,Object Detection,onnx,FP16,,,+
-ultra-lightweight-face-detection-slim-320,Object Detection,onnx,FP16,,,+
-unet-2d,Semantic Segmentation,onnx,FP16,,,+
-unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP16,+,+,
-unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP16-INT8,+,+,
-unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP32,+,+,
-unet3d_mlperf-tf,Semantic Segmentation,tf,FP16,+,+,
-unet3d_mlperf-tf,Semantic Segmentation,tf,FP16-INT8,+,+,
-unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16,+,+,+
-unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16-INT8,+,+,+
-unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP32,+,,
-unispeech-1350-en-90-it-ft-1h,Speech Recognition,pytorch,intel-optimum default,,+,
-unispeech-sat-base-plus-sd,Audio,pytorch,intel-optimum default,,+,
-unispeech-sat-base-sv,Audio,pytorch,intel-optimum default,,+,
-unispeech-sat-large-sv,Audio,pytorch,intel-optimum default,,+,
-urlnet,URL Classification,tf2,FP16,+,+,+
-urlnet,URL Classification,tf2,FP32,+,+,+
-vehicle-detection-adas-0002,Object Detection,caffe,FP16,,,+
-version-RFB-320,Object Detection,onnx,FP16,,,+
-version-RFB-320,Object Detection,onnx,FP32,+,+,+
-version-RFB-640,Object Detection,onnx,FP16,,,+
-version-RFB-640,Object Detection,onnx,FP32,+,+,+
-vgg16-12,Image Classification,onnx,FP16,,,+
-vgg16-12,Image Classification,onnx,FP32,+,+,+
-vgg19-7_vgg19,Image Classification,onnx,FP16,,,+
-vgg19-7_vgg19,Image Classification,onnx,FP32,+,+,+
-vgg19-caffe2-7_model,Image Classification,onnx,FP16,,,+
-vgg19-caffe2-7_model,Image Classification,onnx,FP32,+,+,+
-visformer_small,Image Classification,pytorch,FP32,+,,
-vit_base_patch16_224,Image Feature Extraction,pytorch,FP32,+,,
-vitstr-small-patch16-224,Text Detection,onnx,FP16,,,+
-vitstr-small-patch16-224,Text Detection,onnx,FP32,,,+
-vit-with-attentions,Image Classification,pytorch,intel-optimum default,+,,
-vit-with-hidden_states,Image Classification,pytorch,intel-optimum default,+,,
-volo_d1_224,Image Classification,pytorch,FP32,+,,
-wav2vec2-base,Speech Recognition,onnx,FP16,+,,
-wav2vec2-base,Speech Recognition,onnx,FP16-INT8,+,,
-wav2vec2-base,Speech Recognition,onnx,FP32,+,,
-wav2vec2-base-superb-sd,Audio Classification,pytorch,intel-optimum default,,+,
-wav2vec2-base-superb-sid,Audio Classification,pytorch,intel-optimum default,,+,
-wav2vec2-base-superb-sv,Audio,pytorch,intel-optimum default,,+,
-wav2vec2-random-tiny-classifier,Audio Classification,pytorch,intel-optimum default,+,,
-wavernn-rnn,Text-to-Speech,onnx,FP16,,,+
-wavernn-rnn,Text-to-Speech,onnx,FP32,,,+
-wavernn-upsampler,Text-to-Speech,onnx,FP16,+,+,+
-wavernn-upsampler,Text-to-Speech,onnx,FP32,+,,+
-wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16,+,+,+
-wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16-INT8,+,,+
-wdsr-small-x4,"Image Processing, Enhancement",onnx,FP32,+,+,
-weld-porosity-detection-0001,Image Classification,onnx,FP16,,,+
-weld-porosity-detection-0001,Image Classification,onnx,FP32,,,+
-whisper-base,Speech Reognition,pytorch,intel-optimum default,,+,
-whisper-large-v2,Speech Reognition,pytorch,intel-optimum default,,+,
-whisper-medium,Speech Reognition,pytorch,intel-optimum default,,+,
-whisper-small,Speech Reognition,pytorch,intel-optimum default,,+,
-whisper-tiny.en,Speech Recognition,pytorch,intel-optimum default,+,,
-WizardMath-7B-V1.1,Large Language Model,pytorch,intel-optimum default,,+,
-xcit_large_24_p8_224,Image Classification,pytorch,FP32,+,,
-xlm-clm-ende-1024,Natural Language Processing,pytorch,intel-optimum default,,+,
-xlm-roberta-base,Natural Language Processing,onnx,FP16,+,+,
-xlm-roberta-base,Natural Language Processing,onnx,FP32,+,,
-xlm-roberta-base-language-detection,Natural Language Processing,pytorch,intel-optimum default,,+,
-xlm-roberta-base-uncased-conll2003,Natural Language Processing,pytorch,intel-optimum default,,+,
-xlm-roberta-large,Natural Language Processing,pytorch,intel-optimum default,,+,
-xlm-roberta-large-en-ru-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
-xlm-roberta-large-finetuned-conll03-english,Natural Language Processing,pytorch,intel-optimum default,,+,
-XVERSE-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-yolo_v3_tiny,Object Detection,onnx,FP16,+,,
-yolo_v3_tiny-onnx,Object Detection,onnx,FP16,,+,
-yolo_v3_tiny-onnx,Object Detection,onnx,FP16-INT8,+,+,
-yolo_v3_tiny-onnx,Object Detection,onnx,FP32,+,,
-yolo_v3_tiny-tf,Object Detection,tf,FP16,+,+,+
-yolo_v3_tiny-tf,Object Detection,tf,FP16-INT8,+,+,+
-yolo_v3_tiny-tf,Object Detection,tf,FP32,+,,
-yolo_v3-onnx,Object Detection,onnx,FP16,+,,
-yolo_v3-onnx,Object Detection,onnx,FP16,,+,
-yolo_v4-tf,Object Detection,tf,FP16,+,+,
-yolo_v4-tf,Object Detection,tf,FP16-INT8,+,+,+
-yolo_v4-tf,Object Detection,tf,FP32,+,,
-yolo_v4-tf2,Object Detection,tf2,FP16,+,+,
-yolo_v4-tf2,Object Detection,tf2,FP16-INT8,+,+,+
-yolo_v5l,Object Detection,onnx,FP16,+,+,
-yolo_v5l,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v5l,Object Detection,onnx,FP32,+,,
-yolo_v5m,Object Detection,onnx,FP16,+,+,+
-yolo_v5m,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v5m,Object Detection,onnx,FP32,+,,+
-yolo_v5m-v6,Object Detection,onnx,FP16,+,+,+
-yolo_v5m-v6,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v5m-v6,Object Detection,onnx,FP32,+,+,+
-yolo_v5s,Object Detection,onnx,FP16,+,+,+
-yolo_v5s,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v5s,Object Detection,onnx,FP32,+,+,+
-yolo_v5s-v6,Object Detection,onnx,FP16,+,+,+
-yolo_v5s-v6,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v5s-v6,Object Detection,onnx,FP32,+,,+
-yolo_v5x,Object Detection,onnx,FP16,+,+,+
-yolo_v5x,Object Detection,onnx,FP32,+,,
-yolo_v8n,Object Detection,onnx,FP16,+,+,+
-yolo_v8n,Object Detection,onnx,FP16-INT8,+,+,+
-yolo_v8n,Object Detection,onnx,FP32,+,,
-yolof,Object Detection,onnx,FP16,+,+,
-yolof,Object Detection,onnx,FP16-INT8,+,+,
-yolof,Object Detection,onnx,FP32,+,,
-yolor_p6,Object Detection,onnx,FP16,+,+,+
-yolor_p6,Object Detection,onnx,FP16-INT8,,,+
-yolor_p6,Object Detection,onnx,FP32,+,,
-yolo-v2-ava-0001,Object Detection,tf,FP16,+,+,+
-yolo-v2-ava-0001,Object Detection,tf,FP16-INT8,+,+,+
-yolo-v2-ava-0001,Object Detection,tf,FP32,+,+,+
-yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP16,,,+
-yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP16-INT8,,,+
-yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP32,,,+
-yolov2-coco-9,Object Detection,onnx,FP16,,,+
-yolov2-coco-9,Object Detection,onnx,FP32,+,+,+
-yolo-v3-caffe,Object Detection,caffe,FP16,+,+,
-yolo-v3-caffe,Object Detection,caffe,FP32,+,+,
-yolo-v3-tf,Object Detection,tf,FP16,+,+,+
-yolo-v3-tf,Object Detection,tf,FP32,+,+,+
-yolov4,Object Detection,onnx,FP16,,,+
-yolov4,Object Detection,onnx,FP32,+,+,+
-zephyr-7b-beta,Large Language Model,pytorch,intel-optimum default,,+,
-zfnet512-12,Image Classification,onnx,FP16,,,+
-zfnet512-12,Image Classification,onnx,FP32,+,+,+
+Category,topology,source framework,precision,infered with,CPU,GPU,NPU
+Sound Classification,aclnet,onnx,FP16,OpenVINO,+,+,+
+Sound Classification,aclnet,onnx,FP16-INT8,OpenVINO,+,+,+
+Sound Classification,aclnet,onnx,FP32,OpenVINO,+,+,+
+Sound Classification,aclnet,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Sound Classification,aclnet,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Sound Classification,aclnet,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Sound Classification,aclnet-int8,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,action-recognition-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,action-recognition-0001,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,albert-base-v2,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,albert-base-v2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,albert-base-v2,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,albert-base-v2-sst2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,albert-large-v2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,albert-large-v2,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,albert-large-v2-finetuned-mnli,pytorch,intel-optimum default,Optimum Intel,+,,
+Image Classification,alexnet,onnx,FP16,OpenVINO,+,+,+
+Image Classification,alexnet,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,alexnet,onnx,FP32,OpenVINO,+,+,+
+Image Classification,alexnet,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,alexnet,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,alexnet,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,alexnet,pytorch,FP32,OpenVINO,+,+,+
+Image Classification,alexnet,pytorch,FP16,OpenVINO,+,+,+
+Image Classification,alexnet,pytorch,FP32,torch.compile,+,+,+
+Image Classification,anti-spoof-mn3,onnx,FP16,OpenVINO,+,+,+
+Large Language Model,Aquila2-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Aquila-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,AquilaChat2-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,AquilaChat-7B,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,asl-recognition-0003,onnx,FP16,OpenVINO,+,+,
+Image Classification,asl-recognition-0003,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,asl-recognition-0003,onnx,FP32,OpenVINO,+,+,
+Image Classification,asl-recognition-0004,onnx,FP16,OpenVINO,+,+,
+Audio Classification,ast-finetuned-speech-commands-v2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Text Recognition,attention-ocr,tf,FP16,OpenVINO,+,+,+
+Text Recognition,attention-ocr,tf,FP16-INT8,OpenVINO,,,+
+Text Recognition,attention-ocr,tf,FP32,OpenVINO,+,+,+
+Large Language Model,baichuan2-13b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,baichuan2-13b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,baichuan2-13b-chat,pytorch,FP16,OpenVINO,+,,
+Large Language Model,baichuan2-7b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,baichuan2-7b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,baichuan2-7b-chat,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,Baichuan2-7B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Natural Language Processing,bart-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bart-base-japanese,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,barthez-orangesum-abstract,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",began,onnx,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",began,onnx,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",began,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",began,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",began,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,beit_large_patch16_224.in22k_ft_in22k_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,beit-base-patch16-224-pt22k-ft22k,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,beitv2_large_patch16_224.in1k_ft_in22k_in1k,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-arabertv02,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-cased,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-cased,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-cased,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-cased,paddle,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,paddle,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,paddle,INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-cased-conversational,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-cased-squad2,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-cased-squad2,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,bert-base-cased-squad2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-chinese-xnli-zh,tf,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-chinese-xnli-zh,tf,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-base-chinese-xnli-zh,tf,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-base-multilingual-cased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-ner,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-ner,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-base-ner,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,bert-base-ner,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-ner,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-ner,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-uncased,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-base-uncased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-uncased-mrpc,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-base-uncased-mrpc,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-base-uncased-mrpc,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-base-uncased-sparse-70-unstructured,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-base-uncased-yelp-polarity,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-large-cased,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,bert-large-cased,onnx,FP16-INT8,OpenVINO,+,,
+Natural Language Processing,bert-large-cased,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,bert-large-cased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,BERT-Large-CT-STSb,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-large-uncased,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-large-uncased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-finetuned-squad,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-large-uncased-whole-word-masking-finetuned-sst-2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-0001,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-0001,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-0001,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-emb-0001,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-emb-0001,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Large Language Model,bert-small-finetuned-squadv2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-0001,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-0001,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-0002,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-0002,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-emb-int8-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bert-small-uncased-whole-word-masking-squad-int8-0002,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,bge-base-en-v1.5,pytorch,intel-optimum default,Optimum Intel,,+,
+Natural Language Processing,bge-large-en-v1.5,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bge-reranker-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bge-reranker-large,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,bigbird-pegasus-large-arxiv,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,bigbird-roberta-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,Bio_ClinicalBERT,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,BioMedLM,pytorch,INT4,Optimum Intel,+,+,
+Natural Language Processing,blenderbot-400M-distill,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image to Text,blip-text-decoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image to Text,blip-text-decoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image to Text,blip-text-decoder-with-past,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image to Text,blip-text-decoder-with-past,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Text Classification,blip-text-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Text Classification,blip-text-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image to Text,blip-vision-model,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image to Text,blip-vision-model,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Large Language Model,bloom,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,bloom-560m,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,bloomz-1b1,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,bloomz-1b4-zh,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,bloomz-1b4-zh,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,bloomz-1b4-zh,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,bloomz-3b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,bloomz-560m,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,bloomz-560m,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,bloomz-560m,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,bloomz-7b1,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,bloomz-7b1,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,bloomz-7b1,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,bloomz-7b1-mt,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,botnet26t_256,pytorch,FP32,torch.compile,+,+,
+Image Classification,brain-tumor-segmentation-0002,onnx,FP16,OpenVINO,+,,
+Image Classification,brain-tumor-segmentation-0002,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,brain-tumor-segmentation-0002,onnx,FP32,ONNX Runtime OVEP,+,+,
+Image Classification,brain-tumor-segmentation-0002,onnx,FP16,ONNX Runtime OVEP,+,+,
+Image Classification,brain-tumor-segmentation-0002,onnx,INT8,ONNX Runtime OVEP,+,+,
+Image Classification,cait_s24_224,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,camembert-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,canine-s,pytorch,FP32,torch.compile,+,+,+
+Object Detection,cascade_rcnn_resnet101_fpn_1x_coco,onnx,FP16,OpenVINO,+,,
+Object Detection,cascade_rcnn_resnet101_fpn_1x_coco,onnx,FP16-INT8,OpenVINO,+,,
+Object Detection,cascade_rcnn_resnet101_fpn_1x_coco,onnx,FP32,OpenVINO,+,,
+Object Detection,centernet-hg104,tf,FP16,OpenVINO,,+,
+Object Detection,centernet-hg104,tf,FP32,OpenVINO,,+,
+Object Detection,centernet-hg104,tf2,FP32,OpenVINO,+,+,
+Object Detection,centernet-hg104,tf2,FP16,OpenVINO,+,+,
+Object Detection,centernet-resnet,tf,FP32,OpenVINO,+,+,
+Large Language Model,chatglm3-6b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,chatglm3-6b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,chatglm3-6b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,chatglm3-6b-gptq,pytorch,INT4-MIXED,OpenVINO,+,+,
+Natural Language Processing,chinese_pretrain_mrc_macbert_large,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,chinese-xlnet-base,pytorch,FP32,torch.compile,+,+,
+Image Classification,clip-vit-b-16-plus-240-laion400m-e32,onnx,FP16,OpenVINO,+,,
+Image Classification,clip-vit-b-16-plus-240-laion400m-e32,onnx,FP32,OpenVINO,+,,
+Image Classification,clip-vit-b-16-plus-240-laion400m-e32-image-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,clip-vit-b-16-plus-240-laion400m-e32-image-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Text Classification,clip-vit-b-16-plus-240-laion400m-e32-text-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Text Classification,clip-vit-b-16-plus-240-laion400m-e32-text-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,clip-vit-base-patch16,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,clip-vit-base-patch16,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,coat_mini,pytorch,FP32,torch.compile,+,+,+
+Image Classification,coatnet_1_rw_224.sw_in1k,pytorch,FP32,torch.compile,+,+,
+Image Classification,coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k,pytorch,FP32,torch.compile,+,+,
+Image Classification,coatnext_nano_rw_224.sw_in1k,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,codegemma-1.1-2b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegemma-1.1-7b-it,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegemma-2b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegemma-7b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegen2-1b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codegen2-1b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codegen2-1b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,codegen2-1B_P,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegen2-3_7b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codegen2-3_7b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codegen2-3_7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,codegen25-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codegen25-7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,codegen25-7b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codegen2-7b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codegen2-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codegen2-7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,codegen-2B-multi,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codegen-350M-mono,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codellama-7b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codellama-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codellama-7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,CodeQwen1.5-7B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,codet5-base-sum,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,codet5-base-sum,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,codet5-base-sum,pytorch,INT8-CW,OpenVINO,+,+,
+Colorization,colorization-siggraph,onnx,FP16,OpenVINO,+,+,+
+Colorization,colorization-siggraph,onnx,FP32,OpenVINO,+,+,+
+Colorization,colorization-siggraph,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Colorization,colorization-siggraph,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Colorization,colorization-siggraph,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Colorization,colorization-v2,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,common-sign-language-0001,onnx,FP16,OpenVINO,+,+,+
+Image Classification,common-sign-language-0001,onnx,FP32,OpenVINO,+,+,+
+Image Classification,common-sign-language-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,common-sign-language-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,common-sign-language-0002,onnx,FP16,OpenVINO,+,+,+
+Image Classification,common-sign-language-0002,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,common-sign-language-0002,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,convbert-base-turkish-mc4-toxicity-uncased,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,convit_small,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convmixer_1024_20_ks9_p14,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext_base,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext_large,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext_large.fb_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext_small,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext_tiny,pytorch,FP32,torch.compile,+,+,+
+Image Classification,convnext-base-224,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,convnext-tiny,onnx,FP16,OpenVINO,+,,
+Image Classification,convnext-tiny,onnx,FP32,OpenVINO,+,,
+Image Classification,convnextv2_large.fcmae_ft_in22k_in1k,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",corel_nnart_001,onnx,FP16,OpenVINO,+,,
+"Image Processing, Enhancement ",corel_nnart_001,onnx,FP16-INT8,OpenVINO,+,,
+Text Recognition,crnn-tf,tf,FP16,OpenVINO,+,+,
+Text Recognition,crnn-tf,tf,FP16-INT8,OpenVINO,+,+,
+Text Recognition,crnn-tf,tf,FP32,OpenVINO,+,,
+Image Classification,crossvit_15_dagger_240,pytorch,FP32,torch.compile,+,+,+
+Image Classification,crossvit_small_240,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cs3darknet_focus_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cs3darknet_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cs3edgenet_x,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cs3se_edgenet_x,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cs3sedarknet_l,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cspdarknet53,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cspresnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,cspresnext50,pytorch,FP32,torch.compile,+,+,+
+Object Detection,ctdet_coco_dlav0_512,onnx,FP16,OpenVINO,+,+,+
+Object Detection,ctdet_coco_dlav0_512,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,ctdet_coco_dlav0_512,onnx,FP32,OpenVINO,+,+,+
+Text Detection,ctpn,tf,FP16,OpenVINO,+,+,
+Text Detection,ctpn,tf,FP16-INT8,OpenVINO,,+,
+Text Detection,ctpn,tf,FP32,OpenVINO,+,+,
+Image Classification,darknet19,tf,FP16,OpenVINO,+,+,+
+Image Classification,darknet19,tf,FP16-INT8,OpenVINO,,+,+
+Image Classification,darknet19,tf,FP32,OpenVINO,+,+,
+Image Classification,darknet53,pytorch,FP32,torch.compile,+,+,+
+Audio,data2vec2-base,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,data2vec2-base,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,davit_small.msft_in1k,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,deberta-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,deberta-large,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,deberta-v2-xlarge,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,deberta-v3-large,pytorch,intel-optimum default,Optimum Intel,+,+,
+"Image Processing, Enhancement ",deblurgan-v2,onnx,FP16,OpenVINO,+,+,
+"Image Processing, Enhancement ",deblurgan-v2,onnx,FP32,OpenVINO,+,+,
+Large Language Model,decilm-7b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,decilm-7b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,decilm-7b-instruct,pytorch,FP16,OpenVINO,+,+,
+Semantic Segmentation,deeplabv3,tf,FP16,OpenVINO,+,+,+
+Semantic Segmentation,deeplabv3,tf,FP16-INT8,OpenVINO,+,+,+
+Semantic Segmentation,deeplabv3,tf,FP32,OpenVINO,+,+,+
+Image Segmentation,deeplabv3-mobilenetv3,onnx,FP16,OpenVINO,+,+,+
+Image Segmentation,deeplabv3-mobilenetv3,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Segmentation,deeplabv3-mobilenetv3,onnx,FP32,OpenVINO,+,+,+
+Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP32,OpenVINO,+,+,
+Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,FP16,OpenVINO,+,+,
+Semantic Segmentation,deeplab-v3p-resnet50-os8,paddle,INT8,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-llama-8b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-llama-8b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-llama-8b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-1.5b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-1.5b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-1.5b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,deepseek-r1-distill-qwen-7b,pytorch,FP16,OpenVINO,+,+,
+DNA Classification,deepvariant_wgs,tf,FP16,OpenVINO,+,+,
+DNA Classification,deepvariant_wgs,tf,FP16-INT8,OpenVINO,+,+,
+DNA Classification,deepvariant_wgs,tf,FP32,OpenVINO,+,+,
+Image Classification,deit_small_patch16_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,deit3_small_patch16_224_in21ft1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,deit-b,onnx,FP16,OpenVINO,+,,+
+Image Classification,deit-b,onnx,FP32,OpenVINO,+,+,+
+Image Classification,deit-b,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,deit-b,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,deit-b,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Audio Enhancement,Denoise,tf,FP16,OpenVINO,+,+,+
+Audio Enhancement,Denoise,tf,FP32,OpenVINO,+,+,
+Image Classification,densenet121,pytorch,FP32,torch.compile,+,+,+
+Image Classification,densenet-121,onnx,FP16,OpenVINO,+,+,+
+Image Classification,densenet-121,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,densenet-121,onnx,FP32,OpenVINO,+,+,
+Image Classification,densenet-121,tf,FP16,OpenVINO,+,+,+
+Image Classification,densenet-121,tf,FP32,OpenVINO,+,+,
+Image Classification,densenet-121,tf2,FP16,OpenVINO,+,+,+
+Image Classification,densenet-121,tf2,FP32,OpenVINO,+,+,+
+Image Classification,densenet-121,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,densenet-121,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,densenet-121,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,densenet-121,pytorch,FP32,OpenVINO,+,+,+
+Image Classification,densenet-121,pytorch,FP16,OpenVINO,+,+,+
+Image Classification,densenet161,pytorch,FP32,torch.compile,+,+,+
+Image Classification,densenet-161,onnx,FP16,OpenVINO,+,,+
+Image Classification,densenet-161,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,densenet169,pytorch,FP32,torch.compile,+,+,+
+Image Classification,densenet201,pytorch,FP32,torch.compile,+,+,+
+Image Classification,densenetblur121d,pytorch,FP32,torch.compile,+,+,+
+Object Detection,detr_resnet50,onnx,FP16,OpenVINO,+,,
+Object Detection,detr_resnet50,onnx,FP32,OpenVINO,+,,
+Object Detection,detr_resnet50,onnx,FP16,OpenVINO,,+,
+Object Detection,detr_resnet50,onnx,FP32,OpenVINO,,+,
+Object Detection,detr_resnet50,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,detr_resnet50,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,detr_resnet50,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Click-Through Rate (CTR) Predictio,dien,tf,FP32,OpenVINO,+,+,
+Click-Through Rate (CTR) Predictio,dien,tf,FP16,OpenVINO,+,+,
+Behavior / Decision Prediction,dien_alibaba,tf,FP16,OpenVINO,+,,
+Behavior / Decision Prediction,dien_alibaba,tf,FP32,OpenVINO,+,,
+Natural Language Processing,distilbert-base-cased,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-cased,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-cased,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,distilbert-base-nli-mean-tokens,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,distilbert-base-uncased,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-uncased,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-uncased,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,distilbert-base-uncased,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,distilbert-base-uncased,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,distilbert-base-uncased-distilled-squad,pytorch,intel-optimum default,Optimum Intel,+,+,
+Large Language Model,distilbert-base-uncased-distilled-squad,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,distilbert-base-uncased-finetuned-sst-2-english,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,distilbert-base-uncased-finetuned-sst-2-english,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,distilbert-base-uncased-sst-2,onnx,INT8,ONNX Runtime OVEP,+,+,
+Speech Recognition,distil-large-v3,pytorch,intel-optimum default,Optimum Intel,+,,
+Speech Recognition,distil-medium.en,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,dla34,pytorch,FP32,torch.compile,+,+,+
+Image Classification,dla-34,onnx,FP16,OpenVINO,+,,+
+Image Classification,dla-34,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,dla60_res2net,pytorch,FP32,torch.compile,+,+,+
+Image Classification,dla60_res2next,pytorch,FP32,torch.compile,+,+,+
+Image Classification,dla60x,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,DLRM,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Large Language Model,DLRM,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,dm_nfnet_f6,pytorch,FP32,torch.compile,+,+,+
+Image Classification,dm_nfnet_f6.dm_in1k,pytorch,FP32,torch.compile,+,+,+
+DNA Classification,dna_r9.4.1,onnx,FP16,OpenVINO,+,,
+DNA Classification,dna_r9.4.1,onnx,FP16-INT8,OpenVINO,+,,
+DNA Classification,dna_r9.4.1,onnx,FP32,OpenVINO,+,,
+DNA Classification,dna_r9.4.1@v3,onnx,FP16,OpenVINO,+,,
+DNA Classification,dna_r9.4.1@v3,onnx,FP32,OpenVINO,+,,
+DNA Classification,dna_r9.4.1@v3,onnx,FP32,ONNX Runtime OVEP,+,+,
+DNA Classification,dna_r9.4.1@v3,onnx,FP16,ONNX Runtime OVEP,+,+,
+Large Language Model,dolly-v2-12b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,dolly-v2-12b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,dolly-v2-12b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,dolly-v2-3b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,dolly-v2-3b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,dolly-v2-3b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Image Classification,dpn68,pytorch,FP32,torch.compile,+,+,+
+"Image Classifiation, Dual Path Network",dpn-68,onnx,FP16,OpenVINO,+,+,+
+"Image Classifiation, Dual Path Network",dpn-68,onnx,FP16-INT8,OpenVINO,+,+,
+"Image Classifiation, Dual Path Network",dpn-68,onnx,FP32,OpenVINO,+,+,+
+"Image Classifiation, Dual Path Network",dpn-68,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Classifiation, Dual Path Network",dpn-68,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Classifiation, Dual Path Network",dpn-68,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,driver-action-recognition-adas-0002,onnx,FP16,OpenVINO,+,,+
+Object Detection,driver-action-recognition-adas-0002,onnx,FP32,OpenVINO,+,,
+Semantic Segmentation,drn-d-38,onnx,FP16,OpenVINO,+,+,
+Image Classification,east_resnet_v1_50,tf,FP16,OpenVINO,+,+,
+Image Classification,east_resnet_v1_50,tf,FP16-INT8,OpenVINO,+,+,+
+Image Classification,east_resnet_v1_50,tf,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",ebgan,onnx,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",ebgan,onnx,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",ebgan,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",ebgan,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",ebgan,onnx,INT8,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",ebgan,tf,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",ebgan,tf,FP16,OpenVINO,+,+,
+Image Classification,eca_botnext26ts_256,pytorch,FP32,torch.compile,+,+,
+Image Classification,eca_halonext26ts,pytorch,FP32,torch.compile,+,+,
+Image Classification,eca_nfnet_l1,pytorch,FP32,torch.compile,+,+,+
+Image Classification,ecaresnet50d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,edgenext_small_rw,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",edsr3_super_resolution,tf,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",edsr3_super_resolution,tf,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",edsr3-nas,onnx,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",edsr3-nas,onnx,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",edsr3-nas,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",edsr3-nas,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",edsr3-nas,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,efficientdet-d0,tf,FP32,OpenVINO,+,+,+
+Object Detection,efficientdet-d0,tf,FP16,OpenVINO,+,+,+
+Object Detection,efficientdet-d0,tf,INT8,OpenVINO,+,,+
+Object Detection,efficientdet-d1-coco,tf,FP32,OpenVINO,,,+
+Object Detection,efficientdet-d1-coco,tf,FP16,OpenVINO,,,+
+Image Classification,efficientformer_l3.snap_dist_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientformerv2_s1.snap_dist_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b0,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b1,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b2,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b3,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b4,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b5,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b6,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_b7,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_v2_l,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_v2_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet_v2_s,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet-b0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,onnx,FP32,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,tf,FP16,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,tf,FP16-INT8,OpenVINO,,+,+
+Image Classification,efficientnet-b0,tf,FP32,OpenVINO,+,+,
+Image Classification,efficientnet-b0,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,efficientnet-b0,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,efficientnet-b0,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,efficientnet-b0,pytorch,FP32,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,pytorch,FP16,OpenVINO,+,+,+
+Image Classification,efficientnet-b0,pytorch,INT8,OpenVINO,+,+,+
+Object Detection,efficientnet-b0_auto_aug,tf,FP16,OpenVINO,+,,+
+Object Detection,efficientnet-b0_auto_aug,tf,FP16-INT8,OpenVINO,,+,+
+Object Detection,efficientnet-b0_auto_aug,tf,FP32,OpenVINO,+,+,
+Image Classification,efficientnetv2_rw_s.ra2_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,efficientnet-v2-m,onnx,FP16,OpenVINO,+,+,+
+Image Classification,efficientnet-v2-m,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,efficientnet-v2-m,onnx,FP32,OpenVINO,+,+,+
+Image Classification,efficientnet-v2-m,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,efficientnet-v2-m,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,efficientnet-v2-m,onnx,INT8,ONNX Runtime OVEP,+,+,
+Image Classification,efficientnet-v2-m,pytorch,FP32,OpenVINO,+,+,+
+Image Classification,efficientnet-v2-m,pytorch,FP16,OpenVINO,+,+,+
+Natural Language Processing,electra-base-french-europeana-cased-generator,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,electra-base-generator,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,electra-base-squad2,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,electra-large-discriminator-nli-efl-tweeteval,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,electra-small-discriminator,pytorch,FP32,torch.compile,+,+,+
+Audio,encodec-model-24khz-decoder,onnx,FP32,ONNX Runtime OVEP,+,,+
+Audio,encodec-model-24khz-decoder,onnx,FP16,ONNX Runtime OVEP,+,,+
+Audio,encodec-model-24khz-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,
+Audio,encodec-model-24khz-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,
+Image Classification,ens_adv_inception_resnet_v2,pytorch,FP32,torch.compile,+,+,+
+Image Classification,ens3-adv-inception-v3,tf,FP16,OpenVINO,+,,+
+Image Classification,ens3-adv-inception-v3,tf,FP16-INT8,OpenVINO,+,,+
+Image Classification,ens3-adv-inception-v3,tf,FP32,OpenVINO,+,,
+Image Classification,ese_vovnet39b,pytorch,FP32,torch.compile,+,+,
+"Image Processing, Enhancement ",esrgan,onnx,FP16,OpenVINO,+,,+
+"Image Processing, Enhancement ",esrgan,onnx,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",esrgan,onnx,FP32,ONNX Runtime OVEP,+,+,
+"Image Processing, Enhancement ",esrgan,onnx,FP16,ONNX Runtime OVEP,+,+,
+Image Classification,eva_large_patch14_336.in22k_ft_in1k,pytorch,FP32,torch.compile,+,+,+
+Object Detection,faceboxes,onnx,FP16,OpenVINO,+,+,+
+Object Detection,faceboxes,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,faceboxes,onnx,FP32,OpenVINO,+,+,+
+Object Detection,faceboxes,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,faceboxes,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,faceboxes,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,face-detection-0200,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-detection-0202,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-detection-0202,onnx,FP32,OpenVINO,+,+,+
+Object Detection,face-detection-0204,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-detection-0205,onnx,FP16,OpenVINO,+,+,
+Object Detection,face-detection-0205,onnx,FP32,OpenVINO,+,+,
+Object Detection,face-detection-0206,onnx,FP16,OpenVINO,+,+,
+Object Detection,face-detection-0206,onnx,FP16-INT8,OpenVINO,+,+,
+Object Detection,face-detection-retail-0005,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-detection-retail-0005,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,face-detection-retail-0005,onnx,FP32,OpenVINO,+,+,+
+Object Detection,facenet,onnx,FP16,OpenVINO,+,+,+
+Object Detection,facenet,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,facenet,onnx,FP32,OpenVINO,+,+,
+Object Detection,facenet-20180408-102900,tf,FP16,OpenVINO,+,+,+
+Object Detection,facenet-20180408-102900,tf,FP32,OpenVINO,+,+,
+Object Detection,face-recognition-resnet100-arcface,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-recognition-resnet100-arcface,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,face-recognition-resnet100-arcface,onnx,FP32,OpenVINO,+,+,+
+Object Detection,face-reidentification-retail-0095,onnx,FP16,OpenVINO,+,+,+
+Object Detection,face-reidentification-retail-0095,onnx,FP16-INT8,OpenVINO,,+,+
+Object Detection,face-reidentification-retail-0095,onnx,FP32,ONNX Runtime OVEP,,,+
+Object Detection,face-reidentification-retail-0095,onnx,FP16,ONNX Runtime OVEP,,,+
+Object Detection,face-reidentification-retail-0095,onnx,INT8,ONNX Runtime OVEP,,,+
+Object Detection,facial-landmarks-98-detection-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,facial-landmarks-98-detection-0001,onnx,FP32,OpenVINO,+,+,+
+Object Detection,facial-landmarks-98-detection-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,facial-landmarks-98-detection-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,fairseq_s2t_covost,pytorch,FP32,torch.compile,+,+,
+Large Language Model,falcon-11B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,falcon-40b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,falcon-7b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,falcon-7b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,falcon-7b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,falcon-7b-instruct,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,falcon-7b-instruct,pytorch,INT4,Optimum Intel,+,+,
+Object Detection,faster_rcnn_inception_v2_coco,tf,FP32,OpenVINO,+,+,
+Object Detection,faster_rcnn_inception_v2_coco,tf,FP16,OpenVINO,+,+,
+Object Detection,faster_rcnn_resnet50_fpn_coco,onnx,FP32,OpenVINO,+,,
+Object Detection,faster_rcnn_resnet50_fpn_coco,onnx,FP16,OpenVINO,+,,
+Object Detection,faster_rcnn_resnet50_fpn_coco,onnx,FP16-INT8,OpenVINO,+,,
+Image to Image,fast-neural-style-mosaic,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image to Image,fast-neural-style-mosaic,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image to Image,fast-neural-style-mosaic,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Semantic Segmentation,fastseg-large,onnx,FP16,OpenVINO,+,+,
+Semantic Segmentation,fastseg-large,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,fastseg-small,onnx,FP16,OpenVINO,+,+,
+Semantic Segmentation,fastseg-small,onnx,FP16-INT8,OpenVINO,+,+,
+Semantic Segmentation,fastseg-small,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,fastseg-small,onnx,FP32,ONNX Runtime OVEP,+,+,
+Semantic Segmentation,fastseg-small,onnx,FP16,ONNX Runtime OVEP,+,+,
+Semantic Segmentation,fastseg-small,onnx,INT8,ONNX Runtime OVEP,+,+,
+"Image Processing, Enhancement ",fbcnn,onnx,FP16,OpenVINO,+,+,
+"Image Processing, Enhancement ",fbcnn,onnx,FP16-INT8,OpenVINO,+,+,
+"Image Processing, Enhancement ",fbcnn,onnx,FP32,OpenVINO,+,+,
+Image Classification,fbnetc_100.rmsp_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,fbnetc-100,onnx,FP16,OpenVINO,+,+,+
+Image Classification,fbnetc-100,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,fbnetc-100,onnx,FP32,OpenVINO,+,+,+
+Image Classification,fbnetv3_d.ra2_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Segmentation,fcn_resnet101,pytorch,FP32,torch.compile,+,+,+
+Image Segmentation,fcn_resnet50,pytorch,FP32,torch.compile,+,+,+
+Monodepth,fcrn-dp-nyu-depth-v2-tf,tf,FP16,OpenVINO,+,+,+
+Monodepth,fcrn-dp-nyu-depth-v2-tf,tf,FP32,OpenVINO,+,+,+
+Large Language Model,flan-t5-large-grammar-synthesis,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,flan-t5-large-grammar-synthesis,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,flan-t5-large-grammar-synthesis,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,flan-t5-large-grammar-synthesis,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,flan-t5-xxl,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,flan-t5-xxl,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,flan-t5-xxl,pytorch,FP16,OpenVINO,+,+,
+Image Classification,flexivit_base.300ep_in21k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,flexivit_base.patch16_in21k,pytorch,FP32,torch.compile,+,+,+
+Image Generation,flux.1-dev,pytorch,INT8-CW,OpenVINO,,+,
+Image Generation,flux.1-dev,pytorch,INT8-HYBRID,OpenVINO,,+,
+Image Generation,flux.1-schnell,pytorch,INT8-CW,OpenVINO,,+,
+Image Generation,flux.1-schnell,pytorch,INT8-HYBRID,OpenVINO,,+,
+Text Recognition,formula-recognition-medium-scan-0001,onnx,FP16,OpenVINO,+,,
+Text to Speech,forward-tacotron-duration-prediction,onnx,FP16,OpenVINO,+,,+
+Text to Speech,forward-tacotron-duration-prediction,onnx,FP32,OpenVINO,+,,+
+Text to Speech,forward-tacotron-duration-prediction,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Text to Speech,forward-tacotron-duration-prediction,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Text to Speech,forward-tacotron-duration-prediction,onnx,INT8,ONNX Runtime OVEP,+,,+
+Text to Speech,forward-tacotron-regression,onnx,FP16,OpenVINO,+,,
+Text to Speech,forward-tacotron-regression,onnx,FP16-INT8,OpenVINO,+,,
+Text to Speech,forward-tacotron-regression,onnx,FP32,OpenVINO,+,,
+"Image Processing, Enhancement ",fsrcnn-x4,tf,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",fsrcnn-x4,tf,FP32,OpenVINO,+,+,
+Text Recognition,functorch_maml_omniglot,pytorch,FP32,torch.compile,+,+,+
+Object Detection,gaze-estimation-adas-0002,onnx,FP16,OpenVINO,+,+,+
+Object Detection,gaze-estimation-adas-0002,onnx,FP32,ONNX Runtime OVEP,,,+
+Object Detection,gaze-estimation-adas-0002,onnx,FP16,ONNX Runtime OVEP,,,+
+Object Detection,gaze-estimation-adas-0002,onnx,INT8,ONNX Runtime OVEP,,,+
+Image Classification,gc_efficientnetv2_rw_t.agc_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gcresnet50t,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gcvit_tiny,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,gelectra-base-germanquad,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,gemma-1.1-2b-it,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gemma-1.1-7b-it,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gemma-2-2b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,gemma-2-2b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gemma-2-2b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,gemma-2-9b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gemma-2-9b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,gemma-2-9b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,gemma-2b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gemma-2b-it,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gemma-2b-it,pytorch,INT8-CW,OpenVINO,+,+,+
+Large Language Model,gemma-2b-it,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,gemma-2b-it,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gemma-7b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gemma-7b-it,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gemma-7b-it,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,gemma-7b-it,pytorch,FP16,OpenVINO,+,,
+Large Language Model,gemma-7b-it,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,gernet_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,ghostnet_100,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,glm-4-9b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,glm-4-9b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,glm-4-9b-chat,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,glm4v-nano-v050,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,glm4v-nano-v050,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,glm4v-nano-v050,pytorch,INT8-CW,OpenVINO,+,+,
+Image Classification,gluon_inception_v3,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gluon_resnet50_v1b,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gluon_resnext50_32x4d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gluon_senet154,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gluon_seresnext101_64x4d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gmixer_24_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,gmlp_s16_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,googlenet,pytorch,FP32,torch.compile,+,+,
+Image Classification,googlenet-v1,tf,FP16,OpenVINO,+,+,+
+Image Classification,googlenet-v1,tf,FP16-INT8,OpenVINO,+,+,+
+Image Classification,googlenet-v1,tf,FP32,OpenVINO,+,+,+
+Image Classification,googlenet-v2,tf,FP16,OpenVINO,+,+,+
+Image Classification,googlenet-v2,tf,FP32,OpenVINO,+,+,
+Image Classification,googlenet-v3,onnx,FP16,OpenVINO,+,+,+
+Image Classification,googlenet-v3,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,googlenet-v3,tf,FP16,OpenVINO,+,,+
+Image Classification,googlenet-v3,tf,FP32,OpenVINO,+,,
+Image Classification,googlenet-v3,tf2,FP16,OpenVINO,+,,+
+Image Classification,googlenet-v3,tf2,FP32,OpenVINO,+,,
+Image Classification,googlenet-v4,tf,FP16,OpenVINO,+,,
+Image Classification,googlenet-v4,tf,FP16-INT8,OpenVINO,+,,
+Image Classification,googlenet-v4,tf,FP32,OpenVINO,+,,
+Image Classification,googlenet-v4,tf,FP16,OpenVINO,+,+,+
+Image Classification,googlenet-v4,tf,FP16-INT8,OpenVINO,+,+,+
+Image Classification,googlenet-v4,tf,FP32,OpenVINO,+,+,
+Large Language Model,gpt2,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gpt2,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,GPT-2,onnx,FP16,OpenVINO,+,+,+
+Large Language Model,GPT-2,onnx,FP32,OpenVINO,+,+,+
+Large Language Model,gpt-2,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,gpt-2,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gpt-2,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,GPT-2,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Large Language Model,GPT-2,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Large Language Model,GPT-2,onnx,INT8,ONNX Runtime OVEP,+,+,
+Large Language Model,GPT2Neo1.3BPoints,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,gpt2-wikitext2-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,,+,
+Large Language Model,gpt-neox-20b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,gpt-neox-20b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,granite-3b-code-base,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,granite-3b-code-instruct,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,halo2botnet50ts_256,pytorch,FP32,torch.compile,+,+,
+Image Classification,halonet50ts,pytorch,FP32,torch.compile,+,+,
+Image Classification,haloregnetz_b,pytorch,FP32,torch.compile,+,+,
+Text Detection,handwritten-english-recognition-0001,onnx,FP16,OpenVINO,+,+,+
+Text Detection,handwritten-english-recognition-0001,onnx,FP32,OpenVINO,+,+,+
+Text Detection,handwritten-japanese-recognition-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Text Detection,handwritten-score-recognition-0003,tf,FP16,OpenVINO,+,,+
+Text Detection,handwritten-score-recognition-0003,tf,FP16-INT8,OpenVINO,,+,+
+Text Detection,handwritten-score-recognition-0003,tf,FP32,OpenVINO,+,,+
+Text Detection,handwritten-simplified-chinese-recognition-0001,onnx,FP16,OpenVINO,+,+,+
+Text Detection,handwritten-simplified-chinese-recognition-0001,onnx,FP32,OpenVINO,+,+,+
+Image Classification,hardcorenas_d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,hbonet-0.25,onnx,FP16,OpenVINO,+,+,
+Image Classification,hbonet-0.25,onnx,FP32,OpenVINO,+,+,
+Image Classification,hbonet-0.5,onnx,FP16,OpenVINO,+,+,+
+Image Classification,hbonet-0.5,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,hbonet-0.5,onnx,FP32,OpenVINO,+,+,+
+Image Classification,hbonet-1.0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,hbonet-1.0,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,hbonet-1.0,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,hf_Albert,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,hf_Bert,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,hf_Bert_large,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,hf_BigBird,pytorch,FP32,torch.compile,+,+,
+Natural Language Processing,hf_DistilBert,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,hf_Longformer,pytorch,FP32,torch.compile,+,+,
+Object Detection,hg-s8-b1-mpii,onnx,FP16,OpenVINO,+,+,+
+Object Detection,hg-s8-b1-mpii,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,hg-s8-b1-mpii,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,higher-hrnet-w32-512,onnx,FP16,OpenVINO,+,+,
+Object Detection,higher-hrnet-w32-512,onnx,FP32,OpenVINO,+,+,
+Text Detection,horizontal-text-detection-0001,onnx,FP16,OpenVINO,+,+,
+Text Detection,horizontal-text-detection-0001,onnx,FP16-INT8,OpenVINO,,+,
+Text Detection,horizontal-text-detection-0001,onnx,FP32,OpenVINO,+,+,
+Text Detection,horizontal-text-detection-0001,onnx,FP32,ONNX Runtime OVEP,+,+,
+Text Detection,horizontal-text-detection-0001,onnx,FP16,ONNX Runtime OVEP,+,+,
+Text Detection,horizontal-text-detection-0001,onnx,INT8,ONNX Runtime OVEP,+,+,
+Image Classification,hrnet_w32,pytorch,FP32,torch.compile,+,+,+
+Semantic Segmentation,hrnet-v2-c1-segmentation,onnx,FP16-INT8,OpenVINO,+,+,+
+Speech Recognition,hubert-large-ls960-ft,pytorch,intel-optimum default,Optimum Intel,,+,
+Object Detection,human-pose-estimation-0002,onnx,FP16,OpenVINO,+,+,+
+Object Detection,human-pose-estimation-0002,onnx,FP32,OpenVINO,+,+,+
+Object Detection,human-pose-estimation-0003,onnx,FP16,OpenVINO,+,+,+
+Object Detection,human-pose-estimation-0003,onnx,FP32,OpenVINO,+,+,+
+Object Detection,human-pose-estimation-0004,onnx,FP16,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0004,onnx,FP32,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0005,onnx,FP16,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0005,onnx,FP32,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0006,onnx,FP16,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0006,onnx,FP32,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0007,onnx,FP16,OpenVINO,+,+,
+Object Detection,human-pose-estimation-0007,onnx,FP32,OpenVINO,+,+,
+Object Detection,human-pose-estimation-3d-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,human-pose-estimation-3d-0001,onnx,FP32,OpenVINO,,+,+
+Object Detection,human-pose-estimation-3d-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,human-pose-estimation-3d-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",hybrid-cs-model-mri,tf2,FP16,OpenVINO,+,,
+"Image Processing, Enhancement ",hybrid-cs-model-mri,tf2,FP32,OpenVINO,+,,
+Action Recognition,i3d-flow,tf,FP16,OpenVINO,+,+,
+Action Recognition,i3d-flow,tf,FP16-INT8,OpenVINO,+,,
+Action Recognition,i3d-flow,tf,FP32,OpenVINO,+,+,
+Action Recognition,i3d-rgb,tf,FP16,OpenVINO,+,,
+Action Recognition,i3d-rgb,tf,FP16-INT8,OpenVINO,+,,
+Natural Language Processing,ibert-roberta-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,ibert-roberta-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,ibert-roberta-base-finetuned-mrpc,pytorch,intel-optimum default,Optimum Intel,+,+,
+Semantic Segmentation,icnet-camvid-ava-0001,tf,FP16,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-0001,tf,FP16-INT8,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-0001,tf,FP32,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-sparse-30-0001,tf,FP16,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-sparse-30-0001,tf,FP32,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-sparse-60-0001,tf,FP16,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-sparse-60-0001,tf,FP16-INT8,OpenVINO,+,+,
+Semantic Segmentation,icnet-camvid-ava-sparse-60-0001,tf,FP32,OpenVINO,+,+,
+Image Classification,ig_resnext101_32x8d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,image-retrieval-0001,tf,FP16,OpenVINO,+,,+
+Image Classification,image-retrieval-0001,tf,FP16-INT8,OpenVINO,+,,+
+Image Classification,image-retrieval-0001,tf,FP32,OpenVINO,+,,
+Image Classification,inception_resnet_v2,pytorch,FP32,torch.compile,+,+,+
+Image Classification,inception_v3,pytorch,FP32,torch.compile,+,+,+
+Image Classification,inception_v4,pytorch,FP32,torch.compile,+,+,+
+Image Classification,inception-resnet-v2,tf,FP16,OpenVINO,+,,+
+Image Classification,inception-resnet-v2,tf,FP16-INT8,OpenVINO,+,,+
+Image Classification,inception-resnet-v2,tf,FP32,OpenVINO,+,,+
+Image Classification,inceptionv3-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,+,,+
+Instance Segmentation,instance-segmentation-person-0007,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-person-0007,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0002,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0002,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0010,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0010,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0010,onnx,FP32,ONNX Runtime OVEP,+,+,
+Instance Segmentation,instance-segmentation-security-0010,onnx,FP16,ONNX Runtime OVEP,+,+,
+Instance Segmentation,instance-segmentation-security-0050,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0050,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0083,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0083,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0091,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0091,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0228,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-0228,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1025,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1025,onnx,FP16-INT8,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1025,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1039,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1039,onnx,FP32,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1040,onnx,FP16,OpenVINO,+,,
+Instance Segmentation,instance-segmentation-security-1040,onnx,FP32,OpenVINO,+,,
+Audio,intel_dns,onnx,FP32,ONNX Runtime OVEP,+,+,
+Audio,intel_dns,onnx,FP16,ONNX Runtime OVEP,+,+,
+Audio,intel_dns,onnx,INT8,ONNX Runtime OVEP,+,+,
+Large Language Model,internlm2-1_8b,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-7b,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-chat-1_8b,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-chat-7b,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-chat-7b-sft,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-math-7b,pytorch,INT4,Optimum Intel,+,,
+Large Language Model,internlm2-math-base-7b,pytorch,INT4,Optimum Intel,+,,
+Image Classification,jx_nest_small,pytorch,FP32,torch.compile,+,+,
+Natural Language Processing,kcbert-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,klue-roberta-base-ner,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,lambda_resnet50ts,pytorch,FP32,torch.compile,+,+,+
+Image Classification,lamhalobotnet50ts_256,pytorch,FP32,torch.compile,+,+,
+Natural Language Processing,layoutlm-base-uncased,pytorch,FP32,torch.compile,+,+,+
+Image Generation,lcm-dreamshaper-v7,pytorch,FP16,OpenVINO,+,+,
+Image Generation,lcm-dreamshaper-v7,pytorch,INT8-CW,OpenVINO,+,+,
+Image Generation,lcm-dreamshaper-v7,pytorch,INT8-HYBRID,OpenVINO,+,+,
+Image Generation,lcm-dreamshaper-v7,pytorch,INT4-MIXED,OpenVINO,+,+,
+Image Generation,lcm-sdxl,pytorch,FP16,OpenVINO,+,+,
+Image Generation,lcm-sdxl,pytorch,INT8-CW,OpenVINO,+,+,
+Image Generation,lcm-sdxl,pytorch,INT8-HYBRID,OpenVINO,+,+,
+Image Classification,lcnet_075.ra2_in1k,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",learning-to-see-in-the-dark-fuji,tf,FP16,OpenVINO,+,+,
+"Image Processing, Enhancement ",learning-to-see-in-the-dark-fuji,tf,FP16-INT8,OpenVINO,+,+,
+"Image Processing, Enhancement ",learning-to-see-in-the-dark-fuji,tf,FP32,OpenVINO,+,+,
+Natural Language Processing,led-base-16384,pytorch,FP32,torch.compile,+,+,+
+Image Classification,legacy_senet154,pytorch,FP32,torch.compile,+,+,
+Image Classification,legacy_seresnet34,pytorch,FP32,torch.compile,+,+,
+Image Classification,legacy_seresnext50_32x4d,pytorch,FP32,torch.compile,+,+,
+Natural Language Processing,legal-bert-base-uncased,pytorch,FP32,torch.compile,+,+,+
+Particle Interaction,lennard_jones,pytorch,FP32,torch.compile,+,+,+
+Image Classification,levit-128s,onnx,FP16,OpenVINO,+,,
+Image Classification,levit-128s,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,levit-128s,onnx,FP32,OpenVINO,+,,
+Image Classification,levit-256,pytorch,intel-optimum default,Optimum Intel,+,+,
+Text Detection,license-plate-recognition-barrier-0007,tf,FP16,OpenVINO,+,,+
+Text Detection,license-plate-recognition-barrier-0007,tf,FP16-INT8,OpenVINO,+,,
+Text Detection,license-plate-recognition-barrier-0007,tf,FP32,OpenVINO,+,,+
+Large Language Model,llama_2_7b_chat,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,llama-2-13b-chat-hf,pytorch,FP16,OpenVINO,+,,
+Large Language Model,llama-2-13b-chat-hf,pytorch,INT8-CW,OpenVINO,+,,
+Large Language Model,llama-2-13b-chat-hf,pytorch,INT4-MIXED,OpenVINO,+,,
+Large Language Model,Llama-2-13b-chat-hf,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Llama-2-13b-hf,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,llama-2-7b-chat-hf,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-2-7b-chat-hf,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,llama-2-7b-chat-hf,pytorch,FP16,OpenVINO,+,+,+
+Large Language Model,Llama-2-7b-chat-hf,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,llama-2-7b-gptq,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,Llama-2-7b-hf,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,llama-3.1-8b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-3.1-8b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,llama-3.1-8b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,llama-3.1-8b-instruct,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,llama-3.1-8b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-3.1-8b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,llama-3.2-1b-instruct,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,llama-3.2-1b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-3.2-1b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,llama-3.2-3b-instruct,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,llama-3.2-3b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-3.2-3b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,llama-3-8b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,llama-3-8b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,llama-3-8b,pytorch,FP16,OpenVINO,+,+,
+Natural Language Processing,longformer-base-4096,pytorch,FP32,torch.compile,+,+,
+Image Classification,lraspp_mobilenet_v3_large,pytorch,FP32,torch.compile,+,+,+
+Image Classification,lraspp-mobilenet-v3-large,onnx,FP16,OpenVINO,+,+,+
+Image Classification,lraspp-mobilenet-v3-large,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,lraspp-mobilenet-v3-large,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,m2m100_418M,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,machine-translation-nar-de-en-0001,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-de-en-0002,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-en-de-0001,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-en-de-0002,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-en-ru-0002,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-en-ru-0002,onnx,FP32,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-ru-en-0002,onnx,FP16,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-ru-en-0002,onnx,FP16-INT8,OpenVINO,+,,
+Natural Language Processing,machine-translation-nar-ru-en-0002,onnx,FP32,OpenVINO,+,,
+Large Language Model,Magicoder-CL-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Magicoder-DS-6.7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Magicoder-S-CL-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Magicoder-S-DS-6.7B,pytorch,INT4,Optimum Intel,+,+,
+Text Recognition,maml_omniglot,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,MarianCausalLM,pytorch,INT4,Optimum Intel,+,+,
+Natural Language Processing,marian-finetuned-kde4-en-to-cn-accelerate,pytorch,intel-optimum default,Optimum Intel,+,+,
+Instance Segmentation,mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_resnet101_atrous_coco,tf,FP32,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_resnet101_atrous_coco,tf,FP16,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_resnet50_atrous_coco,tf,FP32,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_resnet50_atrous_coco,tf,FP16,OpenVINO,+,+,
+Instance Segmentation,mask_rcnn_resnet50_atrous_coco,tf,INT8,OpenVINO,+,+,
+Object Detection,mask-rcnn-resnet50-fpn,onnx,FP32,ONNX Runtime OVEP,+,,
+Object Detection,mask-rcnn-resnet50-fpn,onnx,FP16,ONNX Runtime OVEP,+,,
+Image Classification,maxvit_rmlp_small_rw_224.sw_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,maxvit_t,pytorch,FP32,torch.compile,+,+,
+Image Classification,maxxvit_rmlp_small_rw_256.sw_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,maxxvitv2_rmlp_base_rw_224.sw_in12k_ft_in1k,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,mbart-large-50-many-to-one-mmt,pytorch,intel-optimum default,Optimum Intel,+,+,
+Action Recognition,mc3_18,pytorch,FP32,torch.compile,+,+,
+Large Language Model,Meta-Llama-3-8B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Meta-Llama-3-8B-Instruct,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Meta-Llama-Guard-2-8B,pytorch,INT4,Optimum Intel,+,+,
+Monodepth,midasnet,onnx,FP16,OpenVINO,+,+,+
+Monodepth,midasnet,onnx,FP16-INT8,OpenVINO,+,+,+
+Monodepth,midasnet,onnx,FP32,OpenVINO,+,+,+
+Monodepth,midasnet,onnx,FP32,ONNX Runtime OVEP,,,+
+Monodepth,midasnet,onnx,FP16,ONNX Runtime OVEP,,,+
+Monodepth,midasnet,onnx,INT8,ONNX Runtime OVEP,,,+
+Large Language Model,MindChat-Qwen2-4B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,minicpm-1b-sft,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,minicpm-1b-sft,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,minicpm-1b-sft,pytorch,INT8-CW,OpenVINO,+,+,+
+Large Language Model,MiniCPM-2B-sft-bf16,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,minicpm3-4b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,minicpm3-4b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,minicpm3-4b,pytorch,INT8-CW,OpenVINO,+,+,
+Natural Language Processing,minilm-uncased-squad2,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,mistral-7b-instruct-v0.2,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,mistral-7b-instruct-v0.2,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,mistral-7b-instruct-v0.2,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,Mistral-7B-Instruct-v0.2,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Mistral-7B-Instruct-v0.3,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mistral-7b-v0.1,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,mistral-7b-v0.1,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,mistral-7b-v0.1,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,Mistral-7B-v0.3,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,mixer_b16_224_miil,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mixer_l16_224_in21k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mixnet_l.ft_in1k,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,mixtral-8x7b-v0.1,pytorch,INT4-MIXED,OpenVINO,+,,
+Image Classification,mlp-mixer-b16-224-miil,onnx,FP16,OpenVINO,+,,+
+Image Classification,mlp-mixer-b16-224-miil,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,mlp-mixer-b16-224-miil,onnx,FP32,OpenVINO,+,,+
+Image Classification,mnasnet_small.lamb_in1k,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mnasnet-0.5,onnx,FP16,OpenVINO,+,+,+
+Image Classification,mnasnet0_5,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mnasnet0_75,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mnasnet1_0,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mnasnet1_3,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,mobilebert,onnx,FP16-INT8,OpenVINO,+,+,
+Natural Language Processing,mobilebert,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,mobilebert,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,mobilebert,onnx,INT8,ONNX Runtime OVEP,+,+,
+Natural Language Processing,mobilebert-uncased,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet_v1_1.0_224,pytorch,intel-optimum default,Optimum Intel,+,+,
+Object Detection,mobilenet_v2,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet_v2_1.4_224,pytorch,intel-optimum default,Optimum Intel,+,+,
+Object Detection,mobilenet_v3_large,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet_v3_small,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet-v1-0.25-128,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v1-0.25-128,tf,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v1-0.25-128,tf,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v1-1.0-224,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v1-1.0-224,tf,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,onnx,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,onnx,FP32,OpenVINO,+,+,
+Object Detection,mobilenet-v2,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v2,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v2,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v2,paddle,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,pytorch,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,paddle,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,pytorch,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,paddle,INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v2,pytorch,INT8,OpenVINO,+,+,+
+Object Detection,mobilenetv2_050.lamb_in1k,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet-v2-1.0-224,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2-1.0-224,tf,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v2-1.0-224,tf,FP32,OpenVINO,+,+,
+Object Detection,mobilenet-v2-1.0-224,tf2,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2-1.0-224,tf2,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v2-1.0-224,tf2,FP32,OpenVINO,+,+,
+Object Detection,mobilenet-v2-1.4-224,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v2-1.4-224,tf,FP32,OpenVINO,+,+,+
+Object Detection,mobilenetv2-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,+,+,
+Object Detection,mobilenetv3_large_100.miil_in21k,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,tf,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,tf2,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,tf2,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,tf2,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,paddle,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,pytorch,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,paddle,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,pytorch,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-large-1.0-224,paddle,INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,onnx,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,onnx,FP32,OpenVINO,+,+,
+Object Detection,mobilenet-v3-small-1.0-224,tf,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,tf,FP32,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,tf2,FP16,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,tf2,FP16-INT8,OpenVINO,+,+,+
+Object Detection,mobilenet-v3-small-1.0-224,tf2,FP32,OpenVINO,+,+,
+Image Classification,mobilevit_s,pytorch,FP32,torch.compile,+,+,+
+Object Detection,mobilevitv2_150,pytorch,FP32,torch.compile,+,+,+
+Image Classification,mobilevit-xx-small,pytorch,intel-optimum default,Optimum Intel,+,+,
+Background Matting,modnet_photographic_portrait_matting,onnx,FP16,OpenVINO,+,,
+Background Matting,modnet_photographic_portrait_matting,onnx,FP32,OpenVINO,+,,
+Background Matting,modnet_photographic_portrait_matting,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Background Matting,modnet_photographic_portrait_matting,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Background Matting,modnet_photographic_portrait_matting,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Background Matting,modnet_webcam_portrait_matting,onnx,FP16-INT8,OpenVINO,+,,+
+Background Matting,modnet_webcam_portrait_matting,onnx,FP32,OpenVINO,+,,
+Background Matting,modnet_webcam_portrait_matting,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Background Matting,modnet_webcam_portrait_matting,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Background Matting,modnet_webcam_portrait_matting,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Speech Recognition,mozilla-deepspeech-0.8.2,tf,FP16,OpenVINO,+,,+
+Speech Recognition,mozilla-deepspeech-0.8.2,tf,FP32,OpenVINO,+,,+
+Natural Language Processing,mpnet-base,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,mpt-7b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mpt-7b-8k,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mpt-7b-8k-chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mpt-7b-chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mpt-7b-instruct,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,mpt-7b-storywriter,pytorch,INT4,Optimum Intel,+,+,
+Natural Language Processing,ms-marco-electra-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,mt5-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,mt5-small-sum-de-en-v2,pytorch,FP32,torch.compile,+,+,+
+Video Classification,mvit_v1_b,pytorch,FP32,torch.compile,+,+,+
+Video Classification,mvit_v2_s,pytorch,FP32,torch.compile,+,+,+
+Video Classification,mvitv2_small,pytorch,FP32,torch.compile,+,+,+
+Object Detection,nanodet-m-1.5x-416,onnx,FP16,OpenVINO,+,+,+
+Object Detection,nanodet-m-1.5x-416,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,nanodet-m-1.5x-416,onnx,FP32,OpenVINO,+,+,+
+Image Classification,nasnet-a-large-331,tf,FP16,OpenVINO,+,+,+
+Image Classification,nasnet-a-large-331,tf,FP16-INT8,OpenVINO,+,+,
+Image Classification,nasnet-a-large-331,tf,FP32,OpenVINO,+,+,+
+Image Classification,nasnet-a-mobile-224,tf,FP16-INT8,OpenVINO,+,,
+Image Classification,nasnet-a-mobile-224,tf,FP16,OpenVINO,+,,+
+Image Classification,nasnet-a-mobile-224,tf,FP32,OpenVINO,+,,+
+Image Classification,netvlad,tf,FP16,OpenVINO,+,,
+Image Classification,netvlad,tf,FP32,OpenVINO,+,,
+Large Language Model,neural-chat-7b-v1-1,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,neural-chat-7b-v3-3,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,neural-chat-7b-v3-3,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,neural-chat-7b-v3-3,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,neural-chat-7b-v3-3,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,nf_regnet_b1,pytorch,FP32,torch.compile,+,+,+
+Image Classification,nf_resnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,nfnet,pytorch,FP32,torch.compile,+,+,+
+Image Classification,nfnet_l0,pytorch,FP32,torch.compile,+,+,+
+Image Classification,nfnet-f0,onnx,FP16,OpenVINO,+,,+
+Image Classification,nfnet-f0,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,nfnet-f0,onnx,FP32,OpenVINO,+,,+
+Large Language Model,notus-7b-v1,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,notus-7b-v1,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,notus-7b-v1,pytorch,INT8-CW,OpenVINO,+,+,
+Text Detection,ocr-perpetuuiti,tf,FP16,OpenVINO,+,,
+Text Detection,ocr-perpetuuiti,tf,FP16-INT8,OpenVINO,+,,
+Text Detection,ocr-perpetuuiti,tf,FP32,OpenVINO,+,,
+Image Classification,open-closed-eye-0001,onnx,FP16,OpenVINO,+,+,+
+Image Classification,open-closed-eye-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,open-closed-eye-0001,onnx,FP32,OpenVINO,,+,+
+Image Classification,open-closed-eye-0001,onnx,FP32,ONNX Runtime OVEP,,,+
+Image Classification,open-closed-eye-0001,onnx,FP16,ONNX Runtime OVEP,,,+
+Image Classification,open-closed-eye-0001,onnx,INT8,ONNX Runtime OVEP,,,+
+Natural Language Processing,opennmt-hindi-english,onnx,FP16,OpenVINO,+,,+
+Natural Language Processing,opennmt-hindi-english,onnx,FP32,OpenVINO,+,+,+
+Object Detection,openpose-pose,tf,FP16,OpenVINO,+,,
+Object Detection,openpose-pose,tf,FP16-INT8,OpenVINO,+,,
+Object Detection,openpose-pose,tf,FP32,OpenVINO,+,,
+Large Language Model,opt-1.3b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,opt-2.7b,pytorch,INT4,Optimum Intel,+,+,
+"Image Processing, Enhancement ",paddlegan-realsr-df2k,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",paddlegan-realsr-df2k,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Large Language Model,Pegasus-7b-slerp,pytorch,INT4,Optimum Intel,+,+,
+Natural Language Processing,pegasus-samsum,pytorch,intel-optimum default,Optimum Intel,+,,
+Large Language Model,persimmon-8b-chat,pytorch,INT4,Optimum Intel,+,+,
+Object Detection,person-attributes-recognition-crossroad-0230,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-attributes-recognition-crossroad-0234,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-attributes-recognition-crossroad-0234,onnx,FP16-INT8,OpenVINO,,+,
+Object Detection,person-attributes-recognition-crossroad-0238,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-attributes-recognition-crossroad-0238,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,person-detection-0100,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0100,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-detection-0101,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0101,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-detection-0102,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0102,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-detection-0200,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0200,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-detection-0201,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0201,onnx,FP32,OpenVINO,+,+,+
+Object Detection,person-detection-0202,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-0202,onnx,FP32,OpenVINO,+,+,+
+Object Detection,person-detection-0203,onnx,FP16,OpenVINO,+,+,
+Object Detection,person-detection-0203,onnx,FP16-INT8,OpenVINO,+,+,
+Object Detection,person-detection-0301,onnx,FP16,OpenVINO,+,,
+Object Detection,person-detection-0301,onnx,FP32,OpenVINO,+,,
+Object Detection,person-detection-0302,onnx,FP16,OpenVINO,+,,
+Object Detection,person-detection-0303,onnx,FP16,OpenVINO,+,,
+Object Detection,person-detection-0303,onnx,FP32,OpenVINO,+,,
+Object Detection,person-detection-action-recognition-0006,tf,FP16,OpenVINO,+,+,+
+Object Detection,person-detection-action-recognition-0006,tf,FP16-INT8,OpenVINO,+,+,
+Object Detection,person-detection-action-recognition-0006,tf,FP32,OpenVINO,+,+,+
+Object Detection,person-detection-asl-0001,onnx,FP16,OpenVINO,+,+,
+Object Detection,person-detection-asl-0001,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-reidentification-retail-0277,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-reidentification-retail-0286,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-reidentification-retail-0287,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,person-reidentification-retail-0288,onnx,FP16,OpenVINO,+,+,+
+Object Detection,person-reidentification-retail-0288,onnx,FP32,OpenVINO,+,+,
+Object Detection,person-vehicle-bike-detection-2000,onnx,FP16,OpenVINO,+,,+
+Object Detection,person-vehicle-bike-detection-2000,onnx,FP32,OpenVINO,+,,+
+Object Detection,person-vehicle-bike-detection-2001,onnx,FP16,OpenVINO,+,,+
+Object Detection,person-vehicle-bike-detection-2001,onnx,FP32,OpenVINO,+,,+
+Object Detection,person-vehicle-bike-detection-2002,onnx,FP16,OpenVINO,+,,+
+Object Detection,person-vehicle-bike-detection-2002,onnx,FP32,OpenVINO,+,,
+Object Detection,person-vehicle-bike-detection-2003,onnx,FP16,OpenVINO,+,,
+Object Detection,person-vehicle-bike-detection-2003,onnx,FP16-INT8,OpenVINO,+,,
+Object Detection,person-vehicle-bike-detection-2003,onnx,FP32,OpenVINO,+,,
+Object Detection,person-vehicle-bike-detection-2004,onnx,FP16,OpenVINO,+,,
+Object Detection,person-vehicle-bike-detection-2004,onnx,FP32,OpenVINO,+,,
+Large Language Model,phi-2,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,phi-3-medium-4k-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,phi-3-medium-4k-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,phi-3-medium-4k-instruct,pytorch,FP16,OpenVINO,+,,
+Large Language Model,Phi-3-medium-4k-instruct,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Phi-3-mini-128k-instruct,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,phi-3-mini-4k-instruct,pytorch,FP16,OpenVINO,+,+,+
+Large Language Model,phi-3-mini-4k-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,phi-3-mini-4k-instruct,pytorch,INT8-CW,OpenVINO,+,+,+
+Natural Language Processing,phobert-base,pytorch,FP32,torch.compile,+,+,+
+Image Classification,pit_s_224,pytorch,FP32,torch.compile,+,+,+
+Image Generation,pix2struct-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+3D Object Classification,pointnet-chair-100,onnx,FP32,ONNX Runtime OVEP,+,+,+
+3D Object Classification,pointnet-chair-100,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Segmentation,pointrend-resnet50-fpn-pytorch,onnx,FP16,OpenVINO,+,,
+Image Segmentation,pointrend-resnet50-fpn-pytorch,onnx,FP32,OpenVINO,+,,
+Natural Language Processing,Polish_RoBERTa_large_OPI,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,poolformer_s24,pytorch,FP32,torch.compile,+,+,+
+Object Detection,pp-ocr-det,paddle,FP32,OpenVINO,+,+,+
+Object Detection,pp-ocr-det,paddle,FP16,OpenVINO,+,+,+
+Object Detection,pp-ocr-det,paddle,INT8,OpenVINO,+,+,+
+Object Detection,pp-ocr-rec,paddle,FP32,OpenVINO,+,+,+
+Object Detection,pp-ocr-rec,paddle,FP16,OpenVINO,+,+,+
+Object Detection,pp-ocr-rec,paddle,INT8,OpenVINO,+,+,+
+Object Detection,pp-yolo,paddle,FP32,OpenVINO,+,,
+Object Detection,pp-yolo,paddle,FP16,OpenVINO,+,,
+Object Detection,pp-yolo,paddle,INT8,OpenVINO,+,,
+Object Detection,prnet,tf,FP16,OpenVINO,+,+,+
+Object Detection,prnet,tf,FP16-INT8,OpenVINO,+,+,+
+Object Detection,prnet,tf,FP32,OpenVINO,+,+,+
+Object Detection,product-detection-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,product-detection-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,product-detection-0001,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,prot_bert,pytorch,FP32,torch.compile,+,+,+
+Semantic Segmentation,pspnet-pytorch,onnx,FP16,OpenVINO,+,+,+
+Semantic Segmentation,pspnet-pytorch,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,PubChem10M_SMILES_BPE_396_250,pytorch,FP32,torch.compile,+,+,+
+Image Classification,pvt_v2_b3,pytorch,FP32,torch.compile,+,+,+
+Audio,pyannotate-speaker-diarization,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,pyannotate-speaker-diarization,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Large Language Model,pythia-1.4b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-12b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,pythia-12b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,pythia-12b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,pythia-12b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-14m,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-160m,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-1b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-2.8b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-410m,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-6.9b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,pythia-70m,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Pythia-Chat-Base-7B,pytorch,INT4,Optimum Intel,+,+,
+Speech Recognition,quartznet-15x5-en,onnx,FP16-INT8,OpenVINO,+,,
+Speech Recognition,quartznet-15x5-en,onnx,FP16,OpenVINO,+,,+
+Speech Recognition,quartznet-15x5-en,onnx,FP32,OpenVINO,+,,+
+Speech Recognition,quartznet-15x5-en,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Speech Recognition,quartznet-15x5-en,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Speech Recognition,quartznet-15x5-en,onnx,INT8,ONNX Runtime OVEP,+,+,
+Large Language Model,Qwen1.5-0.5B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-0.5B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-1.8B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-1.8B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,qwen1.5-14b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,qwen1.5-14b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,qwen1.5-14b-chat,pytorch,FP16,OpenVINO,+,,
+Large Language Model,Qwen1.5-4B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-4B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-7B,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,Qwen1.5-7B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,qwen2.5-7b-instruct,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,qwen2.5-7b-instruct,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,qwen2.5-7b-instruct,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,qwen2-0.5b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,qwen2-0.5b,pytorch,INT8-CW,OpenVINO,+,+,+
+Large Language Model,qwen2-0.5b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,qwen2-1.5b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,qwen2-1.5b,pytorch,INT8-CW,OpenVINO,+,+,+
+Large Language Model,qwen2-1.5b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,qwen2-7b,pytorch,INT4-MIXED,OpenVINO,+,+,+
+Large Language Model,qwen2-7b,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,qwen2-7b,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,qwen-7b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,qwen-7b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,qwen-7b-chat,pytorch,FP16,OpenVINO,+,,
+Large Language Model,qwen-7b-chat-gptq,pytorch,INT4-MIXED,OpenVINO,+,+,
+Video Classification,r2plus1d_18,pytorch,FP32,torch.compile,+,+,
+Video Classification,r3d_18,pytorch,FP32,torch.compile,+,+,
+Movement Prediction,raft_large,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",rcan,onnx,FP32,OpenVINO,+,+,
+Large Language Model,RedPajama-INCITE-7B-Base,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,RedPajama-INCITE-7B-Chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,red-pajama-incite-7b-chat,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,red-pajama-incite-7b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,red-pajama-incite-7b-chat,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,RedPajama-INCITE-7B-Instruct,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,RedPajama-INCITE-Chat-3B-v1,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,red-pajama-incite-chat-3b-v1,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,red-pajama-incite-chat-3b-v1,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,red-pajama-incite-chat-3b-v1,pytorch,INT8-CW,OpenVINO,+,+,
+Image Classification,regnet,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_1_6gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_16gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_3_2gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_32gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_400mf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_800mf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_x_8gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_1_6gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_128gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_16gf,pytorch,FP32,torch.compile,+,+,
+Image Classification,regnet_y_3_2gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_32gf,pytorch,FP32,torch.compile,+,+,
+Image Classification,regnet_y_400mf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_800mf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnet_y_8gf,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnetv_040,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnetx_032,pytorch,FP32,torch.compile,+,+,+
+Image Classification,RegNetX_32GF_dds_8gpu,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnetx-3.2gf,onnx,FP16,OpenVINO,+,,+
+Image Classification,regnetx-3.2gf,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,regnetx-3.2gf,onnx,FP32,OpenVINO,+,,+
+Image Classification,regnety_080,pytorch,FP32,torch.compile,+,+,+
+Image Classification,regnetz_b16,pytorch,FP32,torch.compile,+,+,+
+Image Classification,repvgg_b3,pytorch,FP32,torch.compile,+,+,+
+Image Classification,repvgg_b3.rvgg_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,repvgg-a0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,repvgg-a0,onnx,FP32,OpenVINO,+,+,+
+Image Classification,repvgg-b1,onnx,FP16,OpenVINO,+,,+
+Image Classification,repvgg-b1,onnx,FP32,OpenVINO,+,,
+Image Classification,repvgg-b3,onnx,FP16,OpenVINO,+,,+
+Image Classification,repvgg-b3,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,repvgg-b3,onnx,FP32,OpenVINO,+,,+
+Image Classification,res2net50_26w_4s,pytorch,FP32,torch.compile,+,+,+
+Image Classification,res2next50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resmlp_12_224.fb_distilled_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resmlp_12_distilled_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resmlp-12-distilled-224,onnx,FP16,OpenVINO,+,,+
+Image Classification,resmlp-12-distilled-224,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,resmlp-12-distilled-224,onnx,FP32,OpenVINO,+,,+
+Image Classification,resnest,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnest-50-pytorch,onnx,FP16,OpenVINO,+,,+
+Image Classification,resnest-50-pytorch,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,resnest-50-pytorch,onnx,FP32,OpenVINO,+,,+
+Image Classification,resnet101,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-101,onnx,FP16,OpenVINO,+,,+
+Image Classification,resnet-101,onnx,FP32,OpenVINO,+,,+
+Image Classification,resnet-101,tf,FP16,OpenVINO,+,+,+
+Image Classification,resnet-101,tf,FP32,OpenVINO,+,+,+
+Image Classification,resnet152,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-152,onnx,FP16,OpenVINO,+,,+
+Image Classification,resnet-152,onnx,FP32,OpenVINO,+,,+
+Image Classification,resnet-152,tf,FP16,OpenVINO,+,+,+
+Image Classification,resnet-152,tf,FP32,OpenVINO,+,+,+
+Image Classification,resnet18,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-18,onnx,FP16,OpenVINO,+,+,+
+Image Classification,resnet-18,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,resnet-18,onnx,FP32,OpenVINO,+,+,+
+Image Classification,resnet-18,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,resnet18-xnor-binary-onnx-0001,onnx,FP16-INT1,OpenVINO,+,+,
+Image Classification,resnet34,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-34-pytorch,onnx,FP16,OpenVINO,+,,+
+Image Classification,resnet-34-pytorch,onnx,FP32,OpenVINO,+,,+
+Image Classification,resnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-50,onnx,FP16,OpenVINO,+,+,+
+Image Classification,resnet-50,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,resnet-50,onnx,FP32,OpenVINO,+,+,+
+Image Classification,resnet-50,tf,FP16,OpenVINO,+,+,+
+Image Classification,resnet-50,tf,FP16-INT8,OpenVINO,+,+,+
+Image Classification,resnet-50,tf,FP32,OpenVINO,+,+,+
+Image Classification,resnet-50,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50,paddle,FP32,OpenVINO,+,+,+
+Image Classification,resnet-50,paddle,FP16,OpenVINO,+,+,+
+Image Classification,resnet-50,paddle,INT8,OpenVINO,+,+,+
+Image Classification,resnet50-binary-0001,onnx,FP16-INT1,OpenVINO,+,,
+Image Classification,resnet50d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet50-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,resnet-50-pytorch,onnx,FP16,OpenVINO,+,+,+
+Image Classification,resnet-50-pytorch,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,resnet-50-pytorch,onnx,FP32,OpenVINO,+,+,+
+Image Classification,resnet-50-pytorch,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50-pytorch,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50-pytorch,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,resnet-50-tf,tf,FP16,OpenVINO,+,,
+Image Classification,resnet-50-tf,tf,FP16-INT8,OpenVINO,+,,
+Image Classification,resnet-50-tf,tf,FP32,OpenVINO,+,,
+Image Classification,resnet-50-tf,tf2,FP16,OpenVINO,+,,+
+Image Classification,resnet-50-tf,tf2,FP16-INT8,OpenVINO,+,,+
+Image Classification,resnet-50-tf,tf2,FP32,OpenVINO,+,,
+Image Classification,resnetaa50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnetrs200,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnet-v1.5-50,tf,FP32,OpenVINO,+,+,+
+Image Classification,resnet-v1.5-50,tf,FP16,OpenVINO,+,+,+
+Image Classification,resnet-v1.5-50,tf,INT8,OpenVINO,+,+,+
+Image Classification,resnetv2_101x1_bitm,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnext_101_32x8d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnext101_32x8d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnext101_64x4d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,FP16,OpenVINO,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,FP32,OpenVINO,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,resnext101-32x16d-swsl,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,resnext-101-32x8d,onnx,FP16,OpenVINO,+,+,+
+Image Classification,resnext-101-32x8d,onnx,FP32,OpenVINO,+,+,+
+Image Classification,resnext50_32x4d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,resnext-50-32x4d,onnx,FP16,OpenVINO,+,,+
+Image Classification,resnext-50-32x4d,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,resnext-50-32x4d,onnx,FP32,OpenVINO,+,,+
+Image Classification,retinaface-resnet50,onnx,FP16,OpenVINO,+,+,+
+Image Classification,retinaface-resnet50,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,retinaface-resnet50,onnx,FP32,OpenVINO,+,+,+
+Image Classification,retinanet,tf2,FP16,OpenVINO,+,+,+
+Image Classification,retinanet,tf2,FP32,OpenVINO,+,+,+
+Image Classification,retinanet,tf,FP32,OpenVINO,+,+,
+Image Classification,retinanet,tf,FP16,OpenVINO,+,+,
+Image Classification,retinanet,tf,INT8,OpenVINO,+,+,
+Image Classification,retinanet_resnet34,onnx,FP16,OpenVINO,+,+,+
+Image Classification,retinanet_resnet34,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,retinanet_resnet34,onnx,FP32,OpenVINO,+,+,+
+Image Classification,rexnet-v1-x1.0,onnx,FP16,OpenVINO,+,,+
+Image Classification,rexnet-v1-x1.0,onnx,FP16-INT8,OpenVINO,+,,+
+Image Classification,rexnet-v1-x1.0,onnx,FP32,OpenVINO,+,,
+Speech Recognition,rnnt,onnx,FP16,OpenVINO,+,,+
+Speech Recognition,rnnt,onnx,FP32,OpenVINO,+,,
+Audio,rnnt_encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,rnnt_encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Audio,rnnt_joint,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,rnnt_joint,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Audio,rnnt_prediction,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,rnnt_prediction,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,roberta-base,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,roberta-base,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,roberta-base,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,roberta-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,roberta-base-mrpc,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,roberta-base-mrpc,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base-mrpc,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base-mrpc,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,roberta-base-MRPC,pytorch,FP32,torch.compile,+,+,+
+Large Language Model,roberta-base-squad2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,roberta-large,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,roberta-large,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,roberta-large,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,roberta-large,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,roberta-large-mnli,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,roberta-large-ner-english,pytorch,intel-optimum default,Optimum Intel,+,+,
+Large Language Model,roberta-large-squadv2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,roformer_chinese_base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,roformer_small_generator,pytorch,intel-optimum default,Optimum Intel,+,+,
+Video Classification,s3d,pytorch,FP32,torch.compile,+,+,
+Natural Language Processing,sbert-base-mean-tokens,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,sbert-base-mean-tokens,onnx,FP16-INT8,OpenVINO,+,+,+
+Natural Language Processing,sbert-base-mean-tokens,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,sbert-base-mean-tokens,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,sbert-base-mean-tokens,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,sbert-base-mean-tokens,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,sebotnet33ts_256,pytorch,FP32,torch.compile,+,+,
+Image Segmentation,segment-anything-image-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,
+Image Segmentation,segment-anything-image-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,
+Image Segmentation,segment-anything-predictor,onnx,FP32,ONNX Runtime OVEP,+,,
+Image Segmentation,segment-anything-predictor,onnx,FP16,ONNX Runtime OVEP,+,,
+Image Classification,sehalonet33ts,pytorch,FP32,torch.compile,+,+,
+Image Classification,selecsls42b,pytorch,FP32,torch.compile,+,+,+
+Image Classification,semnasnet_075.rmsp_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,sequencer2d_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,seresnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,se-resnext-50,onnx,FP16,OpenVINO,+,,
+Image Classification,se-resnext-50,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,se-resnext-50,onnx,FP32,OpenVINO,+,,
+Image Classification,se-resnext-50,onnx,FP16,OpenVINO,+,+,+
+Image Classification,se-resnext-50,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,se-resnext-50,onnx,FP32,OpenVINO,+,+,+
+Image Classification,se-resnext-50,tf,FP16,OpenVINO,+,+,+
+Image Classification,se-resnext-50,tf,FP32,OpenVINO,+,+,
+Image Classification,se-resnext-50,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,se-resnext-50,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,se-resnext-50,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,seresnext50_32x4d,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",Sharpen-LensBlur,tf,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",Sharpen-LensBlur,tf,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",Sharpen-MotionBlur,tf,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",Sharpen-MotionBlur,tf,FP16-INT8,OpenVINO,+,,+
+"Image Processing, Enhancement ",Sharpen-MotionBlur,tf,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",Sharpen-Sharpen,tf,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",Sharpen-Sharpen,tf,FP16-INT8,OpenVINO,,+,+
+"Image Processing, Enhancement ",Sharpen-Sharpen,tf,FP32,OpenVINO,+,+,+
+Image Classification,shufflenet,onnx,FP16,OpenVINO,+,+,+
+Image Classification,shufflenet,onnx,FP16-INT8,OpenVINO,+,+,
+Image Classification,shufflenet,onnx,FP32,OpenVINO,+,+,
+Image Classification,shufflenet_v2_x0_5,pytorch,FP32,torch.compile,+,+,+
+Image Classification,shufflenet_v2_x1_0,pytorch,FP32,torch.compile,+,+,+
+Image Classification,shufflenet_v2_x1_5,pytorch,FP32,torch.compile,+,+,+
+Image Classification,shufflenet_v2_x2_0,pytorch,FP32,torch.compile,+,+,+
+Image Classification,shufflenet-v2-x0.5,onnx,FP16,OpenVINO,+,+,+
+Image Classification,shufflenet-v2-x0.5,onnx,FP32,OpenVINO,+,+,
+Image Classification,shufflenet-v2-x1.0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,shufflenet-v2-x1.0,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,shufflenet-v2-x1.0,onnx,FP32,OpenVINO,+,+,
+Image Classification,shufflenet-v2-x1.0,tf,FP16,OpenVINO,+,+,+
+Image Classification,shufflenet-v2-x1.0,tf,FP16-INT8,OpenVINO,+,+,+
+Image Classification,shufflenet-v2-x1.0,tf,FP32,OpenVINO,+,+,
+Image Classification,shufflenet-v2-x1.0,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,shufflenet-v2-x1.0,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,shufflenet-v2-x1.0,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,simmim_swin_transformer,pytorch,FP32,torch.compile,+,+,+
+Object Detection,single-human-pose-estimation-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,single-human-pose-estimation-0001,onnx,FP32,OpenVINO,+,+,
+Object Detection,smartlab-object-detection-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,smartlab-object-detection-0001,onnx,FP32,OpenVINO,+,+,+
+Object Detection,smartlab-object-detection-0003,onnx,FP16,OpenVINO,+,+,+
+Object Detection,smartlab-object-detection-0003,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,splinter-base,pytorch,FP32,torch.compile,+,+,+
+Image Classification,spnasnet_100.rmsp_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,spnasnet-100,onnx,FP16,OpenVINO,+,+,+
+Image Classification,spnasnet-100,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,spnasnet-100,onnx,FP32,OpenVINO,+,+,+
+Natural Language Processing,squeezebert-uncased,pytorch,FP32,torch.compile,+,+,+
+Image Classification,squeezenet1.0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,squeezenet1.0,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,squeezenet1.0,onnx,FP32,OpenVINO,+,+,+
+Image Classification,squeezenet1.1,onnx,FP16,OpenVINO,+,+,+
+Image Classification,squeezenet1.1,onnx,FP32,OpenVINO,+,+,
+Image Classification,squeezenet1.1,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,squeezenet1.1,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,squeezenet1.1,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,squeezenet1.1,tf,FP32,OpenVINO,+,+,+
+Image Classification,squeezenet1.1,tf,FP16,OpenVINO,+,+,+
+Image Classification,squeezenet1.1,tf,INT8,OpenVINO,+,+,+
+Image Classification,squeezenet1.1-pytorch1.2.0,onnx,FP16,OpenVINO,+,+,+
+Image Classification,squeezenet1.1-pytorch1.2.0,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,squeezenet1.1-pytorch1.2.0,onnx,FP32,OpenVINO,+,+,+
+Image Classification,squeezenet1_0,pytorch,FP32,torch.compile,+,+,
+Image Classification,squeezenet1_1,pytorch,FP32,torch.compile,+,+,
+"Image Processing, Enhancement ",srgan,onnx,FP16,OpenVINO,+,,+
+"Image Processing, Enhancement ",srgan,tf,FP16,OpenVINO,+,+,
+"Image Processing, Enhancement ",srgan,tf,FP16-INT8,OpenVINO,,,+
+"Image Processing, Enhancement ",srgan,tf,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",srgan,onnx,FP32,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",srgan,onnx,FP16,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",srgan,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,ssd_mobilenet_v1_coco,tf,FP32,OpenVINO,+,+,
+Object Detection,ssd_mobilenet_v1_coco,tf,FP16,OpenVINO,+,+,
+Object Detection,ssd_mobilenet_v1_coco,tf,INT8,OpenVINO,+,+,
+Object Detection,ssd_mobilenet_v2_coco,tf,FP32,OpenVINO,+,+,
+Object Detection,ssd_mobilenet_v2_coco,tf,FP16,OpenVINO,+,+,
+Object Detection,ssd_mobilenet_v2_coco,tf,INT8,OpenVINO,+,+,
+Object Detection,ssd300-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,+,+,
+Object Detection,ssd300-onnx-0001,onnx,FP16,OpenVINO,+,+,+
+Object Detection,ssd300-onnx-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,ssdlite_mobilenet_v2,tf,FP32,OpenVINO,+,+,
+Object Detection,ssdlite_mobilenet_v2,tf,FP16,OpenVINO,+,+,
+Object Detection,ssdlite_mobilenet_v2,tf,INT8,OpenVINO,+,+,
+Object Detection,ssdlite-mobilenet-v3-small-320-coco,paddle,FP32,OpenVINO,+,+,
+Object Detection,ssdlite-mobilenet-v3-small-320-coco,paddle,FP16,OpenVINO,+,+,
+Object Detection,ssd-resnet34-1200,onnx,FP16,OpenVINO,+,+,
+Object Detection,ssd-resnet34-1200,onnx,FP16-INT8,OpenVINO,+,+,
+Object Detection,ssd-resnet34-1200,onnx,FP32,OpenVINO,+,+,
+Object Detection,ssd-resnet34-1200,onnx,FP32,ONNX Runtime OVEP,+,+,
+Object Detection,ssd-resnet34-1200,onnx,FP16,ONNX Runtime OVEP,+,+,
+Object Detection,ssd-resnet34-1200,onnx,INT8,ONNX Runtime OVEP,+,+,
+Object Detection,ssd-resnet34-300x300,tf,FP16,OpenVINO,,+,
+Object Detection,ssd-resnet34-300x300,tf,FP32,OpenVINO,,+,
+Object Detection,ssd-vgg16,onnx,FP16,OpenVINO,+,+,+
+Object Detection,ssd-vgg16,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,ssd-vgg16,onnx,FP32,OpenVINO,+,+,+
+Image Classification,ssl_resnext101_32x8d,pytorch,FP32,torch.compile,+,+,+
+Image Generation,stable-diffusion-2-1-base-text-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-2-1-base-text-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-2-1-base-vae-decoder,onnx,FP32,ONNX Runtime OVEP,+,+,
+Image Generation,stable-diffusion-2-1-base-vae-decoder,onnx,FP16,ONNX Runtime OVEP,+,+,
+Image Generation,stable-diffusion-2-1-base-vae-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-2-1-base-vae-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-text-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-text-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-vae-decoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-vae-decoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-vae-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-4-vae-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Generation,stable-diffusion-v1-5,pytorch,FP16,OpenVINO,+,+,
+Image Generation,stable-diffusion-v1-5,pytorch,INT8-CW,OpenVINO,+,+,
+Image Generation,stable-diffusion-v1-5,pytorch,INT8-HYBRID,OpenVINO,+,+,
+Image Generation,stable-diffusion-v2-1,pytorch,FP16,OpenVINO,+,+,
+Image Generation,stable-diffusion-v2-1,pytorch,INT8-CW,OpenVINO,+,+,
+Image Generation,stable-diffusion-v2-1,pytorch,INT8-HYBRID,OpenVINO,+,+,
+Large Language Model,stablelm-2-1_6b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-2-1_6b-chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-2-12b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-2-12b-chat,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-2-zephyr-1_6b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-3b-4e1t,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-base-alpha-3b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-tuned-alpha-7b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,stablelm-zephyr-3b,pytorch,INT4,Optimum Intel,+,+,
+Large Language Model,starcoder,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,starcoder,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,starcoder,pytorch,FP16,OpenVINO,+,,
+Large Language Model,starcoder2-15b,pytorch,FP16,OpenVINO,+,,
+Large Language Model,starcoder2-15b,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,starcoder2-15b,pytorch,INT8-CW,OpenVINO,+,+,
+Spatial Transformer Network,STN,tf,FP16,OpenVINO,+,+,
+Spatial Transformer Network,STN,tf,FP16-INT8,OpenVINO,+,+,
+Spatial Transformer Network,STN,tf,FP32,OpenVINO,+,+,
+Image Processing ,style_transfer,onnx,FP16,OpenVINO,+,+,+
+Image Processing ,style_transfer,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Processing ,style_transfer,onnx,FP32,OpenVINO,+,+,+
+Image Processing ,stylegan2,tf,FP16,OpenVINO,+,+,
+Image Processing ,stylegan2,tf,FP32,OpenVINO,+,+,
+Natural Language Processing,sup-simcse-roberta-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,swin_b,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_base_patch4_window7_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_s,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_t,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_tiny_patch4_window7_224,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_tiny_patch4_window7_224.ms_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_v2_b,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_v2_s,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin_v2_t,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin3d_b,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin3d_s,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin3d_t,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,FP16,OpenVINO,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,FP32,OpenVINO,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,swin-tiny-patch4-window7-224,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Image Classification,swinv2_small_window8_256,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swsl_resnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,swsl_resnext101_32x4d,pytorch,FP32,torch.compile,+,+,+
+Image Classification,t2t-vit-14,onnx,FP16,OpenVINO,+,,
+Image Classification,t2t-vit-7,onnx,FP16,OpenVINO,+,,
+Image Classification,t2t-vit-7,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,t2t-vit-7,onnx,FP32,OpenVINO,+,,
+Image Classification,t2t-vit-7,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Image Classification,t2t-vit-7,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Image Classification,t2t-vit-7,onnx,INT8,ONNX Runtime OVEP,+,+,
+Natural Language Processing,t5-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,t5-small,pytorch,FP32,torch.compile,+,+,+
+Text Detection,text-detection-0003,tf,FP16,OpenVINO,,+,
+Text Detection,text-detection-0004,tf,FP16,OpenVINO,,+,
+Text Detection,text-detection-0004,tf,FP16-INT8,OpenVINO,,+,
+"Image Processing, Enhancement ",text-image-super-resolution-0001,onnx,FP16,OpenVINO,+,+,
+"Image Processing, Enhancement ",text-image-super-resolution-0001,onnx,FP32,OpenVINO,+,+,
+"Image Processing, Enhancement ",text-image-super-resolution-0001,onnx,FP32,ONNX Runtime OVEP,+,+,
+"Image Processing, Enhancement ",text-image-super-resolution-0001,onnx,FP16,ONNX Runtime OVEP,+,+,
+Text Detection,text-recognition-0012,tf,FP16,OpenVINO,+,,+
+Text Detection,text-recognition-0012,tf,FP32,OpenVINO,+,,
+Text Detection,text-recognition-0013,onnx,FP16,OpenVINO,+,+,
+Text Detection,text-recognition-0013,onnx,FP32,OpenVINO,+,+,
+Text Detection,text-recognition-0014,onnx,FP16,OpenVINO,+,,
+Text Detection,text-recognition-0014,onnx,FP32,OpenVINO,+,,
+Text Detection,text-recognition-0014,onnx,FP16,OpenVINO,+,+,
+Text Detection,text-recognition-0014,onnx,FP32,OpenVINO,+,+,
+Text Detection,text-recognition-0015,onnx,FP16,OpenVINO,+,,
+Text Detection,text-recognition-0015,onnx,FP32,OpenVINO,+,,
+Text Detection,text-recognition-0016,onnx,FP16,OpenVINO,+,,
+Text Detection,text-recognition-0016,onnx,FP32,OpenVINO,+,,
+Text Detection,text-recognition-resnet-fc,onnx,FP16,OpenVINO,+,+,+
+Text Detection,text-recognition-resnet-fc,onnx,FP32,OpenVINO,+,+,
+Text Detection,text-spotting-0001,onnx,FP16,OpenVINO,+,,
+Text Detection,text-spotting-0001,onnx,FP32,OpenVINO,+,,
+Text Detection,text-spotting-0003,onnx,FP16,OpenVINO,+,,
+Text Detection,text-spotting-0004,onnx,FP16,OpenVINO,+,,
+Text Detection,text-spotting-0004,onnx,FP32,OpenVINO,+,,
+Text Detection,text-spotting-0005,onnx,FP16,OpenVINO,+,,
+Text Detection,text-spotting-0005,onnx,FP32,OpenVINO,+,,
+Text to Speech,text-to-speech-en-multi-0001,onnx,FP32,OpenVINO,+,,
+Image Classification,tf_inception_v3,pytorch,FP32,torch.compile,+,+,+
+Time Series Forecasting,time-series-forecasting-electricity-0001,onnx,FP16,OpenVINO,+,,+
+Time Series Forecasting,time-series-forecasting-electricity-0001,onnx,FP16-INT8,OpenVINO,,,+
+Time Series Forecasting,time-series-forecasting-electricity-0001,onnx,FP32,OpenVINO,+,,+
+Natural Language Processing,tiny_sd_text_encoder,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,tinybert_6layer_768dim_cola,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,tinybert_6layer_768dim_cola,onnx,FP16-INT8,OpenVINO,+,,
+Natural Language Processing,tinybert_6layer_768dim_cola,onnx,FP32,OpenVINO,+,+,+
+Large Language Model,tiny-llama-1.1b-chat,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,tiny-llama-1.1b-chat,pytorch,INT8-CW,OpenVINO,+,+,+
+Large Language Model,tiny-llama-1.1b-chat,pytorch,FP16,OpenVINO,+,+,
+Image Classification,tinynet_d.in1k,pytorch,FP32,torch.compile,+,+,+
+Object Detection,tiramisu-fc-densenet-103,tf2,FP16,OpenVINO,+,,
+Object Detection,tiramisu-fc-densenet-103,tf2,FP16-INT8,OpenVINO,+,,
+Object Detection,tiramisu-fc-densenet-103,tf2,FP32,OpenVINO,+,,
+Object Detection,tiramisu-fc-densenet-103,tf2,FP16,OpenVINO,+,+,+
+Object Detection,tiramisu-fc-densenet-103,tf2,FP16-INT8,OpenVINO,+,+,+
+Object Detection,tiramisu-fc-densenet-103,tf2,FP32,OpenVINO,+,+,+
+Image Classification,tnt_s_patch16_224,pytorch,FP32,torch.compile,+,+,+
+"Image Processing, Enhancement ",topaz_video_super_resolution,tf,FP32,OpenVINO,+,+,+
+"Image Processing, Enhancement ",topaz_video_super_resolution,tf,FP16,OpenVINO,+,+,+
+Image Classification,tresnet_m,pytorch,FP32,torch.compile,+,+,+
+Image Classification,tresnet_v2_l,pytorch,FP32,torch.compile,+,+,+
+Image to Text,trocr-base-handwritten,pytorch,intel-optimum default,Optimum Intel,+,+,
+Image Classification,tv_densenet121,pytorch,FP32,torch.compile,+,+,+
+Image Classification,tv_resnet50,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_pcpvt_base,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_pcpvt_large,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_pcpvt_small,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_svt_base,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_svt_large,pytorch,FP32,torch.compile,+,+,+
+Image Classification,twins_svt_small,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,twitter-roberta-base-sentiment-latest,pytorch,intel-optimum default,Optimum Intel,+,+,
+Object Detection,ultra-lightweight-face-detection-rfb-320,onnx,FP16,OpenVINO,+,+,+
+Object Detection,ultra-lightweight-face-detection-rfb-320,onnx,FP32,OpenVINO,+,+,
+Object Detection,ultra-lightweight-face-detection-slim-320,onnx,FP16,OpenVINO,+,+,+
+Object Detection,ultra-lightweight-face-detection-slim-320,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,unet-2d,onnx,FP16,OpenVINO,+,+,+
+Semantic Segmentation,unet-2d,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,unet3d_mlperf,onnx,FP16,OpenVINO,+,+,
+Semantic Segmentation,unet3d_mlperf,onnx,FP16-INT8,OpenVINO,+,,
+Semantic Segmentation,unet3d_mlperf,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,unet3d_mlperf,tf,FP16,OpenVINO,+,+,
+Semantic Segmentation,unet3d_mlperf,tf,FP16-INT8,OpenVINO,+,+,
+Semantic Segmentation,unet-camvid-int8-onnx-0001,onnx,FP32,ONNX Runtime OVEP,+,+,
+Semantic Segmentation,unet-camvid-int8-onnx-0001,onnx,FP16,ONNX Runtime OVEP,+,+,
+Semantic Segmentation,unet-camvid-int8-onnx-0001,onnx,INT8,ONNX Runtime OVEP,+,+,
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,FP16,OpenVINO,+,+,+
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,FP32,OpenVINO,+,+,
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Semantic Segmentation,unet-camvid-onnx-0001,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Speech Recognition,unispeech-1350-en-90-it-ft-1h,pytorch,intel-optimum default,Optimum Intel,,+,
+Audio Classification,unispeech-sat-base-plus-sd,pytorch,intel-optimum default,Optimum Intel,+,+,
+Audio,unispeech-sat-base-sv,pytorch,intel-optimum default,Optimum Intel,+,+,
+Audio,unispeech-sat-large-sv,pytorch,intel-optimum default,Optimum Intel,+,+,
+URL Classification,urlnet,tf2,FP16,OpenVINO,+,+,+
+URL Classification,urlnet,tf2,FP32,OpenVINO,+,+,+
+Object Detection,vehicle-detection-0200,onnx,FP16,OpenVINO,+,+,+
+Object Detection,vehicle-detection-0200,onnx,FP32,OpenVINO,+,+,+
+Object Detection,vehicle-detection-0201,onnx,FP16,OpenVINO,+,+,+
+Object Detection,vehicle-detection-0201,onnx,FP32,OpenVINO,+,+,
+Object Detection,vehicle-detection-0202,onnx,FP16,OpenVINO,+,+,+
+Object Detection,vehicle-detection-0202,onnx,FP32,OpenVINO,+,+,+
+Image Classification,vehicle-reid-0001,onnx,FP16,OpenVINO,+,+,+
+Image Classification,versa,tf,FP16,OpenVINO,+,,
+Image Classification,versa,tf,FP16-INT8,OpenVINO,+,,
+Image Classification,versa,tf,FP32,OpenVINO,+,,
+Object Detection,vfnet-resnet50-fpn-pytorch,onnx,FP16,OpenVINO,+,,
+Object Detection,vfnet-resnet50-fpn-pytorch,onnx,FP16-INT8,OpenVINO,+,,
+Object Detection,vfnet-resnet50-fpn-pytorch,onnx,FP32,OpenVINO,+,,
+Image Classification,vgg11,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg11_bn,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg13,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg13_bn,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg16,onnx,FP16,OpenVINO,+,,+
+Image Classification,vgg16,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,vgg16,onnx,FP32,OpenVINO,+,,+
+Image Classification,vgg16,tf,FP16,OpenVINO,+,+,+
+Image Classification,vgg16,tf,FP32,OpenVINO,+,+,+
+Image Classification,vgg16,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg16_bn,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg-16-bn,onnx,FP16,OpenVINO,+,,+
+Image Classification,vgg-16-bn,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,vgg-16-bn,onnx,FP32,OpenVINO,,,+
+Image Classification,vgg19,onnx,FP16,OpenVINO,+,,+
+Image Classification,vgg19,onnx,FP32,OpenVINO,+,,+
+Image Classification,vgg19,tf,FP16,OpenVINO,+,+,+
+Image Classification,vgg19,tf,FP32,OpenVINO,+,+,+
+Image Classification,vgg19,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vgg19_bn,pytorch,FP32,torch.compile,+,+,+
+Speech Recognition,vggvox,tf,FP16-INT8,OpenVINO,+,,
+Speech Recognition,vggvox,tf,FP16,OpenVINO,+,,+
+Speech Recognition,vggvox,tf,FP32,OpenVINO,+,,
+Image Classification,visformer_small,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vision_maskrcnn,pytorch,FP32,torch.compile,,+,+
+Image Classification,vision_transformer,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_b_16,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_b_32,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_base_patch16_224.orig_in21k_ft_in1k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_base16_224_21k,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_h_14,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit_l_16,pytorch,FP32,torch.compile,+,+,
+Image Classification,vit_l_32,pytorch,FP32,torch.compile,+,+,+
+Image Classification,vit-base-16-224,onnx,FP16,OpenVINO,+,,
+Image Classification,vit-base-16-224,onnx,FP16-INT8,OpenVINO,+,,
+Image Classification,vit-base-16-224,onnx,FP32,OpenVINO,+,,
+Image Classification,vit-base-patch16-224,pytorch,intel-optimum default,Optimum Intel,+,+,
+Text Detection,vitstr-small-patch16-224,onnx,FP16,OpenVINO,+,+,+
+Text Detection,vitstr-small-patch16-224,onnx,FP32,OpenVINO,+,+,+
+Image Classification,vovnet,pytorch,FP32,torch.compile,+,+,
+Speech Recognition,wav2vec2-base,onnx,FP16-INT8,OpenVINO,+,,
+Speech Recognition,wav2vec2-base,onnx,FP16,OpenVINO,+,,+
+Speech Recognition,wav2vec2-base,onnx,FP32,OpenVINO,+,,+
+Speech Recognition,wav2vec2-base,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Speech Recognition,wav2vec2-base,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Speech Recognition,wav2vec2-base,onnx,INT8,ONNX Runtime OVEP,+,+,
+Audio Classification,wav2vec2-base-superb-sd,pytorch,intel-optimum default,Optimum Intel,+,+,
+Audio Classification,wav2vec2-base-superb-sid,pytorch,intel-optimum default,Optimum Intel,+,+,
+Audio,wav2vec2-base-superb-sv,pytorch,intel-optimum default,Optimum Intel,+,+,
+Text to Speech,wavernn-rnn,onnx,FP16,OpenVINO,+,+,+
+Text to Speech,wavernn-rnn,onnx,FP32,OpenVINO,+,+,+
+Text to Speech,wavernn-upsampler,onnx,FP16,OpenVINO,+,+,+
+Text to Speech,wavernn-upsampler,onnx,FP32,OpenVINO,+,+,+
+Text to Speech,wavernn-upsampler,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Text to Speech,wavernn-upsampler,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Text to Speech,wavernn-upsampler,onnx,INT8,ONNX Runtime OVEP,+,+,+
+"Image Processing, Enhancement ",wdsr-small-x4,onnx,FP16,OpenVINO,+,+,+
+"Image Processing, Enhancement ",wdsr-small-x4,onnx,FP16-INT8,OpenVINO,+,,+
+"Image Processing, Enhancement ",wdsr-small-x4,onnx,FP32,OpenVINO,+,+,
+Image Classification,weld-porosity-detection-0001,onnx,FP16,OpenVINO,+,+,+
+Image Classification,weld-porosity-detection-0001,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,weld-porosity-detection-0001,onnx,FP32,OpenVINO,+,+,+
+Speech Recognition,whisper-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Audio,whisper-base-decoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,whisper-base-decoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Audio,whisper-base-encoder,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Audio,whisper-base-encoder,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Speech Recognition,whisper-large-v2,pytorch,intel-optimum default,Optimum Intel,+,+,
+Speech Recognition,whisper-large-v3,pytorch,FP16,OpenVINO,+,+,
+Speech Recognition,whisper-large-v3,pytorch,INT4-MIXED,OpenVINO,+,+,
+Speech Recognition,whisper-large-v3,pytorch,INT8-CW,OpenVINO,+,+,
+Speech Recognition,whisper-large-v3-turbo,pytorch,FP16,OpenVINO,+,+,
+Speech Recognition,whisper-large-v3-turbo,pytorch,INT4-MIXED,OpenVINO,+,+,
+Speech Recognition,whisper-large-v3-turbo,pytorch,INT8-CW,OpenVINO,+,+,
+Speech Recognition,whisper-medium,pytorch,intel-optimum default,Optimum Intel,+,+,
+Speech Recognition,whisper-small,pytorch,intel-optimum default,Optimum Intel,+,+,
+Speech Recognition,whisper-tiny,pytorch,FP16,OpenVINO,+,+,
+Speech Recognition,whisper-tiny,pytorch,INT4-MIXED,OpenVINO,+,+,
+Speech Recognition,whisper-tiny,pytorch,INT8-CW,OpenVINO,+,+,
+Image Classification,wide_resnet101_2,pytorch,FP32,torch.compile,+,+,+
+Image Classification,wide_resnet50_2,pytorch,FP32,torch.compile,+,+,+
+Image Classification,wide-resnet-50-v2,onnx,FP16,OpenVINO,+,+,+
+Image Classification,wide-resnet-50-v2,onnx,FP16-INT8,OpenVINO,+,+,+
+Image Classification,wide-resnet-50-v2,onnx,FP32,OpenVINO,+,+,+
+Large Language Model,WizardMath-7B-V1.1,pytorch,INT4,Optimum Intel,+,+,
+Image Classification,xception,pytorch,FP32,torch.compile,+,+,+
+Image Classification,xception65,pytorch,FP32,torch.compile,+,+,+
+Image Classification,xcit_nano_12_p16_224,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,xlm-roberta-base,onnx,FP16,OpenVINO,+,+,+
+Natural Language Processing,xlm-roberta-base,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,xlm-roberta-base,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,xlm-roberta-base,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Natural Language Processing,xlm-roberta-base,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlm-roberta-base,pytorch,FP32,torch.compile,+,+,+
+Natural Language Processing,xlm-roberta-base-language-detection,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlm-roberta-base-uncased-conll2003,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlm-roberta-large,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlm-roberta-large-en-ru-mnli,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlm-roberta-large-finetuned-conll03-english,pytorch,intel-optimum default,Optimum Intel,+,+,
+Natural Language Processing,xlnet,onnx,FP16,OpenVINO,+,+,
+Natural Language Processing,xlnet,onnx,FP16-INT8,OpenVINO,+,+,
+Natural Language Processing,xlnet,onnx,FP32,OpenVINO,+,+,
+Natural Language Processing,xlnet-base-cased,pytorch,FP32,torch.compile,+,+,
+Instance Segmentation,yolact-resnet50-fpn-pytorch,onnx,FP16,OpenVINO,+,+,+
+Instance Segmentation,yolact-resnet50-fpn-pytorch,onnx,FP16-INT8,OpenVINO,+,+,+
+Instance Segmentation,yolact-resnet50-fpn-pytorch,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v3_tiny,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v3_tiny,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v3_tiny,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v3_tiny,tf,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v3_tiny,tf,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v3_tiny,tf,INT8,OpenVINO,+,+,+
+Object Detection,yolo_v4,tf,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v4,tf,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v4,tf,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v4,tf2,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v4,tf2,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5l,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5l,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5l,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v5m,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5m,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5m,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v5m,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5m,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5m,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5m6-v6,onnx,FP16,OpenVINO,+,,
+Object Detection,yolo_v5m6-v6,onnx,FP32,OpenVINO,+,,
+Object Detection,yolo_v5m-v6,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5m-v6,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5m-v6,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v5s,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5s,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5s,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v5s,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5s,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5s,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v5s-v6,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5s-v6,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v5s-v6,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v5x,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v5x,onnx,FP32,OpenVINO,+,+,+
+Object Detection,yolo_v8n,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolo_v8n,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolo_v8n,onnx,FP32,OpenVINO,+,+,
+Object Detection,yolo_v8n,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v8n,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo_v8n,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo11,pytorch,FP32,torch.compile,,+,
+Object Detection,yolof,onnx,FP16,OpenVINO,+,,+
+Object Detection,yolof,onnx,FP16-INT8,OpenVINO,+,,+
+Object Detection,yolof,onnx,FP32,OpenVINO,+,,+
+Object Detection,yolor_p6,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolor_p6,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolor_p6,onnx,FP32,OpenVINO,+,+,
+Object Detection,yolor_p6,onnx,FP32,ONNX Runtime OVEP,+,+,+
+Object Detection,yolor_p6,onnx,FP16,ONNX Runtime OVEP,+,+,+
+Object Detection,yolor_p6,onnx,INT8,ONNX Runtime OVEP,+,+,+
+Object Detection,yolo-v3,tf,FP32,OpenVINO,+,+,+
+Object Detection,yolo-v3,tf,FP16,OpenVINO,+,+,+
+Object Detection,yolo-v4-tiny,tf,FP16,OpenVINO,+,+,+
+Object Detection,yolo-v4-tiny,tf,FP32,OpenVINO,+,+,+
+Object Detection,yolov8n,pytorch,FP32,torch.compile,+,+,+
+Object Detection,yolox-tiny,onnx,FP16,OpenVINO,+,+,+
+Object Detection,yolox-tiny,onnx,FP16-INT8,OpenVINO,+,+,+
+Object Detection,yolox-tiny,onnx,FP32,OpenVINO,+,+,+
+Large Language Model,zephyr-7b-beta,pytorch,FP16,OpenVINO,+,+,
+Large Language Model,zephyr-7b-beta,pytorch,INT8-CW,OpenVINO,+,+,
+Large Language Model,zephyr-7b-beta,pytorch,INT4-MIXED,OpenVINO,+,+,
+Large Language Model,zephyr-7b-beta,pytorch,INT4,Optimum Intel,+,+,

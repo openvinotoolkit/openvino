@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,10 @@ static size_t get_character_count(const std::vector<std::string>& vec) {
     return count;
 }
 
-class StringTensorUnpackStaticTestSuite : public ::testing::TestWithParam<std::tuple<
-                                                              std::vector<std::string>,         // input data
-                                                              Shape                             // input shape
-                                                              >> {};
+class StringTensorUnpackStaticTestSuite
+    : public ::testing::TestWithParam<std::tuple<std::vector<std::string>,  // input data
+                                                 ov::Shape                  // input shape
+                                                 >> {};
 
 class StringTensorUnpackStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::v15::StringTensorUnpack> {};
 
@@ -32,9 +32,9 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_1) 
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"Intel", "OpenVINO"};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{2}, data_val}}};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, ov::Shape{2}, data_val}}};
 
-    const auto input_shapes = ShapeVector{Shape{2}};
+    const auto input_shapes = StaticShapeVector{ov::Shape{2}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
@@ -48,9 +48,9 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_2) 
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"Intel Corp", "   ", "Open VINO", "", "Artificial Intelligence"};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{5}, data_val}}};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, ov::Shape{5}, data_val}}};
 
-    const auto input_shapes = ShapeVector{Shape{5}};
+    const auto input_shapes = StaticShapeVector{ov::Shape{5}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
@@ -64,9 +64,9 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_3) 
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision", "Neural", "Networks"};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{2, 2, 2}, data_val}}};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, ov::Shape{2, 2, 2}, data_val}}};
 
-    const auto input_shapes = ShapeVector{Shape{2, 2, 2}};
+    const auto input_shapes = StaticShapeVector{ov::Shape{2, 2, 2}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
@@ -80,9 +80,9 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_4) 
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"In@tel", "Open#VINO", "A$I"};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{1, 3}, data_val}}};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, ov::Shape{1, 3}, data_val}}};
 
-    const auto input_shapes = ShapeVector{Shape{1, 3}};
+    const auto input_shapes = StaticShapeVector{ov::Shape{1, 3}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
@@ -99,7 +99,7 @@ TEST_P(StringTensorUnpackStaticTestSuite, StringTensorUnpackStaticShapeInference
 
     const auto data = std::make_shared<Constant>(element::string, input_shape, input_strings);
     const auto op = std::make_shared<op::v15::StringTensorUnpack>(data);
-    const auto input_shapes = ShapeVector{input_shape};
+    const auto input_shapes = StaticShapeVector{input_shape};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -115,44 +115,24 @@ INSTANTIATE_TEST_SUITE_P(
     StringTensorUnpackStaticTestSuite,
     ::testing::Values(
         // single string
-        std::make_tuple(
-            std::vector<std::string>{"Intel"},
-            Shape{1}),
+        std::make_tuple(std::vector<std::string>{"Intel"}, ov::Shape{1}),
         // multiple strings
-        std::make_tuple(
-            std::vector<std::string>{"Intel", "OpenVINO", "AI"},
-            Shape{3}),
+        std::make_tuple(std::vector<std::string>{"Intel", "OpenVINO", "AI"}, ov::Shape{3}),
         // empty string
-        std::make_tuple(
-            std::vector<std::string>{""},
-            Shape{1}),
+        std::make_tuple(std::vector<std::string>{""}, ov::Shape{1}),
         // strings with special characters
-        std::make_tuple(
-            std::vector<std::string>{"In@tel", "Open#VINO", "A$I"},
-            Shape{3}),
+        std::make_tuple(std::vector<std::string>{"In@tel", "Open#VINO", "A$I"}, ov::Shape{3}),
         // strings with spaces and an empty string
-        std::make_tuple(
-            std::vector<std::string>{"Intel Corp", "   ", "Open VINO", "", "Artificial Intelligence"},
-            Shape{1, 5}),
+        std::make_tuple(std::vector<std::string>{"Intel Corp", "   ", "Open VINO", "", "Artificial Intelligence"},
+                        ov::Shape{1, 5}),
         // empty vector
-        std::make_tuple(
-            std::vector<std::string>{},
-            Shape{0}),
+        std::make_tuple(std::vector<std::string>{}, ov::Shape{0}),
         // different shapes
-        std::make_tuple(
-            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"},
-            Shape{2, 2}),
-        std::make_tuple(
-            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision"},
-            Shape{2, 3}),
+        std::make_tuple(std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"}, ov::Shape{2, 2}),
+        std::make_tuple(std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision"},
+                        ov::Shape{2, 3}),
         std::make_tuple(
             std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision", "Neural", "Networks"},
-            Shape{2, 2, 2}),
-        std::make_tuple(
-            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"},
-            Shape{1, 4}),
-        std::make_tuple(
-            std::vector<std::string>{"Intel"},
-            Shape{1, 1})
-    )
-);
+            ov::Shape{2, 2, 2}),
+        std::make_tuple(std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"}, ov::Shape{1, 4}),
+        std::make_tuple(std::vector<std::string>{"Intel"}, ov::Shape{1, 1})));

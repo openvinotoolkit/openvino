@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,8 +133,8 @@ struct ImplHasher {
 }  // namespace
 
 TEST(lru_cache, collisions) {
-    auto l1 = layout{{1, 3, 27, 85}, data_types::f32, format::bfyx};
-    auto l2 = layout{{1, 3, 26, 24}, data_types::f32, format::bfyx};
+    auto l1 = layout{{1, 3, 27, 92}, data_types::f32, format::bfyx};
+    auto l2 = layout{{1, 3, 28, 29}, data_types::f32, format::bfyx};
 
     auto input1_prim = std::make_shared<input_layout>("input1", l1);
     auto input2_prim = std::make_shared<input_layout>("input2", l2);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,6 @@ include(GNUInstallDirs)
 #
 macro(ov_debian_cpack_set_dirs)
     # override default locations for Debian
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     if(CMAKE_CROSSCOMPILING)
@@ -42,7 +41,7 @@ macro(ov_debian_cpack_set_dirs)
     unset(OV_CPACK_SHAREDIR)
 
     # skipped during debian packaging
-    set(OV_CPACK_WHEELSDIR "tools")
+    set(OV_CPACK_WHEELSDIR "wheels")
 endmacro()
 
 ov_debian_cpack_set_dirs()
@@ -96,12 +95,12 @@ macro(ov_define_component_include_rules)
     endif()
     # python
     if(ENABLE_PYTHON_PACKAGING)
-        # pack artifacts of setup.py install
+        # pack artifacts of pip install
         unset(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL)
     else()
         set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     endif()
-    # we don't pack python components itself, we pack artifacts of setup.py install
+    # we don't pack python components itself, we pack artifacts of pip install
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
@@ -111,8 +110,6 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # nodejs
     set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

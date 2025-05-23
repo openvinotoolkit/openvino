@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
             subtensor[i] = utils::get_full_dim_value();
 
         PortDescriptorUtils::set_port_descriptor(power->input(0), subtensor);
-        PortDescriptorUtils::set_port_descriptor(power->output(0), subtensor);
+        PortDescriptorUtils::set_port_descriptor(power->output(0), std::move(subtensor));
 
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, multiply});
         return ov::replace_node_update_name(softmax, multiply);

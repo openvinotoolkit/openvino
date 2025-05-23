@@ -6,7 +6,11 @@
 set(TARGET_NAME single-image-test)
 
 if (NOT DEFINED PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    if(WIN32)
+        cmake_minimum_required(VERSION 3.16)
+    else()
+        cmake_minimum_required(VERSION 3.13)
+    endif()
     project(single-image-test_standalone)
     include("cmake/standalone.cmake")
     return()
@@ -26,7 +30,7 @@ foreach(LIB opencv_core opencv_imgproc opencv_imgcodecs)
 endforeach()
 
 if(NOT MISSING_DEPENDENCIES STREQUAL "")
-    message(WARNING "${TARGET_NAME} tool is disabled due to missing dependencies: ${MISSING_DEPENDENCIES}")
+    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: ${MISSING_DEPENDENCIES}")
     return()
 endif()
 

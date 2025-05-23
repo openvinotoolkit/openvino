@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -37,12 +37,8 @@ class TestIsInf(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_is_inf_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_is_inf_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855')
-        if use_legacy_frontend:
-            pytest.skip("IsInf operation is not supported via legacy frontend.")
         self._test(*self.create_is_inf_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

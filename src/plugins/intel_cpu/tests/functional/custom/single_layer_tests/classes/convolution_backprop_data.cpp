@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,7 @@ void DeconvolutionLayerCPUTest::configure_model() {
             if (i > 0) {
                 continue;
             }
-            if (inType != ov::element::Type_t::undefined) {
+            if (inType != ov::element::Type_t::dynamic) {
                 p.input(i).tensor().set_element_type(inType);
             }
         }
@@ -115,7 +115,7 @@ void DeconvolutionLayerCPUTest::configure_model() {
     {
         auto results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
-            if (outType != ov::element::Type_t::undefined) {
+            if (outType != ov::element::Type_t::dynamic) {
                 p.output(i).tensor().set_element_type(outType);
             }
         }
@@ -197,8 +197,8 @@ void DeconvolutionLayerCPUTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    ov::element::Type inference_precision = (it != configuration.end()) ?
-        it->second.as<ov::element::Type>() : ov::element::undefined;
+    ov::element::Type inference_precision =
+        (it != configuration.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
     if (inference_precision == ov::element::bf16) {
         inType = outType = prec = ElementType::bf16;
         rel_threshold = 1e-2f;

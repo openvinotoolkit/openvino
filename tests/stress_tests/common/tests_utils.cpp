@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
         for (auto &numthreads: threads)
             for (auto &numiters: iterations)
                 for (auto &device: devices)
-                    for (int i = 0; i < models.size(); i++)
+                    for (size_t i = 0; i < models.size(); i++)
                         tests_cases.emplace_back(numprocesses, numthreads, numiters, device, models[i],
                                                     models_names[i], precisions[i]);
     return tests_cases;

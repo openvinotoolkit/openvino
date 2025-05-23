@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
     const auto while_label = pattern::wrap_type<ov::op::internal::While>();
 
     matcher_pass_callback callback = [functions](pattern::Matcher& m) -> bool {
-        const auto& while_node = std::dynamic_pointer_cast<ov::op::internal::While>(m.get_match_root());
+        const auto& while_node = ov::as_type_ptr<ov::op::internal::While>(m.get_match_root());
         if (!while_node)
             return false;
         const auto& inputs = while_node->input_values();

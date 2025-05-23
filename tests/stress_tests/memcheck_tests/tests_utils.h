@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ const std::array<std::string, MeasureValueMax> MeasureValueHeader{"VMRSS", "VMHW
 
 namespace util {
     template<typename Type>
-    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> &array,
+    inline std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> &array,
                                                  const std::string &delimiter = "\t\t") {
         std::string str = std::to_string(*array.begin());
         for (auto it = array.begin() + 1; it != array.end(); it++)
@@ -26,7 +26,7 @@ namespace util {
         return str;
     }
 
-    static std::string get_measure_values_headers(const std::string &delimiter = "\t\t") {
+    inline std::string get_measure_values_headers(const std::string &delimiter = "\t\t") {
         std::string str = *MeasureValueHeader.begin();
         for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
             str += delimiter + *it;
@@ -96,7 +96,7 @@ public:
     }
 
     void collect_vm_values_for_test(std::string test_name, TestCase test_params) {
-        for (int i = 0; i < test_name_v.size(); i++)
+        for (size_t i = 0; i < test_name_v.size(); i++)
             if (test_name_v[i] == test_name)
                 if (model_name_v[i] == test_params.model_name)
                     if (device_v[i] == test_params.device)

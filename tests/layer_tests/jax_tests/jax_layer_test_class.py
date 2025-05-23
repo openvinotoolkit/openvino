@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -7,7 +7,7 @@ import numpy as np
 import os
 from common.constants import test_device, test_precision
 from copy import deepcopy
-from openvino.runtime import Core
+from openvino import Core
 
 
 class JaxLayerTest:

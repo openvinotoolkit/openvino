@@ -6,9 +6,9 @@ Create a Yocto Image with OpenVINO™
 
 .. note::
 
-   Note that the YOCTO distribution is community-supported and has not been fully tested.
+   Note that the YOCTO distribution is mostly community-supported.
    You will need to set up and configure your host machine to be compatible with BitBake. For
-   instruction on how to do that, follow the
+   instructions on how to do that, follow the
    `Yocto Project official documentation <https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution>`__  .
 
 
@@ -104,10 +104,10 @@ If the image build is successful, it will return the list of packages as below:
 Additional Resources
 ####################
 
-- :doc:`Troubleshooting Guide <../troubleshooting-install-config>`
+- :doc:`Troubleshooting Guide <./configurations/troubleshooting-install-config>`
 - `Official Yocto Project documentation <https://docs.yoctoproject.org/>`__
 - `BitBake Tool <https://docs.yoctoproject.org/bitbake/>`__
 - `Poky <https://git.yoctoproject.org/poky>`__
-- `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README>`__
-- `Meta-openembedded <http://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
+- `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README.md>`__
+- `Meta-openembedded <https://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
 - `Meta-clang <https://github.com/kraj/meta-clang/tree/master/#readme>`__

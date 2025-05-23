@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ class CompressWeightsWithFakeConvert;
 */
 class ov::pass::CompressWeightsWithFakeQuantize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressWeightsWithFakeQuantize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CompressWeightsWithFakeQuantize");
 
     CompressWeightsWithFakeQuantize();
 };
@@ -95,13 +95,13 @@ public:
 */
 class ov::pass::CompressWeightsWithFakeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressWeightsWithFakeConvert", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CompressWeightsWithFakeConvert");
 
     CompressWeightsWithFakeConvert();
 };
 
 class ov::pass::CompressQuantizeWeights : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CompressQuantizeWeights", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("CompressQuantizeWeights");
     CompressQuantizeWeights();
 };

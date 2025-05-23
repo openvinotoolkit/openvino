@@ -1,7 +1,5 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import platform
 
 import numpy as np
 import pytest
@@ -86,18 +84,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extesion is not supported on GPU or "
                         "No layout format available for gather:LookupTableFind issue")
-        if params['keys_type'] == str:
-            if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
-                                                                         'aarch64',
-                                                                         'arm64',
-                                                                         'ARM64']:
-                pytest.xfail(reason='126314, 132699: Build tokenizers for ARM and MacOS')
         self._test(*self.create_lookup_table_find_net(hash_table_type=hash_table_type,
                                                       keys_shape=keys_shape, **params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

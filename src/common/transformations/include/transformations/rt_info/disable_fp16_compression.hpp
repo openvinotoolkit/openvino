@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
  */
 class TRANSFORMATIONS_API DisableFP16Compression : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("precise", "0");
+    OPENVINO_RTTI("precise", "0", RuntimeAttribute);
 
     DisableFP16Compression() = default;
 

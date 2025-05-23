@@ -46,10 +46,12 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
         SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
-        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC(op::RegSpillBegin),
+        SHAPE_INFER_PREDEFINED(op::RegSpillEnd, EmptyShapeInfer),
 #ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(op::PerfCountBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
@@ -57,7 +59,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::KernelStatic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::KernelDynamic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
-        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Reshape, ReshapeShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
@@ -65,7 +66,9 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         // Note that Result has no output PortConnectors, so the shape must be empty
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
-        SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
+        SHAPE_INFER_OP_SPECIFIC(op::LoadReorder),
+        SHAPE_INFER_OP_SPECIFIC(op::Reshape),
+        SHAPE_INFER_OP_SPECIFIC(op::Reorder),
         SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
@@ -83,9 +86,9 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
         return shape_infer;
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<PassThroughShapeInfer>();
-    } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
-               ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
-               ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {
+    } else if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
+                                  ov::op::util::BinaryElementwiseComparison,
+                                  ov::op::util::BinaryElementwiseLogical>(op)) {
         return std::make_shared<NumpyBroadcastShapeInfer>();
     } else {
         OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) + " is not supported in Snippets shape inference pipeline");

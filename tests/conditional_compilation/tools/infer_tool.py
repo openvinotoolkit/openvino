@@ -1,6 +1,6 @@
 # !/usr/bin/env python3
 
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # pylint:disable=invalid-name,no-name-in-module,logging-format-interpolation,redefined-outer-name

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporationc
+// Copyright (C) 2018-2025 Intel Corporationc
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,7 @@
 #include <memory>
 #include <vector>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
     // Get one MatcherPass for all modes
@@ -123,5 +122,4 @@ bool DecomposeReduceForFalseKeepDims::need_transformation_for_reordered_axes(std
     return feature_axis_is_only_remaining;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

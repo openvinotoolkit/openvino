@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,9 @@ OutputVector translate_embedding_ext(const NodeContext& context) {
     // used in 16-bit patching
     num_inputs_check(context, 2, 5);
     auto data = context.get_input(0);
-    data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::f32));
+    if (data.get_element_type() != element::f32) {
+        data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::f32));
+    }
     auto indices = context.get_input(1);
     indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i32));
     auto axis_0 = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {0}));

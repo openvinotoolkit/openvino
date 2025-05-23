@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/roi_pooling.hpp"
+#include "openvino/op/roi_pooling.hpp"
 
 namespace ov {
 namespace test {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertInterpolate11ToInterpolate4 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertInterpolate11ToInterpolate4", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertInterpolate11ToInterpolate4");
     ConvertInterpolate11ToInterpolate4();
 };
 

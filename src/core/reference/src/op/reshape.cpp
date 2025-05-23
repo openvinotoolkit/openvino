@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ void reshape_2D(const char* in,
             }
         }
     } else {
-        ov::parallel_for2d(out_shape[0], out_shape[1], [in, out, &out_shape, elem_size](size_t i, size_t j) {
+        ov::parallel_for2d_dynamic(out_shape[0], out_shape[1], [in, out, &out_shape, elem_size](size_t i, size_t j) {
             size_t in_off = j * out_shape[0] + i;
             size_t out_off = i * out_shape[1] + j;
             copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);

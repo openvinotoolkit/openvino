@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #ifdef CPU_DEBUG_CAPS
 
-#include <node.h>
+#    include <node.h>
 
-#include <string>
-#include <cstdlib>
-#include <sstream>
+#    include <cstdlib>
+#    include <sstream>
+#    include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -47,9 +47,9 @@ private:
 };
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)
-#define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
-}   // namespace intel_cpu
-}   // namespace ov
+#    define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
+}  // namespace intel_cpu
+}  // namespace ov
 #else
-#define VERBOSE(...)
-#endif // CPU_DEBUG_CAPS
+#    define VERBOSE(...)
+#endif  // CPU_DEBUG_CAPS

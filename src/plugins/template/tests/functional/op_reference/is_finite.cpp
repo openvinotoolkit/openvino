@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto is_finite = std::make_shared<op::v10::IsFinite>(in);
-        return std::make_shared<Model>(NodeVector{is_finite}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{is_finite}, ParameterVector{in});
     }
 };
 

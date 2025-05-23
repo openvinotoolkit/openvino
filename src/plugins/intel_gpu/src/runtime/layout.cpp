@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -345,7 +345,11 @@ size_t layout::get_linear_offset(tensor element) const {
     const auto& l_padd = tensor(default_fmt, lower_sizes, 0);
     const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
 
-    const auto& t = get_tensor();
+    auto t = get_tensor();
+    for (auto& d : t.raw) {
+        if (d == 0)
+            d = 1;
+    }
 
     if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
         (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
@@ -446,8 +450,6 @@ bool layout::compatible(const layout& other) const {
     if (l1.is_dynamic() || l2.is_dynamic())
         return false;
 
-    auto l1_size = l1.get_tensor();
-    auto l2_size = l2.get_tensor();
     if (l1 == l2)
         return true;
     if (check_redundant_1d_along_feature(l1, l2))
@@ -459,7 +461,7 @@ bool layout::compatible(const layout& other) const {
     if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
         !l1.data_padding && !l2.data_padding && l1.get_linear_size() == l2.get_linear_size())
         return true;
-    if (l1_size != l2_size)
+    if (l1.get_shape() != l2.get_shape())
         return false;
     if (l1.get_linear_size() != l2.get_linear_size())
         return false;
@@ -504,6 +506,19 @@ bool layout::compatible(const layout& other) const {
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
+
+    auto l1_padded_dims = l1.get_padded_dims();
+    auto l2_padded_dims = l2.get_padded_dims();
+
+    // Ignore pitches which will never be used (for padded dims with size == 1)
+    for (size_t i = 0; i < l1_padded_dims.size(); ++i) {
+        if (l1_padded_dims[i] == 1) {
+            l1_pitch[i] = 0;
+        }
+        if (l2_padded_dims[i] == 1) {
+            l2_pitch[i] = 0;
+        }
+    }
 
     auto l1_offset = l1.get_linear_offset();
     auto l2_offset = l2.get_linear_offset();

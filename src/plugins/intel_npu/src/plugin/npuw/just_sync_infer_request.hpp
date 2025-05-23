@@ -6,10 +6,16 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -17,15 +23,54 @@ namespace npuw {
 class CompiledModel;
 class AsyncInferRequest;
 
+class MemAccessSim {
+public:
+    explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using ReadList = std::list<LinkFrom>;
+    const ReadList& read_list(std::size_t idx) const;
+
+    std::size_t remaining_reads(const LinkFrom& from);
+    void register_read(const LinkFrom& from);
+
+private:
+    std::map<LinkFrom, std::size_t> m_remaining_reads;
+    std::vector<ReadList> m_read_list;
+};
+
+class FuncMemMgr {
+    MemAccessSim m_sim;
+    std::shared_ptr<ov::npuw::CompiledModel> m_model;
+
+    void assign(const LinkFrom& from);
+
+    // Function ID -> Output port number
+    using FO = std::pair<std::size_t, std::size_t>;
+    struct Assignment {
+        TensorPtr ptr;
+        LinkFrom from;
+    };
+    std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
+    std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
+
+public:
+    explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using AllocFcn = std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+    void set_alloc(AllocFcn&& fcn);
+    void assign_memory();
+
+    TensorPtr get_tensor(const LinkFrom& from);
+
+private:
+    AllocFcn m_alloc;
+};
+
 class JustInferRequest final : public IBaseInferRequest {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
-    // Query APIs
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-private:
+protected:
     ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;
@@ -35,10 +80,10 @@ private:
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
-    std::size_t total_subrequests() const override;
     bool supports_async_pipeline() const override;
-
     void update_subrequest_links(std::size_t idx) override;
+
+    TensorPtr alloc_global_out(std::size_t out_idx) override;
 
     ////////////////////////////////////
     // now own API
@@ -48,22 +93,21 @@ private:
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
+    using IBaseInferRequest::bind_global_results;
 
     void function_prologue(std::size_t idx);
-    void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
-    using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                               ,
-                               std::size_t /* Subrequest output index */
-                               >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-    using TensorPtr = ov::SoPtr<ov::ITensor>;
-    std::map<LinkFrom, TensorPtr> m_funcall_result;
+    FuncMemMgr m_func_mem_mgr;                       // Owns memory
+    std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
@@ -81,15 +125,8 @@ private:
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
 
-    // This structure tracks how every individual subrequest
-    // access the model's top-level (global, public, etc) parameters
-    // and results
-    struct GlobalIO {
-        using map_t = std::map<std::size_t, std::size_t>;
-        map_t global_params;   // param idx -> input idx
-        map_t global_results;  // result idx -> output idx
-    };
-    std::vector<GlobalIO> m_subrequests_gio;
+    // Cached check if we do FOLDing and need to update closures in the repeating blocks
+    bool m_closure_update_required = false;
 };
 
 }  // namespace npuw

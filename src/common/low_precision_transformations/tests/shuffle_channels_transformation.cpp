@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +148,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
@@ -158,7 +158,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         }

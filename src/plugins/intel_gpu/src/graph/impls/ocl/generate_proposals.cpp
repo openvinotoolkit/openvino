@@ -20,7 +20,7 @@ struct generate_proposals_impl
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::generate_proposals_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<generate_proposals_impl>(*this);
+        return make_deep_copy<generate_proposals_impl, kernel_params_t>(*this);
     }
 
 protected:

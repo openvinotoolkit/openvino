@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -877,32 +877,26 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
 std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
-    if (std::any_of(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-            try {
-                return port.get_names().count(name) > 0;
-            } catch (const ov::Exception&) {
-                return false;  // Some ports might have no names - so this is workaround
-            }
-        })) {
-        return name;
-    } else if (std::any_of(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-                   try {
-                       return port.get_names().count(name) > 0;
-                   } catch (const ov::Exception&) {
-                       return false;  // Some ports might have no names - so this is workaround
-                   }
-               })) {
-        return name;
-    } else {
-        for (const auto& port : inputs_info) {
-            if (name == port.get_node()->get_friendly_name()) {
-                return port.get_any_name();
-            }
+    // Looking for a tensor name match
+    for (const auto& port : inputs_info) {
+        if (port.get_names().count(name) > 0) {
+            return port.get_any_name();
         }
-        for (const auto& port : outputs_info) {
-            if (name == port.get_node()->get_input_node_ptr(0)->get_friendly_name()) {
-                return port.get_any_name();
-            }
+    }
+    for (const auto& port : outputs_info) {
+        if (port.get_names().count(name) > 0) {
+            return port.get_any_name();
+        }
+    }
+    // Looking for a node name match
+    for (const auto& port : inputs_info) {
+        if (!port.get_names().empty() && name == port.get_node()->get_friendly_name()) {
+            return port.get_any_name();
+        }
+    }
+    for (const auto& port : outputs_info) {
+        if (!port.get_names().empty() && name == port.get_node()->get_input_node_ptr(0)->get_friendly_name()) {
+            return port.get_any_name();
         }
     }
     throw std::runtime_error("Provided I/O name \"" + name +

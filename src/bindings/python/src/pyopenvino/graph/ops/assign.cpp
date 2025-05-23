@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace py = pybind11;
 void regclass_graph_op_Assign(py::module m) {
     py::class_<ov::op::v6::Assign, std::shared_ptr<ov::op::v6::Assign>, ov::Node> assign(m, "assign");
 
-    assign.doc() = "openvino.runtime.op.assign wraps ov::op::v6::Assign";
+    assign.doc() = "openvino.op.assign wraps ov::op::v6::Assign";
 
     assign.def(py::init<>());
 

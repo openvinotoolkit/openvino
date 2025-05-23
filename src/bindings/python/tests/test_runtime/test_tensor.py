@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy, copy
 import os
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
@@ -480,7 +481,7 @@ def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
     fit = (dtype().nbytes * 8) / element_type.bitwidth
     tensor = ov.Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
-    assert np.array_equal(tensor.data, buffer.view(ov.runtime.utils.types.get_dtype(element_type)))
+    assert np.array_equal(tensor.data, buffer.view(ov.utils.types.get_dtype(element_type)))
 
 
 def test_viewed_tensor_default_type():
@@ -617,3 +618,45 @@ def test_tensor_keeps_memory():
 
     tensor = get_tensor()
     assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
+
+
+@pytest.mark.parametrize(
+    ("copy_func", "should_share_data"), [(copy, True), (deepcopy, False)]
+)
+def test_copy_and_deepcopy(copy_func, should_share_data):
+    shape = (3, 4)
+    value, outlier = 7, 100
+    tensor_data = np.full(shape, value)
+    tensor = ov.Tensor(tensor_data)
+    tensor_copy = copy_func(tensor)
+
+    assert np.array_equal(tensor_copy.data, tensor.data)
+    assert tensor_copy is not tensor
+    # Update value of the original tensor
+    tensor.data[0, 0] = outlier
+    assert tensor.data[0, 0] == outlier
+
+    if should_share_data:
+        assert tensor_copy.data[0, 0] == outlier
+    else:
+        assert tensor_copy.data[0, 0] == value
+
+
+# supported dtypes by Pillow
+@pytest.mark.parametrize(("numpy_dtype", "shape"), [
+                         (np.float32, (224, 224)),
+                         (np.int32, (224, 224)),
+                         (np.uint8, (224, 224, 3)),
+                         (np.uint16, (224, 224)),],)
+def test_tensor_from_pillow(numpy_dtype, shape):
+    from PIL import Image
+
+    arr = generate_image(shape, numpy_dtype)
+    img = Image.fromarray(arr)
+
+    tensor = ov.Tensor(img)
+    assert tensor.shape == shape
+    assert tensor.element_type == ov.Type(numpy_dtype)
+    assert isinstance(tensor.data, np.ndarray)
+    assert tensor.data.dtype == numpy_dtype
+    assert tensor.data.shape == shape

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-class ConvertToPowerStatic: public ov::pass::MatcherPass {
+class ConvertToPowerStatic : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToPowerStatic", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToPowerStatic");
     ConvertToPowerStatic();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

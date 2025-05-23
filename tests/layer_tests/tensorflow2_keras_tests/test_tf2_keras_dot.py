@@ -44,17 +44,14 @@ class TestKerasDot(CommonTF2LayerTest):
         ([[5, 1, 5, 2], [5, 1, 2, 5]], (2, 3)),
         ([[5, 1, 102, 2], [5, 1, 4, 102]], (-2, -1))
     ])
-    @pytest.mark.parametrize('input_type', [np.float32, np.float64,
-                                            np.int8, np.int16, np.int32, np.int64,
-                                            np.uint8, np.uint16, np.uint32, np.uint64])
+    @pytest.mark.parametrize('input_type', [np.float32, np.float64])
     @pytest.mark.parametrize('normalize', [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_dot(self, input_shapes, axes, input_type, normalize,
-                       ie_device, precision, temp_dir, ir_version,
-                       use_legacy_frontend):
+                       ie_device, precision, temp_dir, ir_version):
         params = {}
         params['input_shapes'] = input_shapes
         self._test(*self.create_keras_dot_net(input_shapes, axes, input_type, normalize),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

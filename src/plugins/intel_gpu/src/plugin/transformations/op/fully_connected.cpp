@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "matmul_shape_inference.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
@@ -37,7 +35,7 @@ void FullyConnected::validate_and_infer_types() {
 
     auto out_shapes = ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
 
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
 }
 
@@ -46,6 +44,4 @@ bool FullyConnected::visit_attributes(ov::AttributeVisitor &visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

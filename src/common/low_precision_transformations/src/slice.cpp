@@ -9,9 +9,10 @@
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,27 +27,27 @@ SliceTransformation::SliceTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!SliceTransformation::canBeTransformed(context, m.get_match_root())) {
+bool SliceTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!SliceTransformation::canBeTransformed(m.get_match_root())) {
         return false;
     }
 
     const auto strided_slice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool SliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool SliceTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 

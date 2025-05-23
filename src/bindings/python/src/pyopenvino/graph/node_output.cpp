@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ void def_type_dependent_functions<ov::Node>(
                 Removes a target input from the output referenced by this output handle.
 
                 :param target_input: The target input to remove.
-                :type target_input: openvino.runtime.Output
+                :type target_input: openvino.Output
                )");
     output.def("replace",
                &ov::Output<ov::Node>::replace,
@@ -58,6 +58,6 @@ void def_type_dependent_functions<ov::Node>(
                 Replace all users of this value with replacement.
 
                 :param replacement: The node that is a replacement.
-                :type replacement: openvino.runtime.Output
+                :type replacement: openvino.Output
                )");
 }

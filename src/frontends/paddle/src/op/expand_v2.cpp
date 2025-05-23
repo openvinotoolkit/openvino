@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,16 @@ NamedOutputs expand_v2(const NodeContext& node) {
         auto inputs = node.get_ng_inputs("expand_shapes_tensor");
         ov::NodeVector node_vec;
         for (auto& input : inputs) {
+            if (input.get_partial_shape().rank().get_length() == 0) {
+                // should unsqueeze the input with non-shape.
+                auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i32, {}, {0});
+                input = std::make_shared<default_opset::Unsqueeze>(input, unsqueeze_scalar);
+            }
+            PADDLE_OP_CHECK(node,
+                            input.get_partial_shape().rank().get_length() == 1,
+                            "the rank of conv input must == 1");
             auto cast = std::make_shared<Convert>(input, element::i32);
-            node_vec.push_back(cast);
+            node_vec.emplace_back(cast);
         }
         shape_expected_node = std::make_shared<Concat>(node_vec, 0);
     } else {

@@ -21,7 +21,7 @@ OpenVINO Paddle Frontend has the following structure:
 
 ## Debug capabilities
 
-Developers can use OpenVINO Model debug capabilities that are described in the [OpenVINO Model User Guide](https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation.html#model-debug-capabilities).
+Developers can use OpenVINO Model debug capabilities that are described in the [OpenVINO Model User Guide](https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-representation.html#model-debug-capabilities).
 
 ## Tutorials
 

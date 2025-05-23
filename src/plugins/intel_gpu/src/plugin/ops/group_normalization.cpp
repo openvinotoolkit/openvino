@@ -6,8 +6,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateGroupNormalizationOp(ProgramBuilder& p, const std::shared_ptr<op::v12::GroupNormalization>& op) {
     validate_inputs_count(op, {3});
@@ -26,5 +25,4 @@ static void CreateGroupNormalizationOp(ProgramBuilder& p, const std::shared_ptr<
 
 REGISTER_FACTORY_IMPL(v12, GroupNormalization);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

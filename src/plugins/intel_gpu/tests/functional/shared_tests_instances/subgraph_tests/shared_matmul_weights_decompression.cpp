@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::test;
 
@@ -39,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedCompressedWeights,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::ValuesIn(transpose_weights),
-                                            ::testing::Values(DecompressionSubtractType::full),
+                                            ::testing::Values(DecompressionType::full),
                                             ::testing::Values(true)),
                          SharedMatmulWeightsDecompression::getTestCaseName);
 

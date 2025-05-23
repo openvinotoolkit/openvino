@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_npu/common/sync_infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "sync_infer_request.hpp"
 
 namespace intel_npu {
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,17 +12,17 @@ namespace node {
 
 class GatherND : public Node {
 public:
-    GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
 
 private:
@@ -47,11 +47,11 @@ private:
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
         size_t batchSize = 1lu;
-        size_t cycles = 1lu;
-        size_t dataLength = 1lu;
-        size_t sliceRank = 0lu;
-        size_t workAmount = 0lu;
         size_t dataSize = 1lu;
+        size_t sliceRank = 0lu;
+        size_t dataLength = 1lu;
+        size_t cycles = 1lu;
+        size_t workAmount = 0lu;
 
         size_t srcBatchStride = 1lu;
         size_t idxBatchStride = 1lu;
@@ -65,7 +65,7 @@ private:
             MemoryPtr dstMemPtr;
         };
 
-        template<typename T>
+        template <typename T>
         struct GatherNDEmitter {
             void operator()(GatherNDContext& ctx) {
                 ctx.executor->gatherElementwise<T>(ctx.srcMemPtr, ctx.idxMemPtr, ctx.dstMemPtr);
@@ -80,6 +80,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

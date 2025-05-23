@@ -11,7 +11,7 @@ Interface PartialShape
    }
 
 * **Defined in:**
-  `addon.ts:612 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L612>`__
+  `addon.ts:630 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L630>`__
 
 
 Methods
@@ -29,7 +29,7 @@ Methods
   * **Returns:** :doc:`Dimension <../types/Dimension>`\[]
 
   * **Defined in:**
-    `addon.ts:616 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L616>`__
+    `addon.ts:634 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L634>`__
 
 
 .. rubric:: isDynamic
@@ -43,7 +43,7 @@ Methods
    * **Returns:** boolean
 
    * **Defined in:**
-     `addon.ts:614 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L614>`__
+     `addon.ts:632 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L632>`__
 
 
 .. rubric:: isStatic
@@ -57,7 +57,7 @@ Methods
    * **Returns:** boolean
 
    * **Defined in:**
-     `addon.ts:613 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L613>`__
+     `addon.ts:631 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L631>`__
 
 
 .. rubric:: toString
@@ -71,5 +71,5 @@ Methods
    * **Returns:** string
 
    * **Defined in:**
-     `addon.ts:615 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L615>`__
+     `addon.ts:633 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L633>`__
 

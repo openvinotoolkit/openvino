@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,10 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, ov::con
     ov::conformance::MetaInfo meta = graph_info.second;
 
     std::string model_name = model->get_friendly_name();
-    std::string abs_searilization_dir = ov::util::path_join({ m_serialization_dir, rel_serialization_dir });
-    std::string xml_path =  ov::util::path_join({ abs_searilization_dir, model_name + ".xml" });
-    std::string bin_path = ov::util::path_join({ abs_searilization_dir, model_name + ".bin" });
-    std::string meta_path = ov::util::path_join({ abs_searilization_dir, model_name + ".meta" });
+    std::string abs_searilization_dir = ov::util::path_join({ m_serialization_dir, rel_serialization_dir }).string();
+    std::string xml_path =  ov::util::path_join({ abs_searilization_dir, model_name + ".xml" }).string();
+    std::string bin_path = ov::util::path_join({ abs_searilization_dir, model_name + ".bin" }).string();
+    std::string meta_path = ov::util::path_join({ abs_searilization_dir, model_name + ".meta" }).string();
 
     if (!ov::util::directory_exists(abs_searilization_dir)) {
         ov::util::create_directory_recursive(abs_searilization_dir);

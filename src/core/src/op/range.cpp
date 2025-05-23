@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,11 +167,11 @@ void Range::validate_and_infer_types() {
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this,
-                          result_et != element::Type_t::u1 && result_et != element::Type_t::i4 &&
-                              result_et != element::Type_t::u4 && result_et != element::Type_t::undefined,
-                          "Internal OpenVINO error: unsupported element type: ",
-                          result_et);
+    NODE_VALIDATION_CHECK(
+        this,
+        result_et != element::Type_t::u1 && result_et != element::Type_t::i4 && result_et != element::Type_t::u4,
+        "Internal OpenVINO error: unsupported element type: ",
+        result_et);
 
     if (result_et == element::Type_t::dynamic) {
         set_output_type(0, result_et, ov::PartialShape::dynamic(1));

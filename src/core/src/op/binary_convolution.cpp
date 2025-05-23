@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,6 +98,8 @@ EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
         {{"xnor-popcount", op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT}});
     return enum_names;
 }
+
+AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>::~AttributeAdapter() = default;
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::op::v1::BinaryConvolution::BinaryConvolutionMode& type) {

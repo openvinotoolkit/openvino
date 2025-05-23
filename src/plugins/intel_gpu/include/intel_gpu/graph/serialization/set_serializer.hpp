@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ public:
     static void load(BufferType& buffer, std::unordered_set<T>& set) {
         typename std::unordered_set<T>::size_type set_size = 0UL;
         buffer >> set_size;
-
+        if (set.empty()) set.reserve(set_size);
         for (long unsigned int i = 0; i < set_size; i++) {
             T el;
             buffer >> el;

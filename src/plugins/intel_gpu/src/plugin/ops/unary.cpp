@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,7 @@
 
 #include "intel_gpu/primitives/activation.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op,
                           cldnn::activation_func func, cldnn::activation_additional_params params) {
@@ -76,7 +75,7 @@ static void CreateReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Re
 static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::PRelu>& op) {
     validate_inputs_count(op, {2});
 
-    auto slope_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto slope_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto slope_shape = op->get_input_partial_shape(1);
     auto out_shape = op->get_output_partial_shape(0);
 
@@ -165,8 +164,8 @@ static void CreateErfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Erf
 
 static void CreateHardSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::HardSigmoid>& op) {
     validate_inputs_count(op, {3});
-    auto alpha_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto beta_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+    auto alpha_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto beta_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !beta_node) {
         OPENVINO_THROW("[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
@@ -191,8 +190,8 @@ static void CreateNegativeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
 static void CreateSeluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Selu>& op) {
     validate_inputs_count(op, {3});
-    auto alpha_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto lambda_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+    auto alpha_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto lambda_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !lambda_node) {
         OPENVINO_THROW("Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
@@ -236,7 +235,7 @@ static void CreateCoshOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Co
 static void CreateSwishOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::Swish>& op) {
     validate_inputs_count(op, {1, 2});
     if (op->get_input_size() == 2) {
-        auto beta_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto beta_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (beta_node) {
             if (ov::shape_size(beta_node->get_output_shape(0)) == 1) {
                 float beta;
@@ -335,5 +334,4 @@ REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
 REGISTER_FACTORY_IMPL(v9, SoftSign);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

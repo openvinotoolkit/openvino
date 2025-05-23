@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,9 +253,9 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
     size_t buffer_size = batch_num * class_num * buffer_stride;
     size_t sel_num_buffer_size = batch_num * class_num * sizeof(int);
 
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(sel_num_buffer_size);
+    kd.internalBuffers.push_back(buffer_size);
+    kd.internalBuffers.push_back(buffer_size);
+    kd.internalBuffers.push_back(sel_num_buffer_size);
     kd.internalBufferDataType = Datatype::F32;
 
     // Build clKernelData.

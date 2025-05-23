@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,7 +126,19 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int ncores,
                                const CpuSet& procMask,
                                const std::vector<int>& cpu_ids) {
-    return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
+    auto proc_type_table = get_proc_type_table();
+    if (proc_type_table.size() > 1) {
+        int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC];
+        GROUP_AFFINITY group;
+        group.Group = get_numa_node_id(cpu_ids[thrIdx]);
+        group.Mask = DWORD_PTR(1) << (cpu_ids[thrIdx] % cores_in_numa);
+        group.Reserved[0] = 0;
+        group.Reserved[1] = 0;
+        group.Reserved[2] = 0;
+        return 0 != SetThreadGroupAffinity(GetCurrentThread(), &group, NULL);
+    } else {
+        return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
+    }
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     DWORD_PTR mask = *procMask.get();

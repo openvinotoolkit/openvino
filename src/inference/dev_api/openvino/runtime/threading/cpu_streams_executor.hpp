@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,13 +49,15 @@ public:
 
     int get_stream_id() override;
 
-    int get_streams_num();
+    int get_streams_num() override;
 
     int get_numa_node_id() override;
 
     int get_socket_id() override;
 
     std::vector<int> get_rank() override;
+
+    void cpu_reset() override;
 
 private:
     struct Impl;

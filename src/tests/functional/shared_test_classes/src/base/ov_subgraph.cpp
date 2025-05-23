@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -273,7 +273,7 @@ void SubgraphBaseTest::configure_model() {
     {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
-            if (inType != ov::element::Type_t::undefined) {
+            if (inType != ov::element::Type_t::dynamic) {
                 p.input(i).tensor().set_element_type(inType);
             }
         }
@@ -283,7 +283,7 @@ void SubgraphBaseTest::configure_model() {
     {
         auto results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
-            if (outType != ov::element::Type_t::undefined) {
+            if (outType != ov::element::Type_t::dynamic) {
                 p.output(i).tensor().set_element_type(outType);
             }
         }
@@ -306,7 +306,7 @@ void SubgraphBaseTest::compile_model() {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     try {
-        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+        inference_precision = compiledModel.get_property(ov::hint::inference_precision);
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
@@ -377,7 +377,7 @@ void SubgraphBaseTest::update_ref_model() {
     }
     const auto& outputs = functionRefs->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
-        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+        if (outType != ElementType::dynamic && outType != outputs[i].get_element_type()) {
             p.output(i).tensor().set_element_type(outType);
         }
     }

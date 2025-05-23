@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,12 @@ namespace util {
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir) {
-    std::string cache_status_path = ov::util::path_join({output_dir, "model_caching_status"});
+    std::string cache_status_path = ov::util::path_join({output_dir, "model_caching_status"}).string();
     if (!ov::util::directory_exists(cache_status_path)) {
         ov::util::create_directory_recursive(cache_status_path);
     }
     for (const auto& status_info : caching_status) {
-        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION});
+        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION}).string();
         vector_to_file(status_info.second, output_file_path);
     }
 }

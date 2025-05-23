@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -206,8 +206,8 @@ def test_roi_copy_host_to_device_gpu():
     random_arr = np.random.rand(*host_tensor_ref.shape).astype(np.float32)
     host_tensor_ref.data[:] = random_arr
 
-    begin_roi = ov.runtime.Coordinate([0, 0, 0])
-    end_roi = ov.runtime.Coordinate([3, 4, 4])
+    begin_roi = ov.Coordinate([0, 0, 0])
+    end_roi = ov.Coordinate([3, 4, 4])
     roi_host_tensor_ref = ov.Tensor(host_tensor_ref, begin_roi, end_roi)
 
     device_tensor = context.create_tensor(ov.Type.f32, ov.Shape([4, 4, 4]), {})
@@ -245,8 +245,8 @@ def test_roi_copy_device_to_host_gpu():
     random_arr = np.random.rand(*host_tensor_ref.shape).astype(np.float32)
     host_tensor_ref.data[:] = random_arr
 
-    begin_roi = ov.runtime.Coordinate([1, 2, 1])
-    end_roi = ov.runtime.Coordinate([3, 4, 4])
+    begin_roi = ov.Coordinate([1, 2, 1])
+    end_roi = ov.Coordinate([3, 4, 4])
     roi_host_tensor_ref = ov.Tensor(host_tensor_ref, begin_roi, end_roi)
 
     device_tensor = context.create_tensor(ov.Type.f32, ov.Shape([4, 4, 4]), {})

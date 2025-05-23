@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,6 +89,14 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
     if (!params.fused_ops.empty() &&
         (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
         return false;
+
+    auto input_dt = params.inputs[0].GetDType();
+    if (input_dt == Datatype::INT8 || input_dt == Datatype::INT32) {
+        for (auto act : params.activations) {
+            if (act.function == ActivationFunction::ABS)
+                return false;
+        }
+    }
 
     return true;
 }

@@ -15,11 +15,19 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
 
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+
 class CompiledModel;
+
+using LinkFrom = std::pair<std::size_t /* Subrequest index */
+                           ,
+                           std::size_t /* Subrequest output index */
+                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
@@ -40,6 +48,10 @@ public:
 
     void check_tensors() const override;
 
+    // Query APIs - some default implementations here
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
     using sptr = std::shared_ptr<IBaseInferRequest>;
     using Completed = std::function<void(std::exception_ptr)>;
 
@@ -50,7 +62,7 @@ public:
     virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
     virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
-    virtual std::size_t total_subrequests() const = 0;
+    virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
 protected:
@@ -91,7 +103,52 @@ protected:
     // FROM(Every subrequests' output port) TO(Its output tensor)
     std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
 
+    // FIXME: Currently is initialized/managed by subclass as well.
+    // Moved here dumping purposes only
+    // Another sparse vector. Represents populated spatial I/O parameters
+    // which can should be read/written by parts in multile submissions.
+    // An ugly structure, cries for refactoring
+    // See function_prologue for details.
+    // Also it contains pre-allocated tensors for tails handling
+    struct SpatialIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
+
+        std::vector<ov::SoPtr<ov::ITensor>> input_tails;   // temporary buffers for input tails
+        std::vector<ov::SoPtr<ov::ITensor>> output_tails;  // temporary buffers for output tails
+    };
+    std::vector<SpatialIO> m_spatial_io;
+
+    // FIXME: Currently is initialized/managed by subclass as well.
+    // Moved here dumping purposes only
+    // Represents spatial run-time info
+    runtime::spatial::Selector::Ptr m_spatial_selector;
+
+    // This structure tracks how every individual subrequest
+    // access the model's top-level (global, public, etc) parameters
+    // and results. Again, is managed by subclasses
+    struct GlobalIO {
+        using map_t = std::map<std::size_t, std::size_t>;
+        map_t global_params;   // param idx -> input idx
+        map_t global_results;  // result idx -> output idx
+    };
+    std::vector<GlobalIO> m_subrequests_gio;
+
+    // Tracks tensors we allocated on our own - to recognize and avoid copies
+    std::unordered_set<void*> m_input_allocated;
+
+    // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
+
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
+    virtual void alloc_io();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+
+    virtual void init_gio();
+    void unpack_closure(std::size_t idx, RqPtr request);
+    virtual void bind_global_params(std::size_t idx, RqPtr request);
+    virtual void bind_global_results(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
@@ -111,6 +168,7 @@ protected:
     std::size_t m_run_iter = 0u;
 
     bool needs_copy(std::size_t idx) const;
+    bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
 

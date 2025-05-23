@@ -21,7 +21,7 @@ namespace pass {
  */
 class InsertLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertLoops", "RangedPass")
+    OPENVINO_RTTI("InsertLoops", "", RangedPass);
     InsertLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 private:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,6 @@ TEST_P(SplitTransformation, CompareFunctions) {
 }
 
 const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
-
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {{1, 3, 16, 16},
@@ -122,15 +121,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
       ov::element::u8,
       {
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}},
       }}},
     // U8 per tensor quantization / int8 subtraction with Convert from fp16 -> fp32
     {{1, 3, 16, 16},
@@ -139,14 +137,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
      LayerTransformation::createParamsU8I8(),
      // ActualValues
      {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
       ov::element::u8,
       {
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
-          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}},
       }}},
     {{-1, -1, -1, -1},
      std::int64_t{2},

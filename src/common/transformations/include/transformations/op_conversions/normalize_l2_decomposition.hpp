@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API NormalizeL2Decomposition;
  */
 class ov::pass::NormalizeL2Decomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NormalizeL2Decomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("NormalizeL2Decomposition");
     NormalizeL2Decomposition();
 };

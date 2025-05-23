@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, read_network) {
     std::vector<std::function<void()>> pipeline;
 
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         pipeline.push_back(read_cnnnetwork(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
@@ -66,7 +66,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
     std::vector<std::function<void()>> pipeline;
 
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["full_path"], i));
     }
     auto test = [&] {
@@ -82,7 +82,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
     std::vector<std::function<void()>> pipeline;
 
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         pipeline.push_back(set_input_params(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
@@ -98,7 +98,7 @@ TEST_P(MemLeaksTestSuite, recreate_compiled_model) {
     std::vector<std::function<void()>> pipeline;
 
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         pipeline.push_back(recreate_compiled_model(ie_wrapper, test_params.device));
@@ -117,7 +117,7 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
     std::vector<std::function<void()>> pipeline;
     size_t n_models = test_params.models.size();
 
-    for (int i = 0; i < n_models; i++) {
+    for (size_t i = 0; i < n_models; i++) {
         auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
@@ -137,7 +137,7 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
     std::vector<std::function<void()>> pipeline;
     size_t n_models = test_params.models.size();
 
-    for (int i = 0; i < n_models; i++) {
+    for (size_t i = 0; i < n_models; i++) {
         auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
@@ -159,7 +159,7 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     auto test_params = GetParam();
     std::vector<std::function<void()>> pipeline;
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         pipeline.push_back(infer_request_inference(test_params.models[i]["full_path"], test_params.device));
     }
     auto test = [&] {
@@ -176,7 +176,7 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
     const auto nstreams = 2;
     std::vector<std::function<void()>> pipeline;
     pipeline.reserve(test_params.models.size());
-    for (int i = 0; i < test_params.models.size(); i++) {
+    for (size_t i = 0; i < test_params.models.size(); i++) {
         pipeline.push_back(inference_with_streams(test_params.models[i]["full_path"], test_params.device, nstreams));
     }
     auto test = [&] {
@@ -194,7 +194,7 @@ TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
     size_t n_models = test_params.models.size();
 
     std::vector<std::shared_ptr<InferApiBase>> ie_wrapper_vector;
-    for (int i = 0; i < n_models; i++) {
+    for (size_t i = 0; i < n_models; i++) {
         auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper_vector.push_back(ie_wrapper);
         ie_wrapper->read_network(test_params.models[i]["full_path"]);

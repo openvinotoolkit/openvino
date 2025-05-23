@@ -489,30 +489,24 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, FoldingAndPipelining) {
         EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
     }
 
-    for (int i = 0;  i < 3; i++) {
-        // Here we will create 2 infer requests per model,
-        // so `create_sync_infer_request()` should be called twice
-        // per model:
-        EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(i), TIMES(2));
-    }
+    // 1 infer request for head:
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(0), TIMES(1));  
+    // 2 infer requests for function, `create_sync_infer_request()`
+    // should be called twice here:
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(1), TIMES(2));
+    // 1 infer request for tail:
+    EXPECT_CREATE_SYNC_INFER_REQ(mock_npu, MODEL(2), TIMES(1));
 
-    // 1st model 1st infer request is called once -- head
-    EXPECT_INFER_FOR(mock_npu, MODEL(0), INFER_REQ(0), TIMES(1));
-    // 1st model 2nd infer request is never called,
-    // it is not a function and is not repeated
-    EXPECT_INFER_FOR(mock_npu, MODEL(0), INFER_REQ(1), TIMES(0)); 
+    // Head's infer request is called once:
+    EXPECT_INFER(mock_npu, MODEL(0), TIMES(1));
 
-    // Repeated block
-    // 2nd model 1st infer request is called 5 times
+    // Repeated block's model 1st infer request is called 5 times:
     EXPECT_INFER_FOR(mock_npu, MODEL(1), INFER_REQ(0), TIMES(5));
-    // 2nd model 2nd infer request (brother of 1st one) is called 5 times
+    // Repeated block's model 2nd infer request (brother of 1st one) is called 5 times:
     EXPECT_INFER_FOR(mock_npu, MODEL(1), INFER_REQ(1), TIMES(5));
 
-    // 3rd model 1st infer request is called once -- tail
-    EXPECT_INFER_FOR(mock_npu, MODEL(2), INFER_REQ(0), TIMES(1));
-    // 3rd model 2nd infer request is never called,
-    // it is not a function and is not repeated
-    EXPECT_INFER_FOR(mock_npu, MODEL(2), INFER_REQ(1), TIMES(0));
+    // Tail's infer request is called once:
+    EXPECT_INFER(mock_npu, MODEL(2), TIMES(1));
 
     // Register mock objects as plugins in OpenVINO:
     register_mock_plugins_in_ov();

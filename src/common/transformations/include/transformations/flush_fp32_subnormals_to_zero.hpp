@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API FlushFP32SubnormalsToZero;
  */
 class ov::pass::FlushFP32SubnormalsToZero : public MatcherPass {
 public:
-    OPENVINO_RTTI("FlushFP32SubnormalsToZero", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FlushFP32SubnormalsToZero");
     FlushFP32SubnormalsToZero();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_Input(py::module m) {
     py::class_<ov::Input<ov::Node>, std::shared_ptr<ov::Input<ov::Node>>> input(m, "Input", py::dynamic_attr());
-    input.doc() = "openvino.runtime.Input wraps ov::Input<Node>";
+    input.doc() = "openvino.Input wraps ov::Input<Node>";
 
     input.def("get_node",
               &ov::Input<ov::Node>::get_node,
@@ -26,7 +26,7 @@ void regclass_graph_Input(py::module m) {
                 Get node referenced by this input handle.
 
                 :return: Node object referenced by this input handle.
-                :rtype: openvino.runtime.Node
+                :rtype: openvino.Node
               )");
     input.def("get_index",
               &ov::Input<ov::Node>::get_index,
@@ -42,7 +42,7 @@ void regclass_graph_Input(py::module m) {
                 The element type of the input referred to by this input handle.
 
                 :return: Type of the input.
-                :rtype: openvino.runtime.Type
+                :rtype: openvino.Type
               )");
     input.def("get_shape",
               &ov::Input<ov::Node>::get_shape,
@@ -50,7 +50,7 @@ void regclass_graph_Input(py::module m) {
                 The shape of the input referred to by this input handle.
 
                 :return: Shape of the input.
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
               )");
     input.def("get_partial_shape",
               &ov::Input<ov::Node>::get_partial_shape,
@@ -58,7 +58,7 @@ void regclass_graph_Input(py::module m) {
                 The partial shape of the input referred to by this input handle.
 
                 :return: PartialShape of the input.
-                :rtype: openvino.runtime.PartialShape
+                :rtype: openvino.PartialShape
               )");
     input.def("get_source_output",
               &ov::Input<ov::Node>::get_source_output,
@@ -66,7 +66,7 @@ void regclass_graph_Input(py::module m) {
                 A handle to the output that is connected to this input.
 
                 :return: Output that is connected to the input.
-                :rtype: openvino.runtime.Output
+                :rtype: openvino.Output
               )");
     input.def("get_tensor",
               &ov::Input<ov::Node>::get_tensor,
@@ -84,7 +84,7 @@ void regclass_graph_Input(py::module m) {
                 Returns RTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
-                :rtype: openvino.runtime.RTMap
+                :rtype: openvino.RTMap
              )");
     input.def("replace_source_output",
               &ov::Input<ov::Node>::replace_source_output,
@@ -93,7 +93,7 @@ void regclass_graph_Input(py::module m) {
                 Replaces the source output of this input.
 
                 :param new_source_output: A handle for the output that will replace this input's source.
-                :type new_source_output: openvino.runtime.Input
+                :type new_source_output: openvino.Input
               )");
     input.def_property_readonly("rt_info", (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info);
     input.def_property_readonly("rt_info",

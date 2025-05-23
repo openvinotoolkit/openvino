@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -43,7 +44,7 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
 void QuantConvBackpropDataLayerTest::SetUp() {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::undefined;
+    ov::element::Type element_type = ov::element::dynamic;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
     std::vector<size_t> kernel, stride, dilation;
@@ -70,7 +71,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
 
     auto weightsFq = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
-    auto convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
+    auto convBackpropData = ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(
             ov::test::utils::make_convolution_backprop_data(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};

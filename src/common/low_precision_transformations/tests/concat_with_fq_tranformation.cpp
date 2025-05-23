@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,8 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/concat.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/concat.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -116,7 +118,6 @@ public:
         if (!testValues.actual.dequantization2.multiply.empty()) {
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
-
         actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
                                                                         shape,
                                                                         testValues.actual.fakeQuantize1,
@@ -126,7 +127,7 @@ public:
                                                                         testValues.actual.convert2,
                                                                         testValues.actual.dequantization2,
                                                                         {},
-                                                                        ov::element::undefined,
+                                                                        ov::element::dynamic,
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);

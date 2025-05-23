@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API MarkCompressedFloatConstants;
  */
 class ov::pass::EnableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EnableDecompressionConvertConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EnableDecompressionConvertConstantFolding");
     EnableDecompressionConvertConstantFolding();
 };
 
@@ -36,7 +36,7 @@ public:
  */
 class ov::pass::DisableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableDecompressionConvertConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DisableDecompressionConvertConstantFolding");
     DisableDecompressionConvertConstantFolding();
 };
 
@@ -46,7 +46,7 @@ public:
  */
 class ov::pass::KeepConstAndDecompression : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepConstAndDecompression", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstAndDecompression");
     KeepConstAndDecompression();
 };
 
@@ -56,19 +56,19 @@ public:
  */
 class ov::pass::KeepConstantsPrecisionAndAddConverts : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepConstantsPrecisionAndAddConverts", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstantsPrecisionAndAddConverts");
     KeepConstantsPrecisionAndAddConverts();
 };
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Prevents ConstantFolding for f16/bf16 Const + Convert_To_FP32 to keep original FW float Constants.
+ * @brief Prevents ConstantFolding for low precision Const + Convert_To_FP32 to keep original FW float Constants.
  * Original precision should be kept as long as possible, this prevents redundant conversions and saves memory.
  * E.g. if original FW model was already compressed no need to upcast during CF, store intermediate f32 consts and
- * then again compress them to f16 during save_model.
+ * then again compress them to low precision during save_model.
  */
 class ov::pass::MarkCompressedFloatConstants : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepFWPrecisionFor16BitFloatConstants", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkCompressedFloatConstants");
     MarkCompressedFloatConstants();
 };

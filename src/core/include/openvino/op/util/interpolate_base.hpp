@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,6 +155,7 @@ class OPENVINO_API AttributeAdapter<op::util::InterpolateBase::InterpolateMode>
 public:
     AttributeAdapter(op::util::InterpolateBase::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::util::InterpolateBase::InterpolateMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::InterpolateBase::InterpolateMode>");
 };
@@ -165,6 +166,7 @@ class OPENVINO_API AttributeAdapter<op::util::InterpolateBase::CoordinateTransfo
 public:
     AttributeAdapter(op::util::InterpolateBase::CoordinateTransformMode& value)
         : EnumAttributeAdapterBase<op::util::InterpolateBase::CoordinateTransformMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::InterpolateBase::CoordinateTransformMode>");
 };
@@ -175,6 +177,7 @@ class OPENVINO_API AttributeAdapter<op::util::InterpolateBase::NearestMode>
 public:
     AttributeAdapter(op::util::InterpolateBase::NearestMode& value)
         : EnumAttributeAdapterBase<op::util::InterpolateBase::NearestMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::InterpolateBase::NearestMode>");
 };
@@ -185,6 +188,7 @@ class OPENVINO_API AttributeAdapter<op::util::InterpolateBase::ShapeCalcMode>
 public:
     AttributeAdapter(op::util::InterpolateBase::ShapeCalcMode& value)
         : EnumAttributeAdapterBase<op::util::InterpolateBase::ShapeCalcMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::InterpolateBase::ShapeCalcMode>");
 };

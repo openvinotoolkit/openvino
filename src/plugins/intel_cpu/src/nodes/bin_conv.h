@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,9 @@ struct jit_dw_conv_params {
 };
 
 struct jit_bin_conv_call_args {
-    const void *src;
-    const void *dst;
-    const void *filt;
+    const void* src;
+    const void* dst;
+    const void* filt;
     size_t kh_padding;
     size_t kw_padding;
     size_t oc_work;
@@ -52,15 +52,20 @@ struct jit_bin_conv_call_args {
 };
 
 struct jit_uni_bin_conv_kernel {
-    void (*ker_)(const jit_bin_conv_call_args *);
+    void (*ker_)(const jit_bin_conv_call_args*);
 
-    void operator()(const jit_bin_conv_call_args *args) {
+    void operator()(const jit_bin_conv_call_args* args) {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
-        ker_(nullptr), jcp_(jcp), jcp_dw_conv_(jcp_dw_conv), attr_(attr) {}
+    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp,
+                                     jit_dw_conv_params jcp_dw_conv,
+                                     const dnnl_primitive_attr& attr)
+        : ker_(nullptr),
+          jcp_(jcp),
+          jcp_dw_conv_(jcp_dw_conv),
+          attr_(attr) {}
     virtual ~jit_uni_bin_conv_kernel() {}
 
     virtual void create_ker() = 0;
@@ -68,27 +73,29 @@ struct jit_uni_bin_conv_kernel {
     jit_bin_conv_params jcp_;
     jit_dw_conv_params jcp_dw_conv_;
 
-    const dnnl_primitive_attr &attr_;
+    const dnnl_primitive_attr& attr_;
 };
 
 class BinaryConvolution : public Node {
 public:
-    BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
-    void setPostOps(dnnl::primitive_attr &attr);
+    void setPostOps(dnnl::primitive_attr& attr);
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    impl_desc_type getImplType() { return implType; }
+    impl_desc_type getImplType() {
+        return implType;
+    }
 
 private:
     bool withSum = false;
@@ -110,14 +117,20 @@ private:
 
     impl_desc_type implType = impl_desc_type::ref;
 
-    void executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
-    void executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
-
-    std::string errorPrefix;
+    void executeOptimized(const uint8_t* src,
+                          const uint8_t* weights,
+                          uint8_t* dst,
+                          const std::vector<size_t>& s_str,
+                          const std::vector<size_t>& w_str,
+                          const std::vector<size_t>& d_str);
+    void executeReference(const uint8_t* src,
+                          const uint8_t* weights,
+                          uint8_t* dst,
+                          const std::vector<size_t>& s_str,
+                          const std::vector<size_t>& w_str,
+                          const std::vector<size_t>& d_str);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

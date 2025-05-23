@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -604,7 +604,7 @@ ov::Layout get_layout(const ov::Output<ov::Node>& output) {
 
 void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
     OPENVINO_ASSERT(
-        dynamic_cast<ov::op::v0::Parameter*>(output.get_node()) || dynamic_cast<ov::op::v0::Result*>(output.get_node()),
+        ov::as_type<ov::op::v0::Parameter>(output.get_node()) || ov::as_type<ov::op::v0::Result>(output.get_node()),
         "Layout can be set only for Parameter and Result operations.");
     if (layout.empty()) {
         output.get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
@@ -630,6 +630,8 @@ const std::string& AttributeAdapter<ov::Layout>::get() {
 void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
+
+AttributeAdapter<Layout>::~AttributeAdapter() = default;
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
     std::string layout_str = value.to_string();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@
 REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(1, 1, FEATURE_SLM_SPLIT * SIMD)))
 KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
     const __global FILTER_TYPE *weights
@@ -288,6 +289,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                         }
                     }
                 }
+
+                sub_group_barrier(CLK_LOCAL_MEM_FENCE);
 
                 unroll_for(uint fzu = 0; fzu < FILTER_SIZE_Z_UNROLL; ++fzu) {
                     unroll_for(uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
@@ -606,11 +609,15 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                 __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
                                 for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
 
+    #if !IS_DYNAMIC
         #if OUTPUT_SIZE_X % OUT_BLOCK_WIDTH != 0
                                     if (out_x + OUT_BLOCK_WIDTH > OUTPUT_SIZE_X && ow >= OUTPUT_SIZE_X % OUT_BLOCK_WIDTH)
                                         break;
         #endif
-
+    #else
+                                    if (OUTPUT_SIZE_X % OUT_BLOCK_WIDTH != 0 && out_x + OUT_BLOCK_WIDTH > OUTPUT_SIZE_X && ow >= OUTPUT_SIZE_X % OUT_BLOCK_WIDTH)
+                                        break;
+    #endif
                                     if (out_f_g < FILTER_OFM_NUM) {
                                         output[dst_index + ow * FSV + oh * OUTPUT_Y_PITCH * FSV + od * OUTPUT_Z_PITCH * FSV] = result[ofb][od][oh][ow];
                                     }

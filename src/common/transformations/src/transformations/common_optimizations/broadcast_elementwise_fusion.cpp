@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace {
 bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
                              const ov::Output<ov::Node>& eltwise_input,
                              const ov::Output<ov::Node>& broadcast) {
-    auto b = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
+    auto b = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
     if (!b || b->get_autob() == ov::op::AutoBroadcastType::NONE) {
         return false;
     }

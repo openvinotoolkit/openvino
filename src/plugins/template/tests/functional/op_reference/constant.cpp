@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
         auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         auto B = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
-        return std::make_shared<Model>(NodeVector{A, B}, ParameterVector{});
+        return std::make_shared<Model>(OutputVector{A, B}, ParameterVector{});
     }
 };
 
@@ -113,7 +113,7 @@ private:
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
             params.inputShape,
-            std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
+            std::vector<std::string>{std::to_string(*reinterpret_cast<const int*>(params.inputData.data()))});
         return std::make_shared<Model>(A, ParameterVector{});
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "convolution_shape_inference.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace std;
 using namespace ov;

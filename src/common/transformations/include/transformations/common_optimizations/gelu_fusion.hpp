@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API GeluFusionWithErfThree;
 class TRANSFORMATIONS_API GeluFusionWithErfFour;
 class TRANSFORMATIONS_API GeluFusionWithTanh;
 class TRANSFORMATIONS_API GeluFusionWithTanhNoPower;
+class TRANSFORMATIONS_API GeluFusionWithTanhNoPower2;
 
 }  // namespace pass
 }  // namespace ov
@@ -31,7 +32,7 @@ class TRANSFORMATIONS_API GeluFusionWithTanhNoPower;
  */
 class ov::pass::GeluFusionWithErfOne : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfOne", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfOne");
     GeluFusionWithErfOne();
 };
 
@@ -42,7 +43,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfTwo : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfTwo", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfTwo");
     GeluFusionWithErfTwo();
 };
 
@@ -53,7 +54,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfThree : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfThree", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfThree");
     GeluFusionWithErfThree();
 };
 
@@ -64,7 +65,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfFour : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfFour", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfFour");
     GeluFusionWithErfFour();
 };
 
@@ -75,7 +76,7 @@ public:
  */
 class ov::pass::GeluFusionWithTanh : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithTanh", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanh");
     GeluFusionWithTanh();
 };
 
@@ -86,8 +87,19 @@ public:
  */
 class ov::pass::GeluFusionWithTanhNoPower : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithTanhNoPower", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanhNoPower");
     GeluFusionWithTanhNoPower();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief GeluFusion transformation replaces a sub-graph
+ * x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715 * x * x * x]))) with a Gelu (Tanh) op.
+ */
+class ov::pass::GeluFusionWithTanhNoPower2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanhNoPower2");
+    GeluFusionWithTanhNoPower2();
 };
 
 /**
@@ -96,7 +108,7 @@ public:
  */
 class ov::pass::GeluFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("GeluFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("GeluFusion");
     GeluFusion() {
         add_matcher<ov::pass::GeluFusionWithErfOne>();
         add_matcher<ov::pass::GeluFusionWithErfTwo>();
@@ -104,5 +116,6 @@ public:
         add_matcher<ov::pass::GeluFusionWithErfFour>();
         add_matcher<ov::pass::GeluFusionWithTanh>();
         add_matcher<ov::pass::GeluFusionWithTanhNoPower>();
+        add_matcher<ov::pass::GeluFusionWithTanhNoPower2>();
     }
 };

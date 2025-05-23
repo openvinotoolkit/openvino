@@ -19,7 +19,7 @@ namespace pass {
  */
 class CleanupLoopOffsets : public RangedPass {
 public:
-    OPENVINO_RTTI("CleanupLoopOffsets", "RangedPass")
+    OPENVINO_RTTI("CleanupLoopOffsets", "", RangedPass);
     bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 

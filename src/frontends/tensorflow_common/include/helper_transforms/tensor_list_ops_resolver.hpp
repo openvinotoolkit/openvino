@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,14 +15,14 @@ namespace pass {
 // Replace internal operation TensorListReserve with a sub-graph producing initial container
 class TensorListReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorListReplacer");
     TensorListReplacer();
 };
 
 // Replace internal operation TensorListSetItem with a sub-graph that inserts a new tensor into container
 class TensorListSetItemReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListSetItemReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorListSetItemReplacer");
     TensorListSetItemReplacer();
 };
 
@@ -30,14 +30,14 @@ public:
 // that inserts a new tensor into the tail of the container
 class TensorListPushBackReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListPushBackReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorListPushBackReplacer");
     TensorListPushBackReplacer();
 };
 
 // Replace internal operation TensorListGetItem with a sub-graph that gets a tensor from container by index
 class TensorListGetItemReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListGetItemReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorListGetItemReplacer");
     TensorListGetItemReplacer();
 };
 
@@ -45,7 +45,7 @@ public:
 // Replace TensorListSetItem and TensorListGetItem with ConcatOutput and SlicedInput
 class TensorListInLoopOptimization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListInLoopOptimization");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorListInLoopOptimization");
     TensorListInLoopOptimization();
 };
 

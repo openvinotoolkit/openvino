@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,11 +136,11 @@ public:
 
     /**
      * @brief Release intermediate memory
-     * 
+     *
      */
     virtual void release_memory();
 
-    virtual ~ICompiledModel() = default;
+    virtual ~ICompiledModel();
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;

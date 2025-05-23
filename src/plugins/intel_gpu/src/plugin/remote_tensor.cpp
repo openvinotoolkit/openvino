@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
@@ -244,7 +243,8 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
 
-        auto src_mem = MemWrapper(stream, nullptr, src->data());
+        // MemWrapper use tensor pointer as read-only, so const_cast is safe here
+        auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
@@ -494,5 +494,4 @@ void RemoteTensorImpl::update_properties() {
     }
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

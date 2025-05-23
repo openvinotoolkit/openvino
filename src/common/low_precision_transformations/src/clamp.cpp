@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/clamp.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,19 +25,19 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ClampTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ClampTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
-    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp, defaultPrecisions);
 
     const bool moveSubtract = dequantization.subtract == nullptr ? false : NetworkHelper::isScalarLike(dequantization.subtractConstant);
@@ -45,7 +46,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
         return false;
     }
 
-    const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(clamp, dequantization, false, moveSubtract));
+    OPENVINO_ASSERT(newClamp != nullptr, "ClampTransformation: failed to move dequantization after Clamp");
 
     std::shared_ptr<ov::opset1::Clamp> replacement;
     {
@@ -72,7 +74,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
 
     replace_node_update_name(newClamp, replacement);
 
-    element::Type outputClampType = dequantization.multiply ?
+    OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
+    const auto outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
@@ -81,8 +84,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
     return true;
 }
 
-bool ClampTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool ClampTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

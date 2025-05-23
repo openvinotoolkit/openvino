@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,8 @@ public:
     void get_header(std::shared_ptr<uint8_t>& header, size_t& header_size);
     void get_raw_string_by_index(const char*& raw_string_ptr, size_t& raw_string_size, size_t string_ind);
 
+    ~AttributeAdapter() override;
+
 protected:
     std::shared_ptr<uint8_t> m_header;
     size_t m_header_size;
@@ -67,6 +69,8 @@ public:
 
     void get_header(std::shared_ptr<uint8_t>& header, size_t& header_size);
     void get_raw_string_by_index(const char*& raw_string_ptr, size_t& raw_string_size, size_t string_ind);
+
+    ~AttributeAdapter() override;
 
 protected:
     std::shared_ptr<uint8_t> m_header;

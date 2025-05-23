@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,7 +6,7 @@ import os
 import pytest
 import random
 import torch
-from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 from torch_utils import TestTorchConvertModel
@@ -52,8 +52,9 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        if clean_hf_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
     @pytest.mark.parametrize("name", ["edsr"])

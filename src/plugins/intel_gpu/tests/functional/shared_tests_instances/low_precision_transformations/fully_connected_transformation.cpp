@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<MatMulShapes> shapes = {
+const std::vector<FullyConnectedShapes> shapes = {
     {
         { 1, 16 },
         { 16, 8 },
@@ -40,11 +40,38 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
+const std::vector<FullyConnectedParams> activations = {
+    {
+        true,  // activation
+        false, // per-channel
+        true,  // FQ
+        false, // bias
+        ""
+    },
+    {
+        false, // activation
+        false, // per-channel
+        true,  // FQ
+        false, // bias
+        ""
+    },
+    {
+        true,  // activation
+        true,  // per-channel
+        false, // FQ
+        false, // bias
+        ""
+    },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ov::element::i8/*, ov::element::u8*/}),
+        ::testing::ValuesIn(activations),
+        ::testing::Values("")),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace

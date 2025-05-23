@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,9 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -50,6 +53,9 @@
 namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine();
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type,
+                                                  cldnn::runtime_types runtime_type,
+                                                  bool allow_usm_mem = true);
 cldnn::engine& get_test_engine();
 cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg);
 cldnn::stream_ptr get_test_stream_ptr();

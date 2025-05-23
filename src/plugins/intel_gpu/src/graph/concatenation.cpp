@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     auto input_size = input_layout.get_dims();
     auto output_size = output_layout.get_dims();
     for (const auto& i : node.get_dependencies()) {
-        auto input_i_layout = i.first->get_output_layout();
+        auto input_i_layout = i.first->get_output_layout(false, i.second);
         auto input_mem_size = input_i_layout.get_dims();
         for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
             if (dim == node.get_primitive()->axis) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ CoordinateIterator::CoordinateIterator(const Shape& target_shape, bool is_end)
       m_coordinate(target_shape.size(), 0) {
     // The case where we have a zero-length axis is a bit special, in that
     // the iterator always starts out of bounds.
-    bool const empty = std::find(target_shape.begin(), target_shape.end(), 0) != target_shape.end();
+    const bool empty = std::find(target_shape.begin(), target_shape.end(), 0) != target_shape.end();
 
     m_oob = is_end || empty;
 }

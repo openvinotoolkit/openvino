@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -18,19 +16,22 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
-    bool created() const override;
+    void execute(const dnnl::stream& strm) override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool isExecutable() const override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool needShapeInfer() const override { return false; }
+    [[nodiscard]] bool needShapeInfer() const override {
+        return false;
+    }
     void prepareParams() override;
 
 private:
@@ -64,9 +65,7 @@ private:
 
     bool m_outStaticShape = false;
 
-    std::string m_errorPrefix;
-
-    std::vector<std::vector<size_t>> m_numFiltBox; // number of rois after nms for each class in each image
+    std::vector<std::vector<size_t>> m_numFiltBox;  // number of rois after nms for each class in each image
     std::vector<size_t> m_numBoxOffset;
     const std::string m_inType = "input", m_outType = "output";
 
@@ -77,7 +76,10 @@ private:
         int box_index;
         filteredBoxes() = default;
         filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index)
-            : score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
+            : score(_score),
+              batch_index(_batch_index),
+              class_index(_class_index),
+              box_index(_box_index) {}
     };
 
     struct boxInfo {
@@ -86,29 +88,39 @@ private:
         int suppress_begin_index;
     };
 
-    std::vector<filteredBoxes> m_filtBoxes; // rois after nms for each class in each image
+    std::vector<filteredBoxes> m_filtBoxes;  // rois after nms for each class in each image
 
-    void checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name,
-                        const std::string type);
+    void checkPrecision(const ov::element::Type prec,
+                        const std::vector<ov::element::Type>& precList,
+                        const std::string& name,
+                        const std::string& type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const int* roisnum, const VectorDims& boxesStrides,
-                    const VectorDims& scoresStrides, const VectorDims& roisnumStrides, const bool shared);
+    void nmsWithEta(const float* boxes,
+                    const float* scores,
+                    const int* roisnum,
+                    const VectorDims& boxesStrides,
+                    const VectorDims& scoresStrides,
+                    const VectorDims& roisnumStrides,
+                    const bool shared);
 
-    void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const VectorDims& boxesStrides,
-                       const VectorDims& scoresStrides, const VectorDims& roisnumStrides, const bool shared);
+    void nmsWithoutEta(const float* boxes,
+                       const float* scores,
+                       const int* roisnum,
+                       const VectorDims& boxesStrides,
+                       const VectorDims& scoresStrides,
+                       const VectorDims& roisnumStrides,
+                       const bool shared);
 
     const float* slice_class(const int batch_idx,
-                            const int class_idx,
-                            const float* dataPtr,
-                            const VectorDims& dataStrides,
-                            const bool is_boxes,
-                            const int* roisnum,
-                            const VectorDims& roisnumStrides,
-                            const bool shared);
+                             const int class_idx,
+                             const float* dataPtr,
+                             const VectorDims& dataStrides,
+                             const bool is_boxes,
+                             const int* roisnum,
+                             const VectorDims& roisnumStrides,
+                             const bool shared);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::node

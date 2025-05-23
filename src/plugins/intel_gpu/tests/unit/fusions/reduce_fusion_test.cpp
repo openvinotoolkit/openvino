@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,27 @@ struct reduce_test_params {
     std::vector<int64_t> reduce_axes;
     bool keep_dims;
     std::string kernel_name;
+    friend std::ostream& operator<<(std::ostream& os, const reduce_test_params test_params) {
+        os << "in_shape";
+        for(auto r : test_params.in_shape) {
+            os << r << "_";
+        }
+        os << "out_shape";
+        for(auto r : test_params.out_shape) {
+            os << r << "_";
+        }
+        os << "data_type" <<  test_params.data_type << "_input_format" << test_params.input_format;
+        os << "_default_type" << test_params.default_type << "_default_format" << test_params.default_format;
+        os << "_expected_fused_primitives" << test_params.expected_fused_primitives;
+        os << "_expected_not_fused_primitives" << test_params.expected_not_fused_primitives;
+        os << "_reduce_mode" << int(test_params.reduce_mode);
+        os << "_reduce_axes";
+        for(auto r : test_params.reduce_axes) {
+            os << r << "_";
+        }
+        os << "_keep_dims" << test_params.keep_dims << "_kernel_name" << test_params.kernel_name;
+        return os;
+    }
 };
 
 class ReduceFusingTest : public ::BaseFusingTest<reduce_test_params> {

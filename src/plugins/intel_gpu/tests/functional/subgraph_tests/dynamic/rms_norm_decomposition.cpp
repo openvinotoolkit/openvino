@@ -109,7 +109,7 @@ protected:
 
         auto comp = std::make_shared<ov::op::v0::Convert>(mul2, ov::element::f16);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{comp}, params, "RMSNormDecomposition");
+        return std::make_shared<ov::Model>(ov::OutputVector{comp}, params, "RMSNormDecomposition");
     }
 
     void SetUp() override {

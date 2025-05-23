@@ -95,8 +95,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertStub, ConvertStub,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertInput),
                                  ::testing::ValuesIn(types_ConvertStub),
-                                 ::testing::Values(2),
-                                 ::testing::Values(2),
+                                 ::testing::Values(1),
+                                 ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 

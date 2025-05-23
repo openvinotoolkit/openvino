@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
 
 class ov::pass::ConvertSpaceToBatch : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSpaceToBatch", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSpaceToBatch");
     explicit ConvertSpaceToBatch(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_space_to_batch_by_elements();

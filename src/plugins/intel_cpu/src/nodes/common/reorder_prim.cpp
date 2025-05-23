@@ -1,27 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reorder_prim.h"
 
-#include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
-
 #include <algorithm>
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include <memory>
 #include <string>
 
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ReorderKey {
     dnnl::memory::desc src;
     dnnl::memory::desc dest;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ReorderKey& rhs) const;
 };
 
@@ -42,7 +40,7 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
     return retVal;
 }
 
-dnnl::reorder getReorderPrim(MultiCachePtr cache,
+dnnl::reorder getReorderPrim(const MultiCachePtr& cache,
                              const dnnl::engine& engine,
                              const dnnl::memory::desc& src,
                              const dnnl::memory::desc& dest) {
@@ -64,5 +62,4 @@ dnnl::reorder getReorderPrim(MultiCachePtr cache,
     return builder(key);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

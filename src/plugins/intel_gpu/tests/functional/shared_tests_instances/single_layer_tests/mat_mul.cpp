@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,4 +148,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul_fc_fb_io_block_f16, GPUMatMulLayerTest,
                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(additional_config)),
         MatMulLayerTest::getTestCaseName);
+
+std::vector<std::vector<ov::Shape>> fc4d_shapeRelatedParams = {
+        { {16, 16, 16, 576}, {576, 1728} },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_fc4d, GPUMatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(fc4d_shapeRelatedParams)),
+                ::testing::Values(std::make_pair(false, false)),
+                ::testing::ValuesIn(inputPrecisions),
+                ::testing::ValuesIn(fc_f16_secondaryInputTypes),
+                ::testing::Values(ov::test::utils::DEVICE_GPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
+
 } // namespace

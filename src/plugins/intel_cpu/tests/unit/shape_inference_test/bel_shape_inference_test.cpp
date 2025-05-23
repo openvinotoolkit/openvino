@@ -7,6 +7,9 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/parameter.hpp"
 #include "utils.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -16,7 +19,7 @@ template <class TOp>
 class BELStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {
 protected:
     void SetUp() override {
-        this->output_shapes = ShapeVector(1);
+        this->output_shapes = StaticShapeVector(1);
     }
 
     element::Type dtype{element::boolean};

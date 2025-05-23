@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (tensor::value_type b = 0; b < output_4d.at(0); ++b) {
         for (tensor::value_type f = 0; f < output_4d.at(1); ++f) {

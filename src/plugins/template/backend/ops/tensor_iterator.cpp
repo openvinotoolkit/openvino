@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "backend.hpp"
 #include "evaluate_node.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 namespace ti_v0 {
 ov::reference::custom_evaluate_function evaluate =

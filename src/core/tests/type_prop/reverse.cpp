@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/if.hpp"
 
 using namespace std;
 using namespace ov;
@@ -167,7 +167,9 @@ TEST(type_prop, reverse_partial_rank_dynamic) {
     EXPECT_EQ(rev->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
-using namespace ov::opset10;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v8::If;
 
 //
 // If the input rank is static but the shape is dynamic, we should pass if the axis indices are

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include "openvino/core/node.hpp"
 
 using namespace std;
+
+ov::AttributeVisitor::~AttributeVisitor() = default;
 
 void ov::AttributeVisitor::start_structure(const string& name) {
     m_context.push_back(name);

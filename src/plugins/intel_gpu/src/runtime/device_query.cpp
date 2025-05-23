@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,13 @@ device_query::device_query(engine_types engine_type,
                            void* user_context,
                            void* user_device,
                            int ctx_device_id,
-                           int target_tile_id) {
+                           int target_tile_id,
+                           bool initialize_devices) {
     switch (runtime_type) {
     case runtime_types::ocl: {
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
         ocl::ocl_device_detector ocl_detector;
-        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
 #ifdef OV_GPU_WITH_ZE_RT

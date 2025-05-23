@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
+#include "openvino/op/interpolate.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

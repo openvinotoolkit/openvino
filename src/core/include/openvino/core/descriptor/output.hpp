@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,12 @@ public:
     Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
     std::shared_ptr<Node> get_node() const;
+
+    /// \return the raw pointer to the node that this is an output of
+    Node* get_raw_pointer_node() const {
+        return m_node;
+    }
+
     size_t get_index() const {
         return m_index;
     }

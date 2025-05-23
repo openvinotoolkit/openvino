@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,9 @@ void regclass_RemoteTensor(py::module m) {
         :param remote_tensor: The RemoteTensor object on which the RoiRemoteTensor will be based.
         :type remote_tensor: openvino.RemoteTensor
         :param begin: The starting coordinates for the tensor bound.
-        :type begin: openvino.runtime.Coordinate
+        :type begin: openvino.Coordinate
         :param end: The ending coordinates for the tensor bound.
-        :type end: openvino.runtime.Coordinate
+        :type end: openvino.Coordinate
         )");
 
     cls.def(

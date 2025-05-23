@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax2D,
     SoftMax8LayerTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D)),
                      testing::ValuesIn(axis2D),
                      testing::Values(ov::test::utils::DEVICE_GPU),
@@ -51,15 +51,13 @@ const std::vector<int64_t> axis3D = {
     -1, 1
 };
 
-const auto params3D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    ::testing::Values(ov::element::undefined),
-    ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
-    testing::ValuesIn(axis3D),
-    testing::Values(ov::test::utils::DEVICE_GPU),
-    testing::Values(ov::AnyMap())
-);
+const auto params3D = testing::Combine(testing::ValuesIn(netPrecisions),
+                                       ::testing::Values(ov::element::dynamic),
+                                       ::testing::Values(ov::element::dynamic),
+                                       testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
+                                       testing::ValuesIn(axis3D),
+                                       testing::Values(ov::test::utils::DEVICE_GPU),
+                                       testing::Values(ov::AnyMap()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax3D,
@@ -81,8 +79,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax4D,
     SoftMax8LayerTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes4D)),
                      testing::ValuesIn(axis4D),
                      testing::Values(ov::test::utils::DEVICE_GPU),
@@ -98,8 +96,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMaxStableDiffusion,
     SoftMax8LayerTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(stableDiffusionShapes)),
                      testing::Values(-1),
                      testing::Values(ov::test::utils::DEVICE_GPU),
@@ -118,8 +116,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax5D,
     SoftMax8LayerTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes5D)),
                      testing::ValuesIn(axis5D),
                      testing::Values(ov::test::utils::DEVICE_GPU),

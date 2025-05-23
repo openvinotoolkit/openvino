@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/core/node.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace ov;
 
@@ -30,7 +31,7 @@ ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranul
 bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts) {
-        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity granularity){
+        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity& granularity){
             auto &rt = input.get_rt_info();
             rt.emplace(QuantizationGranularityAttribute::get_type_info_static(), QuantizationGranularityAttribute(granularity));
         };
@@ -43,14 +44,14 @@ bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const 
             }
         } else {
             // markup specific ports
-            for (const auto item : restrictedPorts) {
+            for (const auto& item : restrictedPorts) {
                 Input<Node> input = node->input(item.port);
                 createAttribute(input, item.granularity);
             }
         }
     };
 
-    for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
+    for (const auto& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
         }

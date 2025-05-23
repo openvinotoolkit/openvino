@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import os
-import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -46,18 +45,12 @@ class TestStringLower(CommonTFLayerTest):
                               ['第一句話在這裡', '第二句話在這裡', '第三句話在這裡']])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'],
-                       reason='Ticket - 126314, 132699')
-    def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_lower_net(input_shape=input_shape, encoding=encoding,
                                                  strings_dictionary=strings_dictionary),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestStringLowerOVC:
@@ -78,10 +71,6 @@ class TestStringLowerOVC:
 
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'],
-                       reason='Ticket - 126314, 132699')
     def test_string_lower_with_ovc(self, ie_device, temp_dir, precision):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
@@ -90,7 +79,6 @@ class TestStringLowerOVC:
         return_code, _, _ = generate_ir_ovc(input_model_path, {'output_model': output_model_path})
         assert return_code == 0, "OVC tool is failed for conversion model {}".format(input_model_path)
 
-        import openvino_tokenizers
         import openvino as ov
         core = ov.Core()
         compiled_model = core.compile_model(output_model_path, ie_device)

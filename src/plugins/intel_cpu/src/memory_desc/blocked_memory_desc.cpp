@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,18 +8,18 @@
 
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /* c++11 requires to have a definition in cpp file */
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::FULL_MASK;
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::EMPTY_MASK;
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::SKIP_OFFSET_MASK;
-constexpr size_t                     BlockedMemoryDesc::OFFSET_MASK_POS;
+constexpr size_t BlockedMemoryDesc::OFFSET_MASK_POS;
 
-bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
-    if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
+bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
+    if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision()) {
         return false;
+    }
 
     if (!dimsEqualWeak(this->getBlockDims(), rhs.getBlockDims())) {
         return false;
@@ -32,12 +32,14 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMa
     auto& thisStrides = this->getStrides();
     auto& rhsStrides = rhs.getStrides();
 
-    if (thisStrides.size() != rhsStrides.size())
+    if (thisStrides.size() != rhsStrides.size()) {
         return false;
+    }
 
     for (size_t i = 0; i < thisStrides.size(); i++) {
-        if (cmpMask.test(i) && !dimsEqualWeak(thisStrides[i], rhsStrides[i]))
+        if (cmpMask.test(i) && !dimsEqualWeak(thisStrides[i], rhsStrides[i])) {
             return false;
+        }
     }
 
     if (!dimsEqualWeak(this->getOrder(), rhs.getOrder())) {
@@ -71,11 +73,10 @@ std::string BlockedMemoryDesc::serializeFormat() const {
 
     const auto& blkDims = getBlockDims();
     for (size_t i = shape.getRank(); i < order.size(); ++i) {
-        result << blkDims[i] << char(startLetter + order[i]);
+        result << blkDims[i] << static_cast<char>(startLetter + order[i]);
     }
 
     return result.str();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

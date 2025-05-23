@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
-        auto multisubgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op);
+        auto multisubgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op);
         if (multisubgraph_op) {
             for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
                 run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
@@ -54,14 +54,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
         }
         for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<ov::op::v0::Result> result = body->get_results()[output_desc->m_body_value_index];
-            const auto& in_value = result->input_value(0);
 
-            // set output name to Tensor to store it for openvino to cnn conversion
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::descriptor::set_ov_tensor_legacy_name(
-                in_value.get_tensor(),
-                op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
             for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
                 input.replace_source_output(result->get_input_source_output(0));
             }

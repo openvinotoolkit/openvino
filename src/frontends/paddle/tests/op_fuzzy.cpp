@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,7 @@ static const std::vector<std::string> models{
     std::string("elementwise_floordiv_int64_2/elementwise_floordiv_int64_2.pdmodel"),
     std::string("elementwise_floordiv_int64_3/elementwise_floordiv_int64_3.pdmodel"),
     std::string("elementwise_mul_bool1/elementwise_mul_bool1.pdmodel"),
+    std::string("elu/elu.pdmodel"),
     std::string("embedding_0/embedding_0.pdmodel"),
     std::string("embedding_sparse/embedding_sparse.pdmodel"),
     std::string("embedding_none_weight/embedding_none_weight.pdmodel"),
@@ -200,7 +201,12 @@ static const std::vector<std::string> models{
     std::string("expand_v2_tensor/expand_v2_tensor.pdmodel"),
     std::string("expand_v2_tensor_list/expand_v2_tensor_list.pdmodel"),
     std::string("expand_v2_tensor_list2/expand_v2_tensor_list2.pdmodel"),
+    std::string("expand_as_v2_1/expand_as_v2_1.pdmodel"),
+    std::string("expand_as_v2_2/expand_as_v2_2.pdmodel"),
     std::string("exp_test_float32/exp_test_float32.pdmodel"),
+    std::string("eye/eye.pdmodel"),
+    std::string("eye_int32/eye_int32.pdmodel"),
+    std::string("eye_int64/eye_int64.pdmodel"),
     std::string("flip_1/flip_1.pdmodel"),
     std::string("flip_2/flip_2.pdmodel"),
     std::string("flip_3/flip_3.pdmodel"),
@@ -279,6 +285,9 @@ static const std::vector<std::string> models{
     std::string("less_than_float32/less_than_float32.pdmodel"),
     std::string("less_than_int32/less_than_int32.pdmodel"),
     std::string("less_than_int64/less_than_int64.pdmodel"),
+    std::string("less_equal_float32/less_equal_float32.pdmodel"),
+    std::string("less_equal_int32/less_equal_int32.pdmodel"),
+    std::string("less_equal_int64/less_equal_int64.pdmodel"),
     std::string("linear_downsample_false_0/linear_downsample_false_0.pdmodel"),
     std::string("linear_downsample_false_1/linear_downsample_false_1.pdmodel"),
     std::string("linear_downsample_true_0/linear_downsample_true_0.pdmodel"),
@@ -660,6 +669,16 @@ static const std::vector<std::string> models{
     std::string("where_index_4/where_index_4.pdmodel"),
     std::string("where_index_5/where_index_5.pdmodel"),
     std::string("where_index_6/where_index_6.pdmodel"),
+    std::string("abs_float32/abs_float32.pdmodel"),
+    std::string("atan2/atan2.pdmodel"),
+    std::string("reduce_any_test_0/reduce_any_test_0.pdmodel"),
+    std::string("reduce_any_test_1/reduce_any_test_1.pdmodel"),
+    std::string("reduce_any_test_2/reduce_any_test_2.pdmodel"),
+    std::string("reduce_any_test_3/reduce_any_test_3.pdmodel"),
+    std::string("reduce_any_test_4/reduce_any_test_4.pdmodel"),
+    std::string("scatter_test_1/scatter_test_1.pdmodel"),
+    std::string("scatter_test_2/scatter_test_2.pdmodel"),
+    std::string("scatter_nd_add_test_1/scatter_nd_add_test_1.pdmodel"),
     // Temporily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box/yolo_box_clip_box.pdmodel"),

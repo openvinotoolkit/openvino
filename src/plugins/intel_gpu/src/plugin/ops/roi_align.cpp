@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/op/roi_align.hpp"
@@ -9,8 +9,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -68,5 +67,4 @@ void CreateROIAlignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::ROIAl
 REGISTER_FACTORY_IMPL(v3, ROIAlign);
 REGISTER_FACTORY_IMPL(v9, ROIAlign);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

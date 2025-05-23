@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ namespace pass {
  */
 class TokenizeSnippets: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TokenizeSnippets", "0");
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeSnippets");
     explicit TokenizeSnippets(const SnippetsTokenization::Config& config);
 
     static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);

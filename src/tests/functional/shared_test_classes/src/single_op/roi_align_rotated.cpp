@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <random>
 
 #include "openvino/core/enum_names.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 
 namespace ov {
 namespace test {

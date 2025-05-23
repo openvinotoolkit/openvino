@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertTopK11ToTopK3 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTopK11ToTopK3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTopK11ToTopK3");
     ConvertTopK11ToTopK3();
 };
 

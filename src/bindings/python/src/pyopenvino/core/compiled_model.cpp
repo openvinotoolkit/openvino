@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace py = pybind11;
 
 void regclass_CompiledModel(py::module m) {
     py::class_<ov::CompiledModel, std::shared_ptr<ov::CompiledModel>> cls(m, "CompiledModel");
-    cls.doc() = "openvino.runtime.CompiledModel represents Model that is compiled for a specific device by applying "
+    cls.doc() = "openvino.CompiledModel represents Model that is compiled for a specific device by applying "
                 "multiple optimization transformations, then mapping to compute kernels.";
 
     cls.def(py::init([](ov::CompiledModel& other) {
@@ -40,18 +40,24 @@ void regclass_CompiledModel(py::module m) {
             The created request has allocated input and output tensors.
 
             :return: New InferRequest object.
-            :rtype: openvino.runtime.InferRequest
+            :rtype: openvino.InferRequest
         )");
 
     cls.def(
         "export_model",
         [](ov::CompiledModel& self) {
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
-            return py::bytes(_stream.str());
+            py::object model_stream = py::module::import("io").attr("BytesIO")();
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
+            model_stream.attr("flush")();
+            model_stream.attr("seek")(0);  // Always rewind stream!
+
+            return model_stream;
         },
         R"(
             Exports the compiled model to bytes/output stream.
@@ -81,13 +87,14 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
             model_stream.attr("flush")();
-            model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
@@ -174,7 +181,7 @@ void regclass_CompiledModel(py::module m) {
                 is optimized and which kernels, element types, and layouts are selected.
 
                 :return: Model, containing Executable Graph information.
-                :rtype: openvino.runtime.Model
+                :rtype: openvino.Model
             )");
 
     cls.def("release_memory",
@@ -193,7 +200,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all inputs of a compiled model.
 
                                 :return: Inputs of a compiled model.
-                                :rtype: List[openvino.runtime.ConstOutput]
+                                :rtype: List[openvino.ConstOutput]
                               )");
 
     cls.def("input",
@@ -203,7 +210,7 @@ void regclass_CompiledModel(py::module m) {
                 If a model has more than one input, this method throws an exception.
 
                 :return: A compiled model input.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def("input",
@@ -216,7 +223,7 @@ void regclass_CompiledModel(py::module m) {
                 :param index: An input index.
                 :type index: int
                 :return: A compiled model input.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def(
@@ -230,7 +237,7 @@ void regclass_CompiledModel(py::module m) {
                 :param tensor_name: An input tensor name.
                 :type tensor_name: str
                 :return: A compiled model input.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def_property_readonly("outputs",
@@ -239,7 +246,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all outputs of a compiled model.
 
                                 :return: Outputs of a compiled model.
-                                :rtype: List[openvino.runtime.ConstOutput]
+                                :rtype: List[openvino.ConstOutput]
                               )");
 
     cls.def("output",
@@ -249,7 +256,7 @@ void regclass_CompiledModel(py::module m) {
                 If the model has more than one output, this method throws an exception.
 
                 :return: A compiled model output.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def("output",
@@ -262,7 +269,7 @@ void regclass_CompiledModel(py::module m) {
                 :param index: An output index.
                 :type index: int
                 :return: A compiled model output.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def("output",
@@ -276,7 +283,7 @@ void regclass_CompiledModel(py::module m) {
                 :param tensor_name: An output tensor name.
                 :type tensor_name: str
                 :return: A compiled model output.
-                :rtype: openvino.runtime.ConstOutput
+                :rtype: openvino.ConstOutput
             )");
 
     cls.def("__repr__", [](const ov::CompiledModel& self) {

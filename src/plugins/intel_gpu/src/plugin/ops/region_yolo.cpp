@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/region_yolo.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateRegionYoloOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::RegionYolo>& op) {
     validate_inputs_count(op, {1});
@@ -42,5 +41,4 @@ static void CreateRegionYoloOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
 REGISTER_FACTORY_IMPL(v0, RegionYolo);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

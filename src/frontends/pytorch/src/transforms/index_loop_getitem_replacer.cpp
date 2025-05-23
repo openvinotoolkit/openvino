@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "index_loop_getitem_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -52,7 +53,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         size_t chunk_idx = 0;
         auto loop_inputs = loop_op->input_values();
         for (size_t i = 1; i < loop_inputs.size(); i++) {
-            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), "aten::chunk")) {
+            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), {"aten::chunk", "aten::unsafe_chunk"})) {
                 chunk_op = loop_inputs.at(i).get_node_shared_ptr();
                 chunk_idx = i;
                 break;

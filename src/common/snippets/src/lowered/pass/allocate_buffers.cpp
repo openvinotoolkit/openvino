@@ -12,7 +12,7 @@
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 #include "snippets/lowered/pass/normalize_buffer_reg_groups.hpp"
 #include "snippets/lowered/pass/propagate_buffer_offset.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -30,6 +30,7 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     PassPipeline pipeline;
     pipeline.register_pass<ComputeBufferAllocationSize>();
     if (m_is_optimized_mode) {
+        pipeline.register_pass<MarkInvariantShapePath>();
         pipeline.register_pass<SetBufferRegGroup>();
         pipeline.register_pass<DefineBufferClusters>();
         pipeline.register_pass<SolveBufferMemory>(buffer_scratchpad_size);

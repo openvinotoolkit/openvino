@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class DynamicQuantizeFullyConnected: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DynamicQuantizeFullyConnected", "0");
-    DynamicQuantizeFullyConnected(uint64_t group_size);
+    OPENVINO_MATCHER_PASS_RTTI("DynamicQuantizeFullyConnected");
+    DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric = false);
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

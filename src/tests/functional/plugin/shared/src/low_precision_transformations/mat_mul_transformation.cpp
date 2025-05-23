@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,9 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
         testValues.inputShape1 << "_" <<
         testValues.fqOnData1 << "_" <<
         testValues.inputShape2 << "_" <<
-        testValues.fqOnData2;
+        testValues.fqOnData2 << "_" <<
+        testValues.expectedRuntimePrecision << "_" <<
+        testValues.expectedKernelName;
 
     return result.str();
 }

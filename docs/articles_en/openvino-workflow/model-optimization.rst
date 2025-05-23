@@ -21,39 +21,54 @@ In OpenVINO, the default optimization tool is NNCF (Neural Network Compression F
 It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__,
 organized as a Python package, that make your models smaller and faster. Note that NNCF
 is **not part of the OpenVINO package**, so it needs to be installed separately. It supports
-models in **PyTorch**, **TensorFlow** , **ONNX**, and **OpenVINO IR** formats, offering
-the following optimizations:
+models in **OpenVINO IR**, **PyTorch**, **ONNX**, and **TensorFlow** formats, offering
+the following main optimizations:
 
 .. image:: ../assets/images/WHAT_TO_USE.svg
 
 
 | :doc:`Weight Compression <model-optimization-guide/weight-compression>`:
-|      an easy-to-use method for Large Language Model footprint reduction and inference
+|      An easy-to-use method for Large Language Model footprint reduction and inference
        acceleration.
 
 | :doc:`Post-training Quantization <model-optimization-guide/quantizing-models-post-training>`:
-|      designed to optimize deep learning models by applying 8-bit integer quantization. Being
+|      Designed to optimize deep learning models by applying 8-bit integer quantization. Being
        the easiest way to optimize a model it does not require its retraining or fine-tuning
        but may result in a drop in accuracy. If the accuracy-performance tradeoff is not
        acceptable, Training-time Optimization may be a better option.
 
 | :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`:
-|      involves a suite of advanced methods such as Structured or Unstructured Pruning, as well
+|      Involves a suite of advanced methods such as Structured or Unstructured Pruning, as well
        as Quantization-aware Training. This kind of optimization requires the use of the model's
        original framework, for NNCF, it is either PyTorch or TensorFlow.
 
-A common approach is to perform post-training quantization first, as it is the easiest option.
-If the result proves unsatisfactory, quantization-aware training will give you higher accuracy
-with the same level of performance boost. For the most performant product, adding filter pruning
-will further streamline the model.
+
+
+Recommended workflows
+##########################
+
+* A common approach for most cases is to:
+
+  1. Perform post-training quantization first, as it is the easiest option.
+  2. For even better results, combine post-training quantization with filter pruning.
+  3. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
+     you the same level of performance boost, with a smaller impact on accuracy.
+
+* **Weight compression** works with **LLMs**, **VLMs** and other Transformer-based models.
+
+
+
+.. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
+
+
+
+Installation and usage
+###########################
 
 To learn about the full scope of the framework, its installation, and technical details, visit
 both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ and
 `NNCF API documentation <https://openvinotoolkit.github.io/nncf/autoapi/nncf/>`__.
 
-
-
-.. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
 
 .. tab-set::

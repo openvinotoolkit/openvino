@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -35,18 +35,3 @@ ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
-
-# Temporary solution until vcpkg doesn't have fresh ONNX,
-# trying determine used version of ONNX to enable modern functionality
-find_package(ONNX 1.16.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
-if(ONNX_FOUND)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ONNX_VERSION_116)
-else()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/onnx/onnx/VERSION_NUMBER")
-        file(READ "${CMAKE_SOURCE_DIR}/thirdparty/onnx/onnx/VERSION_NUMBER" ONNX_VERSION)
-        string(STRIP "${ONNX_VERSION}" ONNX_VERSION)
-        if((ONNX_VERSION GREATER "1.16.0") OR (ONNX_VERSION EQUAL "1.16.0"))
-            target_compile_definitions(${TARGET_NAME} PUBLIC ONNX_VERSION_116)
-        endif()
-    endif()
-endif()

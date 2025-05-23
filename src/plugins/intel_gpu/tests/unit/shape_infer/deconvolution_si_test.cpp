@@ -42,8 +42,8 @@ TEST_P(deconvolution_si_test, shape_infer) {
     auto input_data_layout = layout{p.input_shape, data_types::f32, format::bfyx};
     auto weight_layout = layout{p.weight_shape, data_types::f32, format::bfyx};
 
-    std::vector<cldnn::primitive_id> weights = {"weight"};
-    std::vector<cldnn::primitive_id> bias = {};
+    cldnn::primitive_id weights = "weight";
+    cldnn::primitive_id bias = "";
 
     auto input_prim = std::make_shared<input_layout>("data", input_data_layout);
     auto weight_prim = std::make_shared<input_layout>("weight", weight_layout);

@@ -24,6 +24,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \
@@ -33,21 +35,14 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # Compiler \
-        gcc-10 \
-        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+    bash -e install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -78,7 +73,8 @@ RUN apt update && apt install -y \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
+    python3.8 get-pip-3-8.py  --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 

@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/cum_sum.hpp"
+#include "openvino/op/cum_sum.hpp"
 
 namespace ov {
 namespace test {

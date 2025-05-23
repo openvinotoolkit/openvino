@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Callable, Any, Union
 import logging
 
-import openvino.runtime as ov
+from openvino import Model
 
 
 class PreprocessConverter():
-    def __init__(self, model: ov.Model):
+    def __init__(self, model: Model):
         self._model = model
 
     @staticmethod
-    def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
-                         input_name: Union[str, None] = None) -> ov.Model:
+    def from_torchvision(model: Model, transform: Callable, input_example: Any,
+                         input_name: Union[str, None] = None) -> Model:
         """Embed torchvision preprocessing in an OpenVINO model.
 
         Arguments:
-            model (ov.Model):
+            model (Model):
                 Result name
             transform (Callable):
                 torchvision transform to convert
@@ -30,7 +30,7 @@ class PreprocessConverter():
                 Not needed if the model has one input.
 
         Returns:
-            ov.Mode: OpenVINO Model object with embedded preprocessing
+            Model: OpenVINO Model object with embedded preprocessing
         Example:
             >>> model = PreprocessorConvertor.from_torchvision(model, "input", transform, input_example)
         """

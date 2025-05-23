@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <string>
 #include <tuple>
 
+#include "openvino/op/non_max_suppression.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

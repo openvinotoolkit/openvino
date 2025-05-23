@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roi_align.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset14.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Parameter;
+using ov::op::v9::ROIAlign;
 using namespace testing;
 
 template <typename TOp>

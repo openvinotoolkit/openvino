@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ namespace space_to_batch {
 namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     const auto& data = inputs[0];
-    const auto& out = outputs[0];
+    auto& out = outputs[0];
     const auto elem_size = data.get_element_type().size();
 
     auto data_shape = data.get_shape();

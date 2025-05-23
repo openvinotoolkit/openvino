@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API TSCumSumBackward;
  */
 class ov::pass::transpose_sinking::TSCumSumForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0");
+    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSCumSumForward();
 };
 
@@ -35,6 +35,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSCumSumBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSCumSumBackward");
     TSCumSumBackward();
 };

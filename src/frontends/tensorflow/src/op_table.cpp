@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,7 @@
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
@@ -108,7 +109,6 @@ TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
-TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
@@ -144,6 +144,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cos", CreatorFunction(translate_unary_op<v0::Cos>)},
         {"Cosh", CreatorFunction(translate_unary_op<v0::Cosh>)},
         {"Erf", CreatorFunction(translate_unary_op<v0::Erf>)},
+        {"Erfc", CreatorFunction(translate_erfc_op)},
         {"Exp", CreatorFunction(translate_unary_op<v0::Exp>)},
         {"Floor", CreatorFunction(translate_unary_op<v0::Floor>)},
         {"Invert", CreatorFunction(translate_unary_op<v13::BitwiseNot>)},
@@ -176,7 +177,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
         {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
-        {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
+        {"Equal", CreatorFunction(translate_equal_op)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<v1::Greater>)},
         {"GreaterEqual", CreatorFunction(translate_binary_op<v1::GreaterEqual>)},
@@ -252,6 +253,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"EmptyTensorList", CreatorFunction(translate_empty_tensor_list_op)},
         {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
+        {"Expm1", CreatorFunction(translate_expm1_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
@@ -368,6 +370,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},
         {"SaveV2", CreatorFunction(translate_no_op)},
         {"ScatterNd", CreatorFunction(translate_scatter_nd_op)},
+        {"SegmentMax", CreatorFunction(translate_segment_max_op)},
         {"SegmentSum", CreatorFunction(translate_segment_sum_op)},
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
@@ -378,8 +381,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Snapshot", CreatorFunction(translate_identity_op)},
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
+        {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
-        {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_mean_op)},
+        {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_op)},
+        {"SparseSegmentSqrtN", CreatorFunction(translate_sparse_segment_op)},
         {"SparseTensorDenseAdd", CreatorFunction(translate_sparse_tensor_dense_add_op)},
         {"SparseTensorDenseMatMul", CreatorFunction(translate_sparse_tensor_dense_mat_mul_op)},
         {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
@@ -413,6 +418,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
         {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"TensorListConcatV2", CreatorFunction(translate_tensor_list_concat_v2_op)},
+        {"TensorScatterAdd", CreatorFunction(translate_tensor_scatter_add_op)},
         {"TensorScatterUpdate", CreatorFunction(translate_tensor_scatter_update_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"ToBool", CreatorFunction(translate_tobool_op)},
@@ -457,7 +463,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Translators for internal operations
         {"BlockLSTM", CreatorFunction(translate_block_lstm_op)},
         {"GRUBlockCell", CreatorFunction(translate_gru_block_cell_op)},
-        {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
 

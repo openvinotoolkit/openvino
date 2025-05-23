@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ void Loop::validate_and_infer_types() {
             m_num_iterations = 1;  // condition_always_false, do_while mode
         }
     } else if (const auto& cond_param =
-                   std::dynamic_pointer_cast<const op::v0::Parameter>(body_execution_condition.get_node_shared_ptr())) {
+                   ov::as_type_ptr<const op::v0::Parameter>(body_execution_condition.get_node_shared_ptr())) {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
@@ -393,4 +393,6 @@ Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
 }
 }  // namespace v5
 }  // namespace op
+
+AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::~AttributeAdapter() = default;
 }  // namespace ov

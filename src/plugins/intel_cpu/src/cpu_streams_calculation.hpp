@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@
 #include "graph.h"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief      Generate streams information table according to processors type table.
  * @param[in]  input_streams is the targeted number of streams set by user via ov::num_streams or the default value.
@@ -35,8 +34,6 @@ namespace intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
- * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
- *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
@@ -44,15 +41,15 @@ namespace intel_cpu {
  * in previous function.
  * @return     streams information table which will be used by StreamsExecutor.
  */
-std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
-                                                     const bool input_streams_changed,
-                                                     const int input_threads,
-                                                     const int input_infer_requests,
-                                                     const int model_prefer_threads,
-                                                     const int input_current_socket_id,
-                                                     const std::string input_perf_hint,
-                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
-                                                     const std::vector<std::vector<int>>& proc_type_table);
+std::vector<std::vector<int>> get_streams_info_table(
+    const int input_streams,
+    const bool input_streams_changed,
+    const int input_threads,
+    const int input_infer_requests,
+    const int model_prefer_threads,
+    const std::string& input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy>& hint_llm_distribution_policy,
+    const std::vector<std::vector<int>>& proc_type_table);
 
 /**
  * @brief      Generate streams rank table for tensor parallel according to streams info table.
@@ -77,14 +74,14 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
-                             const std::vector<std::vector<int>> proc_type_table,
+                             const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config);
 
 /**
  * @brief      Generate streams information according to processors type table
  * @param[in]  streams number of streams
- * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
+ * @param[in]  input_numa_node_id is the numa node ID in cpu mapping table of the currently running thread
  *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
@@ -94,7 +91,7 @@ int get_model_prefer_threads(const int num_streams,
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                   const int input_current_socket_id,
+                                                   const int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
@@ -106,9 +103,14 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  */
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ov::Model>& model,
-                     Config& config);
+void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config);
 
-}  // namespace intel_cpu
-}  // namespace ov
+/**
+ * @brief      Sort proc_type_table by numa node id on which application is running. The numa node will move to first
+ * row.
+ * @param[in]  current_numa_node numa node ID on which application is running.
+ * @param[in]  proc_type_table summary table of number of processors per type
+ */
+void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
+
+}  // namespace ov::intel_cpu

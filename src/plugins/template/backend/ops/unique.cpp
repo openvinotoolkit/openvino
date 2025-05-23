@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/unique.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unique.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 template <typename Data_t, typename Index_t, typename Count_t>
 void execute_unique(ov::TensorVector& outputs,
@@ -13,8 +16,7 @@ void execute_unique(ov::TensorVector& outputs,
     const auto maybe_extract_axis = [&op]() {
         std::unique_ptr<int64_t> axis;
         if (op->get_input_size() == 2 && ov::op::util::is_constant(op->input_value(1).get_node())) {
-            const auto axis_constant =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+            const auto axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
             const auto axis_vec = axis_constant->cast_vector<int64_t>();
             axis = std::unique_ptr<int64_t>(new int64_t{axis_vec.at(0)});
         }

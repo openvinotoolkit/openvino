@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,12 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const std::shared_ptr<ov::threading::IStreamsExecutor>& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
     void run(ov::threading::Task task) override {
-        _streamsExecutor->execute(std::move(task));
+        if (_streamsExecutor->get_streams_num() > 1) {
+            std::vector<ov::threading::Task> tasks{std::move(task)};
+            _streamsExecutor->run_and_wait(tasks);
+        } else {
+            _streamsExecutor->execute(std::move(task));
+        }
     }
     std::shared_ptr<ov::threading::IStreamsExecutor> _streamsExecutor;
 };
@@ -94,6 +99,7 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
+    std::lock_guard<std::mutex> lock{m_mutex};
     m_callback = std::move(callback);
 }
 
@@ -143,11 +149,12 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
 
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
-                    auto promise = std::move(m_promise);
+                    std::promise<void> promise;
                     std::function<void(std::exception_ptr)> callback;
                     {
                         std::lock_guard<std::mutex> lock{m_mutex};
                         m_state = InferState::IDLE;
+                        promise = std::move(m_promise);
                         std::swap(callback, m_callback);
                     }
                     if (callback) {

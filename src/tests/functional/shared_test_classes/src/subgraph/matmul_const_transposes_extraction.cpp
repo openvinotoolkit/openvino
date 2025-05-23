@@ -9,6 +9,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/subgraph/matmul_const_transposes_extraction.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {

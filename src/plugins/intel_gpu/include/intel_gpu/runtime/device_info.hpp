@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ enum class gpu_arch {
     xe_hpg = 5,
     xe_hpc = 6,
     xe2 = 7,
+    xe3 = 8,
 };
 
 /// @brief Defines version of GFX IP
@@ -43,6 +44,34 @@ struct gfx_version {
     friend bool operator < (const gfx_version& l, const gfx_version& r)  {
         return std::tie(l.major, l.minor, l.revision)
                < std::tie(r.major, r.minor, r.revision); // same order
+    }
+
+    bool operator==(const gfx_version& other) {
+        return major == other.major &&
+               minor == other.minor &&
+               revision == other.revision;
+    }
+
+    bool operator!=(const gfx_version& other) {
+        return !(*this == other);
+    }
+};
+
+struct pci_bus_info {
+    uint32_t pci_domain = 0;
+    uint32_t pci_bus = 0;
+    uint32_t pci_device = 0;
+    uint32_t pci_function = 0;
+
+    bool operator==(const pci_bus_info& other) {
+        return pci_domain == other.pci_domain &&
+               pci_bus == other.pci_bus &&
+               pci_device == other.pci_device &&
+               pci_function == other.pci_function;
+    }
+
+    bool operator!=(const pci_bus_info& other) {
+        return !(*this == other);
     }
 };
 
@@ -55,6 +84,7 @@ struct device_info {
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
     uint64_t max_global_mem_size;               ///< Maximum size of global device memory in bytes.
     uint64_t max_alloc_mem_size;                ///< Maximum size of memory object allocation in bytes.
+    uint64_t max_global_cache_size;             ///< Maximum size of cache memory bytes.
 
     uint64_t max_image2d_width;                 ///< Maximum image 2d width supported by the device.
     uint64_t max_image2d_height;                ///< Maximum image 2d height supported by the device.
@@ -67,10 +97,10 @@ struct device_info {
     bool supports_intel_subgroups_short;        ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_intel_subgroups_char;         ///< Does engine support cl_intel_subgroups_char extension.
     bool supports_intel_required_subgroup_size; ///< Does engine support cl_intel_required_subgroup_size extension.
-    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
+    bool supports_work_group_collective_functions; ///< Does engine support CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
@@ -97,6 +127,9 @@ struct device_info {
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
+    uint32_t sub_device_idx;                    ///< Index of sub-device
+
+    pci_bus_info pci_info;                      ///< PCI bus information for the device
 
     uint64_t timer_resolution;                  ///< Resolution of device timer used for profiling in cycles/sec
     uint32_t kernel_timestamp_valid_bits;       ///< Number of valid bits in the kernel timestamp values

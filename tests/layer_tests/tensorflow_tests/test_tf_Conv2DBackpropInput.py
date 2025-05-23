@@ -59,10 +59,10 @@ class TestConv2DBackpropInput(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_create_conv2d_backprop_input(self, params, padding, input_type,
-                                          ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                          ie_device, precision, ir_version, temp_dir):
         custom_eps = None
         if input_type == np.float16:
             custom_eps = 2 * 1e-3
         self._test(*self.create_conv2d_backprop_input_net(**params, padding=padding, input_type=input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)

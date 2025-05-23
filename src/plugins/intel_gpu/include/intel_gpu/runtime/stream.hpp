@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@ public:
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return m_queue_type; }
+    SyncMethods get_sync_method() const { return m_sync_method; }
 
     static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
     static SyncMethods get_expected_sync_method(const ExecutionConfig& config);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,7 +190,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f
@@ -230,7 +230,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs = network_act.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr (output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr (output, get_test_stream());
 
     std::vector<uint16_t> perm = { 0,3,4,1,5,2 };
 
@@ -255,7 +255,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs_ref = network_ref.execute();
 
     auto output_ref = outputs_ref.at("reshape2").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr_ref(output_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(output_ref, get_test_stream());
 
     for (size_t i = 0; i < output->get_layout().count(); ++i) {
         ASSERT_EQ(output_ptr_ref[i], output_ptr[i]);

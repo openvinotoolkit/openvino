@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,6 @@
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/auto/properties.hpp"
-#include "pyopenvino/core/properties/properties.hpp"
 
 namespace py = pybind11;
 

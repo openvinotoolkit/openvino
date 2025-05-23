@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+
 #include "reorder_inst.h"
+#include "registry/implementation_manager.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "program_node.h"
 
 #include <memory>
 namespace cldnn {

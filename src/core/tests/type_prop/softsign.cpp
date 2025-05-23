@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/softsign.hpp"
+
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov;

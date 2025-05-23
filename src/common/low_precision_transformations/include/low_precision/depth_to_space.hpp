@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,9 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API DepthToSpaceTransformation : public TransparentBaseTransformation {
 public:
-    OPENVINO_RTTI("DepthToSpaceTransformation", "0");
+    OPENVINO_RTTI("DepthToSpaceTransformation", "0", TransparentBaseTransformation);
     DepthToSpaceTransformation(const Params& params = Params());
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<ov::Node>& layer) const override;
 };
 
 }  // namespace low_precision

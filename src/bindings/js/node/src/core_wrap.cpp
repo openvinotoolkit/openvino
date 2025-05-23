@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/core_wrap.hpp"
@@ -11,6 +11,7 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -92,6 +93,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         } else {
             OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
+        ov::util::set_tensors_names(ov::AUTO, *model);
 
         return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {

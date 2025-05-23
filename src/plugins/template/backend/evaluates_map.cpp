@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,19 +12,19 @@ std::vector<float> get_floats(const ov::Tensor& input, const ov::Shape& shape) {
 
     switch (input.get_element_type()) {
     case ov::element::bf16: {
-        ov::bfloat16* p = input.data<ov::bfloat16>();
+        auto p = input.data<ov::bfloat16>();
         for (size_t i = 0; i < input_size; ++i) {
             result[i] = float(p[i]);
         }
     } break;
     case ov::element::f16: {
-        ov::float16* p = input.data<ov::float16>();
+        auto p = input.data<ov::float16>();
         for (size_t i = 0; i < input_size; ++i) {
             result[i] = float(p[i]);
         }
     } break;
     case ov::element::f32: {
-        float* p = input.data<float>();
+        auto p = input.data<float>();
         memcpy(result.data(), p, input_size * sizeof(float));
     } break;
     default:
@@ -105,7 +105,6 @@ std::vector<int64_t> get_signal_size(const ov::TensorVector& inputs, size_t num_
 }
 
 ov::runtime::interpreter::EvaluatorsMap& ov::runtime::interpreter::get_evaluators_map() {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     static runtime::interpreter::EvaluatorsMap evaluatorsMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), evaluate_node<NAMESPACE::NAME>},
 
@@ -113,6 +112,5 @@ ov::runtime::interpreter::EvaluatorsMap& ov::runtime::interpreter::get_evaluator
 
 #undef _OPENVINO_OP_REG
     };
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluatorsMap;
 }

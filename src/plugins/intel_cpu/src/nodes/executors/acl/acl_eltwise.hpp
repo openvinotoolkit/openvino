@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "../eltwise.hpp"
-#include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "acl_utils.hpp"
+#include "arm_compute/runtime/NEON/NEFunctions.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -23,11 +22,12 @@ public:
 
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
+
 private:
     EltwiseAttrs aclEltwiseAttrs{};
     impl_desc_type implType = impl_desc_type::acl;
@@ -37,14 +37,13 @@ private:
 
 class AclEltwiseExecutorBuilder : public EltwiseExecutorBuilder {
 public:
-    bool isSupported(const EltwiseAttrs& eltwiseAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override;
+    [[nodiscard]] bool isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclEltwiseExecutor>(context);
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

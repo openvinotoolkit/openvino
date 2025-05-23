@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ConvertDetectionOutput1ToDetectionOutput8;
  */
 class ov::pass::ConvertDetectionOutput1ToDetectionOutput8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDetectionOutput1ToDetectionOutput8", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertDetectionOutput1ToDetectionOutput8");
     ConvertDetectionOutput1ToDetectionOutput8();
 };

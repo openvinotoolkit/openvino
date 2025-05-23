@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -14,8 +14,8 @@ import json
 from pathlib import Path
 
 
-if sys.version_info[:2] < (3, 8):
-    raise Exception("Python version must be >= 3.8")
+if sys.version_info[:2] < (3, 9):
+    raise Exception("Python version must be >= 3.9")
 
 
 class ConfigException(Exception):

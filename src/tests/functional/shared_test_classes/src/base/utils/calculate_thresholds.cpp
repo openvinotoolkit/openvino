@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ calculate_thresholds_by_whole_model(const std::shared_ptr<ov::Model>& model) {
 
     // check all operations except convert to generate correct values
     for (const auto& op : model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(op)) {
             continue;
         }
         // check the default threshold for operations

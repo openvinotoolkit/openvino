@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ class FRONTEND_API Place {
 public:
     typedef std::shared_ptr<Place> Ptr;
 
-    virtual ~Place() = 0;
+    virtual ~Place();
 
     /// \brief All associated names (synonyms) that identify this place in the graph in a
     /// framework specific way

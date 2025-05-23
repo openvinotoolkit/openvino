@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 using namespace testing;

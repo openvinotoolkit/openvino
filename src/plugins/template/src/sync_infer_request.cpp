@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
                        ov::op::util::VariableContext& variable_context,
                        std::vector<ov::SoPtr<ov::IVariableState>>& list_of_variables) {
     for (const auto& op : ov_model->get_ordered_ops()) {
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 collect_variables(sub_graph, variable_context, list_of_variables);
             }
@@ -59,7 +59,7 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
             auto state =
-                std::make_shared<ov::template_plugin::VariableState>(variable->get_info().variable_id,
+                std::make_shared<ov::template_plugin::VariableState>(variable->get_info(),
                                                                      variable_context.get_variable_value(variable));
             list_of_variables.emplace_back(state);
         }

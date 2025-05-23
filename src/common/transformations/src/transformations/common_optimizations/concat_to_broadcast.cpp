@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/concat_to_broadcast.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/tile.hpp"

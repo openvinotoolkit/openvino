@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ public:
     }
 
     void validate_and_infer_types() override {
-        set_output_type(0, ov::element::undefined, ov::PartialShape::dynamic());
+        set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ private:
                                                                               params.samplingRatio,
                                                                               params.spatialScale,
                                                                               params.clockwise);
-        return std::make_shared<Model>(NodeVector{roi_align_rot}, ParameterVector{featureMap});
+        return std::make_shared<Model>(OutputVector{roi_align_rot}, ParameterVector{featureMap});
     }
 };
 

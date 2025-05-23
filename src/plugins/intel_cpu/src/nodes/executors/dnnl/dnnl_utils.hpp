@@ -11,14 +11,10 @@
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
+namespace ov::intel_cpu::utils {
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
                                const bool needShiftSignedToUnsigned = false);
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils

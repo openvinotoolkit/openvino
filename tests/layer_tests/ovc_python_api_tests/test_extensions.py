@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -7,8 +7,8 @@ import numpy as np
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.onnx_layer_test_class import save_to_onnx
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Model
+import openvino as ov
+from openvino import PartialShape, Model
 
 
 class TestExtensions(CommonMOConvertTest):
@@ -57,7 +57,7 @@ class TestExtensions(CommonMOConvertTest):
         # replaces LeakyRelu with Relu
         from openvino.frontend import ConversionExtension
         from openvino.frontend import NodeContext
-        import openvino.runtime.opset8 as ops
+        import openvino.opset8 as ops
 
         def custom_converter(node: NodeContext):
             input = node.get_input(0)
@@ -70,7 +70,7 @@ class TestExtensions(CommonMOConvertTest):
         # replaces Elu with Sigmoid
         from openvino.frontend import ConversionExtension
         from openvino.frontend import NodeContext
-        import openvino.runtime.opset8 as ops
+        import openvino.opset8 as ops
 
         def custom_converter(node: NodeContext):
             input = node.get_input(0)
@@ -113,7 +113,7 @@ class TestExtensions(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_extensions(self, params, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                   temp_dir):
         onnx_net_path = self.create_onnx_model(temp_dir)
 
         test_params = params['params_test']

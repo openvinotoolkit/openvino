@@ -26,7 +26,7 @@ where each label refers to a dimension of the corresponding operand. Labels are 
 Labels do not need to appear in a subscript in alphabetical order.
 The subscript for a scalar input is empty. The input subscripts are separated with a comma ``,``.
 The output subscript ``<subscript for output>`` represents a sequence of labels (alphabetic letters ``['A',...,'Z','a',...,'z']``).
-The length of an input subscript matches a rank of the input. The input subscript is empty for a scalar input.
+The amount of dimensions covered by input subscript matches a rank of the input. The input subscript is empty for a scalar input.
 
 *Einsum* operation on multiple inputs can be treated as several consecutive *Einsum* operations. In the first step, *Einsum* applies the first two inputs.
 In the second step, it operates on the result of the first step and the third input, and so forth.
@@ -44,8 +44,18 @@ where dimensions with labels ``b`` and ``d`` are reduced, and the transpose is a
 
 .. note::
 
+    Behavior before OpenVINO 2025.1 release:
+
+    * Dimensions covered by specific label need to be compatible across all input tensors without broadcasting.
+    * Ellipsis label need to cover at least one dimension in input tensor.
+    * Output subscripts need to contain ellipsis label if any of input subscripts contain ellipsis label.
+
+.. note::
+
    * *Einsum* operation can perform on a single operand. In this case, the operation can transpose the input and reduce its dimensions.
-   * Input ranks must be equal to the length of corresponding subscripts. Dimensions with the same corresponding labels in input subscripts must be equal in size.
+   * Input ranks must be equal to amount of dimensions covered by corresponding subscripts.
+   * Ellipses may cover 0 or multiple dimensions.
+   * Dimensions with the same corresponding labels in input subscripts (with exception for repeated label in same input subscript) need to be broadcastable across all input tensors to satisfy NymPy broadcasting rules available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
    * A label can be repeated in the same input subscript, for example, ``equation`` equal to ``aac,abd,ddde``. In this case, the corresponding dimensions must match in size, and the operand is replaced by its diagonal along these dimensions. For example, *Einsum* operation on the single 3D tensor of shape ``[2, 4, 5, 4]`` with ``equation`` equal to ``ijkj->ij``.
    * The specification considers the primitive algorithm for *Einsum* operation for better understanding of the operation and does not recommend it for implementation.
    * The described algorithm can be improved by immediate dimension sum-reduction of the intermediate results if the corresponding labels are absent  in the input subscripts of subsequent inputs and the output subscript. It can significantly boost performance and reduce memory costs. In the considered example, after the first step you can reduce the dimension corresponding to the label ``d``.
@@ -111,7 +121,15 @@ Example 5 shows how *Einsum* transposes input tensor:
              [[3.0, 6.0, 9.0]]]
 
 
-In addition to an alphabetic label, ellipsis ``...`` can be used as a label in a subscript to cover broadcasted dimensions. Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript ``a...bc`` for five rank tensor covers the second and third dimensions. In case input subscripts contain ellipsis for several operands, the dimensions covered by the ellipsis must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`. If at least one input subscript contains an ellipsis, the output subscript must always contain one ellipsis. For example, *Einsum* operation on two inputs of shapes ``[9, 1, 4, 3]`` and ``[3, 11, 7, 1]`` with ``equation="a...b,b...->a..."`` has ellipsis for both operands covering dimensions with sizes ``[1, 4]`` and ``[11, 7, 1]`` that are broadcasted to ``[11, 7, 4]``. The resulted shape of *Einsum* operation will be ``[9, 11, 7, 4]`` since the dimension labeled with ``a`` is left with broadcasted dimensions.
+In addition to an alphabetic label, ellipsis ``...`` can be used as a label in a subscript to cover optional broadcasted dimensions.
+Each input subscript can contain at most one ellipsis.
+For example, the ellipsis in input subscript ``a...bc`` for five rank tensor covers the second and third dimensions.
+Optional ellipses covering no dimensions are either ignored or broadcasted to dimensions of ellipsis of other operands if available. 
+In case input subscripts contain ellipsis for several operands, the dimensions covered by the ellipsis must be broadcastable to satisfy
+NymPy broadcasting (or multidirectional broadcasting) rules available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
+For example, *Einsum* operation on two inputs of shapes ``[9, 1, 4, 3]`` and ``[3, 11, 7, 1]`` with ``equation="a...b,b...->a..."``
+has ellipsis for both operands covering dimensions with sizes ``[1, 4]`` and ``[11, 7, 1]`` that are broadcasted to ``[11, 7, 4]``.
+The resulted shape of *Einsum* operation will be ``[9, 11, 7, 4]`` since the dimension labeled with ``a`` is left with broadcasted dimensions.
 
 Example 6 shows how *Einsum* operates on the single input with an equation containing ellipsis:
 
@@ -121,9 +139,21 @@ Example 6 shows how *Einsum* operates on the single input with an equation conta
         [4.0, 5.0, 6.0],
         [7.0, 8.0, 9.0]]
    equation = "a...->..."
+   alternative_equation = "...a->a"
    output = [12.0, 15.0, 18.0]
 
-Example 7 shows how *Einsum* operates with broadcasting two operands:
+Example 7 shows how *Einsum* operates on the single input with an equation containing ellipsis:
+
+.. code-block:: cpp
+
+   A = [[1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]]
+   equation = "a...->a"
+   alternative_equation = "...a->..."
+   output = [6.0, 15.0, 24.0]
+
+Example 8 shows how *Einsum* operates with broadcasting two operands:
 
 .. code-block:: cpp
 
@@ -144,7 +174,7 @@ For example, ``equation = "dbbc,ca"`` in implicit mode is equivalent to ``equati
 The equation in implicit mode can set up only subset of Einstein summation conventions. For example, ``equation = "kii->i"`` cannot be represented in implicit mode.
 In case ellipsis label is in the left-hand side of the equation in implicit mode, the ellipsis comes first in the output subscript for the recovery.
 
-Example 8 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
+Example 9 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
 ``equation = "AbC"`` that is the same as ``equation = "AbC->ACb"``:
 
 .. code-block:: cpp

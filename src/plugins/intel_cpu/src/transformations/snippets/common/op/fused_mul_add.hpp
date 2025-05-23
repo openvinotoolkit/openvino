@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface FusedMulAdd
@@ -27,5 +26,4 @@ public:
     const ov::op::AutoBroadcastSpec& get_autob() const override;
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu

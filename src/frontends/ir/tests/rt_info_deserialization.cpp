@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -405,11 +405,15 @@ TEST_F(RTInfoDeserialization, node_v11) {
                 <attribute name="old_api_map_element_type" version="0" value="f16"/>
                 <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="if no version" value="then ignore"/>
+                <attribute name="fused_names" version="1" comment="unknown version"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
                     <rt_info>
                         <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                        <no_name version="0" value="param1"/>
+                        <empty_node/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>

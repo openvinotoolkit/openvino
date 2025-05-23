@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSBinaryBackward;
  */
 class ov::pass::transpose_sinking::TSBinaryForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0");
+    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSBinaryForward();
 };
 
@@ -37,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSBinaryBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSBinaryBackward");
     TSBinaryBackward();
 };

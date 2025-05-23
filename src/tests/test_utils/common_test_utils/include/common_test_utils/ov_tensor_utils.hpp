@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,12 +188,12 @@ namespace tensor_comparation {
 double calculate_threshold(const double abs_threshold, const double rel_threshold, const double ref_value);
 
 double calculate_default_abs_threshold(const ov::element::Type& expected_type,
-                                       const ov::element::Type& actual_type = ov::element::undefined,
-                                       const ov::element::Type& inference_precision = ov::element::undefined);
+                                       const ov::element::Type& actual_type = ov::element::dynamic,
+                                       const ov::element::Type& inference_precision = ov::element::dynamic);
 
 double calculate_default_rel_threshold(const ov::element::Type& expected_type,
-                                       const ov::element::Type& actual_type = ov::element::undefined,
-                                       const ov::element::Type& inference_precision = ov::element::undefined);
+                                       const ov::element::Type& actual_type = ov::element::dynamic,
+                                       const ov::element::Type& inference_precision = ov::element::dynamic);
 }  // namespace tensor_comparation
 
 // function to compare tensors using different metrics:
@@ -220,7 +220,7 @@ inline void compare(const ov::Tensor& expected,
                     const double rel_threshold = -1,
                     const double topk_threshold = 1.f,
                     const double mvn_threshold = 1.f) {
-    compare(expected, actual, ov::element::undefined, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
+    compare(expected, actual, ov::element::dynamic, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 }
 
 // todo: replace this function by `compare(expected, actual)`

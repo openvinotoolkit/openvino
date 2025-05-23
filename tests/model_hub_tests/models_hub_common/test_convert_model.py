@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import gc
 
@@ -11,7 +11,7 @@ except:
 from models_hub_common.multiprocessing_utils import multiprocessing_run
 from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
-from openvino.runtime import Core
+from openvino import Core
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results

@@ -11,6 +11,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
 using namespace ov::test;
 

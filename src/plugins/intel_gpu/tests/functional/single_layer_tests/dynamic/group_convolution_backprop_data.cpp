@@ -143,7 +143,7 @@ public:
                 if (i > 0) {
                     continue;
                 }
-                if (inType != ov::element::Type_t::undefined) {
+                if (inType != ov::element::Type_t::dynamic) {
                     p.input(i).tensor().set_element_type(inType);
                 }
             }
@@ -151,7 +151,7 @@ public:
         {
             auto results = function->get_results();
             for (size_t i = 0; i < results.size(); i++) {
-                if (outType != ov::element::Type_t::undefined) {
+                if (outType != ov::element::Type_t::dynamic) {
                     p.output(i).tensor().set_element_type(outType);
                 }
             }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ private:
                                                  const double max) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Clamp = std::make_shared<op::v0::Clamp>(in, min, max);
-        return std::make_shared<ov::Model>(NodeVector{Clamp}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Clamp}, ParameterVector{in});
     }
 };
 

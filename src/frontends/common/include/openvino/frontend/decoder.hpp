@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,12 @@ namespace type {
 struct Tensor {
     Tensor() = default;
     explicit Tensor(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
+struct Complex {
+    Complex() = default;
+    explicit Complex(const Any& _element_type) : element_type(_element_type) {}
     Any element_type;
 };
 
@@ -49,9 +55,9 @@ struct Union;
 }  // namespace type
 
 /// Plays a role of node, block and module decoder
-class IDecoder {
+class FRONTEND_API IDecoder {
 public:
-    virtual ~IDecoder() = default;
+    virtual ~IDecoder();
 };
 
 class FRONTEND_API DecoderBase : public IDecoder {

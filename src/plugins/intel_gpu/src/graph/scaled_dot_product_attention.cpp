@@ -11,6 +11,7 @@
 
 #include "scaled_dot_product_attention_shape_inference.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scaled_dot_product_attention)
@@ -59,7 +60,7 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
 
     std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
-        input_shapes.push_back(impl_param.get_input_layout(0).get<ShapeType>());
+        input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
@@ -87,6 +88,14 @@ std::string scaled_dot_product_attention_inst::to_string(scaled_dot_product_atte
     json_composite scaled_dot_product_attention_info;
     scaled_dot_product_attention_info.add("input id", input.id());
     scaled_dot_product_attention_info.add("is_causal", desc->is_causal);
+    scaled_dot_product_attention_info.add("is_kv_compressed", desc->is_kv_compressed);
+    scaled_dot_product_attention_info.add("output_storage_type", static_cast<int>(node.get_primitive()->quantization_attributes.output_storage_type));
+    scaled_dot_product_attention_info.add("group_size", desc->quantization_attributes.group_sizes);
+    scaled_dot_product_attention_info.add("quantization_type", static_cast<int>(node.get_primitive()->quantization_attributes.quantization_type));
+    scaled_dot_product_attention_info.add("quantization_dt", desc->quantization_attributes.quantization_dt);
+    scaled_dot_product_attention_info.add("scale_dt", desc->quantization_attributes.scale_dt);
+    scaled_dot_product_attention_info.add("zp_dt", desc->quantization_attributes.zp_dt);
+    scaled_dot_product_attention_info.add("indirect_axis", desc->indirect_axis);
     scaled_dot_product_attention_info.add("has_attn_mask_input", desc->has_attn_mask_input);
     scaled_dot_product_attention_info.add("has_scale_input", desc->has_scale_input);
     scaled_dot_product_attention_info.add("input_q_transpose_order", desc->input_q_transpose_order);

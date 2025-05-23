@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/typing.h>
 
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -16,7 +17,7 @@ namespace py = pybind11;
 
 void regclass_Tensor(py::module m) {
     py::class_<ov::Tensor, std::shared_ptr<ov::Tensor>> cls(m, "Tensor");
-    cls.doc() = "openvino.runtime.Tensor holding either copy of memory or shared host memory.";
+    cls.doc() = "openvino.Tensor holding either copy of memory or shared host memory.";
 
     cls.def(py::init([](py::array& array, bool shared_memory) {
                 return Common::object_from_data<ov::Tensor>(array, shared_memory);
@@ -42,7 +43,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type") = ov::element::dynamic,
             py::keep_alive<1, 2>(),
             R"(
                 Another Tensor's special constructor.
@@ -52,19 +53,19 @@ void regclass_Tensor(py::module m) {
                 memory with the specific openvino element type parameter.
 
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor with given parameters (shape
+                              openvino.Tensor with given parameters (shape
                               and element_type). Array's memory is being shared with a host.
                               Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
-                :type shape: openvino.runtime.Shape
+                :type shape: openvino.Shape
                 :param type: Element type
-                :type type: openvino.runtime.Type
+                :type type: openvino.Type
 
                 :Example:
                 .. code-block:: python
 
-                    import openvino.runtime as ov
+                    import openvino as ov
                     import numpy as np
 
                     arr = np.array(shape=(100), dtype=np.uint8)
@@ -76,7 +77,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type") = ov::element::dynamic,
             py::keep_alive<1, 2>(),
             R"(
                  Another Tensor's special constructor.
@@ -86,19 +87,19 @@ void regclass_Tensor(py::module m) {
                 memory with the specific openvino element type parameter.
 
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor with given parameters (shape
+                              openvino.Tensor with given parameters (shape
                               and element_type). Array's memory is being shared with a host.
                               Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: list or tuple
                 :param type: Element type.
-                :type type: openvino.runtime.Type
+                :type type: openvino.Type
 
                 :Example:
                 .. code-block:: python
 
-                    import openvino.runtime as ov
+                    import openvino as ov
                     import numpy as np
 
                     arr = np.array(shape=(100), dtype=np.uint8)
@@ -158,7 +159,7 @@ void regclass_Tensor(py::module m) {
                 Type and shape will be taken from the port.
 
                 :param port: Output port from a node.
-                :type param: openvino.runtime.Output
+                :type param: openvino.Output
              )");
 
     cls.def(py::init([](ov::Output<ov::Node>& port, py::array& array) {
@@ -172,9 +173,9 @@ void regclass_Tensor(py::module m) {
                 Type and shape will be taken from the port.
 
                 :param port: Output port from a node.
-                :type param: openvino.runtime.Output
+                :type param: openvino.Output
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor. Array's memory is being shared wi a host.
+                              openvino.Tensor. Array's memory is being shared wi a host.
                               Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
              )");
@@ -186,7 +187,7 @@ void regclass_Tensor(py::module m) {
             Type and shape will be taken from the port.
 
             :param port: Output port from a node.
-            :type param: openvino.runtime.ConstOutput
+            :type param: openvino.ConstOutput
             )");
 
     cls.def(py::init([](const ov::Output<const ov::Node>& port, py::array& array) {
@@ -200,9 +201,9 @@ void regclass_Tensor(py::module m) {
                 Type and shape will be taken from the port.
 
                 :param port: Output port from a node.
-                :type param: openvino.runtime.ConstOutput
+                :type param: openvino.ConstOutput
                 :param array: C_CONTIGUOUS numpy array which will be wrapped in
-                              openvino.runtime.Tensor. Array's memory is being shared with a host.
+                              openvino.Tensor. Array's memory is being shared with a host.
                               Any action performed on the host memory will be reflected on this Tensor's memory!
                 :type array: numpy.array
              )");
@@ -214,12 +215,38 @@ void regclass_Tensor(py::module m) {
             py::arg("begin"),
             py::arg("end"));
 
+    cls.def(py::init([](py::object& image) {
+                if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
+                    throw py::type_error(
+                        "Input argument must be a PIL.Image.Image/numpy.array/List[int, float, str] object");
+                }
+                auto numpy = py::module::import("numpy");
+                py::array np_array = numpy.attr("array")(image);
+
+                return Common::object_from_data<ov::Tensor>(np_array, false);
+            }),
+            py::arg("image"),
+            R"(
+            Constructs Tensor from a Pillow Image.
+
+            :param image: Pillow Image to create the tensor from.
+            :type image: PIL.Image.Image
+            :Example:
+            .. code-block:: python
+
+                from PIL import Image
+                import openvino as ov
+
+                img = Image.open("example.jpg")
+                tensor = ov.Tensor(img)
+        )");
+
     cls.def("get_element_type",
             &ov::Tensor::get_element_type,
             R"(
             Gets Tensor's element type.
 
-            :rtype: openvino.runtime.Type
+            :rtype: openvino.Type
             )");
 
     cls.def_property_readonly("element_type",
@@ -227,7 +254,7 @@ void regclass_Tensor(py::module m) {
                               R"(
                                 Tensor's element type.
 
-                                :rtype: openvino.runtime.Type
+                                :rtype: openvino.Type
                               )");
 
     cls.def("get_size",
@@ -267,7 +294,7 @@ void regclass_Tensor(py::module m) {
             R"(
             Gets Tensor's strides in bytes.
 
-            :rtype: openvino.runtime.Strides
+            :rtype: openvino.Strides
             )");
 
     cls.def_property_readonly("strides",
@@ -275,7 +302,7 @@ void regclass_Tensor(py::module m) {
                               R"(
                                 Tensor's strides in bytes.
 
-                                :rtype: openvino.runtime.Strides
+                                :rtype: openvino.Strides
                               )");
 
     cls.def_property_readonly(
@@ -361,7 +388,7 @@ void regclass_Tensor(py::module m) {
             R"(
             Gets Tensor's shape.
 
-            :rtype: openvino.runtime.Shape
+            :rtype: openvino.Shape
             )");
 
     cls.def("set_shape",
@@ -495,5 +522,16 @@ void regclass_Tensor(py::module m) {
         ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
 
         return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
+    });
+
+    cls.def("__copy__", [](const ov::Tensor& self) {
+        ov::Tensor dst = self;
+        return dst;
+    });
+
+    cls.def("__deepcopy__", [](const ov::Tensor& self, py::dict& memo) {
+        ov::Tensor dst(self.get_element_type(), self.get_shape());
+        std::memcpy(dst.data(), self.data(), self.get_byte_size());
+        return dst;
     });
 }

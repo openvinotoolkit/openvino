@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/embedding_bag_packed.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/embeddingbag_packed.hpp"
 
 namespace embedding_bag_packed_v15 {
 template <ov::element::Type_t t1, ov::element::Type_t t2>

@@ -4,6 +4,7 @@ Interface Model
 .. code-block:: ts
 
    interface Model {
+       clone(): Model;
        inputs: Output[];
        outputs: Output[];
        getFriendlyName(): string;
@@ -24,7 +25,7 @@ Interface Model
 A user-defined model read by :ref:`Core.readModel <readModel>`.
 
 * **Defined in:**
-  `addon.ts:191 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L191>`__
+  `addon.ts:230 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L230>`__
 
 
 Properties
@@ -40,7 +41,7 @@ Properties
       inputs: Output[]
 
    -  **Defined in:**
-      `addon.ts:193 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L193>`__
+      `addon.ts:305 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L305>`__
 
 .. rubric:: outputs
 
@@ -52,13 +53,14 @@ Properties
       outputs: Output[]
 
    -  **Defined in:**
-      `addon.ts:192 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
+      `addon.ts:309 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L309>`__
 
 
 Methods
 #####################
 
 .. rubric:: clone
+   :name: clone
 
 *
 
@@ -71,10 +73,11 @@ Methods
    * **Returns:** :doc:`Model <Model>`
 
    * **Defined in:**
-     `addon.ts:220 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L220>`__
+     `addon.ts:234 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L234>`__
 
 
 .. rubric:: getFriendlyName
+   name: getFriendlyName
 
 *
 
@@ -90,7 +93,7 @@ Methods
      A string with a friendly name of the model.
 
    * **Defined in:**
-     `addon.ts:200 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L200>`__
+     `addon.ts:240 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L240>`__
 
 
 .. rubric:: getName
@@ -108,7 +111,7 @@ Methods
      A string with the name of the model.
 
    * **Defined in:**
-     `addon.ts:196 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L196>`__
+     `addon.ts:245 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L245>`__
 
 
 .. rubric:: getOutputShape
@@ -124,7 +127,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:201 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L201>`__
+     `addon.ts:250 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L250>`__
 
 
 .. rubric:: getOutputSize
@@ -140,9 +143,10 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:198 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L198>`__
+     `addon.ts:254 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L254>`__
 
 .. rubric:: getOutputElementType
+   :name: getOutputElementType
 
 *
 
@@ -165,7 +169,7 @@ Methods
    * **Returns:** string
 
    * **Defined in:**
-     `addon.ts:245 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L245>`__
+     `addon.ts:259 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L259>`__
 
 
 .. rubric:: input
@@ -182,7 +186,7 @@ Methods
    * **Returns:**  :doc:`Output <Output>`
 
    * **Defined in:**
-     `addon.ts:219 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L219>`__
+     `addon.ts:264 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L264>`__
 
 
    .. code-block:: ts
@@ -204,7 +208,7 @@ Methods
    * **Returns:**  :doc:`Output <Output>`
 
    * **Defined in:**
-     `addon.ts:224 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L224>`__
+     `addon.ts:269 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L269>`__
 
 
    .. code-block:: ts
@@ -226,7 +230,7 @@ Methods
    * **Returns:**  :doc:`Output <Output>`
 
    * **Defined in:**
-     `addon.ts:229 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L229>`__
+     `addon.ts:274 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L274>`__
 
 
 .. rubric:: isDynamic
@@ -242,7 +246,7 @@ Methods
    * **Returns:**  boolean
 
    * **Defined in:**
-     `addon.ts:234 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L234>`__
+     `addon.ts:279 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L279>`__
 
 
 .. rubric:: output
@@ -251,7 +255,26 @@ Methods
 
    .. code-block:: ts
 
-      output(nameOrId?): Output
+      output(): Output
+
+   It gets the output of the model.
+   If a model has more than one output, this method throws an exception.
+
+   * **Returns:**  :doc:`Output <Output>`
+
+   * **Defined in:**
+     `addon.ts:284 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L284>`__
+
+
+.. rubric:: output
+
+*
+
+   .. code-block:: ts
+
+      output(name): Output
+
+   It gets the output of the model identified by the tensor name.
 
    * **Parameters:**
 
@@ -259,12 +282,32 @@ Methods
 
        .. code-block:: ts
 
-          nameOrId: string|number
+          name: string
 
    * **Returns:**  :doc:`Output <Output>`
 
    * **Defined in:**
-     `addon.ts:194 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L194>`__
+     `addon.ts:289 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L289>`__
+
+
+   .. code-block:: ts
+
+      output(index): Output
+
+   It gets the output of the model identified by the index.
+
+   * **Parameters:**
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          index: number
+
+   * **Returns:**  :doc:`Output <Output>`
+
+   * **Defined in:**
+     `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
 
 
 .. rubric:: setFriendlyName
@@ -276,6 +319,10 @@ Methods
 
       setFriendlyName(name): void
 
+   Sets a friendly name for the model. This does not overwrite the unique
+   model name and is retrieved via :ref:`Model.getFriendlyName <getFriendlyName>`.
+   Mainly used for debugging.
+
    * **Parameters:**
 
      - name: string
@@ -283,4 +330,4 @@ Methods
    * **Returns:** void
 
    * **Defined in:**
-     `addon.ts:199 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L199>`__
+     `addon.ts:301 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L301>`__

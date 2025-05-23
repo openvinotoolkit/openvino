@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::v1::Reverse::Mode> : public EnumAttributeAdapterBase<op::v1::Reverse::Mode> {
 public:
     AttributeAdapter(op::v1::Reverse::Mode& value) : EnumAttributeAdapterBase<op::v1::Reverse::Mode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::Reverse::Mode>");
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     std::vector<int64_t> begin_axes;
     if (complex_type_mark) {
         complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         TENSORFLOW_OP_VALIDATION(node,
                                  as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),

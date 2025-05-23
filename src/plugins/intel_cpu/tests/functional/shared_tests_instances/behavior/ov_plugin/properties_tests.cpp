@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ auto cpu_properties = []() -> std::vector<ov::AnyMap> {
         // check that hints doesn't override customer value (now for streams and later for other config opts)
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
+        {{ov::hint::enable_cpu_reservation(true)}, {ov::num_streams(1)}, {ov::inference_num_threads(2)}},
     };
 
     auto numa_nodes = ov::get_available_numa_nodes();
@@ -51,7 +52,7 @@ const std::vector<ov::AnyMap> cpu_inproperties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      {ov::hint::num_requests.name(), "should be int"}},
     {{ov::num_streams.name(), "OFF"}},
-    {{ov::hint::enable_cpu_pinning.name(), "OFF"}},
+    {{ov::hint::enable_cpu_pinning.name(), "NOT_BOOL"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

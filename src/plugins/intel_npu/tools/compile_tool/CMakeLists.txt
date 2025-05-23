@@ -6,7 +6,11 @@
 set(TARGET_NAME compile_tool)
 
 if (NOT DEFINED PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    if(WIN32)
+        cmake_minimum_required(VERSION 3.16)
+    else()
+        cmake_minimum_required(VERSION 3.13)
+    endif()
     project(compile_tool_standalone)
     include("cmake/standalone.cmake")
     return()
@@ -24,7 +28,8 @@ ov_add_target(ADD_CPPLINT
                   PRIVATE
                       openvino::runtime
                       gflags
-                      Threads::Threads)
+                      Threads::Threads
+                      npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}

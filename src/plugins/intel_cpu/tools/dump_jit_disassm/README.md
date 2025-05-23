@@ -70,3 +70,4 @@ the final output looks like this:
 
  - In VSCode, if the final output is displayed in TERMINAL, you can click the `file:line_no` while holdding `Ctrl` key to directly navigate to coresponding source code.
 
+ - `llvm-addr2line` (`llvm-symbolizer`) may work significantly faster than default `addr2line`, consider using `addr2line` tool from LLVM toolchain if applicable. Customization is available using `--addr2line=<path-to-addr2line-tool>` flag.

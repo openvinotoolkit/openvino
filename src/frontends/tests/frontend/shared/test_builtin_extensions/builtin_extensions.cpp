@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::fr
 
 class CustomElu : public ov::op::Op {
 public:
-    OPENVINO_OP("CustomElu");
+    OPENVINO_OP("CustomElu", "frontend_test");
 
     CustomElu() = default;
     CustomElu(const ov::Output<ov::Node>& input, float alpha, float beta) : m_alpha{alpha}, m_beta{beta} {
@@ -159,7 +159,7 @@ private:
 #    include "openvino/op/relu.hpp"
 class ReluCustom : public ov::op::v0::Relu {
 public:
-    OPENVINO_OP("ReluCustom");
+    OPENVINO_OP("ReluCustom", "frontend_test");
     OPENVINO_FRAMEWORK_MAP(pytorch, "aten::relu");
 };
 #    define PT_EXT                                                                                       \

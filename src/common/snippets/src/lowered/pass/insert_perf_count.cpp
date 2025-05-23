@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -41,7 +41,11 @@ bool InsertPerfCount::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt be
             const auto empty_inputs = std::vector<PortConnectorPtr>{};
             linear_ir.insert_node(perf_count_begin, empty_inputs, perf_count_begin_pos->get()->get_loop_ids(), false, perf_count_begin_pos);
 
-            const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0));
+            // Unique ConsoleDumper for each PerfCounter pair
+            std::vector<std::shared_ptr<snippets::utils::Dumper>> dumpers;
+            dumpers.push_back(std::make_shared<snippets::utils::ConsoleDumper>());
+
+            const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0), dumpers);
             perf_count_end->set_friendly_name(std::string("PerfCount_End_") + std::to_string(seq_number));
             // linear_ir.insert has insert before behavior, need to increment perf_count_end_pos
             linear_ir.insert_node(perf_count_end, empty_inputs, perf_count_end_pos->get()->get_loop_ids(), false, next(perf_count_end_pos));

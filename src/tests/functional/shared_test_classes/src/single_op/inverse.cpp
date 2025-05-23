@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/inverse.hpp"
 
 using namespace ov::test;
 

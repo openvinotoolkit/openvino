@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels255WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithZeroPoint);
-    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::dynamic, precisionDetails.precision);
     ASSERT_TRUE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }
@@ -60,7 +60,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsU8levels256WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithZeroPoint);
-    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::dynamic, precisionDetails.precision);
     ASSERT_FALSE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }

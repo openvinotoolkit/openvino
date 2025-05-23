@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ ov::ResultVector ov::as_result_vector(const OutputVector& values) {
     for (const auto& value : values) {
         std::shared_ptr<Node> node = value.get_node_shared_ptr();
         result.push_back(ov::is_type<ov::op::v0::Result>(node) ? ov::as_type_ptr<ov::op::v0::Result>(node)
-                                                               : std::make_shared<ov::op::v0::Result>(value));
+                                                               : std::make_shared<ov::op::v0::Result>(value, true));
     }
     return result;
 }

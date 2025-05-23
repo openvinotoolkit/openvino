@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
+#include "concatenation_inst.h"
+#include "gemm_inst.h"
 #include "crop_inst.h"
 #include "convolution_inst.h"
 #include "gather_inst.h"
@@ -707,6 +709,54 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
+TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
+    auto& engine = get_test_engine();
+
+    auto gemm_input_mem = engine.allocate_memory({ {1, 4, 4, 2}, data_types::f32, format::bfyx });
+    auto concat_input_mem = engine.allocate_memory({ {1, 4, 2}, data_types::f32, format::bfyx });
+
+    set_values(gemm_input_mem, { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
+                                 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
+                                 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
+                                 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f });
+    set_values(concat_input_mem, { -0.5f, 2.0f, 0.5f, 1.0f, 0.5f, -2.0f, -0.5f, -1.0f });
+
+    std::vector<float> expected = { 0.5, 4, 0.5, 10, 0.5, 16, 0.5, 22,
+                                    0.5, 4, 0.5, 10, 0.5, 16, 0.5, 22,
+                                    0.5, 4, 0.5, 10, 0.5, 16, 0.5, 22,
+                                    0.5, 4, 0.5, 10, 0.5, 16, 0.5, 22};
+    cldnn::tensor refSize = {1, 2, 1, 2};
+
+    topology topology(
+        input_layout("gemm_input", gemm_input_mem->get_layout()),
+        input_layout("concat_input", concat_input_mem->get_layout()),
+        concatenation("concat", { input_info("concat_input"), input_info("concat_input") }, 2),
+        crop("crop", input_info("concat"), refSize, tensor(0, 0, 0, 0)),
+        gemm("gemm", { input_info("gemm_input"), input_info("crop") }, data_types::f32, false, false, 1.0, 0.0, 4, 3),
+        reorder("output", input_info("gemm"), format::bfyx, data_types::f32)
+    );
+
+    {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
+
+        network.set_input_data("gemm_input", gemm_input_mem);
+        network.set_input_data("concat_input", concat_input_mem);
+
+        auto outputs = network.execute();
+
+        auto crop_prim = network.get_primitive("crop");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+
+        auto output = outputs.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        for (size_t i = 0; i < expected.size(); i++) {
+            ASSERT_EQ(output_ptr[i], expected[i]);
+        }
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     auto& engine = get_test_engine();
 
@@ -1174,7 +1224,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
     auto reorder_prim = network.get_primitive("gather1_reorder");
     ASSERT_EQ(reorder_prim->can_be_optimized(), true);
     reorder_prim = network.get_primitive("gather2_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto reshape_prim = network.get_primitive("reshape1");
     ASSERT_EQ(reshape_prim->can_be_optimized(), true);
 }
@@ -1493,4 +1543,27 @@ TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
 
     auto& crop_node = prog->get_node("crop2").as<crop>();
     ASSERT_FALSE(crop_node.can_be_optimized());
+}
+
+TEST(prepare_buffer_fusing, redundant_reorder_permute) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byfx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 1, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& permute_node = prog->get_node("permute").as<permute>();
+    auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_TRUE(reorder_node.can_be_optimized());
+    ASSERT_TRUE(permute_node.can_be_optimized());
 }

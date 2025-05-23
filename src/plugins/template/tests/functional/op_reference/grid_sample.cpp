@@ -50,7 +50,7 @@ private:
         const auto in1 = std::make_shared<op::v0::Parameter>(data.type, data.shape);
         const auto in2 = std::make_shared<op::v0::Parameter>(grid.type, grid.shape);
         const auto grid_sample = std::make_shared<op::v9::GridSample>(in1, in2, attributes);
-        return std::make_shared<Model>(NodeVector{grid_sample}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{grid_sample}, ParameterVector{in1, in2});
     }
 };
 

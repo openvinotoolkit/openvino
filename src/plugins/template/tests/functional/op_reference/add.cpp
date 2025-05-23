@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ private:
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto add = std::make_shared<op::v1::Add>(in1, in2);
-        return std::make_shared<Model>(NodeVector{add}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{add}, ParameterVector{in1, in2});
     }
 };
 
@@ -100,7 +100,7 @@ private:
         add = std::make_shared<op::v1::Add>(add, add);
         add = std::make_shared<op::v1::Add>(add, add);
         add = std::make_shared<op::v1::Add>(add, add);
-        return std::make_shared<Model>(NodeVector{add}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{add}, ParameterVector{in1, in2});
     }
 };
 

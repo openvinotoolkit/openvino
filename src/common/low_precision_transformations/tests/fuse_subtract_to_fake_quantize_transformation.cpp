@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,6 +159,21 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+            { {}, {}, {} },
+            {},
+            {}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8().setDeqPrecision(ov::element::f16),
+        {
+            FakeQuantizeOnDataWithConstant(256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8).setConstantPrecision(ov::element::f16),
+            { {element::f32}, { 128.f }, {} },
+            {},
+            {}
+        },
+        {
+            FakeQuantizeOnDataWithConstant(256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f }).setConstantPrecision(ov::element::f16),
             { {}, {}, {} },
             {},
             {}

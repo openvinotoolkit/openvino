@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,6 +125,7 @@ public:
         : EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v8::MatrixNms::DecayFunction>");
+    ~AttributeAdapter() override;
 };
 
 OPENVINO_API
@@ -138,6 +139,7 @@ public:
         : EnumAttributeAdapterBase<op::v8::MatrixNms::SortResultType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v8::MatrixNms::SortResultType>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

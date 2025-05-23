@@ -36,13 +36,14 @@ If you want to contribute to OpenVINO Python API, here is the list of learning m
 * [How to extend OpenVINO Python API](./docs/code_examples.md)
 * [How to test OpenVINO Python API](./docs/test_examples.md)
 * [How to upgrade local Python version](./docs/python_version_upgrade.md)
+* [How we manage stub .pyi files](./docs/stubs.md)
 
 ## See also
 
 * [OpenVINO™ README](../../../README.md)
 * [OpenVINO™ Core Components](../../README.md)
-* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2024/api/ie_python_api/api.html)
-* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-advanced-inference.html)
-* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html)
+* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2025/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2025/openvino-workflow/running-inference/python-api-advanced-inference.html)
+* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2025/openvino-workflow/running-inference/python-api-exclusives.html)
 * [pybind11 repository](https://github.com/pybind/pybind11)
 * [pybind11 documentation](https://pybind11.readthedocs.io/en/stable/)

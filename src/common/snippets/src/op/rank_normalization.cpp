@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,9 @@ namespace snippets {
 namespace op {
 
 RankNormalization::RankNormalization(const Output<Node>& data, size_t num_prepend, size_t num_append) :
-    Op({data}), m_num_prepend(num_prepend), m_num_append(num_append) {
+    ShapeInferOp({data}), m_num_prepend(num_prepend), m_num_append(num_append) {
     constructor_validate_and_infer_types();
 }
-
 
 std::shared_ptr<ov::Node> RankNormalization::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);

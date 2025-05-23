@@ -1,16 +1,21 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+const fs = require('node:fs/promises');
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
+const {
+  testModels,
+  isModelAvailable,
+  lengthFromShape,
+} = require('../utils.js');
 
 const epsilon = 0.5; // To avoid very small numbers
-const testXml = getModelPath().xml;
 
 describe('ov.InferRequest tests', () => {
+  const { testModelFP32 } = testModels;
   let compiledModel = null;
   let tensorData = null;
   let tensor = null;
@@ -18,18 +23,26 @@ describe('ov.InferRequest tests', () => {
   let tensorLike = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
+    await isModelAvailable(testModelFP32);
 
     const core = new ov.Core();
-    const model = core.readModelSync(testXml);
+    const model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
 
     tensorData = Float32Array.from(
-      { length: 3072 },
+      { length: lengthFromShape(testModelFP32.inputShape) },
       () => Math.random() + epsilon,
     );
-    tensor = new ov.Tensor(ov.element.f32, [1, 3, 32, 32], tensorData);
-    resTensor = new ov.Tensor(ov.element.f32, [1, 10], tensorData.slice(-10));
+    tensor = new ov.Tensor(
+      ov.element.f32,
+      testModelFP32.inputShape,
+      tensorData,
+    );
+    resTensor = new ov.Tensor(
+      ov.element.f32,
+      testModelFP32.outputShape,
+      tensorData.slice(-10),
+    );
     tensorLike = [tensor, tensorData];
   });
 
@@ -43,7 +56,10 @@ describe('ov.InferRequest tests', () => {
       tensorLike.forEach((tl) => {
         const result = inferRequest.infer({ data: tl });
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape)
+        );
       });
     });
 
@@ -51,7 +67,10 @@ describe('ov.InferRequest tests', () => {
       tensorLike.forEach((tl) => {
         const result = inferRequest.infer([tl]);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 
@@ -102,7 +121,10 @@ describe('ov.InferRequest tests', () => {
       inferRequest.inferAsync({ data: tensor }).then((result) => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 
@@ -110,7 +132,10 @@ describe('ov.InferRequest tests', () => {
       inferRequest.inferAsync([tensor]).then((result) => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 
@@ -297,6 +322,48 @@ describe('ov.InferRequest tests', () => {
       const res2 = ir2.infer([tensorData]);
       const res1 = ir.infer([tensorData]);
       assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+    });
+  });
+});
+
+describe('ov.InferRequest tests with missing outputs names', () => {
+  const { modelV3Small } = testModels;
+  let compiledModel = null;
+  let tensorData = null;
+  let tensor = null;
+  let inferRequest = null;
+
+  before(async () => {
+    await isModelAvailable(modelV3Small);
+
+    const core = new ov.Core();
+
+    let modelData = await fs.readFile(modelV3Small.xml, 'utf8');
+    const weights = await fs.readFile(modelV3Small.bin);
+    modelData = modelData.replace(
+      'names="MobilenetV3/Predictions/Softmax:0"',
+      ''
+    );
+    const model = await core.readModel(Buffer.from(modelData, 'utf8'), weights);
+
+    compiledModel = await core.compileModel(model, 'CPU');
+    inferRequest = compiledModel.createInferRequest();
+
+    tensorData = Float32Array.from(
+      { length: lengthFromShape(modelV3Small.inputShape) },
+      () => Math.random() + epsilon,
+    );
+    tensor = new ov.Tensor(ov.element.f32, modelV3Small.inputShape, tensorData);
+  });
+
+  it('Test infer(inputData: Tensor[])', () => {
+    const result = inferRequest.infer([tensor]);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
+  });
+
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequest.inferAsync([tensor]).then((result) => {
+    assert.deepStrictEqual(Object.keys(result).length, 1);
     });
   });
 });

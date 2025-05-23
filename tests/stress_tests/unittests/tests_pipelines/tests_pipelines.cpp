@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,7 +134,7 @@ static void test_recreate_and_infer_in_thread_two_model(const std::string &model
                 threads.emplace_back(sync_func1);
             }
         }
-        for (int i = 0; i < threads.size(); i++) {
+        for (size_t i = 0; i < threads.size(); i++) {
             threads[i].join();
         }
     }

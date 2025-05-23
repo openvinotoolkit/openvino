@@ -9,7 +9,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/reduce_reshape_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
@@ -35,7 +40,7 @@ std::shared_ptr<Model> generate_model(element::Type in_type,
     const auto target_shape = Constant::create(element::i64, Shape{reshape_target_shape.size()}, reshape_target_shape);
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, reshape_special_zero);
 
-    return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
 }
 
 template <typename ReduceType>
@@ -46,7 +51,7 @@ std::shared_ptr<Model> generate_ref_model(element::Type in_type,
     const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
     const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, true);
 
-    return std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input});
 }
 }  // namespace
 
@@ -130,7 +135,7 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfNonConstReduceAxes) {
     const auto target_shape = Constant::create(element::i64, Shape{3}, {5, 1, 15});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, reduce_axes});
+    model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input, reduce_axes});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
@@ -141,7 +146,7 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfNonConstReshapeTargetS
     const auto target_shape = std::make_shared<Parameter>(element::i64, PartialShape{3});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, target_shape});
+    model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input, target_shape});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
@@ -153,7 +158,7 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfMoreThanOneReduceConsu
     const auto target_shape = Constant::create(element::i64, Shape{2}, {1, 1});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model = std::make_shared<Model>(NodeVector{reshape, add}, ParameterVector{input});
+    model = std::make_shared<Model>(OutputVector{reshape, add}, ParameterVector{input});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
@@ -166,7 +171,7 @@ TEST(TransformationTests, ReduceMeanReshapeFusionAssertValidOutputShape) {
     const auto order = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
     const auto transpose = make_shared<Transpose>(reshape, order);
 
-    auto model = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
+    auto model = make_shared<Model>(OutputVector{transpose}, ParameterVector{input});
 
     pass::Manager manager;
     manager.set_per_pass_validation(false);

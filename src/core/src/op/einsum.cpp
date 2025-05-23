@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,11 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     input_subscripts.clear();
     std::istringstream input;
     input.str(input_subscripts_str);
-    for (std::string input_subscript; std::getline(input, input_subscript, ',');) {
+    constexpr char delimeter = ',';
+    const auto input_subscripts_count = std::count(input_subscripts_str.begin(), input_subscripts_str.end(), delimeter);
+    for (auto i = 0; i <= input_subscripts_count; ++i) {
+        auto& input_subscript = input_subscripts.emplace_back();
+        std::getline(input, input_subscript, delimeter);
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
         OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
@@ -113,15 +117,14 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         if (local_is_ellipsis_met) {
             is_ellipsis_met = true;
         }
-        input_subscripts.push_back(input_subscript);
     }
 
     if (pos_output_delimeter == std::string::npos) {
         // equation is in implicit mode so recover output subscript
         output_subscript = "";
         for (size_t ind = 0; ind < input_subscripts.size(); ++ind) {
-            auto const& input_subscript = input_subscripts[ind];
-            for (auto const& label : extract_labels(input_subscript)) {
+            const auto& input_subscript = input_subscripts[ind];
+            for (const auto& label : extract_labels(input_subscript)) {
                 if (label != ellipsis && (is_label_elsewhere(input_subscripts, label, {ind}) == false)) {
                     output_subscript += label;
                 }
@@ -139,11 +142,6 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
                         "Output subscript of Einsum equation must consist of either only "
                         "alphabetic letters or alphabetic letters with one ellipsis.");
-
-        // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
-                        "Output subscript of Einsum equation must contain one ellipsis if "
-                        "ellipsis is met in any input subscript.");
     }
 }
 

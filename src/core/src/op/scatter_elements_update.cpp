@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -216,6 +216,9 @@ EnumNames<op::v12::ScatterElementsUpdate::Reduction>::get() {
          {"mean", op::v12::ScatterElementsUpdate::Reduction::MEAN}});
     return enum_names;
 }
+
+AttributeAdapter<op::v12::ScatterElementsUpdate::Reduction>::~AttributeAdapter() = default;
+
 namespace op {
 std::ostream& operator<<(std::ostream& s, const v12::ScatterElementsUpdate::Reduction& reduction) {
     return s << as_string(reduction);

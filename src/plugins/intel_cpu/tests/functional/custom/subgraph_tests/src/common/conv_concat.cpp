@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,6 @@ namespace ConvolutionConact {
 
 /* ============= Convolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_ref_2D_nspc,
     conv_gemm_2D
 };
 
@@ -66,7 +65,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, 
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D_nspc,
     conv_gemm_3D
 };
 
@@ -86,7 +84,6 @@ namespace GroupConvolutionConcat {
 
 /* ============= GroupConvolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_ref_2D_nspc,
     conv_gemm_2D
 };
 
@@ -102,7 +99,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, param
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D_nspc,
     conv_gemm_3D
 };
 

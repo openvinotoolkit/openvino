@@ -4,17 +4,14 @@
 
 #include "dcoff.hpp"
 
+#include "../../lazy_tensor.hpp"
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "../partitioning.hpp"  // Subgraph
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -24,6 +21,7 @@ namespace npuw {
 namespace patterns {
 
 namespace opp = ov::pass::pattern;
+namespace uat = ov::npuw::util::at;
 
 // The update procedure is tricky: The closure vector needs to be
 // freed of the scale coefficient tensors which are no longer the
@@ -73,6 +71,8 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         LOG_DEBUG("Checking the function parameter " << param);
         LOG_BLOCK();
 
+        auto cindex = i - fbody._param_offset;
+
         // First find among scale factors...
         auto pscale_iter = params_to.scales.find(param);
         auto pzerop_iter = params_to.zerops_asymm.find(param);
@@ -81,26 +81,34 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             auto& pscale_weight_param = pscale_iter->second;
             auto pscale_weight_pindex = fbody._model->get_parameter_index(pscale_weight_param);
             auto pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
-            m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
+            m.scale_remap[pscale_weight_cindex] = cindex;
             m.params_to_remove.push_back(param);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
             LOG_DEBUG("There is an Asymmetric zero point corresponding to this parameter, it will be removed");
             auto zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
             auto zerop_cindex = zerop_pindex - fbody._param_offset;
-            m.zerop_remap[i - fbody._param_offset] = zerop_cindex;
+            m.zerop_remap[cindex] = zerop_cindex;
             m.params_to_remove.push_back(pzerop_iter->second);
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
+
+            // FIXME: type should be queried from a lazy tensor
+            // and compared against param->get_element_type()
+            // to decide 100%
+            // FIXME: workaround, in case of lazy unpack do not do unpack here
+            if (fbody._idx_lazy_unpack.find(cindex) == fbody._idx_lazy_unpack.end()) {
+                m.weights_to_unpack.insert(cindex);
+            }
         }
 
         // Process zero points for parameters
         auto zerop_iter = params_to.zerops.find(param);
         if (zerop_iter != params_to.zerops.end()) {
             LOG_DEBUG("This parameter requires zero point: " << zerop_iter->second);
-            m.zero_points.push_back(ov::npuw::util::tensor_from_const(zerop_iter->second));
+            m.zero_points.push_back(ov::npuw::util::copy_tensor_from_const(zerop_iter->second));
         } else {
             m.zero_points.push_back(ov::Tensor());
         }
@@ -115,35 +123,91 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 
 void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::Tensor> new_closure;
+    std::vector<ov::npuw::weights::LazyTensor> new_lazy_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
 
-    // For a new_closure vector by rearranging the old one.  Also
+    // For a new_lazy_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_closure.push_back(fcall._closure[i]);
+        new_lazy_closure.push_back(fcall._lazy_closure[i]);
+        if (fcall._closure[i]) {
+            new_closure.push_back(fcall._closure[i]);
+        } else {
+            // Only support permute transformations
+            auto transforms = fcall._lazy_closure[i].get_transformations();
+            if (transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0])) {
+                // Assuming we only match weights where DQ did set Transpose after - thus nothing extra to do here
+                new_closure.push_back(fcall._closure[i]);
+            } else {
+                bool weight_to_unpack = m.weights_to_unpack.count(i) > 0;
+                new_closure.push_back(weight_to_unpack ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+                // Note: It's important here to manually detach LazyTensor since it's not going to be present in the
+                // bank - thus left in memory
+                if (weight_to_unpack) {
+                    fcall._lazy_closure[i].detach();
+                }
+            }
+        }
 
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
-        new_zerops.push_back(zerop);
+
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
+        // Check for asymmetric zero points and add them to new_zerops
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
+        // Note: It's important here to manually detach LazyTensor since it's not going to be present in the bank - thus
+        // left in memory
+        if (scale_iter != m.scale_remap.end()) {
+            fcall._lazy_closure[scale_iter->second].detach();
+        }
+        if (zerop_iter != m.zerop_remap.end()) {
+            fcall._lazy_closure[zerop_iter->second].detach();
+        }
     }
-    fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
+    fcall._closure = std::move(new_closure);
+    fcall._lazy_closure = std::move(new_lazy_closure);
 }
 
-void finalize_remap(Function& fbody, const ClosureRemap& m) {
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     LOG_DEBUG("Removing retired parameters...");
     LOG_BLOCK();
+
+    // Unfortunate truth - this function has to be aware of the
+    // Host Gather existence to properly update indices after
+    // Remap.
+    using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+    struct GatherParams {
+        PPtr pidx;  // Parameter @ function body - input_ids
+        PPtr psrc;  // Parameter @ function body - vocab tensor
+        PPtr pdst;  // Parameter @ function body - gathered ids
+    };
+    GatherParams gather_params;
+    const auto& params = fbody._model->get_parameters();
+    if (fsg._host_gather.dst_idx != -1) {
+        gather_params = GatherParams{params[fsg._host_gather.idx_idx],
+                                     params[fsg._host_gather.src_idx],
+                                     params[fsg._host_gather.dst_idx]};
+    }
+
     for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
         fbody._model->remove_parameter(p);
     }
+
+    // Update indices for gather
+    if (fsg._host_gather.dst_idx != -1) {
+        fsg._host_gather.idx_idx = fbody._model->get_parameter_index(gather_params.pidx);
+        fsg._host_gather.src_idx = fbody._model->get_parameter_index(gather_params.psrc);
+        fsg._host_gather.dst_idx = fbody._model->get_parameter_index(gather_params.pdst);
+    }
+
     fbody._model->validate_nodes_and_infer_types();
     LOG_DEBUG("DONE");
 }
@@ -202,6 +266,7 @@ void DCOFFPassBase::build() {
     paramB = opp::wrap_type<ov::op::v0::Parameter>();
     toFP32 = opp::wrap_type<ov::op::v0::Convert>({paramA});
     mulply = opp::wrap_type<ov::op::v1::Multiply>({toFP32, paramB});
+    transposeopt = opp::optional<ov::op::v1::Transpose>({mulply->output(0), opp::any_input()});
 }
 
 bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
@@ -211,7 +276,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto element_type = matched_paramA->get_element_type();
-    if (element_type == ov::element::i4 || element_type == ov::element::i8) {
+    if (element_type == ov::element::i4 || element_type == ov::element::i8 || element_type == ov::element::nf4) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
@@ -234,7 +299,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             m_params_to.get().scales[matched_paramB] = matched_paramA;
 
             // Disconnect Multiply and Convert from their outputs
-            auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+            auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                 for (auto&& node_outputs : node->outputs()) {
@@ -259,7 +324,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 void DCOFFPassMatMul::build() {
     DCOFFPassBase::build();
     auto _mmin1 = opp::any_input();
-    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, mulply});
+    cvtopt = opp::optional<ov::op::v0::Convert>({transposeopt->output(0)});
+    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, cvtopt});
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagDCOFFMatMul"),
                      std::bind(&DCOFFPassMatMul::matcher_callback, this, std::placeholders::_1));
 }
@@ -269,6 +335,13 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
     auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+    auto cvt = std::static_pointer_cast<ov::op::v0::Convert>(matched_convrt);
+    auto matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_matmul);
+
+    // NB: In case convert and matmul types don't match
+    cvt->set_destination_type(matmul->inputs()[1].get_element_type());
+
     matched_matmul->input(1).replace_source_output(matched_convrt);
 }
 
@@ -276,7 +349,7 @@ void DCOFFPassGather::build() {
     DCOFFPassBase::build();
     auto _gin2 = opp::any_input();
     auto _gin3 = opp::any_input();
-    gather = opp::wrap_type<ov::op::v8::Gather>({mulply, _gin2, _gin3});
+    gather = opp::wrap_type<ov::op::v8::Gather>({transposeopt, _gin2, _gin3});
     register_matcher(std::make_shared<opp::Matcher>(gather, "TagDCOFFGather"),
                      std::bind(&DCOFFPassGather::matcher_callback, this, std::placeholders::_1));
 }
@@ -340,6 +413,7 @@ void DCOFFPassBase::build() {
     cvtB = opp::wrap_type<ov::op::v0::Convert>({constB});
     subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
+    transposeopt = opp::optional<ov::op::v1::Transpose>({mulply->output(0), opp::any_input()});
 }
 
 bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
@@ -380,7 +454,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             m_params_to.get().scales[matched_paramC] = matched_paramA;
 
             // Disconnect Multiply and Convert from their outputs
-            auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+            auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                 for (auto&& node_outputs : node->outputs()) {
@@ -404,7 +478,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 void DCOFFPassReshape1::build() {
     DCOFFPassBase::build();
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
-    reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+    reshpe = opp::wrap_type<ov::op::v1::Reshape>({transposeopt, scalar});
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape1"),
                      std::bind(&DCOFFPassReshape1::matcher_callback, this, std::placeholders::_1));
 }
@@ -418,7 +492,7 @@ void DCOFFPassReshape1::reconnect_root(ov::pass::pattern::Matcher& m) {
 
 void DCOFFPassConvert1::build() {
     DCOFFPassBase::build();
-    cvtEnd = opp::wrap_type<ov::op::v0::Convert>({mulply});
+    cvtEnd = opp::wrap_type<ov::op::v0::Convert>({transposeopt});
     register_matcher(std::make_shared<opp::Matcher>(cvtEnd, "TagDCOFFConvert1"),
                      std::bind(&DCOFFPassConvert1::matcher_callback, this, std::placeholders::_1));
 }
@@ -471,9 +545,10 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
+    auto transposeopt = opp::optional<ov::op::v1::Transpose>({mulply->output(0), opp::any_input()});
 
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
-    auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+    auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({transposeopt, scalar});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -512,7 +587,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                 pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs
-                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+                auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
                 auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
                 auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                     for (auto&& node_outputs : node->outputs()) {
@@ -561,6 +636,7 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, paramC});
     auto cvt = opp::wrap_type<ov::op::v0::Convert>({mulply});
+    auto transposeopt = opp::optional<ov::op::v1::Transpose>({cvt->output(0), opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -608,7 +684,7 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
                 drop_outputs(matched_convrt);
 
                 LOG_DEBUG("Reconnecting the Root...");
-                auto matched_cvt = node_to_output.at(cvt).get_node_shared_ptr();
+                auto matched_cvt = uat::_(node_to_output).at_or_at(transposeopt, cvt).get_node_shared_ptr();
                 matched_cvt->input(0).replace_source_output(matched_paramA);
             }
             LOG_DEBUG("Done");
@@ -616,10 +692,10 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
         return false;  // root node hasn't changed
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(cvt, "TagDCOFFPassReshape3"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(transposeopt, "TagDCOFFPassReshape3"), std::move(callback));
 }
 
-// Pattern: i4 Phi-3 4SymW16A
+// Pattern: i4 group-quant
 //
 //
 //   "tensor"       "scale"           >            "tensor"
@@ -627,12 +703,12 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
 //      i4          f16|f32           >              f16
 //       :           :                >               :
 //       V          :                 >               V
-//     Convert     :                  >              Convert
-//     f16|f32    :                   >                f32
-//        :      :                    >
-//        V      V                    >
-//        Multiply                    >
-//         f16|f32                    >
+//     Convert     :                  >            [ Convert]
+//     f16|f32    :                   >            [   f32  ]
+//        :      :                    >                :
+//        V      V                    >                V
+//        Multiply                    >              Reshape
+//         f16|f32                    >              f16|f32
 //            :                       >
 //            :                       >
 //         Reshape                    >
@@ -643,8 +719,9 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, paramC});
+    auto transposeopt = opp::optional<ov::op::v1::Transpose>({mulply->output(0), opp::any_input()});
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
-    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transposeopt, scalar});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -656,6 +733,8 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
 
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+
+        const auto& matched_out_mulply = node_to_output.at(mulply);
 
         if (ov::element::i4 == matched_paramA->get_element_type() &&
             (ov::element::f16 == matched_paramC->get_element_type() ||
@@ -669,31 +748,17 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
                 LOG_DEBUG("Matched: " << matched_paramC << " - parameter to remove...");
                 LOG_BLOCK();
 
-                // Extra transformation here:
-                // - remove Multiply + Intermediate Convert
-                // - mark paramC for removal.
-                // Convert will be reconnected to paramA directly.
-
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
                 pref.get().scales[matched_paramC] = matched_paramA;
 
-                // Disconnect Multiply and Convert from their outputs
-                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
-                auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
-                auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
-                    for (auto&& node_outputs : node->outputs()) {
-                        for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
-                            node_outputs.remove_target_input(node_reader_port);
-                        }
-                    }
-                };
-                LOG_DEBUG("Dropping the connections...");
-                drop_outputs(matched_mulply);
-                drop_outputs(matched_convrt);
+                std::shared_ptr<ov::Node> new_rshp_in = matched_paramA;
+                if (matched_out_mulply.get_element_type() == ov::element::f32) {
+                    new_rshp_in = std::make_shared<ov::op::v0::Convert>(matched_paramA, ov::element::f32);
+                }
 
                 LOG_DEBUG("Reconnecting the Root...");
-                auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
-                matched_reshape->input(0).replace_source_output(matched_paramA);
+                auto matched_reshape = uat::_(node_to_output).at_or_at(transposeopt, reshape).get_node_shared_ptr();
+                matched_reshape->input(0).replace_source_output(new_rshp_in);
             }
             LOG_DEBUG("Done");
         }
@@ -852,7 +917,8 @@ CWAI3::CWAI3(CWAI3::Results scales) {
         auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
         auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
 
-        if (ov::element::i4 == matched_valueA->get_element_type() &&
+        if ((ov::element::i4 == matched_valueA->get_element_type() ||
+             ov::element::nf4 == matched_valueA->get_element_type()) &&
             (ov::element::f16 == matched_valueC->get_element_type() ||
              ov::element::f32 == matched_valueC->get_element_type())) {
             LOG_DEBUG("Matched: " << matched_valueC);
@@ -939,9 +1005,10 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
     auto cvtB = opp::wrap_type<ov::op::v0::Convert>({paramB});
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
+    auto transposeopt = opp::optional<ov::op::v1::Transpose>({mulply->output(0), opp::any_input()});
 
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
-    auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+    auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({transposeopt, scalar});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -980,7 +1047,7 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
                 pref.get().scales[matched_paramC] = matched_paramA;
 
                 // Disconnect Multiply and Convert from their outputs
-                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
+                auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
                 auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
                 auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                     for (auto&& node_outputs : node->outputs()) {

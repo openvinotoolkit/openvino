@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
                                                              const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
@@ -63,5 +62,4 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronROIFeatureExtractor);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

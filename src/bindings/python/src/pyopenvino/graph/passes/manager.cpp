@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using FilePaths = std::pair<const std::string, const std::string>;
 
 void regclass_passes_Manager(py::module m) {
     py::class_<ov::pass::Manager> manager(m, "Manager");
-    manager.doc() = "openvino.runtime.passes.Manager executes sequence of transformation on a given Model";
+    manager.doc() = "openvino.passes.Manager executes sequence of transformation on a given Model";
 
     manager.def(py::init<>());
     manager.def("set_per_pass_validation",
@@ -35,14 +35,18 @@ void regclass_passes_Manager(py::module m) {
                 :type new_state: bool
     )");
 
-    manager.def("run_passes",
-                &ov::pass::Manager::run_passes,
-                py::arg("model"),
-                R"(
+    manager.def(
+        "run_passes",
+        [](ov::pass::Manager& self, const py::object& ie_api_model) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            self.run_passes(model);
+        },
+        py::arg("model"),
+        R"(
                 Executes sequence of transformations on given Model.
 
-                :param model: openvino.runtime.Model to be transformed.
-                :type model: openvino.runtime.Model
+                :param model: openvino.Model to be transformed.
+                :type model: openvino.Model
     )");
 
     manager.def("register_pass",
@@ -52,7 +56,7 @@ void regclass_passes_Manager(py::module m) {
                 Register pass instance for execution. Execution order matches the registration order.
 
                 :param transformation: transformation instance.
-                :type transformation: openvino.runtime.passes.PassBase
+                :type transformation: openvino.passes.PassBase
     )");
 
     manager.def("__repr__", [](const ov::pass::Manager& self) {

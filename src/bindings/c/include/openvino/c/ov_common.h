@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@
 #ifdef __cplusplus
 #    define OPENVINO_C_API_EXTERN extern "C"
 #else
-#    define OPENVINO_C_API_EXTERN
+#    define OPENVINO_C_API_EXTERN extern
 #endif
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
@@ -169,33 +169,33 @@ typedef enum {
  * src/core/include/openvino/core/type/element_type.hpp
  */
 typedef enum {
-    UNDEFINED = 0U,  //!< Undefined element type
-    DYNAMIC,         //!< Dynamic element type
-    BOOLEAN,         //!< boolean element type
-    BF16,            //!< bf16 element type
-    F16,             //!< f16 element type
-    F32,             //!< f32 element type
-    F64,             //!< f64 element type
-    I4,              //!< i4 element type
-    I8,              //!< i8 element type
-    I16,             //!< i16 element type
-    I32,             //!< i32 element type
-    I64,             //!< i64 element type
-    U1,              //!< binary element type
-    U2,              //!< u2 element type
-    U3,              //!< u3 element type
-    U4,              //!< u4 element type
-    U6,              //!< u6 element type
-    U8,              //!< u8 element type
-    U16,             //!< u16 element type
-    U32,             //!< u32 element type
-    U64,             //!< u64 element type
-    NF4,             //!< nf4 element type
-    F8E4M3,          //!< f8e4m3 element type
-    F8E5M3,          //!< f8e5m2 element type
-    STRING,          //!< string element type
-    F4E2M1,          //!< f4e2m1 element type
-    F8E8M0,          //!< f8e8m0 element type
+    UNDEFINED = 0U,       //!< Undefined element type
+    DYNAMIC = UNDEFINED,  //!< Dynamic element type
+    BOOLEAN,              //!< boolean element type
+    BF16,                 //!< bf16 element type
+    F16,                  //!< f16 element type
+    F32,                  //!< f32 element type
+    F64,                  //!< f64 element type
+    I4,                   //!< i4 element type
+    I8,                   //!< i8 element type
+    I16,                  //!< i16 element type
+    I32,                  //!< i32 element type
+    I64,                  //!< i64 element type
+    U1,                   //!< binary element type
+    U2,                   //!< u2 element type
+    U3,                   //!< u3 element type
+    U4,                   //!< u4 element type
+    U6,                   //!< u6 element type
+    U8,                   //!< u8 element type
+    U16,                  //!< u16 element type
+    U32,                  //!< u32 element type
+    U64,                  //!< u64 element type
+    NF4,                  //!< nf4 element type
+    F8E4M3,               //!< f8e4m3 element type
+    F8E5M3,               //!< f8e5m2 element type
+    STRING,               //!< string element type
+    F4E2M1,               //!< f4e2m1 element type
+    F8E8M0,               //!< f8e8m0 element type
 } ov_element_type_e;
 
 /**

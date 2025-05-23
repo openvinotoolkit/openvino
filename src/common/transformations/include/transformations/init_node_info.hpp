@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,6 @@ class TRANSFORMATIONS_API InitNodeInfo;
  */
 class ov::pass::InitNodeInfo : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("InitNodeInfo", "0");
+    OPENVINO_MODEL_PASS_RTTI("InitNodeInfo");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

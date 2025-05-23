@@ -22,7 +22,7 @@ namespace pass {
  */
 class InsertLoadStore : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertLoadStore", "RangedPass")
+    OPENVINO_RTTI("InsertLoadStore", "", RangedPass);
     explicit InsertLoadStore(size_t vector_size);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 

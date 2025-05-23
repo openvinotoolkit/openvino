@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from sys import platform
@@ -45,8 +45,6 @@ class TestTensorListResize(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
-    def test_tensor_list_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
+    def test_tensor_list_resize_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tensor_list_resize(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

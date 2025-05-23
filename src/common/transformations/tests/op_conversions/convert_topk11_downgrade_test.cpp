@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,9 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/opsets/opset11_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;

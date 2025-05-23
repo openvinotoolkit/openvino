@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,12 +34,9 @@ IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
 ov::Any IntervalsAlignmentAttribute::create(
     const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
-    if (!ov::is_type<opset1::FakeQuantize>(node)) {
-        return nullptr;
-    }
-
-    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
-    if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) || !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
+    if (!fakeQuantize || !QuantizationDetails::outputLayoutIsSupported(fakeQuantize) ||
+        !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
         return nullptr;
     }
 
@@ -118,8 +115,7 @@ ov::Any IntervalsAlignmentAttribute::create(
             fakeQuantize->get_levels(),
             outputLowValues,
             outputHighValues);
-
-        if (preferablePrecision.precision != element::undefined) {
+        if (preferablePrecision.precision != element::dynamic) {
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
         }
 

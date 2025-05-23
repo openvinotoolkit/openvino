@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,13 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<Value, std::string>::value, Type>::type as_enum(const Value& value) {
     return EnumNames<Type>::as_enum(value);
 }
+
+namespace op {
+enum class BroadcastType;
+}  // namespace op
+
+extern template OPENVINO_API_EXTERN ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(
+    const char* const&);
 
 /// Returns the string matching the enum value
 template <typename Value>

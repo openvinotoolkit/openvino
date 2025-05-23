@@ -66,7 +66,8 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
-unable to support the initial model compilation stage. The models with :doc:`stateful operations <../stateful-models>`
+unable to support the initial model compilation stage. The models with
+:doc:`stateful operations <../inference-request/stateful-models>`
 will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
@@ -311,12 +312,12 @@ The ``ov::hint::performance_mode`` property enables you to specify a performance
 
 The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an
 asynchronous inference pipeline. For information on asynchronous inference, see the
-:doc:`Async API documentation <../integrate-openvino-with-your-application/inference-request>` .
+:doc:`Async API documentation <../inference-request>` .
 The following notebooks provide examples of how to set up an asynchronous pipeline:
 
-* :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
-* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/async-api-with-output.html>`__
-* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/auto-device-with-output.html>`__
+* :doc:`Image Classification Async Sample <../../../get-started/learn-openvino/openvino-samples/image-classification-async>`
+* `Notebook - Asynchronous Inference with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/async-api>`__
+* `Notebook - Automatic Device Selection with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/auto-device>`__
 
 LATENCY
 --------------------
@@ -497,7 +498,7 @@ For limited device choice:
 
    benchmark_app –d AUTO:CPU,GPU –m <model> -i <input> -niter 1000
 
-For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino/openvino-samples/benchmark-tool>` article.
+For more information, refer to the :doc:`Benchmark Tool <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` article.
 
 .. note::
 
@@ -513,7 +514,6 @@ Additional Resources
 
 * `Automatic Device Selection with OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/auto-device/auto-device.ipynb>`__
 * :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
-* :doc:`(LEGACY) Running on Multiple Devices Simultaneously <../../../documentation/legacy-features/multi-device>`
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 

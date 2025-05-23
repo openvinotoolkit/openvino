@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
             for (const auto inp : targets) {
                 const auto getitem_node = cast_fw_node(inp.get_node()->shared_from_this(), "aten::__getitem__");
                 if (getitem_node) {
-                    const auto index_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
-                        getitem_node->get_input_node_shared_ptr(1));
+                    const auto index_node =
+                        ov::as_type_ptr<ov::op::util::FrameworkNode>(getitem_node->get_input_node_shared_ptr(1));
                     if (!index_node) {
                         at_least_one_unused = true;
                         continue;
@@ -85,7 +85,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
             for (size_t i = 0; i < inputs.size(); i += 2) {
                 auto new_output = inputs.at(i + 1);
                 const auto& name_node = inputs.at(i);
-                auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(name_node.get_node_shared_ptr());
+                auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(name_node.get_node_shared_ptr());
                 if (!fw_node) {
                     add_exception_to_fw_node(
                         dict_construct_node,

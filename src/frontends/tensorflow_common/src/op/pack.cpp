@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ OutputVector translate_pack_op(const NodeContext& node) {
         if (complex_type_mark) {
             has_complex_input = true;
             complex_part_type = complex_type_mark->get_complex_part_type();
-            in = complex_type_mark->input_value(0);
+            in = complex_type_mark->get_data();
         }
         concat_inputs.push_back(make_shared<v0::Unsqueeze>(in, axis_const));
     }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Arguments parsing
@@ -63,8 +63,8 @@ Write-Host "[setupvars] OpenVINO environment initialized"
 
 # Check if Python is installed
 $PYTHON_VERSION_MAJOR = 3
-$MIN_REQUIRED_PYTHON_VERSION_MINOR = 8
-$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 12
+$MIN_REQUIRED_PYTHON_VERSION_MINOR = 9
+$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 13
 
 try
 {

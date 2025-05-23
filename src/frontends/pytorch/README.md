@@ -115,7 +115,7 @@ In rare cases, converting PyTorch operations requires transformation. The main
 difference between transformation and translation is that transformation works on the graph rather
 than on the `NodeContext` of a single operation. This means that some functionality
 provided by `NodeContext` is not accessible in transformation and usually
-requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformation-api.html)
+requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api.html)
 for writing transformations also apply to PT FE transformations.
 
 ### PyTorch Frontend Layer Tests
@@ -264,7 +264,7 @@ and we will see `torch.randn_like` function call on that line.
 Some operations can be translated incorrectly. For example PyTorch allow to
 pass different data types in the operation while OpenVINO usually requires same
 types for all inputs of the operation (more information about what types
-OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs.html)).
+OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs.html)).
 PyTorch has set rules for types alignment, to solve this issue PyTorch Frontend
 has `align_eltwise_input_types` helper function which aligns types of two
 inputs. If this function is not used when needed or if it used incorrectly that

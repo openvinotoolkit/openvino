@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ private:
         const auto indices =
             std::make_shared<op::v0::Parameter>(params.indicesTensor.type, PartialShape{params.indicesTensor.shape});
         const auto gatherElement = std::make_shared<op::v6::GatherElements>(data, indices, params.axis);
-        function = std::make_shared<ov::Model>(NodeVector{gatherElement}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherElement}, ParameterVector{data, indices});
         return function;
     }
 };

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -34,6 +34,7 @@ class TestNarrow(PytorchLayerTest):
     @pytest.mark.parametrize("length", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
         self.input_shape = input_shape
         self._test(*self.create_model(dim, start, length), ie_device, precision, ir_version)

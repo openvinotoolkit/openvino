@@ -27,22 +27,14 @@ void CollapseSubgraphTests::run() {
             });
 }
 
-class SKIP_CollapseSubgraphTests : public CollapseSubgraphTests {
-public:
-    void SetUp() override {
-        GTEST_SKIP();
-    }
-    void TearDown() override{};
-};
-
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_Eltwise) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_Eltwise) {
     const auto& f = EltwiseFunction(std::vector<PartialShape> {{2, 3}, {1, 3}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_MatMulWithEltwise) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_MatMulWithEltwise) {
     const auto& f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -56,35 +48,35 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_AvoidLoopEltwise) {
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_OneConvert) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_OneConvert) {
     const auto& f = ConvertFunction(std::vector<PartialShape>{{2, 5}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertInput) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertInput) {
     const auto& f = ConvertInputFunction(std::vector<PartialShape>{{2, 5}, {1, 5}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertOutput) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertOutput) {
     const auto& f = ConvertOutputFunction(std::vector<PartialShape>{{2, 5}, {1, 5}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertStub) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertStub) {
     const auto& f = ConvertStubFunction(std::vector<PartialShape>{{2, 5, 2}, {1, 5, 1}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
-TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertPartialInputsAndResults) {
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertPartialInputsAndResults) {
     const auto& f = ConvertPartialInputsAndResultsFunction(std::vector<PartialShape>{{2, 5, 1}, {1, 5, 1}, {2, 1, 10}},
                                                            std::vector<ov::element::Type>{ov::element::i8, ov::element::bf16, ov::element::f32},
                                                            std::vector<ov::element::Type>{ov::element::f32, ov::element::i8});

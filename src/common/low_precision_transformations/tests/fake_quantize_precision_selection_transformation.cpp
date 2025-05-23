@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/prelu.hpp"
 
 using namespace testing;
 using namespace ov;

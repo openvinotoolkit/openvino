@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,9 +51,9 @@ public:
     // and to the output produced during conversion of this node
     std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
 
-private:
     OutputVector convert_node(const NodeContext& context);
 
+private:
     const frontend::InputModel::Ptr m_input_model;
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<TelemetryExtension> m_telemetry;

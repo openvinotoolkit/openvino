@@ -6,8 +6,7 @@
 
 #include "ov_ops/type_relaxed.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template<typename T, typename... Args>
 std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types,
@@ -16,5 +15,4 @@ std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types
     return std::make_shared<ov::op::TypeRelaxed<T>>(std::forward<Args>(args)...);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

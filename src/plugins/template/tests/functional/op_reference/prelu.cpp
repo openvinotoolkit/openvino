@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto SLOPE = std::make_shared<op::v0::Parameter>(input_type, slope_shape);
         const auto Prelu = std::make_shared<op::v0::PRelu>(in, SLOPE);
-        return std::make_shared<ov::Model>(NodeVector{Prelu}, ParameterVector{in, SLOPE});
+        return std::make_shared<ov::Model>(OutputVector{Prelu}, ParameterVector{in, SLOPE});
     }
 };
 

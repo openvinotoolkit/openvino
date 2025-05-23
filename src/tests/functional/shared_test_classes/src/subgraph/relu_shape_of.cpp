@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/relu_shape_of.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace ov {
 namespace test {

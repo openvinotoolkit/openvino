@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,9 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/visibility.hpp"
 
-#define _OPENVINO_RTTI_EXPAND(X)                                  X
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, NAME, ...) NAME
+#define _OPENVINO_RTTI_EXPAND(X)                                    X
+#define _OPENVINO_RTTI_DEFINITION_SELECTOR_2(_1, _2, NAME, ...)     NAME
+#define _OPENVINO_RTTI_DEFINITION_SELECTOR_3(_1, _2, _3, NAME, ...) NAME
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
@@ -80,19 +81,65 @@
 ///        for all operations and doesn't provide ability to define some perfect subset of
 ///        operations. PARENT_CLASS should define RTTI with OPENVINO_RTTI_{DECLARATION/DEFINITION}
 ///        macros.
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-///        operations that shares the same TYPE_NAME (for backward compatibility)
 ///
 /// OPENVINO_RTTI(name)
 /// OPENVINO_RTTI(name, version_id)
 /// OPENVINO_RTTI(name, version_id, parent)
-/// OPENVINO_RTTI(name, version_id, parent, old_version)
-#define OPENVINO_RTTI(...)                                                                            \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                             \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT, \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION,        \
-                                                             _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
 
-/// Note: Please don't use this macros for new operations
-#define BWDCMP_RTTI_DECLARATION
-#define BWDCMP_RTTI_DEFINITION(CLASS)
+#define OPENVINO_RTTI(...)                                                                              \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_3(__VA_ARGS__,                             \
+                                                               _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT, \
+                                                               _OPENVINO_RTTI_WITH_TYPE_VERSION,        \
+                                                               _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
+
+#define _OPENVINO_RTTI_BASE_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, "util")
+
+#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                    \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};          \
+        type_info_static.hash();                                                          \
+        return type_info_static;                                                          \
+    }                                                                                     \
+    virtual const ::ov::DiscreteTypeInfo& get_type_info() const { return get_type_info_static(); }
+
+/// Helper macro for base (without rtti parrent) class that provides RTTI block definition.
+/// It's a two parameter version of OPENVINO_RTTI macro, without PARENT_CLASS.
+#define OPENVINO_RTTI_BASE(...)                                                                       \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                           \
+                                                               _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION, \
+                                                               _OPENVINO_RTTI_BASE_WITH_TYPE)(__VA_ARGS__))
+
+#if defined(__GNUC__)
+#    define OPENVINO_DO_PRAGMA(x) _Pragma(#x)
+#elif defined(_MSC_VER)
+#    define OPENVINO_DO_PRAGMA(x) __pragma(x)
+#else
+#    define OPENVINO_DO_PRAGMA(x)
+#endif
+
+#if defined(__clang__)
+#    if defined(__has_warning) && __has_warning("-Wsuggest-override")
+#        define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                      \
+            OPENVINO_DO_PRAGMA(clang diagnostic push)                         \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Wsuggest-override") \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    else
+#        define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+            OPENVINO_DO_PRAGMA(clang diagnostic push)    \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    endif  // defined(__has_warning) && __has_warning("-Wsuggest-override")
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(clang diagnostic pop)
+#elif (defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+        OPENVINO_DO_PRAGMA(GCC diagnostic push)      \
+        OPENVINO_DO_PRAGMA(GCC diagnostic ignored "-Wsuggest-override")
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(GCC diagnostic pop)
+#elif defined(_MSC_VER)
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+        OPENVINO_DO_PRAGMA(warning(push))            \
+        OPENVINO_DO_PRAGMA(warning(disable : 4373))
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(warning(pop))
+#else
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
+#endif

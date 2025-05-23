@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "zero_init.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace {
 
@@ -28,6 +28,7 @@ public:
     explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               ze_host_mem_alloc_flag_t flag = {})
         : _initStructs(initStructs),
+          _logger("HostMemAllocator", Logger::global().level()),
           _flag(flag) {}
 
     /**
@@ -48,6 +49,8 @@ public:
 
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+
+    Logger _logger;
 
     ze_host_mem_alloc_flag_t _flag;
     static const std::size_t _alignment = STANDARD_PAGE_SIZE;

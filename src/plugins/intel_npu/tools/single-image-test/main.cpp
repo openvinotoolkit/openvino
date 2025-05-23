@@ -4,9 +4,11 @@
 //
 
 #include "image_quality_helper.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "semantic_segmentation_helpers.hpp"
 #include "tensor_utils.hpp"
 #include "yolo_helpers.hpp"
+#include "tools_helpers.hpp"
 
 #include <openvino/core/parallel.hpp>
 #include <openvino/openvino.hpp>
@@ -31,7 +33,8 @@ using TensorMap = std::map<std::string, ov::Tensor>;
 
 struct TensorDescriptor {
     ov::element::Type precision;
-    ov::Shape shape;
+    ov::PartialShape shape;
+    ov::Shape dataShape;
     ov::Layout layout;
 };
 
@@ -83,6 +86,18 @@ DEFINE_string(oml, "",
               "<output> is supported");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 DEFINE_bool(pc, false, "Report performance counters");
+DEFINE_string(
+        shape, "",
+        "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+        " in case of one input size. This parameter affects model input shape and can be dynamic."
+        " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
+        " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].");
+DEFINE_string(data_shape, "",
+    "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
+    "In case of one input size: \"[1,3,224,224]\"");
+DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
+        "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -113,6 +128,13 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+static constexpr char ref_results_message[] =
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -124,6 +146,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -141,6 +164,7 @@ DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
+DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
@@ -169,6 +193,21 @@ std::vector<std::string> splitStringList(const std::string& str, char delim) {
     }
 
     return out;
+}
+
+std::string to_string(const std::vector<std::string>& c) {
+    std::stringstream stream;
+    std::string ret;
+    if (!c.empty()) {
+        stream << "[";
+        for (const auto &elem : c) {
+            stream << elem << ",";
+        }
+        ret = stream.str();
+        ret.pop_back();
+        ret += "]";
+    }
+    return ret;
 }
 
 std::map<std::string, std::string> parseArgMap(std::string argMap) {
@@ -220,9 +259,13 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Performance counters:                     " << FLAGS_pc << std::endl;
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
+    std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
+    std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
     if (FLAGS_run_test) {
-        std::cout << "    Reference files direcotry:                "
-                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
+        std::cout << "    Reference files directory:                "
+                  << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
+                  << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -279,8 +322,11 @@ std::vector<size_t> getStrides(const ov::Shape& shape) {
     return strides;
 }
 
-std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
-                            size_t batchInd = 0, size_t depthInd = 0) {
+std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
+                            const ov::Shape& shape,
+                            const ov::Layout& layout,
+                            size_t batchInd = 0,
+                            size_t depthInd = 0) {
     const ov::element::Type& precision = tensor.get_element_type();
 
     OPENVINO_ASSERT(layout == ov::Layout("NCHW") || layout == ov::Layout("NCDHW"),
@@ -374,7 +420,27 @@ void convertBufferType(OutT* destination, const InT* source, size_t numberOfElem
     });
 }
 
-void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
+struct BatchIndexer {
+    const size_t index = 0;
+    const size_t size = 1;
+
+    BatchIndexer(size_t lineIndex = 0, size_t lineCount = 1) : index(lineIndex), size(lineCount) {
+        OPENVINO_ASSERT(index < size, "Inconsistent parameters used for "
+                        "BatchIndexer construction, lineIndex: ", index,
+                        " must be lesser than lineCount: ", size);
+    }
+
+    std::string to_string() const {
+        std::stringstream sstream;
+        sstream << "["  << index << "/" << size << "]";
+        return sstream.str();
+    }
+};
+void cvToOV(const cv::Mat& cvImg,
+            const BatchIndexer& cvImgInBatch,
+            ov::Tensor& tensor,
+            const ov::Shape& shape,
+            const ov::Layout& layout,
             const std::string& colorFormat) {
     const ov::element::Type& precision = tensor.get_element_type();
 
@@ -437,8 +503,12 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
 
     if (layout == ov::Layout("NHWC")) {
         const auto dataBuffer = reinterpret_cast<uint8_t*>(tensor.data());
-
-        cv::Mat out(static_cast<int>(H), static_cast<int>(W), cvType, dataBuffer);
+        cv::Mat auxOut(static_cast<int>(H), static_cast<int>(W), cvType);
+        cv::Mat tensorOut(static_cast<int>(H), static_cast<int>(W), cvType, dataBuffer);
+        // only a first image from an input image array fills an original input tensor up.
+        // Subsequent images (if exist) will fill batch slices of the input tensor
+        // by its number in the input array respectively
+        cv::Mat &out = (cvImgInBatch.index == 0 ? tensorOut : auxOut);
 
         if (precision == ov::element::Type_t::f16) {
             const auto inPtr = in.ptr<float>();
@@ -454,13 +524,37 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
             in.copyTo(out);
         }
 
-        for (size_t n = 1; n < N; ++n) {
-            cv::Mat batch(static_cast<int>(H), static_cast<int>(W), cvType,
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
+        // it fills up rest of the batched tensor by
+        // a last requested image data until its ending from a batched slice position
+        // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor
+        // by array of images size M, where M < N, will make up
+        // The final batched tensor will comprise
+        // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
+        if (cvImgInBatch.index == 0 && N != 1) {
+            std::cout << "Fill up all input batch slices up to " << N
+                      << " with image data from the array: ["
+                      << cvImgInBatch.to_string() << std::endl;
+        }
+        for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
+            if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
+                std::cout << "Fill input batch slices starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
+            }
+            cv::Mat batch(static_cast<const int>(H),
+                          static_cast<int>(W),
+                          cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
             out.copyTo(batch);
         }
     } else if (layout == ov::Layout("NCHW")) {
-        auto tensorPlanes = ovToCV(tensor, shape, layout, 0);
+        ov::Tensor auxTensor(precision, shape);
+        ov::Tensor& outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
+        // only a first image from an input image array fills an original input tensor up.
+        // Subsequent images (if exist) will fill batch slices of the input tensor
+        // by its number in the input array respectively
+        auto tensorPlanes = ovToCV(outTensor, shape, layout, 0);
 
         if (!(precision == ov::element::Type_t::f16 ||
             precision == ov::element::Type_t::bf16)) {
@@ -483,7 +577,24 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
             }
         }
 
-        for (size_t n = 1; n < N; ++n) {
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
+        // it fills up rest of the batched tensor by
+        // a last requested image data until its ending from a batched slice position
+        // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor
+        // by array of images size M, where M < N, will make up
+        // The final batched tensor will comprise
+        // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
+        if (cvImgInBatch.index == 0 && N != 1) {
+            std::cout << "Fill up all input batch slices planes up to " << N
+                      << " with image data from the array: "
+                      << cvImgInBatch.to_string() << std::endl;
+        }
+        for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
+            if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
+                std::cout << "Fill input batch slices planes starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
+            }
             const auto batchPlanes = ovToCV(tensor, shape, layout, n);
 
             OPENVINO_ASSERT(batchPlanes.size() == tensorPlanes.size());
@@ -642,33 +753,34 @@ std::string cleanName(std::string&& name) {
     return std::move(name);
 }
 
-ov::Tensor loadImage(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::string& filePath, const std::string& colorFormat) {
-    const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
-    OPENVINO_ASSERT(!frame.empty(), "Failed to open input image file ", filePath);
+ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths, const std::string& colorFormat) {
+    ov::Tensor tensor(precision, shape);
+    for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
+        const auto &filePath = filePaths[fileIndex];
+        const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
+        OPENVINO_ASSERT(!frame.empty(), "Failed to open input image file ", filePath);
 
-    const ov::Tensor tensor(precision, shape);
-
-    cvToOV(frame, tensor, shape, layout, colorFormat);
-
+        cvToOV(frame, BatchIndexer{fileIndex, filePaths.size()}, tensor, shape, layout, colorFormat);
+    }
     return tensor;
 }
 
-ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                      const std::string& filePath, const ov::element::Type& dataPrecision) {
+void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBatch, ov::Tensor &requestedTensor,
+                const ov::element::Type& modelPrecision, const ov::Shape& shape,
+                const ov::Layout& layout, const ov::element::Type& dataPrecision) {
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
     OPENVINO_ASSERT(binaryFile, "Failed to open input binary file: ", filePath);
     const auto fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "While reading a file an error is encountered");
     const size_t fileBytes = static_cast<size_t>(fileSize);
-    ov::Tensor requestedTensor(modelPrecision, shape);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
-        const ov::Tensor inputTensor(dataPrecision, shape);
+        ov::Tensor inputTensor(dataPrecision, shape);
         if (fileBytes == inputTensor.get_byte_size()) {
             binaryFile.read(reinterpret_cast<char*>(inputTensor.data()), static_cast<std::streamsize>(fileBytes));
             npu::utils::convertTensorPrecision(inputTensor, requestedTensor);
@@ -676,7 +788,7 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
             std::cout << "File contains " << fileBytes
                       << " bytes, but it expected to be: " << inputTensor.get_byte_size()
                       << " while converting precision from " << dataPrecision << " to " << modelPrecision
-                      << ". Check whether it is possible to batch loading " << std::endl;
+                      << ". Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
                             "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
@@ -685,18 +797,26 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
                             " expected while converting precision from ", dataPrecision, " to ", modelPrecision);
             ov::Shape debatchedInputTensorShape(shape);
             debatchedInputTensorShape[ov::layout::batch_idx(layout)] = 1;
-            const ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
+            ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
             binaryFile.read(reinterpret_cast<char*>(inputDebatchedTensor.data()),
                             static_cast<std::streamsize>(fileBytes));
-            const ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
+            ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
             npu::utils::convertTensorPrecision(inputDebatchedTensor, convertedPrecisionTensor);
             std::list<ov::Tensor> tensorsToJoin;
-            std::generate_n(std::back_inserter(tensorsToJoin), N, [&convertedPrecisionTensor]() {
-                return convertedPrecisionTensor;
-            });
+            std::list<ov::Tensor> tensorsFromSplit = npu::utils::splitBatchedTensor(requestedTensor, layout, N);
+            // Constitute a new bathed tensor of size N from parts of it
+            // enumerated by indices from the interval [0...fileSourceInBatch.index],
+            // where fileSourceInBatch.index < N
+            // The rest parts of the new tensor [fileSourceInBatch.index+1...N]
+            // will be filled up by same content of an image of `fileSourceInBatch.index`
+            std::copy_n(tensorsFromSplit.begin(), std::min(fileSourceInBatch.index, N), std::back_inserter(tensorsToJoin));
+            if (fileSourceInBatch.index < N) {
+                std::generate_n(std::back_inserter(tensorsToJoin), N - fileSourceInBatch.index, [&convertedPrecisionTensor]() {
+                    return convertedPrecisionTensor;
+                });
+            }
             requestedTensor = npu::utils::joinTensors(tensorsToJoin, layout);
         }
-
     } else {
         if (fileBytes == reqTensorBytes) {
             binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
@@ -704,22 +824,40 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
         } else {
             std::cout << "File contains " << fileBytes << " bytes, but it expected to be: " << reqTensorBytes
                       << " when datatypes match. "
-                      << ". Check whether it is possible to batch loading " << std::endl;
+                      << "Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
                             "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
                             reqTensorBytes, " in batch size ", N, " expected");
 
-            // duplicate a binary into tensor memory if the tensor batched
-            for (size_t n = 0; n < N; ++n) {
+            if (fileSourceInBatch.index == 0 && N != 1) {
+                std::cout << "Fill up all input batch slices up to " << N
+                          << " with binary data from the array: "
+                          << fileSourceInBatch.to_string() << std::endl;
+            }
+            for (size_t n = std::max<size_t>(0, fileSourceInBatch.index); n < N; ++n) {
+                if (n == std::max<size_t>(1, fileSourceInBatch.index) && fileSourceInBatch.index >= 1) {
+                    std::cout << "Fill input batch slices starting from index "
+                              << n << " up to " << N
+                              << " with binary data from the data sources array: "
+                              << fileSourceInBatch.to_string() << std::endl;
+                }
                 binaryFile.seekg(0, std::ios_base::beg);
                 binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()) + fileBytes * n,
                                 static_cast<std::streamsize>(fileBytes));
             }
         }
     }
+}
 
+ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
+                      const std::vector<std::string>& filePaths, const ov::element::Type& dataPrecision) {
+    ov::Tensor requestedTensor(modelPrecision, shape);
+    for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
+        const auto &filePath = filePaths[fileIndex];
+        loadBinary(filePath, BatchIndexer{fileIndex, filePaths.size()}, requestedTensor, modelPrecision, shape, layout, dataPrecision);
+    }
     return requestedTensor;
 }
 
@@ -739,18 +877,21 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
  * @param dataPrecision Indicates the precision used by the data found within the binary file.
  * @return The tensor containing the loaded data.
  */
-ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::string& filePath, const std::string& colorFormat,
-                     const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
+ov::Tensor loadInput(const ov::element::Type& modelPrecision,
+                     const ov::Shape& shape,
+                     const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths,
+                     const std::string& colorFormat,
+                     const ov::element::Type& dataPrecision = ov::element::Type_t::dynamic) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
-        return loadImage(modelPrecision, shape, layout, filePath, colorFormat);
+        return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
-        return loadBinary(modelPrecision, shape, layout, filePath, dataPrecision);
+        return loadBinaries(modelPrecision, shape, layout, filePaths, dataPrecision);
     }
 }
 
 ov::Tensor loadTensor(const ov::element::Type& precision, const ov::Shape& shape, const std::string& filePath) {
-    const ov::Tensor tensor(precision, shape);
+    ov::Tensor tensor(precision, shape);
 
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for read");
@@ -765,7 +906,7 @@ void dumpTensor(const ov::Tensor& tensor, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for write");
 
-    const auto dataBuffer = reinterpret_cast<char*>(tensor.data());
+    const auto dataBuffer = reinterpret_cast<const char*>(tensor.data());
     file.write(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 }
 
@@ -1216,7 +1357,15 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
         return false;
     }
 
+    std::vector<std::string> skipped_layers;
+    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+
     for (const auto& [tensorName, output] : outputs) {
+        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+            std::cout << "Skip RRMSE test for layers: " << tensorName << std::endl;
+            continue;
+        }
+
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -1273,7 +1422,32 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
-bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
+
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
+
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
+}
+
+bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
                 "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
@@ -1284,9 +1458,36 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
         return false;
     }
 
-    for (const auto& [tensorName, output] : outputs) {
+    std::vector<std::string> skipped_layers;
+    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+
+    for (auto& [tensorName, output] : outputs) {
+        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+            std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
+            continue;
+        }
+
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax = FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
+
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            // Why reference data is not updated?
+            std::copy_n(refSoftMax.begin(),
+                        referencesIterator->second.get_size(),
+                        const_cast<float*>(referencesIterator->second.data<float>()));
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
@@ -1437,8 +1638,8 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
 
     TensorMap out;
     for (const auto& outputInfo : compiledModel.outputs()) {
-        const std::string layer_name = outputInfo.get_any_name();
-        out.insert({layer_name, inferRequest.get_tensor(layer_name)});
+        const std::string layerName = outputInfo.get_any_name();
+        out.insert({layerName, inferRequest.get_tensor(layerName)});
     }
 
     ProfVec profData{};
@@ -1448,65 +1649,6 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
     }
 
     return std::make_pair(out, profData);
-}
-
-void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        if (shape.is_static()) {
-            continue;
-        }
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by SIT");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by SIT\n"
-                                 "         Setting batch to 1 forcibly"
-                      << std::endl;
-            ov::set_batch(model, 1);
-        }
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by SIT");
-        }
-    }
-}
-
-void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch) {
-    if (batch == 1) {
-        return;
-    }
-
-    // New batch value is applicable if the model has non dynamic inputs/outputs only
-    // Amend layout by adding N if it has no batch dimension
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by SIT");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-        }
-
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by SIT");
-        }
-    }
-    ov::set_batch(model, batch);
 }
 
 // FIXME: User must provide layout explicitly.
@@ -1558,8 +1700,8 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     const ov::Tensor& reference = references.begin()->second;
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     auto confThresh = FLAGS_confidence_threshold;
     auto probTolerance = FLAGS_prob_tolerance;
@@ -1592,8 +1734,8 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
     double boxTolerance = FLAGS_box_tolerance;
@@ -1624,8 +1766,8 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
                     "Mismatch between the number of model outputs and the number of references");
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
@@ -1663,8 +1805,8 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
                     "Mismatch between the number of model outputs and the number of references");
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
@@ -1714,6 +1856,7 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     OPENVINO_ASSERT(outputs.size() == outputLayouts.size(),
                     "Mismatch between the number of model outputs and their corresponding layout values");
 
+    bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
@@ -1721,8 +1864,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-    utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    if (skipArgMax) {
+        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
+        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+
+        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
+        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
+        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+
+        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+    } else {
+        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
+        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    }
 
     if (parsedReferences.size() != parsedOutputs.size()) {
         std::cout << "Reference size and output size are different" << std::endl;
@@ -1733,9 +1888,63 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     return compare_mean_IoU(iou, semSegThreshold, classes);
 }
 
+static ov::Shape parseDataShape(const std::string& dataShapeStr) {
+    std::vector<uint64_t> dataShape;
+    std::stringstream ss(dataShapeStr);
+
+    char ch;  // To discard non-numeric characters
+    int64_t dim;
+    while (ss >> ch) {
+        if (std::isdigit(ch)) {
+            ss.putback(ch);
+            ss >> dim;
+            dataShape.push_back(dim);
+        }
+    }
+    return ov::Shape(dataShape);
+}
+
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
+    std::string blobFileFullPath;
+    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+        // Case 1: Reference files & directory are provided (relative path)
+        std::filesystem::path refDirPath(FLAGS_ref_dir);
+        std::filesystem::path refFilePath(refFiles[outputInd]);
+        blobFileFullPath = (refDirPath / refFilePath).string();
+    } else if (!refFiles.empty()) {
+        // Case 2: Reference files provided only (absolute path)
+        blobFileFullPath = refFiles[outputInd];
+    } else {
+        // Case 3: Reference directory provided only
+        std::ostringstream ostr;
+        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        const auto blobFileName = ostr.str();
+
+        std::filesystem::path fullPath = FLAGS_ref_dir;
+        fullPath /= blobFileName;
+        blobFileFullPath = fullPath.string();
+    }
+
+    return blobFileFullPath;
+}
+
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
+        // Flow of Single Image Test
+        // 1. Parse input and output precisions (if given)
+        // 2. Parse input and output layouts (if given)
+        // 3. Parse input files (if given)
+        // 4. Parse input files as binaries (if given) according to precision
+        // 5. Setup OpenVINO Core
+        // 6. Load network if possible, else directly load as binary
+        // 7. (For loadable networks) Configure pre-/post-processing (precision and layout)
+        // 8. (For loadable networks) Perform reshape (reshape will only be done if either
+        //    shape or override_model_batch_size is specified)
+        // 9. (For loadable networks) Compile model
+        // 10. Store compile model (if given)
+        // 11. Run inference / tests
         const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, I32, I64, FP16 or FP32 only
@@ -1756,11 +1965,43 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
         std::vector<std::string> inputFilesPerCase;
-        std::vector<std::vector<std::string>> inputFilesForOneInfer;
+        using FilesPerInput = std::vector<std::string>;
+        using FilesForModelInputs = std::vector<FilesPerInput>;
+        std::vector<FilesForModelInputs> inputFilesForOneInfer;
 
         inputFilesPerCase = splitStringList(FLAGS_input, ';');
         for (const auto& images : inputFilesPerCase) {
-            inputFilesForOneInfer.push_back(splitStringList(images, ','));
+            std::vector<std::string> filesPerModel = splitStringList(images, ',');
+            FilesForModelInputs entireModelFiles;
+            entireModelFiles.reserve(filesPerModel.size());
+            for (auto &&filesPerInput : filesPerModel) {
+                // from now on each input of a model support multiple image files as content of a batched input
+                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
+            }
+            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
+        }
+
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        RefFilesForModelOutputs refFilesForOneInfer;
+
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
         }
 
         std::vector<std::string> inputBinPrecisionStrPerCase;
@@ -1768,7 +2009,7 @@ static int runSingleImageTest() {
         if (FLAGS_img_as_bin) {
             for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
                 inputBinPrecisionForOneInfer[i] =
-                        std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::undefined);
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
             }
             inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
             std::size_t inferIdx = 0;
@@ -1800,7 +2041,7 @@ static int runSingleImageTest() {
         }
 
         if (FLAGS_network.empty()) {
-            std::cout << "Not enough parameters. Check help." << std::endl;
+            std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -1813,13 +2054,6 @@ static int runSingleImageTest() {
 
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
-
-            setModelBatch(model, FLAGS_override_model_batch_size);
-            if (FLAGS_device.find("NPU") != std::string::npos ||
-                // FIXME: SIT on CPU also requires to bound dynamic shapes
-                FLAGS_device.find("CPU") != std::string::npos || FLAGS_device.find("TEMPLATE") != std::string::npos) {
-                boundDynamicShape(model);
-            }
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -1856,11 +2090,11 @@ static int runSingleImageTest() {
                         inModelLayout.has_value()) {
                         inLayerModelLayout = inModelLayout.value();
                     } else {
-                        const auto shape = inputInfo[i].get_shape();
+                        const auto shape = inputInfo[i].get_partial_shape();
                         inLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --iml option isn't set, input model "
                                      "layout for layer \""
-                                  << inputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
+                                  << inputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_string()
                                   << " rank (" << shape.size() << ") as " << inLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -1903,6 +2137,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out == ov::element::u8 && FLAGS_clamp_u8_outputs) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 
@@ -1917,11 +2154,11 @@ static int runSingleImageTest() {
                         outModelLayout.has_value()) {
                         outLayerModelLayout = outModelLayout.value();
                     } else {
-                        const auto shape = outputInfo[i].get_shape();
+                        const auto shape = outputInfo[i].get_partial_shape();
                         outLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --oml option isn't set, output model "
                                      "layout for layer \""
-                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
+                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_shape()
                                   << " rank (" << shape.size() << ") as " << outLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -1933,7 +2170,19 @@ static int runSingleImageTest() {
                 }
             }
 
-            compiledModel = core.compile_model(ppp.build(), FLAGS_device);
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
+
+            printInputAndOutputsInfoShort(*model);
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
+
+            std::cout << "Compile model" << std::endl;
+            model = ppp.build();
+            printInputAndOutputsInfoShort(*model);
+            compiledModel = core.compile_model(model, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
@@ -1983,9 +2232,15 @@ static int runSingleImageTest() {
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
-            std::vector<std::string> inputFiles = inputFilesForOneInfer[numberOfTestCase];
+            const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
+            if (!FLAGS_ref_results.empty()) {
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match number of network output (s): ", outputsInfo.size());
+            }
 
             TensorMap inTensors;
             size_t inputInd = 0;
@@ -1994,7 +2249,8 @@ static int runSingleImageTest() {
 
             // Load the input data
             for (const auto& inputInfo : inputsInfo) {
-                const ov::Shape& shape = inputInfo.get_shape();
+                const auto& shape = inputInfo.get_partial_shape();
+                const auto dataShape = shape.is_static() ? shape.get_shape() : parseDataShape(FLAGS_data_shape);
                 const ov::element::Type& precision = inputInfo.get_element_type();
 
                 // Determine the input layout
@@ -2012,19 +2268,20 @@ static int runSingleImageTest() {
                     inputLayout = getLayoutByRank(shape.size());
                     std::cout << "WARNING: Loading input data. Since --iml option isn't set, input model layout for "
                                  "layer \""
-                              << inputInfo.get_any_name() << "\" is infered from shape: " << toString(shape)
+                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_shape()
                               << " rank (" << shape.size() << ") as " << inputLayout.to_string() << std::endl;
                 }
 
-                inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape, inputLayout});
+                inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape,
+                                                                                    dataShape, inputLayout});
 
-                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as " << precision
+                std::cout << "Load input #" << inputInd << " from " << to_string(inputFiles[inputInd]) << " as " << precision
                           << " " << inputLayout.to_string() << " " << shape << std::endl;
 
                 const ov::Tensor tensor =
                         !FLAGS_img_as_bin
-                                ? loadInput(precision, shape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
-                                : loadInput(precision, shape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
+                                ? loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
+                                : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
                                             inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
                 ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
@@ -2044,10 +2301,10 @@ static int runSingleImageTest() {
             std::cout << "Run inference on " << FLAGS_device << std::endl;
 
             const auto startTime = Time::now();
-            const auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
+            auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
             const auto endTime = Time::now();
 
-            const TensorMap& outputTensors = outInference.first;
+            TensorMap& outputTensors = outInference.first;
 
             printPerformanceCountsAndLatency(numberOfTestCase, outInference.second, endTime - startTime);
 
@@ -2063,18 +2320,12 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                    const auto blobFileName = ostr.str();
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
-                    std::filesystem::path fullPath = FLAGS_ref_dir;
-                    fullPath /= blobFileName;
-                    const auto blobFileFullName = fullPath.string();
-
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout

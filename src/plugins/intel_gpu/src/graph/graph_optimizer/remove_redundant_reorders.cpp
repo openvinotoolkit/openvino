@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -280,13 +280,29 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& r_node = node->as<reorder>();
+        auto& dep_node = r_node.get_dependency(0);
 
         bool no_output_optimization = remove_output_reorders ?
-            r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
+            r_node.is_output() && (dep_node.is_output() || dep_node.is_type<input_layout>() ||
+                dep_node.can_be_optimized() || dep_node.get_users().size() != 1) : r_node.is_output();
 
         // Do not opt out result reorder of Loop body network
         no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
+
+        // Prevent optimizing out reorder when a sum post-op is used, as it relies on replacing the
+        // original primitive's output buffer with a dependency input. If the output reorder is removed,
+        // it may result in reading from an incorrect memory buffer during infer request output processing.
+        if (dep_node.get_preferred_impl_type() == impl_types::onednn && !no_output_optimization) {
+            for (auto& fused_op : dep_node.get_fused_primitives()) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(dep_node, fused_op);
+                    if (fusing_type == add_fusing_type::sum) {
+                        no_output_optimization |= true;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
@@ -295,6 +311,12 @@ void remove_redundant_reorders::run(program& p) {
 
         auto o_layout = r_node.get_output_layout();
         const auto& i_layout = r_node.get_input_layout(0);
+
+        auto is_r_node_rank_changed = r_node.get_output_layout().get_rank() != dep_node.get_output_layout().get_rank();
+        if (is_r_node_rank_changed &&
+            ((!update_implementations && dep_node.is_type<crop>()) ||
+             (dep_node.is_type<crop>() && dep_node.can_be_optimized())))
+            continue;
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
@@ -435,7 +457,7 @@ void remove_redundant_reorders::run(program& p) {
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>());
+                 input.is_type<select>() || input.is_type<eltwise>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -490,7 +512,7 @@ void remove_redundant_reorders::run(program& p) {
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
                              (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
-                             !lo.get_optimization_attributes().use_onednn_impls));
+                             !lo.has_all_enabled_onednn_impls_optimization_attribute()));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 

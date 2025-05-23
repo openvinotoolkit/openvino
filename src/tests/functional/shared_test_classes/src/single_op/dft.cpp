@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/dft.hpp"
+
 #include "common_test_utils/node_builders/dft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
@@ -15,13 +16,8 @@ static inline void set_real_number_generation_data(utils::InputGenerateData& inG
 }
 
 void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::string target_device;
-    std::tie(shapes, model_type, axes, signal_size, op_type, target_device) = GetParam();
+    const auto& [shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type] =
+        this->GetParam();
 
     auto elemType = model_type;
     bool inPrcSigned = elemType.is_signed();
@@ -49,19 +45,28 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
 
     inputs.clear();
     Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
-                                            targetInputStaticShapes[0],
-                                            inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                                         targetInputStaticShapes[0],
+                                                                         inGenData.range,
+                                                                         inGenData.start_from,
+                                                                         inGenData.resolution,
+                                                                         inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
+
+    if (axes_in_type == utils::InputLayerType::PARAMETER) {
+        auto tensor_axes = ov::Tensor(ov::element::i64, ov::Shape({axes.size()}));
+        std::memcpy(tensor_axes.data(), &axes[0], axes.size() * sizeof(int64_t));
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), tensor_axes});
+    }
+
+    if (size_in_type == utils::InputLayerType::PARAMETER && signal_size.size() > 0) {
+        auto tensor_sizes = ov::Tensor(ov::element::i64, ov::Shape({signal_size.size()}));
+        std::memcpy(tensor_sizes.data(), &signal_size[0], signal_size.size() * sizeof(int64_t));
+        inputs.insert({funcInputs.back().get_node_shared_ptr(), tensor_sizes});
+    }
 }
 
 std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::string target_device;
-    std::tie(shapes, model_type, axes, signal_size, op_type, target_device) = obj.param;
+    const auto& [shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -80,30 +85,28 @@ std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams
     result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "signal_size=" << ov::test::utils::vec2str(signal_size) << "_";
     result << "Inverse=" << (op_type == ov::test::utils::DFTOpType::INVERSE) << "_";
-    result << "TargetDevice=" << target_device;
+    result << "TargetDevice=" << target_device << "_";
+    result << "AxesInType=" << axes_in_type << "";
+    result << "SizeInType=" << size_in_type << "";
+
     return result.str();
 }
 
 void DFTLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::tie(shapes, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, axes, signal_size, op_type, dev, axes_in_type, size_in_type] = this->GetParam();
+    targetDevice = dev;
+
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
-
-    auto dft = ov::test::utils::make_dft(param, axes, signal_size, op_type);
+    ov::ParameterVector in_parameters{param};
+    auto dft = ov::test::utils::make_dft(in_parameters, axes, signal_size, op_type, axes_in_type, size_in_type);
 
     auto result = std::make_shared<ov::op::v0::Result>(dft);
-    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "DFT");
+    function = std::make_shared<ov::Model>(result, in_parameters, "DFT");
 
     if (model_type == ov::element::f32) {
         abs_threshold = 8e-5;
-    } else if (model_type == ov::element::bf16) {
-        abs_threshold = 5e-7;
     }
 }
 }  // namespace test

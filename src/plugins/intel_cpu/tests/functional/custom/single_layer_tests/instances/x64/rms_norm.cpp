@@ -24,6 +24,17 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1024 + 16 + 1}, ov::Shape{1024 + 16 + 1}}}
         },
     },
+    // small data size
+    {
+        // data shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 31},
+            {ov::Shape{1, 8, 31}, ov::Shape{2, 3, 31}}}
+        },
+        // scale shape
+        {ov::test::InputShape{ov::PartialShape{31},
+            {ov::Shape{31}, ov::Shape{31}}}
+        },
+    },
     // scale is scalar
     {
         // data shape

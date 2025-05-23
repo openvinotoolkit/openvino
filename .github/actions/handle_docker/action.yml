@@ -27,17 +27,17 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout head
-      uses: actions/checkout@v4
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
     - name: Checkout base
-      uses: actions/checkout@v4
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
       with:
         ref: ${{ github.base_ref || github.event.merge_group.base_ref }}
         sparse-checkout: ${{ inputs.dockerfiles_root_dir }}/docker_tag
         path: base
 
     - name: Install Python dependencies
-      uses: py-actions/py-dependency-install@v4
+      uses: py-actions/py-dependency-install@30aa0023464ed4b5b116bd9fbdab87acf01a484e # v4.1.0
       with:
         path: "${{ github.action_path }}/requirements.txt"
         update-setuptools: "false"
@@ -45,7 +45,10 @@ runs:
 
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      with:
+        driver-opts: |
+          image=${{ inputs.registry }}/dockerio/moby/buildkit:buildx-stable-1
 
     - name: Handle docker images
       id: handle_images
@@ -62,7 +65,7 @@ runs:
         --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
         --docker_env_changed "${{ fromJSON(inputs.changed_components).docker_env }}" \
         --dockerfiles_changed "${{ fromJSON(inputs.changed_components).dockerfiles }}" \
-        --docker_builder "${{ steps.buildx.outputs.name}}" \
+        --docker_builder "${{ steps.buildx.outputs.name }}" \
         --repo "${{ github.repository }}" \
         --ref_name "${{ github.ref_name }}" \
         $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \

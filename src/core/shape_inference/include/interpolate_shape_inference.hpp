@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <algorithm>
-#include <openvino/op/interpolate.hpp>
+#include <optional>
 
 #include "dimension_util.hpp"
-#include "pooling_shape_inference_util.hpp"
+#include "openvino/op/interpolate.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -153,8 +153,8 @@ TRShape make_padded_shape(const TShape& input, TInputIter pads_begin, TInputIter
  * @return Not null pointer with axes values or null pointer if can't get axes from input.
  */
 template <class TShape, class TRes = std::vector<int64_t>>
-ov::optional<TRes> get_axes(const Node* const op, size_t port, bool has_axes, size_t rank, const ITensorAccessor& ta) {
-    ov::optional<TRes> axes;
+std::optional<TRes> get_axes(const Node* const op, size_t port, bool has_axes, size_t rank, const ITensorAccessor& ta) {
+    std::optional<TRes> axes;
     if (has_axes) {
         using TAxis = typename TRes::value_type;
         axes = std::move(get_input_const_data_as<TShape, TAxis, TRes>(op, port, ta));

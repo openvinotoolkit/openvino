@@ -24,8 +24,7 @@
 #include <map>
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 class RemoteContextImpl;
 
 class RemoteTensorImpl : public ov::IRemoteTensor {
@@ -89,5 +88,4 @@ private:
     static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

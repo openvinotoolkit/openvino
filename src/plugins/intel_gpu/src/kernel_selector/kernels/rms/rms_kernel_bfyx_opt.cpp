@@ -54,6 +54,13 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
+    bool has_dynamic_padding = false;
+    for (const auto& dim : params.inputs[0].GetDims())
+        has_dynamic_padding |= dim.pad.is_dynamic;
+
+    if (has_dynamic_padding)
+        jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_PADDING", 1));
+
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
@@ -95,8 +102,37 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
+    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
+    if (!params.fused_ops.empty()) {
+        switch (params.ov_input_rank) {
+            case 1 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
+                break;
+            case 2 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "f"));
+                break;
+            case 3 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "y"));
+                break;
+            default:
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "x"));
+                break;
+        }
+
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = { "(b)", "(f)", "(z)", "(y)", "(x)" };
+        } else if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = { "(b)", "(f)", "(y)", "(x)" };
+        } else {
+            OPENVINO_THROW("rms_bfyx_opt doesn't support 5D or higher dims.");
+        }
+
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
 
     return jit;
 }

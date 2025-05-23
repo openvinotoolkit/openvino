@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,8 @@ using namespace ov::symbol::util;
 ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
     MATCHER_SCOPE(ReshapeOptimizations);
     auto data_label = pattern::any_input(pattern::has_static_rank());
-    auto pattern_label = pattern::any_input([](const Output<Node>& output) {
-        return pattern::has_static_shape() && !ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-    });
-    auto reshape_label =
-        ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, pattern::has_static_rank());
+    auto pattern_label = pattern::any_input(pattern::has_static_shape() && pattern::class_other_than<v0::Constant>());
+    auto reshape_label = pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& reshape = ov::as_type_ptr<v1::Reshape>(m.get_match_root());

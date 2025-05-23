@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateConvertLikeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::ConvertLike>& op) {
     validate_inputs_count(op, {2});
@@ -49,5 +48,4 @@ static void CreateConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0:
 REGISTER_FACTORY_IMPL(v0, Convert);
 REGISTER_FACTORY_IMPL(v1, ConvertLike);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

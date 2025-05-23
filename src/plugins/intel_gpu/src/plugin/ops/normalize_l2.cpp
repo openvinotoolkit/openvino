@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::NormalizeL2>& op) {
     validate_inputs_count(op, {2});
@@ -20,14 +19,14 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     std::string layerName = layer_type_name_ID(op);
 
     // params
-    auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto const_axis = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
     float eps = op->get_eps();
 
-    // WA for MO outputting %.6f
+    // WA for OVC outputting %.6f
     if (eps == 0.0f) {
         eps = 1e-10f;
     }
@@ -58,5 +57,4 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
 REGISTER_FACTORY_IMPL(v0, NormalizeL2);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

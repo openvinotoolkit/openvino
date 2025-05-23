@@ -6,6 +6,7 @@
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/env_util.hpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -50,4 +51,54 @@ TEST(UtilsTests, filter_lines_by_prefix) {
     lines = "\n\n\n";
     res = filter_lines_by_prefix(lines, "ab");
     ASSERT_EQ(res, "");
+}
+
+TEST(UtilsTests, split_by_delimiter) {
+    const auto line = "EliminateSplitConcat,MarkDequantization,StatefulSDPAFusion";
+
+    const auto split_set = ov::util::split_by_delimiter(line, ',');
+
+    const std::unordered_set<std::string> expected_set = {"EliminateSplitConcat", "MarkDequantization", "StatefulSDPAFusion"};
+
+    ASSERT_EQ(split_set, expected_set);
+}
+
+TEST(UtilsTests, split_by_delimiter_single) {
+    const auto line = "EliminateSplitConcat";
+
+    const auto split_set = ov::util::split_by_delimiter(line, ',');
+
+    const std::unordered_set<std::string> expected_set = {"EliminateSplitConcat"};
+
+    ASSERT_EQ(split_set, expected_set);
+}
+
+TEST(UtilsTests, split_by_delimiter_single_with_comma) {
+    const auto line = "EliminateSplitConcat,";
+
+    const auto split_set = ov::util::split_by_delimiter(line, ',');
+
+    const std::unordered_set<std::string> expected_set = {"EliminateSplitConcat"};
+
+    ASSERT_EQ(split_set, expected_set);
+}
+
+TEST(UtilsTests, split_by_delimiter_empty) {
+    const auto line = "";
+
+    const auto split_set = ov::util::split_by_delimiter(line, ',');
+
+    const std::unordered_set<std::string> expected_set = {};
+
+    ASSERT_EQ(split_set, expected_set);
+}
+
+TEST(UtilsTests, split_by_delimiter_empty_and_comma) {
+    const auto line = ",";
+
+    const auto split_set = ov::util::split_by_delimiter(line, ',');
+
+    const std::unordered_set<std::string> expected_set = {"", ""};
+
+    ASSERT_EQ(split_set, expected_set);
 }

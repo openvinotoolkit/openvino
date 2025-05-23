@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ConvertMaxPool1ToMaxPool8;
 
 class ov::pass::ConvertMaxPool1ToMaxPool8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMaxPool1ToMaxPool8");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMaxPool1ToMaxPool8");
     ConvertMaxPool1ToMaxPool8();
 };

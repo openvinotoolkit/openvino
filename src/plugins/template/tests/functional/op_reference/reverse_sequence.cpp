@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ private:
             std::make_shared<op::v0::Parameter>(params.mSeqLengthsTensor.type, params.mSeqLengthsTensor.shape);
         const auto reverseSequence =
             std::make_shared<op::v0::ReverseSequence>(data, seqLengths, params.mBatchAxis, params.mSeqAxis);
-        return std::make_shared<ov::Model>(NodeVector{reverseSequence}, ParameterVector{data, seqLengths});
+        return std::make_shared<ov::Model>(OutputVector{reverseSequence}, ParameterVector{data, seqLengths});
     }
 };
 

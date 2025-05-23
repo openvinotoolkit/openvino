@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <memory>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-class MatMulShapes {
+class FullyConnectedShapes {
 public:
     ov::PartialShape inputA;
     ov::PartialShape inputB;
@@ -16,11 +16,23 @@ public:
     bool transposeB;
 };
 
+class FullyConnectedParams {
+public:
+    bool activation;
+    bool perChannelWeights;
+    bool fq;
+    bool bias;
+    std::string originalLayersNames;
+};
+
 typedef std::tuple<
     ov::element::Type,
-    MatMulShapes,
+    FullyConnectedShapes,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params,
+    ov::element::Type,
+    FullyConnectedParams,
+    std::string> FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {
 

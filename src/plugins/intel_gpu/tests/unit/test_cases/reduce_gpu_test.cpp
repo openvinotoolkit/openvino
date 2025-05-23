@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,34 +63,32 @@ struct reduce_accumulator {
     };
 
     AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode, bool sum_only) {
-        if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
-            reduce_mode == cldnn::reduce_mode::log_sum)
-            acc += input_val;
-        else if (reduce_mode == cldnn::reduce_mode::max)
+        if (reduce_mode == cldnn::reduce_mode::max) {
             acc = input_val > acc ? input_val : acc;
-        else if (reduce_mode == cldnn::reduce_mode::min)
+        } else if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
+            reduce_mode == cldnn::reduce_mode::log_sum) {
+            acc += input_val;
+        } else if (reduce_mode == cldnn::reduce_mode::min) {
             acc = input_val < acc ? input_val : acc;
-        else if (reduce_mode == cldnn::reduce_mode::prod)
+        } else if (reduce_mode == cldnn::reduce_mode::prod) {
             acc = acc * input_val;
-        else if (reduce_mode == cldnn::reduce_mode::logical_and)
+        } else if (reduce_mode == cldnn::reduce_mode::logical_and) {
             acc = acc && input_val;
-        else if (reduce_mode == cldnn::reduce_mode::logical_or)
+        } else if (reduce_mode == cldnn::reduce_mode::logical_or) {
             acc = acc || input_val;
-        else if (reduce_mode == cldnn::reduce_mode::sum_square) {
+        } else if (reduce_mode == cldnn::reduce_mode::sum_square) {
             if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
-        }
-        else if (reduce_mode == cldnn::reduce_mode::l1)
+        } else if (reduce_mode == cldnn::reduce_mode::l1) {
             acc += abs(input_val);
-        else if (reduce_mode == cldnn::reduce_mode::l2) {
+        } else if (reduce_mode == cldnn::reduce_mode::l2) {
             if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
-        }
-        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
+        } else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
             if (sum_only)
                 acc += input_val;
             else
@@ -538,9 +536,9 @@ public:
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
-        network->execute();
+        auto outputs = network->execute();
 
-        auto out_mem = network->get_output("reduce").get_memory();
+        auto out_mem = outputs.at("reduce").get_memory();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
@@ -1834,7 +1832,7 @@ TEST(reduce_gpu, reduce_min_max_default_output_element_type_should_be_same_to_in
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 2, 2}});
-    set_values(input, {1, 1, 1, 1});
+    set_values<int8_t>(input, {1, 1, 1, 1});
 
     topology topology1(
         input_layout("input", input->get_layout()),
@@ -1972,9 +1970,9 @@ public:
             cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
             network->set_input_data("input", input_mem);
 
-            network->execute();
+            auto outputs = network->execute();
 
-            auto out_mem = network->get_output("reduce").get_memory();
+            auto out_mem = outputs.at("reduce").get_memory();
             cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
@@ -2132,9 +2130,9 @@ public:
         network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
-        network.execute();
+        auto outputs = network.execute();
 
-        auto out_mem = network.get_output("reduce").get_memory();
+        auto out_mem = outputs.at("reduce").get_memory();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 

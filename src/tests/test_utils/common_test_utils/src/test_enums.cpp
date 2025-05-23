@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,9 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
         break;
     case ov::test::utils::EltwiseTypes::FLOOR_MOD:
         os << "FloorMod";
+        break;
+    case ov::test::utils::EltwiseTypes::FLOOR:
+        os << "Floor";
         break;
     case ov::test::utils::EltwiseTypes::MOD:
         os << "Mod";

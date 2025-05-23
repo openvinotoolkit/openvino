@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,7 @@ public:
     bool has_evaluate() const override;
 
     std::string get_destination_type() const;
+    void set_destination_type(ov::element::Type destination_type);
     const ov::element::Type& get_destination_element_type() const;
 
 private:

@@ -41,6 +41,3 @@ facebook/opt-125m,https://huggingface.co/facebook/opt-125m
 facebook/opt-350m,https://huggingface.co/facebook/opt-350m
 katuni4ka/tiny-random-chatglm2,https://huggingface.co/katuni4ka/tiny-random-chatglm2
 katuni4ka/tiny-random-glm4,https://huggingface.co/katuni4ka/tiny-random-glm4
-hf-internal-testing/tiny-random-BioGptForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BioGptForCausalLM,xfail,No ScaledDotProductAttention operation observed in the graph CVS-145820
-hf-internal-testing/tiny-random-XGLMForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-XGLMForCausalLM,xfail,No ScaledDotProductAttention operation observed in the graph CVS-145820
-katuni4ka/tiny-random-orion,https://huggingface.co/katuni4ka/tiny-random-orion,xfail,No ScaledDotProductAttention operation observed in the graph CVS-145820

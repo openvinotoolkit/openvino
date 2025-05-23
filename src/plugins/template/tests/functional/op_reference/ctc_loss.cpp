@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ private:
                                                                params.preprocessCollapseRepeated,
                                                                params.ctcMergeRepeated,
                                                                params.unique);
-        return std::make_shared<ov::Model>(NodeVector{ctcLoss}, ParameterVector{A, B, C, D, E});
+        return std::make_shared<ov::Model>(OutputVector{ctcLoss}, ParameterVector{A, B, C, D, E});
     }
 };
 

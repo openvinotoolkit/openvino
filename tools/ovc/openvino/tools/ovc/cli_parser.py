@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -10,7 +10,7 @@ from collections import OrderedDict, namedtuple
 from typing import List, Union
 
 import openvino
-from openvino.runtime import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
+from openvino import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape, is_shape_type
@@ -623,7 +623,7 @@ def depersonalize(value: str, key: str):
 
 
 def get_available_front_ends(fem=None):
-    # Use this function as workaround to avoid IR frontend usage by MO
+    # Use this function as workaround to avoid IR frontend usage by OVC
     if fem is None:
         return []
     available_moc_front_ends = fem.get_available_front_ends()

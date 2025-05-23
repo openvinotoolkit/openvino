@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rope_kernel.hpp"
 
+#include <memory>
+
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(jit_rotary_call_args, field)
 
@@ -29,9 +29,7 @@ void jit_rotary_kernel<isa>::generate() {
         //      0-2        4-6        8-10       12-14
         // higher 64bit/128 lane
         //           16-18      20-22      24-26       28-30
-        static const uint64_t mask_zmm[] = {
-            0, 4, 1, 5, 2, 6, 3, 7
-        };
+        static const uint64_t mask_zmm[] = {0, 4, 1, 5, 2, 6, 3, 7};
         if (isa == cpu_isa_t::avx512_core) {
             mov(reg_tmp, reinterpret_cast<uintptr_t>(mask_zmm));
             uni_vmovups(vmm_idx, ptr[reg_tmp]);
@@ -54,8 +52,9 @@ void jit_rotary_kernel<isa>::generate() {
     }
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 
@@ -106,7 +105,7 @@ void jit_rotary_kernel<isa>::rotary_interleave(size_t step) {
     // }
     load(vmm_src0, reg_src, m_jcp.src_prc, step, false);
     load(vmm_src1, reg_src, m_jcp.src_prc, step, false, step * m_jcp.src_prc.size());
-    auto deinterlace = [&] (const Vmm& src0, const Vmm& src1, const Vmm& tmp0, const Vmm& tmp1) {
+    auto deinterlace = [&](const Vmm& src0, const Vmm& src1, const Vmm& tmp0, const Vmm& tmp1) {
         if (isa == cpu_isa_t::avx2) {
             // src0: 0 1  2  3  4  5  6  7
             // src1: 8 9 10 11 12 13 14 15
@@ -186,28 +185,46 @@ void jit_rotary_kernel<isa>::rotary_interleave(size_t step) {
 }
 
 template <cpu_isa_t isa>
-void jit_rotary_kernel<isa>::load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, const int& elt_num, bool fill, size_t offset) {
+void jit_rotary_kernel<isa>::load(const Vmm& vmm_dst,
+                                  const Xbyak::Reg64& reg_src,
+                                  ov::element::Type src_prc,
+                                  const int& elt_num,
+                                  bool fill,
+                                  size_t offset) {
     const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
     }
-    emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset}, {static_cast<size_t>(vmm_dst.getIdx())},
-                                pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+    emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
+                              {static_cast<size_t>(vmm_dst.getIdx())},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
 }
 
 template <cpu_isa_t isa>
-void jit_rotary_kernel<isa>::store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num, size_t offset) {
+void jit_rotary_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
+                                   const Vmm& vmm_src,
+                                   ov::element::Type dst_prc,
+                                   const int& elt_num,
+                                   size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
     }
-    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx()), offset},
-                                pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
+                              {static_cast<size_t>(reg_dst.getIdx()), offset},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
 }
 
 template struct jit_rotary_kernel<cpu_isa_t::avx512_core>;
 template struct jit_rotary_kernel<cpu_isa_t::avx2>;
 
-}   // namespace kernel
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::kernel

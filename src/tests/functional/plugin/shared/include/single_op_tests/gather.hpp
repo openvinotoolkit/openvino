@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,10 @@ TEST_P(Gather8withIndicesDataLayerTest, Inference) {
 };
 
 TEST_P(GatherStringWithIndicesDataLayerTest, Inference) {
+    run();
+};
+
+TEST_P(GatherMixedPrecLayerTest, Inference) {
     run();
 };
 

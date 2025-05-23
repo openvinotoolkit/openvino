@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gmock/gmock.h>
@@ -7,7 +7,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
 
 using namespace ov;

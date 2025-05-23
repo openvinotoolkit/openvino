@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -30,6 +30,7 @@ class TestCdist(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("p", [2., 4., 6., 8.,])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -62,6 +63,7 @@ class TestPairwiseDistance(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("p", [2., 4., 6., 8.,])
     @pytest.mark.parametrize("eps", [1e-06, 0.00001, 1e-07])
     @pytest.mark.parametrize("keepdim", [True, False])

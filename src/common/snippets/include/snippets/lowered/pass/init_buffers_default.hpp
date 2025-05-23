@@ -19,7 +19,7 @@ namespace pass {
 
 class InitBuffersDefault : public RangedPass {
 public:
-    OPENVINO_RTTI("InitBuffersDefault", "RangedPass")
+    OPENVINO_RTTI("InitBuffersDefault", "", RangedPass);
 
     InitBuffersDefault(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
         m_buffer_scratchpad_size = 0;

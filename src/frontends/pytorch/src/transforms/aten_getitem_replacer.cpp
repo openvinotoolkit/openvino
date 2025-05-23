@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -124,7 +125,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto gather = rg.make<v8::Gather>(input_concat, getitem_idx, zero);
                 replace_node(getitem, gather);
             }
-        } else if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
+        } else if (auto chunk = cast_fw_node(input_node, {"aten::chunk", "aten::unsafe_chunk"})) {
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim_i32 = chunk->get_input_source_output(2);

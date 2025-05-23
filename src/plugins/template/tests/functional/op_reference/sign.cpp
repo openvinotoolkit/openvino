@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto sign = std::make_shared<op::v0::Sign>(in);
-        return std::make_shared<ov::Model>(NodeVector{sign}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{sign}, ParameterVector{in});
     }
 };
 

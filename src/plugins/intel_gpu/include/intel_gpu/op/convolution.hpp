@@ -6,9 +6,7 @@
 
 #include "openvino/op/util/convolution_base.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 // Common node for v1::Convolution and v1::GroupConvolution with few extensions
 //  - Relaxed type requirements
@@ -68,7 +66,7 @@ public:
 protected:
     int64_t m_groups = -1; // negative value means no groups
     bool m_asymmetric = false;
-    ov::element::Type m_output_type = ov::element::undefined;
+    ov::element::Type m_output_type = ov::element::dynamic;
 };
 
 std::vector<ov::PartialShape> shape_infer(const Convolution* op,
@@ -76,6 +74,4 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
                                           CoordinateDiff& pads_begin,
                                           CoordinateDiff& pads_end);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

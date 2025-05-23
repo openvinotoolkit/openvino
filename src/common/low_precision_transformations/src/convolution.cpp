@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,10 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {
@@ -39,7 +43,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -62,10 +66,10 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
     return channels.get_length();
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!canConvolutionBeTransformed(context, convolution, defaultPrecisions)) {
+    if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -97,7 +101,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
     auto newFQ = std::get<1>(res_tuple);
     auto dequantize = std::get<2>(res_tuple);
     if (newFQ != nullptr && dequantize != nullptr)
-        updateOutput(context, dequantize, newFQ);
+        updateOutput(dequantize, newFQ);
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
@@ -177,19 +181,21 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
                 dequantization.multiplyConstant->cast_vector<float>()[0]);
         }
 
-        const auto copyNode = convolution->clone_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) });
-        auto conv = ov::as_type_ptr<ov::opset1::Convolution>(copyNode);
+        const auto copyNode =
+            convolution->clone_with_new_inputs({dequantization.multiply->input_value(0), convolution->input_value(1)});
         std::shared_ptr<Node> relaxedNewConvolution;
-        if (conv) {
+        if (const auto conv = ov::as_type_ptr<ov::opset1::Convolution>(copyNode)) {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                    *conv,
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
-        } else {
+                *conv,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
+        } else if (const auto groupConv = ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode)) {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-                    *ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode),
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
+                *groupConv,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
+        } else {
+            OPENVINO_THROW("Unexpected conv op type");
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
@@ -338,7 +344,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolution);
+    updateOutput(finalDequantization, convolution);
 
     const auto onActiviation = convolution->get_input_node_shared_ptr(0);
     if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {

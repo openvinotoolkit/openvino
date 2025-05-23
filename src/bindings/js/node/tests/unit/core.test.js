@@ -5,12 +5,13 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Core tests', () => {
+  const { testModelFP32 } = testModels;
   let core = null;
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
+    await isModelAvailable(testModelFP32);
   });
 
   beforeEach(() => {
@@ -95,7 +96,7 @@ describe('ov.Core tests', () => {
   });
 
   it('Core.queryModel() with incorrect arguments should throw an error', () => {
-    const model = core.readModelSync(getModelPath().xml);
+    const model = core.readModelSync(testModelFP32.xml);
     assert.throws(
       () => core.queryModel(model, 'arg1', 'arg2').then(),
       /'queryModel' method called with incorrect parameters./,
@@ -103,7 +104,7 @@ describe('ov.Core tests', () => {
   });
 
   it('Core.queryModel() should have device in the result values', () => {
-    const model = core.readModelSync(getModelPath().xml);
+    const model = core.readModelSync(testModelFP32.xml);
     const device = 'CPU';
     const queryModel = core.queryModel(model, device);
     assert(Object.values(queryModel).includes(device));

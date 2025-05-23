@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cassert>
+
 #include "snippets/lowered/expression.hpp"
 
 #include "snippets/itt.hpp"
@@ -28,20 +30,20 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
 }
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
-    OPENVINO_ASSERT(i < m_input_port_connectors.size(), "Failed to get input port connector: target input port must be less than input count!");
+    assert(i < m_input_port_connectors.size() && "Failed to get input port connector: target input port must be less than input count!");
     return m_input_port_connectors[i];
 }
 const PortConnectorPtr& Expression::get_output_port_connector(size_t i) const {
-    OPENVINO_ASSERT(i < m_output_port_connectors.size(), "Failed to get output port connector: target output port must be less than output count!");
+    assert(i < m_output_port_connectors.size() && "Failed to get output port connector: target output port must be less than output count!");
     return m_output_port_connectors[i];
 }
 
 const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
-    OPENVINO_ASSERT(i < m_input_port_descriptors.size(), "Failed to get input port descriptor: target input port must be less than input count!");
+    assert(i < m_input_port_descriptors.size() && "Failed to get input port descriptor: target input port must be less than input count!");
     return m_input_port_descriptors[i];
 }
 const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const {
-    OPENVINO_ASSERT(i < m_output_port_descriptors.size(), "Failed to get output port descriptor: target output port must be less than output count!");
+    assert(i < m_output_port_descriptors.size() && "Failed to get output port descriptor: target output port must be less than output count!");
     return m_output_port_descriptors[i];
 }
 
@@ -170,25 +172,7 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor &visitor) {
-    auto is_planar_layout = [](const std::vector<size_t>& layout) {
-        for (size_t i = 0; i < layout.size(); ++i)
-            if (layout[i] != i) return false;
-        return true;
-    };
-    auto subtensor2str = [](const VectorDims& subtensor) {
-        std::stringstream ss;
-        for (size_t i = 0; i < subtensor.size(); ++i) {
-            const auto& v = subtensor[i];
-            const auto v_str = utils::is_full_dim_value(v) ? "FULL_DIM" :
-                               utils::is_dynamic_value(v)  ? "?" : std::to_string(v);
-            const auto del = i < subtensor.size() - 1 ? ", " : "";
-            ss << v_str << del;
-        }
-        return ss.str();
-    };
-
-    std::vector<size_t> in_regs, out_regs;
-    std::vector<std::string> in_reg_types, out_reg_types;
+    std::ostringstream in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
     std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
@@ -200,14 +184,13 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
 
         const auto& subtensor = desc->get_subtensor();
         if (!subtensor.empty())
-            subtensors.emplace_back("in_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+            subtensors.emplace_back("in_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
-        if (!layout.empty() && !is_planar_layout(layout))
+        if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("in_layout_" + std::to_string(i), layout);
 
-        in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
-        in_regs.emplace_back(desc->get_reg().idx);
+        in_regs << desc->get_reg() << " ";
     }
     for (size_t i = 0; i < get_output_count(); i++) {
         const auto& desc = m_output_port_descriptors[i];
@@ -217,23 +200,22 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
 
         const auto& subtensor = desc->get_subtensor();
         if (!subtensor.empty())
-            subtensors.emplace_back("out_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+            subtensors.emplace_back("out_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
-        if (!layout.empty() && !is_planar_layout(layout))
+        if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("out_layout_" + std::to_string(i), layout);
 
-        out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
-        out_regs.emplace_back(desc->get_reg().idx);
+        out_regs << desc->get_reg() << " ";
     }
 
-    if (!in_regs.empty()) {
-        visitor.on_attribute("in_regs", in_regs);
-        visitor.on_attribute("in_reg_types", in_reg_types);
+    if (!in_regs.str().empty()) {
+        std::vector<std::string> tmp {in_regs.str()};
+        visitor.on_attribute("in_regs", tmp);
     }
-    if (!out_regs.empty()) {
-        visitor.on_attribute("out_regs", out_regs);
-        visitor.on_attribute("out_reg_types", out_reg_types);
+    if (!out_regs.str().empty()) {
+        std::vector<std::string> tmp {out_regs.str()};
+        visitor.on_attribute("out_regs", tmp);
     }
     for (auto& s : shapes)
         visitor.on_attribute(s.first, s.second);

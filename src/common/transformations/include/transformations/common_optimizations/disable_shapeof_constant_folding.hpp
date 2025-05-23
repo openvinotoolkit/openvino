@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API DisableShapeOfConstantFolding;
 
 class ov::pass::DisableShapeOfConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableShapeOfConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DisableShapeOfConstantFolding");
     explicit DisableShapeOfConstantFolding(bool check_shape = true);
 };

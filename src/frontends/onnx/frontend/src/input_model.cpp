@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,9 @@ InputModel::InputModel(std::istream& model_stream,
                        frontend::ExtensionHolder extensions)
     : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
+
+InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
@@ -238,7 +241,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -394,7 +397,7 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&place](ov::frontend::Place::Ptr const& output) {
+                                     [&place](const ov::frontend::Place::Ptr& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());

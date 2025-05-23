@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/constant.hpp"
-#include "ov_optional.hpp"
 
 namespace ov {
 namespace util {
@@ -15,7 +16,7 @@ template <typename T>
 OPENVINO_API Tensor greater_equal(const ov::Tensor& lhs, const T& element);
 OPENVINO_API bool reduce_and(const ov::Tensor& t);
 template <typename T>
-OPENVINO_API ov::optional<std::vector<T>> to_vector(const ov::Tensor& t);
+OPENVINO_API std::optional<std::vector<T>> to_vector(const ov::Tensor& t);
 
 template <typename T>
 Tensor make_tensor_of_value(const element::Type_t& et, const T& value, Shape shape = {}) {
@@ -34,8 +35,8 @@ Tensor greater_equal(const ov::Tensor& lhs, const T& element) {
 }
 
 template <typename T>
-ov::optional<std::vector<T>> to_vector(const ov::Tensor& t) {
-    ov::optional<std::vector<T>> result;
+std::optional<std::vector<T>> to_vector(const ov::Tensor& t) {
+    std::optional<std::vector<T>> result;
     if (t)
         result = ov::op::v0::Constant(t).cast_vector<T>();
     return result;

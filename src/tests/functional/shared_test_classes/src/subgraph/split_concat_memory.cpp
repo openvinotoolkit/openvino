@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace test {
@@ -79,9 +82,8 @@ void SplitConcatMemory::SetUp() {
     mem_w->add_control_dependency(mem_r);
     plus->add_control_dependency(mem_w);
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{plus}, ov::ParameterVector{input}, "CyclicBuffer4");
+    function = std::make_shared<ov::Model>(ov::OutputVector{plus}, ov::ParameterVector{input}, "CyclicBuffer4");
 }
 
 }  // namespace test
 }  // namespace ov
-

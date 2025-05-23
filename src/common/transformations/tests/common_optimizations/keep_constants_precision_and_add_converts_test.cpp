@@ -7,7 +7,8 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
@@ -23,7 +24,7 @@ TEST_F(TransformationTestsF, KeepConstantsPrecisionAndAddConvertsTestBase) {
         auto weights = Constant::create(element::f32, Shape{1, 2, 2}, {1});
         auto matmul = std::make_shared<MatMul>(input, weights);
 
-        model = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{input});
 
         manager.register_pass<pass::KeepConstantsPrecisionAndAddConverts>();
         manager.get_pass_config()->set_callback<pass::KeepConstantsPrecisionAndAddConverts>(
@@ -46,7 +47,7 @@ TEST_F(TransformationTestsF, KeepConstantsPrecisionAndAddConvertsTestBase) {
         auto convert_weights = std::make_shared<Convert>(weights, element::f16);
         auto matmul = std::make_shared<MatMul>(input, convert_weights);
 
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{input});
     }
 }
 
@@ -58,7 +59,7 @@ TEST_F(TransformationTestsF, KeepConstantsPrecisionAndAddConvertsTestWithCompres
         mark_as_decompression(convert_weights);
         auto matmul = std::make_shared<MatMul>(input, convert_weights);
 
-        model = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{input});
 
         manager.register_pass<pass::KeepConstantsPrecisionAndAddConverts>();
         manager.get_pass_config()->set_callback<pass::KeepConstantsPrecisionAndAddConverts>(
@@ -81,6 +82,6 @@ TEST_F(TransformationTestsF, KeepConstantsPrecisionAndAddConvertsTestWithCompres
         auto convert_weights = std::make_shared<Convert>(weights, element::f16);
         auto matmul = std::make_shared<MatMul>(input, convert_weights);
 
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{input});
     }
 }

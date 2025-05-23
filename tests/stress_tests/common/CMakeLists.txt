@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,6 @@ file (GLOB_RECURSE HDR *.h)
 
 add_library(${TARGET_NAME} STATIC ${SRC} ${HDR})
 
-include(${OpenVINO_SOURCE_DIR}cmake/developer_package/compile_flags/os_flags.cmake)
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags

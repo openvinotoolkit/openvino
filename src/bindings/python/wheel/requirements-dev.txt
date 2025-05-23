@@ -1,4 +1,5 @@
 -c ../constraints.txt
 setuptools
 wheel
+build
 patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'

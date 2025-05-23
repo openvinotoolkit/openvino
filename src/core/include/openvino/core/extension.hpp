@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
 #define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
@@ -24,6 +25,8 @@ class Extension;
  */
 class OPENVINO_API Extension {
 public:
+    OPENVINO_RTTI_BASE("Extension")
+
     using Ptr = std::shared_ptr<Extension>;
 
     virtual ~Extension();
@@ -37,15 +40,15 @@ public:
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
- * @param vector of extensions
+ * @param ext of extensions
  */
 OPENVINO_EXTENSION_C_API
-void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>&);
+void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext);
 
 /**
  * @brief Macro generates the entry point for the library
  *
- * @param vector of extensions
+ * @param ext of extensions
  */
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                                               \
     OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext); \

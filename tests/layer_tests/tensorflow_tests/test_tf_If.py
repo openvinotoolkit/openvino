@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import platform
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+
+rng = np.random.default_rng(32345)
 
 
 class TestIfFloat(CommonTFLayerTest):
@@ -18,9 +18,9 @@ class TestIfFloat(CommonTFLayerTest):
         x_shape = inputs_info['x:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond:0'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.float32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['x:0'] = rng.integers(1, 10, x_shape).astype(np.float32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, x_shape, y_shape, lower_control_flow):
@@ -69,15 +69,11 @@ class TestIfFloat(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestIfInt(CommonTFLayerTest):
@@ -89,9 +85,9 @@ class TestIfInt(CommonTFLayerTest):
         ind_shape = inputs_info['ind:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond:0'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['ind:0'] = np.random.randint(1, 10, ind_shape).astype(np.int32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['ind:0'] = rng.integers(1, 10, ind_shape).astype(np.int32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, ind_shape, y_shape, lower_control_flow):
@@ -141,15 +137,11 @@ class TestIfInt(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestNestedIf(CommonTFLayerTest):
@@ -161,9 +153,9 @@ class TestNestedIf(CommonTFLayerTest):
         y_shape = inputs_info['y:0']
         z_shape = inputs_info['z:0']
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(0, 6, x_shape).astype(np.int32)
-        inputs_data['y:0'] = np.random.randint(1, 10, y_shape).astype(np.float32)
-        inputs_data['z:0'] = np.random.randint(-50, 50, z_shape).astype(np.float32)
+        inputs_data['x:0'] = rng.integers(0, 6, x_shape).astype(np.int32)
+        inputs_data['y:0'] = rng.integers(1, 10, y_shape).astype(np.float32)
+        inputs_data['z:0'] = rng.integers(-50, 50, z_shape).astype(np.float32)
         return inputs_data
 
     def create_if_net(self, y_shape, z_shape, lower_control_flow):
@@ -221,15 +213,11 @@ class TestNestedIf(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSequantialIfs(CommonTFLayerTest):
@@ -241,9 +229,9 @@ class TestSequantialIfs(CommonTFLayerTest):
         x_shape = inputs_info['x:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['cond:0'] = np.random.randint(0, 2, cond_shape).astype(bool)
-        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.float32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['cond:0'] = rng.integers(0, 2, cond_shape).astype(bool)
+        inputs_data['x:0'] = rng.integers(1, 10, x_shape).astype(np.float32)
+        inputs_data['y:0'] = rng.integers(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_sequential_ifs_net(self, x_shape, y_shape, lower_control_flow):
@@ -313,12 +301,8 @@ class TestSequantialIfs(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
-            pytest.xfail('104855')
+            pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_sequential_ifs_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

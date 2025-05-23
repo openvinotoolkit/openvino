@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
     RMSNorm(const Output<Node>& data,
             const Output<Node>& axes,
             double epsilson,
-            const ov::element::Type& compute_type = ov::element::undefined);
+            const ov::element::Type& compute_type = ov::element::dynamic);
 
     /// \brief Constructs an RMSNorm operation with scaling.
     ///
@@ -40,7 +40,7 @@ public:
             const Output<Node>& axes,
             const Output<Node>& scale,
             double epsilson,
-            const ov::element::Type& compute_type = ov::element::undefined);
+            const ov::element::Type& compute_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -51,7 +51,7 @@ public:
 
 private:
     double m_epsilon{0};
-    ov::element::Type m_compute_type{ov::element::undefined};
+    ov::element::Type m_compute_type{ov::element::dynamic};
 };
 
 }  // namespace internal

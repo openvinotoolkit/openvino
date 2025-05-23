@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/markup_can_be_quantized.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -14,6 +13,10 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace ov;
 
@@ -36,25 +39,25 @@ bool ov::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shar
             continue;
         }
 
-        if (const auto convolution = std::dynamic_pointer_cast<ov::opset1::Convolution>(node)) {
+        if (const auto convolution = ov::as_type_ptr<ov::opset1::Convolution>(node)) {
             if (!ConvolutionTransformation::isQuantizedStatic(convolution, defaultPrecisions)) {
                 setEmptyPrecisions(convolution);
             }
             continue;
         }
-        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ov::opset1::ConvolutionBackpropData>(node)) {
+        if (const auto convolutionBackpropData = ov::as_type_ptr<ov::opset1::ConvolutionBackpropData>(node)) {
             if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData, defaultPrecisions)) {
                 setEmptyPrecisions(convolutionBackpropData);
             }
             continue;
         }
-        if (const auto groupConvolution = std::dynamic_pointer_cast<ov::opset1::GroupConvolution>(node)) {
+        if (const auto groupConvolution = ov::as_type_ptr<ov::opset1::GroupConvolution>(node)) {
             if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution, defaultPrecisions)) {
                 setEmptyPrecisions(groupConvolution);
             }
             continue;
         }
-        if (const auto concat = std::dynamic_pointer_cast<ov::opset1::Concat>(node)) {
+        if (const auto concat = ov::as_type_ptr<ov::opset1::Concat>(node)) {
             if (!ConcatTransformation::isQuantizedStatic(concat)) {
                 setEmptyPrecisions(concat);
             }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,8 @@ layout activation_inst::calc_output_layout(activation_node const& node, kernel_i
         activation_func::negation,
         activation_func::relu,
         activation_func::floor,
-        activation_func::clamp };
+        activation_func::clamp,
+        activation_func::abs };
 
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32) {

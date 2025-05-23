@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,13 +45,27 @@ void RoPE::validate_and_infer_types() {
     }
 
     if (m_config.is_chatglm) {
-        // chatGLM specific RoPE
-        // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
-        // output [length, batch_size, head_cnt, hidden_states_k]
-        set_output_type(
-            0,
-            get_input_element_type(0),
-            {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
+        if (m_config.support_2d_rope) {
+            // chatGLM specific RoPE
+            // input  [batch_size, length, (hidden_states_q + hidden_states_k + hidden_states_v)]
+            // output [batch_size, head_cnt, length, hidden_states_k]
+            set_output_type(0,
+                            get_input_element_type(0),
+                            {input_pshape[0],
+                             ov::Dimension(m_config.head_cnt),
+                             input_pshape[1],
+                             ov::Dimension(m_config.head_size)});
+        } else {
+            // chatGLM specific RoPE
+            // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
+            // output [length, batch_size, head_cnt, hidden_states_k]
+            set_output_type(0,
+                            get_input_element_type(0),
+                            {input_pshape[0],
+                             input_pshape[1],
+                             ov::Dimension(m_config.head_cnt),
+                             ov::Dimension(m_config.head_size)});
+        }
         return;
     }
 
@@ -62,7 +76,7 @@ void RoPE::validate_and_infer_types() {
     if (m_config.input_trans0213) {
         // transpose 0213 ([B,L,H,S]=>[B,H,L,S]) happens before RoPE
         std::swap(input_pshape[2], input_pshape[1]);
-    } else if (m_config.is_interleaved) {
+    } else if (m_config.output_trans0213) {
         // transpose 0213 ([B,L,H,S]=>[B,H,L,S]) happens after RoPE
         std::swap(input_pshape[2], input_pshape[1]);
     }
@@ -76,9 +90,11 @@ bool RoPE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("slice_start", m_config.slice_start);
     visitor.on_attribute("slice_stop", m_config.slice_stop);
     visitor.on_attribute("input_trans0213", m_config.input_trans0213);
+    visitor.on_attribute("output_trans0213", m_config.output_trans0213);
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
     visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
     visitor.on_attribute("is_chatglm", m_config.is_chatglm);
+    visitor.on_attribute("support_2d_rope", m_config.support_2d_rope);
     visitor.on_attribute("is_qwen", m_config.is_qwen);
     visitor.on_attribute("head_cnt", m_config.head_cnt);
     visitor.on_attribute("head_size", m_config.head_size);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ OutputVector translate_fft_op(const NodeContext& node) {
         node,
         complex_type_mark,
         "[TensorFlow Frontend] internal error: ComplexTypeMark is not set to input for " + op_type);
-    auto data = complex_type_mark->input_value(0);
+    auto data = complex_type_mark->get_data();
     auto complex_part_type = complex_type_mark->get_complex_part_type();
 
     // compute a number of inner-most dimensions

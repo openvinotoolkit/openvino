@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/async_infer_queue.hpp"
@@ -166,7 +166,7 @@ public:
 
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
-    cls.doc() = "openvino.runtime.AsyncInferQueue represents a helper that creates a pool of asynchronous"
+    cls.doc() = "openvino.AsyncInferQueue represents a helper that creates a pool of asynchronous"
                 "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
     cls.def(py::init<ov::CompiledModel&, size_t>(),
@@ -176,11 +176,11 @@ void regclass_AsyncInferQueue(py::module m) {
                 Creates AsyncInferQueue.
 
                 :param model: Model to be used to create InferRequests in a pool.
-                :type model: openvino.runtime.CompiledModel
+                :type model: openvino.CompiledModel
                 :param jobs: Number of InferRequests objects in a pool. If 0, jobs number
                 will be set automatically to the optimal number. Default: 0
                 :type jobs: int
-                :rtype: openvino.runtime.AsyncInferQueue
+                :rtype: openvino.AsyncInferQueue
             )");
 
     // Overload for single input, it will throw error if a model has more than one input.
@@ -216,7 +216,7 @@ void regclass_AsyncInferQueue(py::module m) {
 
             :param inputs: Data to set on single input tensor of next available InferRequest from
             AsyncInferQueue's pool.
-            :type inputs: openvino.runtime.Tensor
+            :type inputs: openvino.Tensor
             :param userdata: Any data that will be passed to a callback
             :type userdata: Any
             :rtype: None
@@ -262,7 +262,7 @@ void regclass_AsyncInferQueue(py::module m) {
 
             :param inputs: Data to set on input tensors of next available InferRequest from
             AsyncInferQueue's pool.
-            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: dict[Union[int, str, openvino.ConstOutput] : openvino.Tensor]
             :param userdata: Any data that will be passed to a callback
             :rtype: None
 
@@ -348,7 +348,7 @@ void regclass_AsyncInferQueue(py::module m) {
         :param i: InferRequest id
         :type i: int
         :return: InferRequests from the pool with given id.
-        :rtype: openvino.runtime.InferRequest
+        :rtype: openvino.InferRequest
     )");
 
     cls.def_property_readonly(

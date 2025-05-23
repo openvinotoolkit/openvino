@@ -23,6 +23,7 @@ module.exports = {
     'key-spacing': ['error', { beforeColon: false }],
     'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
     'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
+    'prefer-destructuring': ["error", { "object": true, "array": false }],
     '@typescript-eslint/no-var-requires': 0,
   }
 };

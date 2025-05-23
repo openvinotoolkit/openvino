@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -52,6 +52,7 @@ class TestROIAlign(PytorchLayerTest):
     @pytest.mark.parametrize('aligned', (True, False))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_roi_align(self, ie_device, precision, ir_version, input_shape, boxes, output_size,
                        spatial_scale, sampling_ratio, aligned):

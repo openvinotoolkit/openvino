@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,103 +22,109 @@ namespace ov {
 class Node;
 /// \brief Alias for symbol tensor.
 using TensorSymbol = std::vector<std::shared_ptr<Symbol>>;
-/// \brief Alias for vector of symbol tensors.
 
+/// \brief Alias for vector of symbol tensors.
 using TensorSymbolVector = std::vector<TensorSymbol>;
 
-namespace pass {
-class ReverseShapeAndTypeInfer;
-}
+/// \brief Alias for set of tensor names.
+using TensorNames = std::unordered_set<std::string>;
 namespace descriptor {
-
-class Tensor;
+class ITensorDescriptor;
 
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
+    /// \brief Creates Tensor descriptor
+    /// \param element_type Element type
+    /// \param pshape       Partial shape of tensor
+    /// \param names        Tensor names (optional default empty).
     Tensor(const element::Type& element_type,
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
+
+    OPENVINO_DEPRECATED("This constructor is deprecated. Will be removed in 2026.0")
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
+    /// \brief Gets any tensor name.
+    /// Throws if tensor has no names.
     const std::string& get_any_name() const;
+
+    /// \brief Gets tensor names
     const std::unordered_set<std::string>& get_names() const;
+
+    /// \brief Set new names.
+    /// \param names Names to set.
     void set_names(const std::unordered_set<std::string>& names);
+
+    /// \brief Adds new names to tensor.
+    /// \param names new names to be added.
     void add_names(const std::unordered_set<std::string>& names);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);
+
     /// \brief sets upper bound value description
     void set_upper_value(const ov::Tensor& value);
+
     /// \brief sets value symbol description
     void set_value_symbol(const TensorSymbol& value_symbol);
+
     /// \brief unsets bound value descriptions
     void invalidate_values();
 
-    const element::Type& get_element_type() const {
-        return m_element_type;
-    }
+    /// \brief Gets element type.
+    const element::Type& get_element_type() const;
+
+    /// \brief Gets shape.
+    /// Throw if Tensor's shape is not static.
     const Shape& get_shape() const;
-    const PartialShape& get_partial_shape() const {
-        return m_partial_shape;
-    }
+
+    /// \brief Gets partial shape.
+    const PartialShape& get_partial_shape() const;
+
     /// \brief gets lower bound value description
-    const ov::Tensor& get_lower_value() const {
-        return m_lower_value;
-    }
+    const ov::Tensor& get_lower_value() const;
+
     /// \brief gets upper bound value description
-    const ov::Tensor& get_upper_value() const {
-        return m_upper_value;
-    }
+    const ov::Tensor& get_upper_value() const;
+
     /// \brief gets symbol value description
-    TensorSymbol get_value_symbol() const {
-        return m_value_symbol;
-    }
+    TensorSymbol get_value_symbol() const;
+
     /// \brief checks if lower and upper bound are set and point to the same Tensor
-    bool has_and_set_bound() const {
-        return m_upper_value && m_lower_value && m_upper_value.data() == m_lower_value.data();
-    }
+    bool has_and_set_bound() const;
+
+    /// \brief Get Tensor size in bytes.
+    /// \return Size in bytes.
     size_t size() const;
 
-    RTMap& get_rt_info() {
-        return m_rt_info;
-    }
-    const RTMap& get_rt_info() const {
-        return m_rt_info;
-    }
+    /// \brief  Gets runtime informations.
+    /// \return Runtime information map which can be modified.
+    RTMap& get_rt_info();
 
-    void clone_from(const Tensor& old);
+    /// \brief  Gets runtime informations.
+    /// \return Read only runtime information map.
+    const RTMap& get_rt_info() const;
+
+    /// \brief  Clones Tensor from the other.
+    /// \param other  Tensor used to clone its properties.
+    void clone_from(const Tensor& other);
 
 protected:
-    element::Type m_element_type;
-
-    PartialShape m_partial_shape;
     ov::Tensor m_lower_value, m_upper_value;
     TensorSymbol m_value_symbol;
-    std::string m_legacy_name;
-
-    std::unordered_set<std::string> m_names;
-    std::unordered_set<std::string>::const_iterator m_name_it;
-    RTMap m_rt_info;
-
-    friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-    friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
-    friend OPENVINO_API void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
-    friend OPENVINO_API void set_tensor_type(Tensor& tensor,
-                                             const element::Type& element_type,
-                                             const PartialShape& pshape);
-    friend class pass::ReverseShapeAndTypeInfer;
+    std::shared_ptr<ITensorDescriptor> m_impl;
 
 private:
-    mutable std::atomic<bool> m_shape_changing{false};
-    mutable bool m_shape_changed{true};
-    mutable Shape m_shape;
+    // hidden extension API for Tensor descriptor
+    friend struct TensorExtension;
 };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream&, const ov::descriptor::Tensor&);
 }  // namespace descriptor
+
 }  // namespace ov

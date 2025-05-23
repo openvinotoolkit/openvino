@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,6 +189,11 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;
+    } else if (input_l == DataLayout::ybfx) {
+        dispatchData.gws[2] = input.Batch().v;
+        dispatchData.gws[1] = input.Feature().v;
+        dispatchData.gws[0] = input.Y().v*input.X().v;
+        dispatchData.lws = {1, 1, 1};
     } else if (input_l == DataLayout::byfx) {
         auto first_primary_axis_size = dispatchData.gws[0];  // X axis
         auto second_primiary_axis_size =  dispatchData.gws[1];  // YF axes
@@ -207,6 +212,8 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());
+    newParams.original_input_rank = params.original_input_rank;
+    newParams.original_output_rank = params.original_output_rank;
 
     DispatchData dispatchData;
 

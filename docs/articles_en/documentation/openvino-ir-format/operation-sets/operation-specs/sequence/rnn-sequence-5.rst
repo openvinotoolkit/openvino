@@ -14,7 +14,7 @@ RNNSequence
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in :doc:`RNNCell <rnn-cell-3>` operation. *RNNSequence* represents a sequence of RNN cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX RNN operator defined `RNNCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#rnn>`__.
+A single cell in the sequence is implemented in the same way as in :doc:`RNNCell <rnn-cell-3>` operation. *RNNSequence* represents a sequence of RNN cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX RNN operator defined `RNNCell <https://github.com/onnx/onnx/blob/main/docs/Operators.md#rnn>`__.
 
 
 **Attributes**

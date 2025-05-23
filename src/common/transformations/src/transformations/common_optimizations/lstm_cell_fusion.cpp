@@ -554,7 +554,7 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     auto ct_activated_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({ct_label});
     auto ht_label = pattern::wrap_type<ov::op::v1::Multiply>({ct_activated_label, ot_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         NodeRegistry rg;
 
         const auto& pattern_map = m.get_pattern_value_map();

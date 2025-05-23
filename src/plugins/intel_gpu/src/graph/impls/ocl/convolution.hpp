@@ -3,7 +3,7 @@
 //
 
 #include "convolution_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
 #include <memory>
@@ -55,7 +55,8 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             static const std::vector<format::type> supported_dyn_formats = {
                 format::bfyx,
                 format::bfzyx,
-                format::b_fs_yx_fsv16
+                format::b_fs_yx_fsv16,
+                format::b_fs_zyx_fsv16
             };
 
             if (!one_of(input_fmt.value, supported_dyn_formats) || !one_of(output_fmt.value, supported_dyn_formats))
