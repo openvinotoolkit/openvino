@@ -310,8 +310,8 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstPrecision");
     this->register_matcher(m, callback);
 }
-
-ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions, bool add_precision_sensitive_convert) {
+ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
+                                                                   bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
 
     auto input_pattern = any_input(pattern::type_matches_any(precisions));
