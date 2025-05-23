@@ -142,10 +142,10 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const bool blobAllocatedByPlugin,
                                  ze_graph_handle_t mainGraphHandle,
                                  NetworkMetadata mainMetadata,
-                                 std::optional<ov::Tensor>& mainBlob,
+                                 std::optional<ov::Tensor> mainBlob,
                                  const std::vector<ze_graph_handle_t>& initGraphHandles,
                                  std::vector<NetworkMetadata> initMetadata,
-                                 std::optional<std::vector<ov::Tensor>>& initBlobs,
+                                 std::optional<std::vector<ov::Tensor>> initBlobs,
                                  const std::shared_ptr<ov::Model>& model,
                                  const Config& config,
                                  const ov::SoPtr<ICompiler>& compiler)
@@ -234,7 +234,7 @@ void WeightlessGraph::initialize(const Config& config) {
         _logger.debug("Graph initialize start, init schedule ", initIndex);
 
         ze_graph_handle_t initHandle = _initHandles.at(initIndex);
-        std::optional<ov::Tensor>& initBlob = _initBlobs.at(initIndex);
+        ov::Tensor& initBlob = _initBlobs->at(initIndex);
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         std::shared_ptr<CommandQueue>& initCommandQueue = _initsCommandQueues.at(initIndex);

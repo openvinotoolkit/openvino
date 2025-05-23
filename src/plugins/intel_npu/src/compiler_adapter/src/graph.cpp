@@ -173,7 +173,7 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
     IGraph::set_workload_type(workloadType, _command_queue);
 }
 
-bool Graph::release_blob(const Config& config, std::optional<ov::Tensor>& blob, ze_graph_handle_t handle) {
+bool Graph::release_blob(const Config& config, std::optional<ov::Tensor> blob, ze_graph_handle_t handle) {
     if (!_blobAllocatedByPlugin) {
         return false;
     }

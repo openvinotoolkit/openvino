@@ -12,8 +12,7 @@ class ICompilerAdapter {
 public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                             const Config& config) const = 0;
-    virtual std::vector<std::shared_ptr<IGraph>> compileWS(const std::shared_ptr<ov::Model>& model,
-                                                           const Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const = 0;
     virtual std::shared_ptr<IGraph> parse(ov::Tensor mainBlob,
                                           std::vector<ov::Tensor> initBlobs,
                                           const bool blobAllocatedByPlugin,

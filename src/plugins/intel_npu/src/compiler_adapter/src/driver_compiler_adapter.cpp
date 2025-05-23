@@ -372,8 +372,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    config);
 }
 
-std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                                      const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+                                                         const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -452,27 +452,21 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
         }
     }
 
-    std::vector<std::shared_ptr<IGraph>> graphs;
-    for (size_t handleIndex = 0; handleIndex < initGraphHandles.size(); ++handleIndex) {
-        graphs.push_back(std::make_shared<Graph>(_zeGraphExt,
-                                                 _zeroInitStruct,
-                                                 initGraphHandles.at(handleIndex),
-                                                 std::move(initNetworkMetadata.at(handleIndex)),
-                                                 nullptr,
-                                                 config));
-    }
-    graphs.push_back(std::make_shared<Graph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphHandle,
-                                             std::move(mainNetworkMetadata),
-                                             nullptr,
-                                             config));
-
     // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of the
     // ov::Model object with the init inputs
     runOVPasses(model);
 
-    return graphs;
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             /* blobAllocatedByPlugin = */ false,
+                                             mainGraphHandle,
+                                             std::move(mainNetworkMetadata),
+                                             /* mainBlob = */ std::nullopt,
+                                             initGraphHandles,
+                                             std::move(initNetworkMetadata),
+                                             /* initBlobs = */ std::nullopt,
+                                             model,
+                                             config);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
@@ -511,8 +505,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             graphHandle,
                                              blobAllocatedByPlugin,
+                                             graphHandle,
                                              std::move(networkMeta),
                                              std::move(mainBlob),
                                              initGraphHandles,

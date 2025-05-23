@@ -704,16 +704,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             initModel = model->clone();
 
             auto begin = std::chrono::steady_clock::now();
-            std::vector<std::shared_ptr<intel_npu::IGraph>> initMainGraphs =
-                compiler->compileWS(initModel, localConfig);
+            graph = compiler->compileWS(initModel, localConfig);
             auto end = std::chrono::steady_clock::now();
             std::cout << "compiler->compileWS() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
-
-            graph = initMainGraphs.back();
-            initMainGraphs.pop_back();
-            initGraphs = std::move(initMainGraphs);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -917,7 +912,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             runOVPasses(originalModel);
         }
 
-        auto graph = compiler->parse(std::move(mainBlob), std::move(initBlobs), localConfig, originalModel);
+        auto graph = compiler->parse(std::move(tensorMain),
+                                     std::move(tensorsInits),
+                                     !tensorFromProperty,
+                                     localConfig,
+                                     originalModel);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

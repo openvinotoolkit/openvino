@@ -20,10 +20,10 @@ public:
                     const bool blobAllocatedByPlugin,
                     ze_graph_handle_t mainGraphHandle,
                     NetworkMetadata mainMetadata,
-                    std::optional<ov::Tensor>& mainBlob,
+                    std::optional<ov::Tensor> mainBlob,
                     const std::vector<ze_graph_handle_t>& initGraphHandles,
                     std::vector<NetworkMetadata> initMetadata,
-                    std::optional<std::vector<ov::Tensor>>& initBlobs,
+                    std::optional<std::vector<ov::Tensor>> initBlobs,
                     const std::shared_ptr<ov::Model>& model,
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});

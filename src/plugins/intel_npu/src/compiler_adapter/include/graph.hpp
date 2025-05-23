@@ -41,7 +41,7 @@ public:
     ~Graph() override;
 
 protected:
-    bool release_blob(const Config& config, std::optional<ov::Tensor>& blob, ze_graph_handle_t handle);
+    bool release_blob(const Config& config, std::optional<ov::Tensor> blob, ze_graph_handle_t handle);
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
