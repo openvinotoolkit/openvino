@@ -8,6 +8,7 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/concat.hpp"
 
@@ -87,12 +88,105 @@ bool Concat::has_evaluate() const {
     return true;
 }
 
+namespace helpers {
+template <class T>
+Tensor make_tensor(const element::Type_t et, const Shape& shape, T val) {
+    Tensor t{et, shape};
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        t.data<T>()[i] = val;
+    }
+    return t;
+}
+
+static Tensor make_tensor_of_min_value(const element::Type_t et, const Shape& shape) {
+#define CASE(type)                                                                     \
+    case element::type: {                                                              \
+        typename ov::fundamental_type_for<element::type> value = 0;                    \
+        return make_tensor<ov::fundamental_type_for<element::type>>(et, shape, value); \
+    }
+
+    switch (et) {
+        CASE(boolean);
+        CASE(bf16);
+        CASE(f16);
+        CASE(f32);
+        CASE(f64);
+        CASE(i8);
+        CASE(i16);
+        CASE(i32);
+        CASE(i64);
+        CASE(u1);
+        CASE(u8);
+        CASE(u16);
+        CASE(u32);
+        CASE(u64);
+    default:
+        return {};
+    }
+#undef CASE
+}
+
+static Tensor make_tensor_of_max_value(const element::Type_t et, const Shape& shape) {
+#define CASE(type)                                                                     \
+    case element::type: {                                                              \
+        using T = typename ov::fundamental_type_for<element::type>;                    \
+        const T value = std::numeric_limits<T>::max();                                 \
+        return make_tensor<ov::fundamental_type_for<element::type>>(et, shape, value); \
+    }
+
+    switch (et) {
+        CASE(boolean);
+        CASE(bf16);
+        CASE(f16);
+        CASE(f32);
+        CASE(f64);
+        CASE(i8);
+        CASE(i16);
+        CASE(i32);
+        CASE(i64);
+        CASE(u1);
+        CASE(u8);
+        CASE(u16);
+        CASE(u32);
+        CASE(u64);
+    default:
+        return {};
+    }
+#undef CASE
+}
+
+static bool evaluate_bound(const Node* node,
+                           const ov::Tensor& (ov::descriptor::Tensor::*get_bound)() const,
+                           Tensor (*make_tensor_func)(const element::Type_t, const Shape&),
+                           ov::TensorVector& output_values) {
+    const auto size = node->get_input_size();
+    ov::TensorVector inputs;
+    inputs.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+        ov::descriptor::Tensor& ts = node->get_input_tensor(i);
+        if (auto bound = (ts.*get_bound)()) {
+            inputs.push_back(bound);
+        } else {
+            inputs.push_back(make_tensor_func(ts.get_element_type(), ts.get_shape()));
+        }
+    }
+    return node->evaluate(output_values, inputs);
+}
+
+}  // namespace helpers
+
 bool Concat::evaluate_lower(TensorVector& output_values) const {
-    return default_lower_bound_evaluator(this, output_values);
+    return helpers::evaluate_bound(this,
+                                   &ov::descriptor::Tensor::get_lower_value,
+                                   helpers::make_tensor_of_min_value,
+                                   output_values);
 }
 
 bool Concat::evaluate_upper(TensorVector& output_values) const {
-    return default_upper_bound_evaluator(this, output_values);
+    return helpers::evaluate_bound(this,
+                                   &ov::descriptor::Tensor::get_upper_value,
+                                   helpers::make_tensor_of_max_value,
+                                   output_values);
 }
 
 bool Concat::evaluate_symbol(TensorSymbolVector& output_symbols) const {
