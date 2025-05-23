@@ -127,6 +127,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     }
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
+    apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
     // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
@@ -219,8 +220,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0 && !info.supports_immad) {
-        m_dynamic_quantization_group_size = 32;
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
+         if (info.supports_immad)
+            m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
+         else
+            m_dynamic_quantization_group_size = 32;
     }
 
     if (!get_force_implementations().empty()) {

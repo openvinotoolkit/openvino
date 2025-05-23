@@ -23,16 +23,20 @@ void SparseFillEmptyRows::validate_and_infer_types() {
     OV_OP_SCOPE(v16_SparseFillEmptyRows_validate_and_infer_types);
 
     const auto& indices_element_type = get_input_element_type(2);
+    const auto& dense_shape_element_type = get_input_element_type(1);
+    element::Type merged_type;
+
     NODE_VALIDATION_CHECK(this,
-                          indices_element_type == element::i32 || indices_element_type == element::i64,
-                          "The element type of the indices input must be i32 or i64. Got: ",
+                          element::Type::merge(merged_type, indices_element_type, dense_shape_element_type),
+                          "The element types of the dense_shape and indices inputs must match. Got: ",
+                          dense_shape_element_type,
+                          " and ",
                           indices_element_type);
 
-    const auto& dense_shape_element_type = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          dense_shape_element_type == element::i32 || dense_shape_element_type == element::i64,
-                          "The element type of the dense_shape input must be i32 or i64. Got: ",
-                          dense_shape_element_type);
+                          merged_type == element::i32 || merged_type == element::i64 || merged_type.is_dynamic(),
+                          "The element type of the indices and dense_shape inputs must be i32 or i64. Got: ",
+                          merged_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 

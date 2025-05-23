@@ -11,6 +11,7 @@ namespace intel_cpu {
 
 bool hasHardwareSupport(const ov::element::Type& precision);
 ov::element::Type defaultFloatPrecision();
+bool hasIntDotProductSupport();
 
 }  // namespace intel_cpu
 }  // namespace ov

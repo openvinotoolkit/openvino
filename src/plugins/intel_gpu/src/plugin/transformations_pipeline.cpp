@@ -81,6 +81,7 @@
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
+#include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -98,6 +99,7 @@
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -464,6 +466,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
 
+        manager.register_pass<ov::pass::KeepDequantizationPrecision>(
+            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
+
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
@@ -472,6 +477,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ov::pass::CommonOptimizations>();
+
+        // In the case of "input -> reshape -> convert -> multiply",
+        // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
+        // To handle this case, "KeepConstPrecision" is executed again.
+        manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
@@ -870,6 +880,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
         }
 
+        manager.register_pass<ov::pass::LoraSubgraphFusion>();
+        pass_config->set_callback<ov::pass::LoraSubgraphFusion>(
+            [&](const_node_ptr& add) -> bool {
+                auto first_dep = add->get_input_node_shared_ptr(0);
+                auto second_dep = add->get_input_node_shared_ptr(1);
+                return !config.get_enable_lora_operation() ||
+                       device_info.supports_immad ||
+                       ov::is_type<ov::op::v1::Convolution>(first_dep) ||
+                       ov::is_type<ov::op::v1::Convolution>(second_dep);
+        });
+
         manager.run_passes(func);
     }
 
@@ -1142,8 +1163,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
+
+            // Disabled until an optimized kernel for horizontal LoRA fusing appears
+            // manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+
             // Temporary disabling for BMG due to regression
-            if (device_info.arch != cldnn::gpu_arch::xe2) {
+            if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
@@ -1197,6 +1222,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
+            auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
@@ -1207,8 +1233,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 auto weight_shape = root->get_input_partial_shape(1);
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-                if (innermost_size < 32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
+                const size_t simd = 16;
+                if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name()
+                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
+                                    << innermost_size << std::endl;
                     return true;
                 }
 
@@ -1236,7 +1265,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
+            if (dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
+                GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
+                               << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
+            } else {
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
+            }
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
