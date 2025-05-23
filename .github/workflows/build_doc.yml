@@ -109,7 +109,6 @@ jobs:
 
       - name: Build docs
         run: |
-          rm -rf ${BUILD_DIR} && mkdir ${BUILD_DIR} && cd ${BUILD_DIR}
           cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --target sphinx_docs
 
@@ -134,7 +133,7 @@ jobs:
       - name: Upload docs html
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
+          name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
 
       - name: Run Pytest
