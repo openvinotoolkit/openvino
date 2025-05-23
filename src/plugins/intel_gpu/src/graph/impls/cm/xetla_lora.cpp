@@ -322,13 +322,13 @@ protected:
                 assert(!params.is_dynamic());
                 auto& wgs = kd.params.workGroups;
 
-                uint32_t local_range_m = (tilingA.wg_m + tilingA.sg_m - 1) / tilingA.sg_m;
-                uint32_t local_range_nA = (tilingA.wg_n + tilingA.sg_n - 1) / tilingA.sg_n;
-                uint32_t local_range_nB = (tilingB.wg_n + tilingB.sg_n - 1) / tilingB.wg_n;
-                uint32_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
+                size_t local_range_m = (tilingA.wg_m + tilingA.sg_m - 1) / tilingA.sg_m;
+                size_t local_range_nA = (tilingA.wg_n + tilingA.sg_n - 1) / tilingA.sg_n;
+                size_t local_range_nB = (tilingB.wg_n + tilingB.sg_n - 1) / tilingB.wg_n;
+                size_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
 
-                uint32_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tilingA.wg_m - 1) / tilingA.wg_m;
-                uint32_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + total_wg_n_b - 1) / total_wg_n_b;
+                size_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tilingA.wg_m - 1) / tilingA.wg_m;
+                size_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + total_wg_n_b - 1) / total_wg_n_b;
 
                 wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, tilingA.num_global_kslicing * tilingB.num_global_kslicing};
                 wgs.local = {local_range_n, local_range_m, tilingA.num_local_kslicing};
