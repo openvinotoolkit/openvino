@@ -414,7 +414,6 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
-    constantShapes.push_back(ov::Shape({1, input_shapes[1].get_shape()[2], 1, 1}));
     constantShapes.push_back(ov::Shape({2}));
     constantShapes.push_back(ov::Shape({4}));
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
@@ -424,22 +423,22 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
                                                          std::vector<int64_t>{0, 2, 1, 3});
     auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[1],
                                                          std::vector<int64_t>{0, 2, 3, 1});
-    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
+    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4],
                                                          std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[6],
+    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
                                                          std::vector<int64_t>{0, 2, 1, 3});
 
     std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
                                                                    input_shapes[0].get_shape()[1] *
                                                                    input_shapes[0].get_shape()[2]),
                                               -1};
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[3], reshape0ConstData);
+    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[2], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[2]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1])};
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4], reshape1ConstData);
+    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[3], reshape1ConstData);
     // Value is equal to '1' - to avoid situation e^(-1000) / (sum(e^(-1000)) = 0/0 = NAN
     auto selectConst = ov::op::v0::Constant::create(precisions[2], ov::Shape{1}, std::vector<float>{1});
 
@@ -452,7 +451,7 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     const auto less = std::make_shared<ov::op::v1::Less>(less0Param, less1Param);
     std::shared_ptr<ov::Node> selectCond = less;
     if (add->get_output_partial_shape(0) != input_shapes[3]) {
-        const auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
+        const auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4],
                                                                    add->get_output_shape(0));
         const auto broadcast = std::make_shared<ov::op::v3::Broadcast>(selectCond, broadcast_shape, ov::op::BroadcastType::NUMPY);
         selectCond = broadcast;
