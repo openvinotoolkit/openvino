@@ -122,19 +122,21 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
     auto& _ze_stream = downcast<ze_stream>(stream);
     auto ev = _ze_stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), temp_buffer.data(), 1, _bytes_count, ev_ze, 0, nullptr));
 
-    ev->wait();
+    if (blocking) {
+        ev->wait();
+    }
     return ev;
 }
 
-event::ptr gpu_usm::fill(stream& stream) {
-    return fill(stream, 0);
+event::ptr gpu_usm::fill(stream& stream, bool blocking) {
+    return fill(stream, 0, blocking);
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
