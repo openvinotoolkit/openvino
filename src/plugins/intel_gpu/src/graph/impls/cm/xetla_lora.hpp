@@ -91,7 +91,6 @@ struct LoRAImplementationManager : public ImplementationManager {
 
             } else if (is_eltwise) {
                 const auto eltwise_desc = std::static_pointer_cast<const eltwise>(prim.desc);
-                const auto& eltwise_in_layout = prim.input_layout;
                 const auto xetla_eltwise_mode = get_xetla_eltwise_op(eltwise_desc->mode);
                 if (Eltwise::EltwiseOp::none == xetla_eltwise_mode) {
                     return false;

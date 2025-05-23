@@ -639,7 +639,7 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
                 kernel_type = KernelsTypes::FUSED_SHORT_R64;
             }
             if (rank <= 32) {
-                KernelsTypes kernel_type = KernelsTypes::FUSED_SHORT_R32;
+                kernel_type = KernelsTypes::FUSED_SHORT_R32;
             }
             stages_order.emplace_back(kernel_type);
         } else {
@@ -651,7 +651,7 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
                 kernel_type = KernelsTypes::FUSED_LONG_R64;
             }
             if (rank <= 32) {
-                KernelsTypes kernel_type = KernelsTypes::FUSED_LONG_R32;
+                kernel_type = KernelsTypes::FUSED_LONG_R32;
             }
             stages_order.emplace_back(kernel_type);
         }
