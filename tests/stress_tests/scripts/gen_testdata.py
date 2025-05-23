@@ -6,7 +6,7 @@
 """ Script to generate XML config file with the list of IR models
 Usage: 
     python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
-    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,...
+    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,... --ref_conf <reference_config>.xml ("references_config.xml" by default)
 """
 # pylint:disable=line-too-long
 
@@ -98,6 +98,12 @@ def main():
     test_conf_obj = ET.parse(str(args.test_conf))
     model_recs = get_model_recs(test_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
 
+    ref_conf_name = "references_config.xml"
+    if args.ref_conf:
+        ref_conf_name = str(args.ref_conf)
+    ref_conf_obj = ET.parse(ref_conf_name)
+    ref_recs = get_ref_recs(ref_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
+    
     if not os.path.exists(args.ir_cache_dir):
         raise FileNotFoundError("Directory 'ir_cache_dir' was not found.")
     
@@ -105,9 +111,9 @@ def main():
 
     for root, _, files in os.walk(subdirectory):
         for file_name in files:
+            full_path = os.path.join(root, file_name)
+            path_parts = os.path.normpath(full_path).split(os.path.sep)
             if file_name.endswith(".xml"):
-                full_path = os.path.join(root, file_name)
-                path_parts = os.path.normpath(full_path).split(os.path.sep)
                 if args.topology:
                     if file_name.split('.')[0] not in args.topology:
                         continue
@@ -127,12 +133,23 @@ def main():
                     "path": subdirectory,
                     "full_path": full_path
                 })
-
                 model_element.tail = '\n\t'
-
                 model_recs.append(model_element)
-
+                
+                reference_element = eET.Element("model", {
+                    "path": subdirectory,
+                    #"full_path": full_path,
+                    "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
+                    "test": "create_exenetwork",
+                    "vmpeak": str(random.randint(1, 1103949)),
+                    "vmrss" : str(random.randint(1, 129329)),
+                    "vmhwm" : str(random.randint(1, 129329))
+                })
+                reference_element.tail = '\n\t'
+                ref_recs.append(reference_element)
+    
     test_conf_obj.write(args.test_conf, xml_declaration=True)
+    ref_conf_obj.write(ref_conf_name, xml_declaration=True)
 
 if __name__ == "__main__":
     main()
