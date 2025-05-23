@@ -10,7 +10,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "lora_inst.h"
 #include "registry/implementation_manager.hpp"
-#include "xetla_postops.hpp"
+#include "utils/xetla_postops.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 

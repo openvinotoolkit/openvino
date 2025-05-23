@@ -10,7 +10,7 @@
 #include "primitive_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "utils/kernel_generator.hpp"
-#include "xetla_postops.hpp"
+#include "utils/xetla_postops.hpp"
 
 namespace ov::intel_gpu::cm {
 namespace {
@@ -607,7 +607,7 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
         if (wgsA_n * wgsA_m > 2 * xecores) {
             stages_order.emplace_back(KernelsTypes::GEMM_A_LONG1_S1);
         } else {
-            uint32_t iters = (hidden_in + 32 - 1) / 32;
+            size_t iters = (hidden_in + 32 - 1) / 32;
             if (iters > 4 && gemmA_wg_m == 128) {
                 stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
             } else {
