@@ -22,8 +22,6 @@ RUN apt-get update && \
         graphviz  \
         texlive \
         liblua5.2-0 \
-        libclang1-9 \
-        libclang-cpp9 \
         python3 \
         python3.10-dev \
         python3.10-venv \
