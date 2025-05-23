@@ -17,9 +17,9 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 

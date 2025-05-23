@@ -11,11 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params> GemmTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string> GemmTransformationParams;
 
 // TODO: use MatMulTransformation
 class GemmTransformation :

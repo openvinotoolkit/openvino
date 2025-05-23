@@ -17,20 +17,13 @@
 namespace LayerTestsDefinitions {
 
 std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
-
-    return get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params);
+    auto [netPrecision, inputShape, device] = obj.param;
+    return get_test_case_name_by_params(netPrecision, inputShape, device);
 }
 
 void GemmTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    auto [netPrecision, inputShape, device] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ inputShape, inputShape });
 

@@ -16,7 +16,7 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, OutputLayers,

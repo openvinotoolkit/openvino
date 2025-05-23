@@ -18,8 +18,8 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8AndI8(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8AndI8().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8().setUpdatePrecisions(false),
 };
 
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeOnDataValues = {

@@ -14,8 +14,7 @@ namespace LayerTestsDefinitions {
 typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params> ConcatNeighboringGraphTransformationParams;
+    std::string> ConcatNeighboringGraphTransformationParams;
 
 class ConcatWithNeighborsGraphTransformation :
     public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,
