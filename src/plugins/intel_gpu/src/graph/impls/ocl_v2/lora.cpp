@@ -484,7 +484,7 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
         return args;
     }
@@ -547,7 +547,7 @@ protected:
         }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 3});
         args.push_back({ArgumentDescriptor::Types::INPUT, 4});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -690,17 +690,18 @@ public:
         size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
         size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
-        auto first_token_buffer = BufferDescriptor{lora_rank * batch * feature, params.get_output_layout().data_type};
+        bool is_first_token = batch * feature > 1;
+        if (is_first_token) {
+            return {BufferDescriptor{lora_rank * batch * feature, params.get_output_layout().data_type}};
+        } else {
+            const auto& state_a_lo = params.input_layouts[2];
+            size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
 
-        const auto& state_a_lo = params.input_layouts[2];
-        size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
+            size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+            size_t output_a_size = ceil_div(input_state, LoraOptBase::gemm_a_sg_bk * (max_workgroup_size / lora_rank));
 
-        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-        size_t output_a_size = ceil_div(input_state, LoraOptBase::gemm_a_sg_bk * (max_workgroup_size / lora_rank));
-
-        auto second_token_buffer = BufferDescriptor{output_a_size, params.get_output_layout().data_type};
-
-        return {first_token_buffer, second_token_buffer};
+            return {BufferDescriptor{output_a_size, params.get_output_layout().data_type}};
+        }
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
