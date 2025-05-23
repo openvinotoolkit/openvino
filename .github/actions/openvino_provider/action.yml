@@ -162,7 +162,7 @@ runs:
       if: steps.get_source.outputs.artifacts_source == 's3' && inputs.revision != 'latest_nightly'
       shell: bash
       run: >-
-        python3 -m venv venv && . venv/bin/activate &&
+        cd ~ && python3 -m venv venv && . venv/bin/activate &&
         pip install -r $GITHUB_ACTION_PATH/requirements.txt &&
         python $GITHUB_ACTION_PATH/get_s3_package.py --product openvino --platform ${{ inputs.platform }} --arch ${{ inputs.arch }} 
         --version ${{ inputs.revision }}
