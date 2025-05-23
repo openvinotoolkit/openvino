@@ -62,6 +62,9 @@ if(APPLE)
         string(REGEX MATCH "1[0-9]_[0-9]+" _macos_target_version ${PLATFORM_TAG})
     endif()
 
+    # try to make in compatile with macos 15.4+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-headerpad_max_install_names")
+
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
     if(_arch AND _macos_target_version)
         set(PLATFORM_TAG "macosx_${_macos_target_version}_${_arch}")
