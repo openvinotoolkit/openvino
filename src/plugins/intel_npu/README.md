@@ -237,6 +237,7 @@ Supported values:
     compile_model(model, config);
 ```
 
+&nbsp;
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
 The max_tiles property is read-write to enable compiling models off-device.  
@@ -250,6 +251,11 @@ to avoid exceptions from the compiler.
    (``ov::hint::performance_mode``).
    Any tile number other than 1 may be a problem for cross platform compatibility,
    if not tested explicitly versus the max_tiles value.
+
+&nbsp;
+### ov::intel_npu::turbo notes
+NPU_TURBO usage may cause higher compile time, memory footprint, affect workload latency and compatibility issues with older NPU drivers
+
 &nbsp;
 ## Stateful models
 

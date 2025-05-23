@@ -253,6 +253,11 @@ or
 
    core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
 
+.. note::
+
+   NPU_TURBO usage may cause higher compile time, memory footprint,
+   affect workload latency and compatibility issues with older NPU drivers
+
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
 the ``max_tiles`` property is read-write to enable compiling models off-device.
