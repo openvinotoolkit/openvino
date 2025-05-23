@@ -410,7 +410,12 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
     while (!compilationDone) {
         _logger.debug("compileWS iteration %d", callNumber);
 
-        Config updatedConfig = config;
+        const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+        if (plgConfig == nullptr) {
+            OPENVINO_THROW("config is not FilteredConfig");
+        }
+
+        FilteredConfig updatedConfig = *plgConfig;
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
 
         _logger.debug("build flags");
