@@ -19,7 +19,8 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
-        graphviz  \
+        pigz \
+        graphviz \
         texlive \
         liblua5.2-0 \
         python3 \
