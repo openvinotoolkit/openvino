@@ -192,8 +192,6 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto output_low = output_low_constant->cast_vector<float>();
     auto output_high = output_high_constant->cast_vector<float>();
     auto levels = fq_node->get_levels();
-    // z0 = levels if unsigned, 0 if signed
-    const auto z0 = (fq_node->get_input_element_type(0).is_signed() ? levels / 2 : 0);
     auto broadcast_type = fq_node->get_auto_broadcast();
 
     // We have two ways for computations of scales and shifts to avoid model compilation time growth
@@ -203,8 +201,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     //  support
 
     // Calculations of input scales and shift:
-    //   - isc := (z0-1) / (ih - il)
-    //   - ish := -il * isc - z0
+    //   - isc := (levels-1) / (ih - il)
+    //   - ish := -il * isc
     if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
         const auto input_size = std::max(input_low.size(), input_high.size());
         isc.resize(input_size, 0);
@@ -213,8 +211,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float il = input_low[input_low.size() == 1 ? 0 : i];
             float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-            isc[i] = (z0 - 1) / (ih - il);
-            ish[i] = -il * isc[i] - z0;
+            isc[i] = (levels - 1) / (ih - il);
+            ish[i] = -il * isc[i];
         }
         cl = input_low;
         ch = input_high;
@@ -260,8 +258,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     }
 
     // Calculations of output scales and shift:
-    //   - osc := (oh - ol) / (z0-1)
-    //   - osh := ol + z0 * osc
+    //   - osc := (oh - ol) / (levels-1)
+    //   - osh := ol
     if (output_low_shape == output_high_shape || shape_size(output_low_shape) == 1 || shape_size(output_high_shape) == 1) {
         const auto output_size = std::max(output_low.size(), output_high.size());
         osc.resize(output_size, 0);
@@ -270,8 +268,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float ol = output_low[output_low.size() == 1 ? 0 : i];
             float oh = output_high[output_high.size() == 1 ? 0 : i];
 
-            osc[i] = (oh - ol) / (z0 - 1);
-            osh[i] = ol + z0 * osc[i];
+            osc[i] = (oh - ol) / (levels - 1);
+            osh[i] = ol;
         }
     } else {  // general broadcasting
         PartialShape scale_pshape = output_low_constant->get_output_partial_shape(0);
@@ -284,8 +282,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
                                            output_high_shape,
                                            output_low_shape,
                                            broadcast_type,
-                                           [z0](float x, float y) -> float {
-                                               return (x - y) / (z0 - 1);
+                                           [levels](float x, float y) -> float {
+                                               return (x - y) / (levels - 1);
                                            });
         osh = output_low;
     }
@@ -341,7 +339,16 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
             }
         }
 
-        if (is_crop_aligned) {
+        // Rounding can be avoided if scales are integer
+        bool is_scale_integer = true;
+        for (float s : isc) {
+            if (std::abs(s - std::round(s)) > thr) {
+                is_scale_integer = false;
+                break;
+            }
+        }
+
+        if (is_crop_aligned && is_scale_integer) {
             out_scales = isc;
         }
     }

@@ -905,9 +905,9 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             const auto max = std::make_shared<ov::op::v1::Maximum>(input, input_low);
             const auto min = std::make_shared<ov::op::v1::Minimum>(max, input_high);
             const auto mul = std::make_shared<ov::op::v1::Multiply>(min, output_scale);
-            const auto sub = std::make_shared<ov::op::v1::Subtract>(mul, input_low);
-            std::shared_ptr<ov::Node> res = sub;
+            std::shared_ptr<ov::Node> res = mul;
             if (rounding) {
+                const auto sub = std::make_shared<ov::op::v1::Subtract>(mul, input_low);
                 const auto rnd = std::make_shared<ov::op::v5::Round>(sub, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                 const auto mul_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {1});
                 const auto mul2 = std::make_shared<ov::op::v1::Multiply>(rnd, mul_scale);
@@ -932,7 +932,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
     const auto softMax = std::make_shared<ov::opset1::Softmax>(deq_mul, 3);
-    const auto fq4 = decomposed_fq(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f, true);
+    const auto fq4 = decomposed_fq(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f, false);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
