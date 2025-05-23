@@ -137,8 +137,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
-    info.supports_local_block_io = true;
-
     info.gfx_ver = {0, 0, 0}; // could find how to retrieve this from L0 so far
     info.arch = gpu_arch::unknown;
     info.ip_version = ip_version_properties.ipVersion;
