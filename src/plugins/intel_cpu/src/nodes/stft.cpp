@@ -100,6 +100,7 @@ static void transpose_out4d(const uint8_t* in,
 }  // namespace
 
 void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
     const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
     auto* rdft_result = getDstDataAtPortAs<float>(0);
@@ -131,7 +132,7 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         dst = dst_mem->getDataAs<float>();
     }
 
-    parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
+    cpu_parallel->parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
         size_t batch_in_start = batch * signal_length;
         size_t batch_frames_out = batch * num_frames;
 
