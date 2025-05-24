@@ -105,6 +105,14 @@ size_t Tensor::get_byte_size() const {
     OV_TENSOR_STATEMENT(return _impl->get_byte_size(););
 }
 
+void* Tensor::data() {
+    OV_TENSOR_STATEMENT(return _impl->data());
+}
+
+void* Tensor::data() const {
+    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data()););
+}
+
 void* Tensor::data(const element::Type& element_type) {
     OV_TENSOR_STATEMENT(return _impl->data(element_type));
 }

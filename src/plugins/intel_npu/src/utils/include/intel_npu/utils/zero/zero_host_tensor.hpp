@@ -20,6 +20,7 @@ public:
 
     ~ZeroHostTensor() override = default;
 
+    const void* data() const override;
     const void* data(const ov::element::Type& element_type) const override;
     const ov::element::Type& get_element_type() const override;
 

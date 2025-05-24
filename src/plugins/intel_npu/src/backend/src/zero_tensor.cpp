@@ -33,6 +33,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _ptr = data;
 }
 
+const void* ZeroTensor::data() const {
+    return _ptr;
+}
+
 const void* ZeroTensor::data(const ov::element::Type& element_type) const {
     if (element_type != ov::element::dynamic &&
         (element_type.bitwidth() != get_element_type().bitwidth() ||
@@ -44,7 +48,7 @@ const void* ZeroTensor::data(const ov::element::Type& element_type) const {
                        ", is not representable as pointer to ",
                        element_type);
     }
-    return _ptr;
+    return data();
 }
 
 const ov::element::Type& ZeroTensor::get_element_type() const {

@@ -10,6 +10,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "openvino/core/type/element_type_info.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -21,30 +22,6 @@ constexpr size_t idx(Type_t e) noexcept {
 
 // Update it when new type is added
 constexpr size_t enum_types_size = idx(f8e8m0) + 1;
-
-struct TypeInfo {
-    size_t m_bitwidth;
-    bool m_is_real;
-    bool m_is_signed;
-    bool m_is_quantized;
-    const char* m_cname;
-    const char* m_type_name;
-    const char* const* aliases;
-    size_t alias_count;
-
-    bool has_name(const std::string& type) const {
-        if (type == m_type_name) {
-            return true;
-        } else {
-            const auto last = aliases + alias_count;
-            return std::find(aliases, last, type) != last;
-        }
-    }
-
-    constexpr bool is_valid() const {
-        return m_cname != nullptr && m_type_name != nullptr;
-    }
-};
 
 template <class Array>
 constexpr TypeInfo type_info(size_t bitwidth,
@@ -133,12 +110,6 @@ size_t type_idx_for(const std::string& type_name) {
     return type_idx;
 }
 
-const TypeInfo& get_type_info(Type_t type) {
-    const auto type_idx = idx(type);
-    OPENVINO_ASSERT(is_valid_type_idx(type_idx), "Type_t not supported: ", type_idx);
-    return types_info[type_idx];
-}
-
 Type type_from_string(const std::string& type) {
     const auto type_idx = type_idx_for(type);
     OPENVINO_ASSERT(is_valid_type_idx(type_idx), "Unsupported element type: ", type);
@@ -154,6 +125,12 @@ static constexpr auto known_types = [] {
     return types;
 }();
 }  // namespace
+
+const TypeInfo& get_type_info(Type_t type) {
+    const auto type_idx = idx(type);
+    OPENVINO_ASSERT(is_valid_type_idx(type_idx), "Type_t not supported: ", type_idx);
+    return types_info[type_idx];
+}
 
 std::vector<const Type*> Type::get_known_types() {
     std::vector<const Type*> result(known_types.size());
@@ -275,7 +252,7 @@ bool Type::merge(Type& dst, const Type& t1, const Type& t2) {
 }
 
 bool Type::is_static() const {
-    return get_type_info(m_type).m_bitwidth != 0;
+    return m_type != Type_t::dynamic;
 }
 
 bool Type::is_real() const {

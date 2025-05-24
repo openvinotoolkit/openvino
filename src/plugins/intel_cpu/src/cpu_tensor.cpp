@@ -83,6 +83,10 @@ void Tensor::update_strides() const {
     });
 }
 
+const void* Tensor::data() const {
+    return m_memptr->getData();
+}
+
 const void* Tensor::data(const element::Type& element_type) const {
     if (element_type.is_static()) {
         OPENVINO_ASSERT(element_type == get_element_type(),
@@ -91,7 +95,7 @@ const void* Tensor::data(const element::Type& element_type) const {
                         ", is not representable as pointer to ",
                         element_type);
     }
-    return m_memptr->getData();
+    return data();
 }
 
 /**
