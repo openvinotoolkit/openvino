@@ -186,10 +186,12 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+                    auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner, 32);
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,
                                                          streamsExecutor,
+                                                         cpuParallel,
                                                          m_sub_memory_manager);
                 }
 
@@ -288,6 +290,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -367,6 +370,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::tbb_partitioner) {
+        const auto tbb_partitioner = config.tbbPartitioner;
+        return tbb_partitioner;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

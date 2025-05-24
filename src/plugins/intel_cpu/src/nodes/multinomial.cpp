@@ -158,6 +158,7 @@ template <typename P, typename O>
 void Multinomial::execute_convert_type() {
     const auto* probs = getSrcDataAtPortAs<const P>(PROBS_PORT);
     auto* output = getDstDataAtPortAs<O>(OUTPUT_PORT);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<P> m_cdf(m_input_elements_count);
     std::vector<P> m_max_per_batch(m_batches_count);
@@ -165,7 +166,7 @@ void Multinomial::execute_convert_type() {
 
     // exp & cumsum
     if (m_log_probs) {
-        parallel_for(m_batches_count, [&](size_t idx) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx) {
             const auto start_idx = idx * m_probs_count;
             m_cdf[start_idx] = std::exp(probs[start_idx]);
             for (size_t prev = start_idx, curr = prev + 1; curr < (start_idx + m_probs_count); ++prev, ++curr) {
@@ -173,7 +174,7 @@ void Multinomial::execute_convert_type() {
             }
         });
     } else {
-        parallel_for(m_batches_count, [&](size_t idx_batch) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx_batch) {
             const auto start_idx = idx_batch * m_probs_count;
             const auto* probs_start_idx = probs + start_idx;
             std::partial_sum(probs_start_idx, probs_start_idx + m_probs_count, m_cdf.begin() + start_idx);
@@ -196,17 +197,17 @@ void Multinomial::execute_convert_type() {
 
     // max & divide
     const auto min_value_of_max = std::numeric_limits<P>::min();
-    parallel_for(m_batches_count, [&](size_t idx) {
+    cpu_parallel->parallel_for(m_batches_count, [&](size_t idx) {
         m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_value_of_max);
     });
 
-    parallel_for(m_input_elements_count, [&](size_t idx) {
+    cpu_parallel->parallel_for(m_input_elements_count, [&](size_t idx) {
         size_t idx_max_elem = idx / m_probs_count;
         m_cdf[idx] = m_cdf[idx] / m_max_per_batch[idx_max_elem];
     });
 
     if (m_with_replacement) {
-        parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
+        cpu_parallel->parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
             size_t idx_batch = idx / m_samples_probs_count;
             size_t idx_num_samples_probs = idx % m_samples_probs_count;
             size_t idx_prob = idx_num_samples_probs % m_probs_count;
@@ -220,7 +221,7 @@ void Multinomial::execute_convert_type() {
             }
         });
     } else {  // without replacement - adjust cdf after each sample drawn from batch, sequentially
-        parallel_for(m_batches_count, [&](size_t idx_batch) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx_batch) {
             for (size_t idx_sample = 0LU; idx_sample < m_samples_count; ++idx_sample) {
                 size_t idx_input = idx_batch * m_probs_count;
                 size_t idx_output = idx_batch * m_samples_count + idx_sample;

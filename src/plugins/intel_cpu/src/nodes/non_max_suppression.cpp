@@ -347,6 +347,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                                          const VectorDims& boxesStrides,
                                          const VectorDims& scoresStrides,
                                          std::vector<FilteredBox>& filtBoxes) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -361,7 +362,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
         return std::exp(m_scale * iou * iou);
     };
 
-    parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
+    cpu_parallel->parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
         std::vector<FilteredBox> selectedBoxes;
         const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
@@ -499,8 +500,9 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                                             const VectorDims& boxesStrides,
                                             const VectorDims& scoresStrides,
                                             std::vector<FilteredBox>& filtBoxes) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto max_out_box = static_cast<int>(m_output_boxes_per_class);
-    parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
+    cpu_parallel->parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
         const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
@@ -843,10 +845,11 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                                    const VectorDims& boxes_strides,
                                    const VectorDims& scores_strides,
                                    std::vector<FilteredBox>& filtered_boxes) {
+    const auto& cpu_parallel = context->getCpuParallel();
     if (m_jit_kernel) {
         THROW_CPU_NODE_ERR("does not have implementation of the JIT kernel for Rotated boxes.");
     } else {
-        parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
+        cpu_parallel->parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
             const float* boxes_ptr = boxes + batch_idx * boxes_strides[0];
             const float* scores_ptr = scores + batch_idx * scores_strides[0] + class_idx * scores_strides[1];
 
