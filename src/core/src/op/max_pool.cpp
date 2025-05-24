@@ -28,6 +28,7 @@ static bool has_evaluate_util(const ov::element::Type& element_type) {
     case element::u64:
     case element::f16:
     case element::f32:
+    case element::f64:
         return true;
     default:
         return false;
@@ -234,6 +235,7 @@ bool MaxPool::has_evaluate() const {
     case element::u64:
     case element::f16:
     case element::f32:
+    case element::f64:
         return true;
     default:
         return false;
