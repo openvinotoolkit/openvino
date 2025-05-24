@@ -37,6 +37,7 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
+        auto zero_point_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(zero_point_m).get_node_shared_ptr());
         std::shared_ptr<ov::op::v0::Constant> zero_point;
         if (pattern_map.count(float_zero_point_m)) {
             const auto& float_zp = pattern_map.at(float_zero_point_m);
@@ -66,8 +67,61 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
         float zp_value;
         if (!ov::op::util::get_single_value(zero_point, zp_value))
             return false;
-        const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
-        return ov::replace_node_update_name(zero_point, new_zp);
+
+        // if (zero_point->get_friendly_name() == "model.embed_tokens.zp_to_f16") {
+            std::cout << ">> Pass ConvertU4WeightsZeroPointToScalar : " << zero_point->get_friendly_name() << std::endl;
+            std::cout << "  -- float_zero_point_m : " << pattern_map.count(float_zero_point_m)
+                        << ", zp_value : " << zp_value << ", zp_type : " << zero_point->get_element_type() << std::endl;
+        // }
+
+        // [TEST]
+        // const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
+        // bool result = ov::replace_node_update_name(zero_point, new_zp);
+        bool result;
+        float temp;
+        // if (pattern_map.count(float_zero_point_m)) {
+        if (true) {
+            const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
+            result = ov::replace_node_update_name(zero_point, new_zp);
+
+            std::cout << "  -- Pass ConvertU4WeightsZeroPointToScalar : " << new_zp->get_friendly_name() << std::endl;
+            if (!ov::op::util::get_single_value(zero_point, temp))
+                return false;
+        } else {
+            #if 0
+                std::cout << "  -- No convert u4 weight zp to scalar!!!!" << std::endl;
+                return false;
+            #endif
+
+            const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
+            result = ov::replace_node_update_name(zero_point, new_zp);
+
+            // Old
+            // const auto new_zp_convert = ov::op::v0::Constant::create(zero_point_convert->get_element_type(), {}, {zp_value});
+            // result = ov::replace_node_update_name(zero_point_convert, new_zp);
+
+            std::cout << "  -- Pass ConvertU4WeightsZeroPointToScalar : " << zero_point_convert->get_friendly_name() << std::endl;
+            // auto zero_point_convert_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zero_point_m).get_node_shared_ptr());
+            // if (!ov::op::util::get_single_value(zero_point_convert_const, temp))
+            //     return false;
+        }
+        // std::cout << "  -- Pass ConvertU4WeightsZeroPointToScalar : " << new_zp->get_friendly_name() << std::endl;
+
+        // float temp;
+        #if 0
+        {
+            if (!ov::op::util::get_single_value(zero_point, temp))
+                return false;
+
+            std::cout << "    -- After replace zp_value : " << temp << std::endl;
+            if (!pattern_map.count(float_zero_point_m) || true) {
+                std::cout << "      -- After replace zero_point : " << zero_point->get_shape() << std::endl;
+                // std::cout << "      -- After replace zero_point : " << zero_point_convert->get_shape() << std::endl;
+            }
+        }
+        #endif
+
+        return result;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(subtract_m, matcher_name);
