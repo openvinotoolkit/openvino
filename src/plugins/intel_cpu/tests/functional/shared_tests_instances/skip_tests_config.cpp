@@ -324,8 +324,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
         // Issue: 163275
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
-        // Issue: 163348
-        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
@@ -563,6 +561,9 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*ConvertCPULayerTest.*f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)");
+    }
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
