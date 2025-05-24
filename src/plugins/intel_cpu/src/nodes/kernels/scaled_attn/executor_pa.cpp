@@ -3034,13 +3034,12 @@ struct MHAHelper {
         }
 
         // attn_w * V
-        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, H, SV});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(_nthr, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
-            memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
+        _output_bhl.resize<float>({B, kv_len_in_blocks, H, q_len, SV});
+        parallel_for3d(B, kv_len_in_blocks, H, [&](size_t b, size_t pv_in_blocks, size_t h) {
+            memset(_output_bhl.ptr<float>(b, pv_in_blocks, h, 0, 0), 0, q_len * SV * sizeof(float));
         });
 
-        auto loop_wk_static = [&](size_t ithr, size_t b, size_t pv_in_blocks, size_t hx) {
+        auto loop_wk = [&](size_t b, size_t pv_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
             size_t hk;
@@ -3055,7 +3054,7 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 value_cache.ptr<uint8_t, VALUE_PREC>(block_number, hk),
                                 SV,
@@ -3066,45 +3065,7 @@ struct MHAHelper {
                             auto* v_ptr =
                                 value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                             attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
-                                _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                v_ptr,
-                                SV,
-                                std::min(_block_size, context_len - pv),
-                                _value_group_size);
-                        }
-                    }
-                }
-            }
-        };
-
-        // TODO: align with loop_wk_static
-        auto loop_wk_dynamic = [&](size_t b, size_t pv_in_blocks, size_t hx) {
-            auto ithr = parallel_get_thread_num();
-            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-            auto pv = pv_in_blocks * _block_size;
-            size_t hk, hq_beg, hq_end;
-            get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
-
-            // kv_len must be valid
-            if (pv < context_len) {
-                auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
-                for (size_t pq = 0; pq < q_len; pq++) {
-                    for (size_t h = hq_beg; h < hq_end; h++) {
-                        if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
-                            attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
-                                _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                value_cache.ptr<uint8_t, VALUE_PREC>(block_number, hk),
-                                SV,
-                                _quant_value_bychannel,
-                                std::min(_block_size, context_len - pv),
-                                _value_group_size);
-                        } else {
-                            auto* v_ptr =
-                                value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
-                            attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 v_ptr,
                                 SV,
@@ -3117,16 +3078,16 @@ struct MHAHelper {
         };
 
         if (prefer_static_loop) {
-            parallel_for3d(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk_static);
+            parallel_for3d(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk);
         } else {
-            parallel_for3d_dynamic(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk_dynamic);
+            parallel_for3d_dynamic(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk);
         }
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
-            size_t temp_stride = _output_bhl.stride(0);
+            auto* temp = _output_bhl.ptr<float>(b, 0, h, pq);
+            size_t temp_stride = _output_bhl.stride(1);  // split with pv_in_blocks steps
             auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * SV);
-            attn_reduce(dst, temp, _nthr, SV, temp_stride);
+            attn_reduce(dst, temp, kv_len_in_blocks, SV, temp_stride);
         });
     }
 };
