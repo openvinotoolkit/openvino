@@ -19,6 +19,54 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
 
+TEST(evaluate_as_partial_shape, test) {
+    {
+        auto unknown_dim_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+        auto const_input = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 3, 16});
+        const auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const_input, unknown_dim_param}, 0);
+
+        ov::PartialShape shape;
+        ASSERT_TRUE(ov::util::evaluate_as_partial_shape(concat1, shape));
+        const auto expected_shape = ov::PartialShape("[1,3,16,?]");
+        ASSERT_TRUE(shape == expected_shape);
+    }
+
+    {
+        auto unknown_dim_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::PartialShape{2});
+        auto const_input = ov::op::v0::Constant::create(ov::element::i8, {2}, {1, 3});
+        const auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const_input, unknown_dim_param}, 0);
+
+        ov::PartialShape shape;
+        ASSERT_TRUE(ov::util::evaluate_as_partial_shape(concat1, shape));
+        const auto expected_shape = ov::PartialShape("[1, 3, ..127, ..127]");
+        ASSERT_TRUE(shape == expected_shape);
+    }
+
+    {
+        auto unknown_dim_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+        auto const_input = ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 3});
+        const auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unknown_dim_param, const_input}, 0);
+
+        ov::PartialShape shape;
+        ASSERT_TRUE(ov::util::evaluate_as_partial_shape(concat1, shape));
+        const auto expected_shape = ov::PartialShape("[?,?,1,3]");
+        ASSERT_TRUE(shape == expected_shape);
+    }
+
+    {
+        auto unknown_dim_param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2});
+        auto const_input = ov::op::v0::Constant::create(ov::element::f16, {2}, {1, 3});
+        auto unknown_dim_param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1});
+        const auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unknown_dim_param1, const_input, unknown_dim_param2}, 0);
+
+        ov::PartialShape shape;
+        ASSERT_TRUE(ov::util::evaluate_as_partial_shape(concat1, shape));
+        const auto expected_shape = ov::PartialShape("[..65504, ..65504, 1, 3, ..65504]");
+        ASSERT_TRUE(shape == expected_shape);
+    }
+
+}
+
 TEST(get_constant_from_source, invalidation_check) {
     auto a = ov::op::v0::Constant::create(ov::element::i64, {100}, {123});
     auto b = ov::op::v0::Constant::create(ov::element::i64, {1}, {123});

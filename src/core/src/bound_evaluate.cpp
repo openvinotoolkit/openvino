@@ -381,7 +381,8 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
             auto node_shared_ptr = node->shared_from_this();
             bool is_decompress_data_path = is_decompression(node_shared_ptr) && !is_shape_subgraph(node_shared_ptr);
             if ((arg_count == 0 && !is_type<op::v0::Constant>(node)) || is_decompress_data_path) {
-                status = false;
+                nodes_to_do.pop();
+                nodes_done.insert(node);
                 continue;
             } else if (is_type<op::v0::ShapeOf>(node) || is_type<op::v3::ShapeOf>(node)) {
                 result.push_back(node);
