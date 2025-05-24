@@ -11,6 +11,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
@@ -34,61 +35,6 @@
 #define NotSupportArgumentMetadata(T) (T < ZE_GRAPH_EXT_VERSION_1_6)
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
-
-namespace {
-
-ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
-    switch (zeElementType) {
-    case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
-        return ov::element::Type_t::dynamic;
-    case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
-        return ov::element::Type_t::dynamic;
-    case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
-        return ov::element::Type_t::boolean;
-    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
-        return ov::element::Type_t::nf4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3:
-        return ov::element::Type_t::f8e4m3;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2:
-        return ov::element::Type_t::f8e5m2;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E8M0:
-        return ov::element::Type_t::f8e8m0;
-    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
-        return ov::element::Type_t::bf16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
-        return ov::element::Type_t::f16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
-        return ov::element::Type_t::f32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
-        return ov::element::Type_t::f64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
-        return ov::element::Type_t::i4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
-        return ov::element::Type_t::i8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
-        return ov::element::Type_t::i16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
-        return ov::element::Type_t::i32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
-        return ov::element::Type_t::i64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
-        return ov::element::Type_t::u1;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
-        return ov::element::Type_t::u4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
-        return ov::element::Type_t::u8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
-        return ov::element::Type_t::u16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
-        return ov::element::Type_t::u32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
-        return ov::element::Type_t::u64;
-    default:
-        return ov::element::Type_t::dynamic;
-    }
-}
-
-}  // namespace
 
 namespace intel_npu {
 
@@ -402,7 +348,7 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, si
  */
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
-    ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
+    ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
     ov::PartialShape shapeFromIRModel;
     std::unordered_set<std::string> outputTensorNames;
