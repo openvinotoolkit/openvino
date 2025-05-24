@@ -327,6 +327,7 @@ OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
+OP_CONVERTER(translate_prod_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
@@ -1006,8 +1007,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pow.Tensor_Tensor", op::translate_pow},
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
-        {"aten.prod.default", op::translate_prod},
-        {"aten.prod.dim_int", op::translate_prod},
+        {"aten.prod.default", op::translate_prod_fx},
+        {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
