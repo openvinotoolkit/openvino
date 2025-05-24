@@ -897,17 +897,32 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(brgemm1Param, element::f32).get(), transA, transB);
 
     auto decomposed_fq =
-        [](const ov::Output<ov::Node>& input, const ov::element::Type& out_precision, float il, float ih, float scale) {
+        [](const ov::Output<ov::Node>& input, const ov::element::Type& out_precision, float il, float ih, float scale, bool do_rounding, bool do_dequantize) {
             const auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1}, {il});
             const auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1}, {ih});
             const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {scale});
             const auto max = std::make_shared<ov::op::v1::Maximum>(input, input_low);
             const auto min = std::make_shared<ov::op::v1::Minimum>(max, input_high);
             const auto mul = std::make_shared<ov::op::v1::Multiply>(min, output_scale);
-            return std::make_shared<ov::snippets::op::ConvertSaturation>(mul, out_precision);
+            std::shared_ptr<ov::Node> res = mul;
+            if (do_dequantize) {
+                res = std::make_shared<ov::op::v1::Subtract>(mul, input_low);
+            }
+            if (do_rounding) {
+                res = std::make_shared<ov::op::v5::Round>(res, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+            }
+            if (do_dequantize) {
+                const auto mul_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {1});
+                const auto mul2 = std::make_shared<ov::op::v1::Multiply>(res, mul_scale);
+                const auto add_shift = ov::op::v0::Constant::create(ov::element::f32, {1}, {-128});
+                const auto add2 = std::make_shared<ov::op::v1::Add>(mul2, add_shift);
+                res = add2;
+            }
+            return std::make_shared<ov::snippets::op::ConvertSaturation>(res, out_precision);
         };
 
-    const auto fq3 = decomposed_fq(matMul0, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
+    const auto fq3 = decomposed_fq(
+            matMul0, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f, true, true);
     const auto add = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
@@ -921,7 +936,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
     const auto softMax = std::make_shared<ov::opset1::Softmax>(deq_mul, 3);
-    const auto fq4 = decomposed_fq(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f);
+    const auto fq4 = decomposed_fq(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f, true, false);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -929,7 +944,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq4, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(transpose2, element::f32).get(), transA, transB);
-    const auto fq5 = decomposed_fq(matMul1, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
+    const auto fq5 = decomposed_fq(
+        matMul1, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f, true, true);
 
     auto subgraph =
         std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
