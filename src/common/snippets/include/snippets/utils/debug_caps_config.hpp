@@ -81,7 +81,8 @@ public:
         Chrono,
         BackendSpecific,
     };
-    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+    // PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+    PerfCountMode perf_count_mode = PerfCountMode::Chrono;
 
 private:
     struct PropertySetter {
