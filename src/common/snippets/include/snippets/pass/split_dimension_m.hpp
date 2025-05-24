@@ -83,6 +83,9 @@ private:
     void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim);
 
     static size_t get_dim_M(const ov::Shape& shape) {
+        if (shape.size() < dim_M_index + 1) {
+            return 1;
+        }
         return *(shape.rbegin() + dim_M_index);
     }
 
