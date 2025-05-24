@@ -7,7 +7,20 @@
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
-#include "openvino/op/ops.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"

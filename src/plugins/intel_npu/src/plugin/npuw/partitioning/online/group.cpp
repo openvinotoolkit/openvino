@@ -8,8 +8,8 @@
 
 #include "../../logging.hpp"
 #include "../partitioning.hpp"  // ov::npuw::Group
+#include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/util/common_util.hpp"
 #include "repeated.hpp"
 #include "snapshot.hpp"

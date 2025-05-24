@@ -3,7 +3,15 @@
 //
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
-#include "openvino/op/ops.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace npuw_utest{
     using NodePtr = std::shared_ptr<ov::Node>;
