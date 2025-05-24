@@ -135,7 +135,7 @@ void AutoSchedule::init() {
     auto customize_helper_context_from_cache_setting = [this](bool is_actual_cpu,
                                                               AutoCompileContext m_compile_context[],
                                                               ScheduleContext::Ptr& m_context) {
-        m_compile_context[CPU].m_is_enabled = true;
+        m_compile_context[CPU].m_is_enabled = m_context->m_startup_fallback;
         const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
         if (cpu_iter == m_context->m_device_priorities.end() || is_actual_cpu) {
             m_compile_context[CPU].m_is_enabled = false;
@@ -319,11 +319,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
-        if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model =
-                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
-        } else {
+        if (m_context->m_model) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+        } else {
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         }
         context.m_is_load_success = true;
         auto compile_end_time = std::chrono::high_resolution_clock::now();

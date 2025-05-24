@@ -447,8 +447,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     if (model_path.empty()) {
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
     } else {
-        // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
+        auto iter_plugin_cache_dir = properties.find(ov::cache_dir.name());
+        std::string cache_dir =
+            iter_plugin_cache_dir != properties.end() ? iter_plugin_cache_dir->second.as<std::string>() : "";
+        if (cache_dir.empty()) {
+            try {
+                cache_dir = get_core()->get_property("", ov::cache_dir);
+            } catch (std::exception&) {
+                LOG_DEBUG_TAG("Failed to get property %s from core", ov::cache_dir.name());
+            }
+        }
+        if (work_mode_auto && cache_dir.empty()) {
+            // cache disable and will read model first here
+            LOG_DEBUG_TAG("Try to read model via core from model path: %s", model_path.c_str());
+            try {
+                auto_s_context->m_model = get_core()->read_model(model_path, std::string{}, {});
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Failed to read model from model path:%s", model_path.c_str());
+            }
+            support_devices = filter_device_by_model(support_devices_by_property, auto_s_context->m_model, load_config);
+        } else {
+            // cache enabled and will pass model path into schedule
+            LOG_DEBUG_TAG("Will pass model path into auto schedule: %s", model_path.c_str());
+            auto_s_context->m_model_path = model_path;
+        }
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
@@ -963,14 +986,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    std::vector<std::string> stateful_node_names;
-    for (auto& op : model->get_ops()) {
-        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
-            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
-            stateful_node_names.push_back(op->get_friendly_name());
-        }
-    }
-    if (stateful_node_names.empty()) {
+    if (!ov::op::util::is_stateful_model(*model)) {
         // not stateful model
         return meta_devices;
     }

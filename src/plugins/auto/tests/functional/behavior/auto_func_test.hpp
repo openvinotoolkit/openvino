@@ -85,6 +85,7 @@ protected:
                                                  const ov::AnyMap& properties);
     std::shared_ptr<ov::Model> model_can_batch;
     std::shared_ptr<ov::Model> model_cannot_batch;
+    std::shared_ptr<ov::Model> model_stateful;
     std::string cache_path;
 
 private:
@@ -106,6 +107,7 @@ private:
                     const ov::AnyMap& properties);
     std::shared_ptr<ov::Model> create_model_with_batch_possible();
     std::shared_ptr<ov::Model> create_model_with_reshape();
+    std::shared_ptr<ov::Model> create_stateful_model();
 };
 
 class ThreadingTest {
