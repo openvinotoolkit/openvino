@@ -42,7 +42,8 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/core/except.hpp"
+#include "low_precision/cleanup_transformation.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/pass/matcher_pass.hpp"
