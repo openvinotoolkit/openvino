@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <chrono>
 #include <fstream>
 #include <string_view>
 
@@ -13,7 +14,6 @@
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -27,18 +27,27 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 namespace intel_npu {
 
+#define USE_SINGLE_THREADED_RUN_INIT 0
+
 using intel_npu::envVarStrToBool;
+
+std::chrono::steady_clock::time_point begin;
+std::chrono::steady_clock::time_point end;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const FilteredConfig& config)
+                             const FilteredConfig& config,
+                             const std::vector<std::shared_ptr<IGraph>>& initGraphs,
+                             const std::shared_ptr<ov::Model>& initModel)
     : ICompiledModel(model, plugin),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _graph(graph) {
+      _graph(graph),
+      _initGraphs(initGraphs),
+      _initModel(initModel) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
@@ -46,6 +55,28 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     _properties->registerProperties();
 
     configure_stream_executors();
+
+    if (!_initGraphs.empty()) {
+        if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
+            begin = std::chrono::steady_clock::now();
+#if USE_SINGLE_THREADED_RUN_INIT
+            for (const auto& initGraph : _initGraphs) {
+                auto [weightsInputs, initOutputsTensor] =
+                    _device->runInit(initGraph, _initModel, get_context(), _config);
+
+                add_weights_inputs(weightsInputs);
+                add_init_out_tensor(std::move(initOutputsTensor));
+            }
+#else
+            std::tie(_weightsInputs, _initOutputsTensors) =
+                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+#endif
+            end = std::chrono::steady_clock::now();
+            std::cout << "run_init() call within the \"CompiledModel\" ctor "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+        }
+    }
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -74,6 +105,46 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
+    if (!_initGraphs.empty()) {
+        if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+            begin = std::chrono::steady_clock::now();
+            // TODO: in theory, initialize() could also be pipelined with runInit?
+            for (const auto& initGraph : _initGraphs) {
+                initGraph->initialize(_config);
+            }
+            end = std::chrono::steady_clock::now();
+            std::cout << "Init graph(s) initialize() "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+
+            begin = std::chrono::steady_clock::now();
+#if USE_SINGLE_THREADED_RUN_INIT
+            for (const auto& initGraph : _initGraphs) {
+                auto [weightsInputs, initOutputsTensor] =
+                    _device->runInit(initGraph, _initModel, get_context(), _config);
+
+                add_weights_inputs(weightsInputs);
+                add_init_out_tensor(std::move(initOutputsTensor));
+            }
+#else
+            std::tie(_weightsInputs, _initOutputsTensors) =
+                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+#endif
+            end = std::chrono::steady_clock::now();
+            std::cout << "run_init() call during inference request creation "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+        }
+
+        OPENVINO_ASSERT(_device != nullptr);
+
+        begin = std::chrono::steady_clock::now();
+        syncInferRequest->set_weights_inputs(_weightsInputs);
+        end = std::chrono::steady_clock::now();
+        std::cout << "set_weights_inputs() call "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    }
+
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
                                                get_task_executor(),
                                                _resultExecutor,
@@ -88,9 +159,20 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
+    size_t mainBlobSizeBeforeVersioning = _graph->export_blob(stream);
+    size_t totalInitBlobSizesBeforeVersioning = 0;
+    std::vector<uint64_t> initBlobSizes;
+
+    for (const std::shared_ptr<IGraph>& initGraph : _initGraphs) {
+        const uint64_t initBlobSize = initGraph->export_blob(stream);
+        totalInitBlobSizesBeforeVersioning += initBlobSize;
+        initBlobSizes.push_back(initBlobSize);
+    }
+
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(totalInitBlobSizesBeforeVersioning + mainBlobSizeBeforeVersioning,
+                                                   CURRENT_OPENVINO_VERSION,
+                                                   initBlobSizes);
     meta.write(stream);
 }
 
@@ -192,6 +274,16 @@ void CompiledModel::configure_stream_executors() {
     set_task_executor(std::move(task_executor));
     const auto executorId = _graph->get_metadata().name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
+}
+
+void CompiledModel::add_weights_inputs(
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const {
+    _weightsInputs.merge(weightsInputs);
+    OPENVINO_ASSERT(weightsInputs.empty(), "Found weights inputs collision between different inits");
+}
+
+void CompiledModel::add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const {
+    _initOutputsTensors.push_back(std::move(tensor));
 }
 
 }  // namespace intel_npu

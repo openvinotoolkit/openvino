@@ -6,7 +6,6 @@
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 

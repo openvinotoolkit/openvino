@@ -5,6 +5,65 @@
 #include "plugin.hpp"
 
 #include <fstream>
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/batch_to_space_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/mvn_fusion.hpp>
+#include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/pull_through_reduce.hpp>
+#include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/rms_fusion.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
+#include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
+#include <transformations/common_optimizations/space_to_batch_fusion.hpp>
+#include <transformations/common_optimizations/strides_optimization.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/control_flow/unroll_if.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include <transformations/op_conversions/batch_norm_decomposition.hpp>
+#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/convert_avgpool_downgrade.hpp>
+#include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
+#include <transformations/op_conversions/convert_convertlike.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
+#include <transformations/op_conversions/convert_interpolate11_downgrade.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_pad12_downgrade.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_shapeof3.hpp>
+#include <transformations/op_conversions/convert_slice_to_strided_slice.hpp>
+#include <transformations/op_conversions/convert_softmax_upgrade.hpp>
+#include <transformations/op_conversions/convert_topk11_downgrade.hpp>
+#include <transformations/op_conversions/detection_output_downgrade.hpp>
+#include <transformations/op_conversions/einsum_decomposition.hpp>
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
+#include <transformations/op_conversions/group_normalization_decomposition.hpp>
+#include <transformations/op_conversions/log_softmax_decomposition.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
+#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "compiled_model.hpp"
 #include "compiler_adapter_factory.hpp"
@@ -34,6 +93,9 @@ namespace {
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
+constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
+constexpr std::string_view XML_EXTENSION = ".xml";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -49,23 +111,40 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
-                                              const std::vector<IODescriptor>& outputDescriptors) {
+                                              const std::vector<IODescriptor>& outputDescriptors,
+                                              const bool benchmarkInit = false) {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
-        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
-            continue;
+        if (!benchmarkInit) {
+            if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+                inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+                continue;
+            }
+
+            std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
+                inputDescriptor.precision,
+                inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                             : inputDescriptor.shapeFromCompiler);
+            parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+            parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
+            parameters.push_back(parameter);
+        } else {
+            if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+                inputDescriptor.isMainInputWeights) {
+                continue;
+            }
+
+            std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
+                inputDescriptor.precision,
+                inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                             : inputDescriptor.shapeFromCompiler);
+            parameter->set_friendly_name(inputDescriptor.nameFromCompiler);
+            parameter->output(0).get_tensor().set_names(
+                std::unordered_set<std::string>{inputDescriptor.nameFromCompiler});
+            parameters.push_back(std::move(parameter));
         }
-
-        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
-            inputDescriptor.precision,
-            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                         : inputDescriptor.shapeFromCompiler);
-
-        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
-        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-        parameters.push_back(std::move(parameter));
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -73,22 +152,42 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const IODescriptor& outputDescriptor : outputDescriptors) {
-        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
-            continue;
+        if (!benchmarkInit) {
+            if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+                outputDescriptor.isInitOutputWeights) {
+                continue;
+            }
+
+            std::shared_ptr<ov::Node> constantDummy =
+                std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+                std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                         outputDescriptor.shapeFromCompiler,
+                                                         outputDescriptor.outputTensorNames);
+
+            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+            result->output(0).set_tensor_ptr(tensorDummy);
+
+            result->set_friendly_name(outputDescriptor.nodeFriendlyName);
+        } else {
+            if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+                continue;
+            }
+
+            std::shared_ptr<ov::Node> constantDummy =
+                std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
+                outputDescriptor.precision,
+                outputDescriptor.shapeFromCompiler,
+                std::unordered_set<std::string>{outputDescriptor.nameFromCompiler});
+
+            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+            result->output(0).set_tensor_ptr(tensorDummy);
+
+            result->set_friendly_name(outputDescriptor.nameFromCompiler);
         }
-
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
-            outputDescriptor.precision,
-            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
-                                                          : outputDescriptor.shapeFromCompiler,
-            outputDescriptor.outputTensorNames);
-
-        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
-        result->output(0).set_tensor_ptr(tensorDummy);
-        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
     return std::make_shared<ov::Model>(results, parameters);
@@ -114,6 +213,109 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
         is >> level;
         Logger::global().setLevel(level);
     }
+}
+
+struct ImportDataWs {
+    std::vector<uint8_t> mainBlob;
+    std::vector<std::vector<uint8_t>> initBlobs;
+};
+
+void runOVPasses(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+
+    ov::element::TypeVector decompression_precisions{ov::element::u4,
+                                                     ov::element::i4,
+                                                     ov::element::nf4,
+                                                     ov::element::u8,
+                                                     ov::element::i8,
+                                                     ov::element::f8e4m3,
+                                                     ov::element::f8e5m2,
+                                                     ov::element::f8e8m0};
+    manager.register_pass<ov::pass::MarkDequantization>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::KeepConstPrecision>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::SharedOpOptimization>();
+    manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
+    manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
+    manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+    manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
+    manager.register_pass<ov::pass::ConvertPad12ToPad1>();
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::SliceToStridedSlice>(true);
+    manager.register_pass<ov::pass::MOCTransformations>(true, false);
+
+    auto pass_config = manager.get_pass_config();
+    pass_config->disable<ov::pass::PadFusionConvolution>();
+    pass_config->disable<ov::pass::PadFusionGroupConvolution>();
+    pass_config->disable<ov::pass::MVNFusionWithConstantsInside>();
+    pass_config->disable<ov::pass::PullThroughReduce>();
+    pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
+    pass_config->disable<ov::pass::FakeQuantizeMulFusion>();
+    pass_config->disable<ov::pass::MulFakeQuantizeFusion>();
+
+    manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
+
+    auto static_shape = manager.register_pass<ov::pass::GraphRewrite>();
+    static_shape->add_matcher<ov::pass::ConvertNMS9ToNMSIEInternal>();
+    static_shape->set_name("ov::pass::CommonStaticShape");
+
+    auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    common_fusions->add_matcher<ov::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ov::pass::ShuffleChannelsFusion>(false);
+    common_fusions->add_matcher<ov::pass::SpaceToBatchFusion>();
+    common_fusions->add_matcher<ov::pass::BatchToSpaceFusion>();
+    common_fusions->add_matcher<ov::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ov::pass::RMSFusion>();
+    common_fusions->set_name("ov::pass::CommonFusions");
+
+    auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
+    decomp->add_matcher<ov::pass::Gelu7Downgrade>();
+    decomp->add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();
+    decomp->add_matcher<ov::pass::BidirectionalRNNSequenceDecomposition>();
+    decomp->add_matcher<ov::pass::ConvertBroadcastToTiles>();
+    decomp->add_matcher<ov::pass::ConvertConvertLike>();
+    decomp->add_matcher<ov::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ov::pass::EinsumDecomposition>();
+    decomp->add_matcher<ov::pass::DropoutWithRandomUniformReplacer>();
+    decomp->add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
+    decomp->add_matcher<ov::pass::GroupNormalizationDecomposition>();
+    decomp->set_name("ov::pass::CommonDecompositions");
+
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::LinOpSequenceFusion>();
+    manager.register_pass<ov::pass::UnrollIf>();
+
+    auto conv_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ov::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ov::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ov::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ov::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ov::pass::MultiplyConvolutionFusion>();
+    conv_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionFusion>();
+    conv_fusions->add_matcher<ov::pass::MultiplyConvolutionBackpropDataFusion>();
+    conv_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    conv_fusions->set_name("ov::pass::ConvFusions");
+
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConvertGather1ToGather7>();
+    manager.register_pass<ov::pass::ConvertGather7ToGather8>();
+    manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
+    manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
+    manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
+    manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
+    manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    manager.register_pass<ov::pass::ConvertShapeOf3>();
+
+    manager.register_pass<ov::pass::StridesOptimization>();
+    manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
+
+    manager.run_passes(model);
 }
 
 static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
@@ -215,6 +417,10 @@ void Plugin::init_options() {
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+    REGISTER_OPTION(WEIGHTLESS_BLOB);
+    REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
+    REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
+    REGISTER_OPTION(BENCHMARK_INIT);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(TURBO);
@@ -484,10 +690,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto originalModel = model->clone();
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+
     std::shared_ptr<intel_npu::IGraph> graph;
+    std::vector<std::shared_ptr<intel_npu::IGraph>> initGraphs;
+    std::shared_ptr<ov::Model> initModel;
+
     try {
         _logger.debug("performing compile");
-        graph = compiler->compile(model->clone(), localConfig);
+
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            graph = compiler->compile(model->clone(), localConfig);
+        } else {
+            initModel = model->clone();
+
+            auto begin = std::chrono::steady_clock::now();
+            std::vector<std::shared_ptr<intel_npu::IGraph>> initMainGraphs =
+                compiler->compileWS(initModel, localConfig);
+            auto end = std::chrono::steady_clock::now();
+            std::cout << "compiler->compileWS() call "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+
+            graph = initMainGraphs.back();
+            initMainGraphs.pop_back();
+            initGraphs = std::move(initMainGraphs);
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -497,7 +724,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model,
+                                                        shared_from_this(),
+                                                        device,
+                                                        graph,
+                                                        localConfig,
+                                                        initGraphs,
+                                                        initModel);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -533,7 +766,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    ov::Tensor tensor;
+    ov::Tensor tensorBig, tensorSmall;
     bool tensorFromProperty = false;
 
     std::istream stream{origStream.rdbuf()};
@@ -543,16 +776,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        tensor = blob_it->second.as<ov::Tensor>();
+        tensorBig = blob_it->second.as<ov::Tensor>();
         tensorFromProperty = true;
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
             loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            tensor = ov::Tensor(
-                tensor,
+            tensorBig = ov::Tensor(
+                tensorBig,
                 ov::Coordinate{static_cast<size_t>(origStream.tellg())},
-                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+                ov::Coordinate{tensorBig.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
         } else {
-            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensorBig.data()), tensorBig.get_byte_size());
             stream.rdbuf(&buffer);
         }
         npu_plugin_properties.erase(blob_it);
@@ -611,33 +844,119 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
+        uint64_t mainSize;
+        std::vector<uint64_t> initSizes;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
-        size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = storedMeta->get_blob_size();
-        }
-        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
-            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-            }
-            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+
+            size_t accumulator = 0;
+            initSizes = storedMeta->get_init_sizes();
+            mainSize = storedMeta->get_blob_size() - std::accumulate(initSizes.begin(), initSizes.end(), accumulator);
         } else {
-            tensor = ov::Tensor(tensor,
-                                ov::Coordinate{0},
-                                ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
+            _logger.info("Blob compatibility check skipped.");
+            mainSize = MetadataBase::getFileSize(stream);
         }
-        auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
+
+        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+            tensorSmall = ov::Tensor(ov::element::u8, ov::Shape{mainSize});
+            stream.read(tensorSmall.data<char>(), mainSize);
+        } else {
+            tensorSmall = ov::Tensor(tensorBig,
+                                     ov::Coordinate{0},
+                                     ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+        }
+        auto graph = compiler->parse(std::move(tensorSmall), !tensorFromProperty, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
-        const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+        if (initSizes.empty()) {
+            const std::shared_ptr<ov::Model> modelDummy =
+                create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+            compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+        } else {
+            // Read the init compiled models as well
+            // TODO adjust for multiple init parts
+            size_t cursorPosition = mainSize;
+            std::vector<std::shared_ptr<IGraph>> initGraphs;
+            for (uint64_t initSize : initSizes) {
+                if (tensorFromProperty == false) {
+                    tensorSmall = ov::Tensor(ov::element::u8, ov::Shape{initSize});
+                    stream.read(tensorSmall.data<char>(), initSize);
+                } else {
+                    tensorSmall = ov::Tensor(tensorBig,
+                                             ov::Coordinate{cursorPosition},
+                                             ov::Coordinate{cursorPosition + initSize});
+                }
 
-        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+                std::shared_ptr<IGraph> initGraph =
+                    compiler->parse(std::move(tensorSmall), !tensorFromProperty, localConfig);
+                initGraph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+                initGraphs.push_back(initGraph);
+                cursorPosition += initSize;
+            }
+
+            // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
+            std::shared_ptr<ov::Model> originalModel;
+            if (localConfig.get<MODEL_PTR>()) {
+                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
+            } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+                const size_t weightsPathLength = weightsPath.length();
+                std::string xmlPath = weightsPath;
+
+                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION) == 0) {
+                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    XML_EXTENSION);
+                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION)) {
+                    OPENVINO_THROW("Invalid path to the weights: ",
+                                   weightsPath,
+                                   ". A \".bin\" or \".onnx\" extension was expected.");
+                }
+
+                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+            } else {
+                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+            }
+
+            runOVPasses(originalModel);
+
+            if (!localConfig.get<BENCHMARK_INIT>()) {
+                const std::shared_ptr<ov::Model> modelDummy =
+                    create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+                compiledModel = std::make_shared<CompiledModel>(modelDummy,
+                                                                shared_from_this(),
+                                                                device,
+                                                                graph,
+                                                                localConfig,
+                                                                initGraphs,
+                                                                originalModel);
+            } else {
+                // TODO: BENCHMARK_INIT must become an integer?
+                if (initGraphs.empty()) {
+                    OPENVINO_THROW("Can't BENCHMARK_INIT: single init function not found");
+                }
+
+                const std::shared_ptr<ov::Model> modelDummy =
+                    create_dummy_model(initGraphs.at(0)->get_metadata().inputs,
+                                       initGraphs.at(0)->get_metadata().outputs,
+                                       true);
+                compiledModel = std::make_shared<CompiledModel>(modelDummy,
+                                                                shared_from_this(),
+                                                                device,
+                                                                initGraphs.at(0),
+                                                                localConfig);
+            }
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {

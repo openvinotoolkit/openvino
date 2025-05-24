@@ -430,18 +430,31 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
     // Flags will be used instead of indices for informing the type of the current entry
     std::string nameFromCompiler = arg.name;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) ? true : false;
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;
-    if (isStateInputName(nameFromCompiler)) {
+    bool isInitInputWeights = false;
+    bool isInitOutputWeights = false;
+    bool isMainInputWeights = false;
+    if (isInput && isStateInputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
         isStateInput = true;
-    } else if (isStateOutputName(nameFromCompiler)) {
+    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
         isStateOutput = true;
     } else if (isShapeTensorName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
         isShapeTensor = true;
+    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+        isInitInputWeights = true;
+    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+        isInitOutputWeights = true;
+    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
+        isMainInputWeights = true;
     }
 
     return {std::move(nameFromCompiler),
@@ -450,6 +463,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             isStateInput,
             isStateOutput,
             isShapeTensor,
+            isInitInputWeights,
+            isInitOutputWeights,
+            isMainInputWeights,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
@@ -486,7 +502,9 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
-        if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
+        if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name) &&
+            !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) &&
+            !isMainInputWeightsName(arg.name)) {
             _logger.debug("getMetadata - perfrom pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata;
             result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
