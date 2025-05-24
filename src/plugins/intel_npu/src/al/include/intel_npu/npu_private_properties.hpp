@@ -360,6 +360,5 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * This option allows to skip the blob version check
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
-
 }  // namespace intel_npu
 }  // namespace ov
