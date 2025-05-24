@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <chrono>
 #include <fstream>
 #include <string_view>
 
@@ -13,7 +14,6 @@
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -28,6 +28,9 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
+
+std::chrono::steady_clock::time_point begin;
+std::chrono::steady_clock::time_point end;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -88,9 +91,10 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes);
     meta.write(stream);
 }
 

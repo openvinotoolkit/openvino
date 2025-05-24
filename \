@@ -1,0 +1,19 @@
+WS config fix
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Date:      Fri May 23 11:09:42 2025 +0000
+#
+# interactive rebase in progress; onto 5a54c5f182
+# Last commands done (2 commands done):
+#    pick e153b83eca Diff
+#    reword 82973688b3 WS commit fix
+# Next command to do (1 remaining command):
+#    pick 065cb7252e Fixing the SIT workaround for the ONNX frontend
+# You are currently editing a commit while rebasing branch 'EISW-138991-weights-separation-poc' on '5a54c5f182'.
+#
+# Changes to be committed:
+#	modified:   src/plugins/intel_npu/src/compiler_adapter/src/driver_compiler_adapter.cpp
+#	deleted:    src/plugins/intel_npu/src/compiler_adapter/src/plugin_graph.cpp
+#
