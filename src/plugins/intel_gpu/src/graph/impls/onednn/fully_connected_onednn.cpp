@@ -160,6 +160,13 @@ protected:
         if (prim_input_size < 4) {
             auto output_pshape = output_layout.get_partial_shape();
             if (output_pshape.size() > prim_input_size) {
+                std::vector<ov::Dimension> new_dims;
+                for (const auto& dim : output_pshape) {
+                    if (!dim.is_static() || dim.get_length() != 1)
+                        new_dims.push_back(dim);
+                }
+                ov::PartialShape new_shape(new_dims);
+                output_pshape = new_shape;
                 output_pshape.resize(prim_input_size);
                 output_layout.set_partial_shape(output_pshape);
             }
