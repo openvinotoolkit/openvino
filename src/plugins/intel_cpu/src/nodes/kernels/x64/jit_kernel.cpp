@@ -320,7 +320,7 @@ const void* consts_table::store(const void* data, size_t size) {
 
 }  // namespace internal
 
-jit_kernel::jit_kernel(const char* name) : jit_generator(name) {
+jit_kernel::jit_kernel(const char* name) : jit_generator_t(name) {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
@@ -403,7 +403,7 @@ void jit_kernel::free<Zmm>(const Zmm& reg) {
 }
 
 void jit_kernel::postamble() {
-    jit_generator::postamble();
+    jit_generator_t::postamble();
     for (const auto& emitter : _emitters) {
         if (emitter.second) {
             emitter.second->emit_data();

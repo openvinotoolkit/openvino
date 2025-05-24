@@ -11,13 +11,13 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 /* ================== jit_loop_begin_emitter ====================== */
 
-jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),
@@ -60,7 +60,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
 
 /* ================== jit_loop_end_emitter ====================== */
 
-jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),

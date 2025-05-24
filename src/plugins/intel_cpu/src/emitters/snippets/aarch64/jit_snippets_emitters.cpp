@@ -12,16 +12,16 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_nop_emitter::jit_nop_emitter(jit_generator* h, cpu_isa_t isa, [[maybe_unused]] const ExpressionPtr& expr)
+jit_nop_emitter::jit_nop_emitter(jit_generator_t* h, cpu_isa_t isa, [[maybe_unused]] const ExpressionPtr& expr)
     : aarch64::jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     OV_CPU_JIT_EMITTER_ASSERT(n->get_input_element_type(0) == n->get_output_element_type(0),
@@ -44,7 +44,7 @@ void jit_broadcast_move_emitter::emit_impl(const std::vector<size_t>& in, const 
 
 template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
     auto src = TReg(in[0]);
     auto dst = TReg(out[0]);
 
@@ -57,7 +57,7 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const s
     }
 }
 
-jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
@@ -89,7 +89,7 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 template <cpu_isa_t isa>
 void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
                                   const std::vector<size_t>& out) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
     auto dst = TReg(out[0]);
     AdrImm src = table_val("scalar");
 
