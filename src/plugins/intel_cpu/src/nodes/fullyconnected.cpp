@@ -633,25 +633,21 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
-            memory[ARG_DST | ARG_ATTR_SCALES] =
-                split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            it->second = split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
             auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
-            memory[ARG_WEI | ARG_ATTR_SCALES] =
-                attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            it->second = attrs.weightsNonTransposed
+                             ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                             : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
             auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
             auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-            if (element_num == 1) {
-                tp_cfg.cached_zeropoint = zeropoint_mem;
-            } else {
-                tp_cfg.cached_zeropoint =
+            if (element_num != 1) {
+                it->second =
                     attrs.weightsNonTransposed
                         ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
                         : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
