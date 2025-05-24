@@ -44,33 +44,61 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
+template <typename T>
+static void print_vector(const std::string& name, std::vector<T> shape)
+{
+    std::cout << name << " shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i].v << (i + 1 < shape.size() ? ", " : "");
+    }
+    std::cout << "]\n";
+}
+
 ScatterNDUpdateKernelRef::DispatchData
-ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, bool is_second) const {
+ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, bool is_first_kernel) const {
     DispatchData dispatchData;
 
-    if (!is_second) {
+    if (is_first_kernel) {
         const auto& scope = params.outputs[0];
         dispatchData.indicesLastDim = 1;
         dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     } else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
-        auto indices_dims = indices.LogicalDims();
+        const auto& updates = params.inputs[2];
+        auto indices_dims = indices.GetDims();
+        // auto updates_dims = updates.GetDims();
+        // print_vector("indices_dims", indices_dims);
+        // print_vector("updates_dims", updates_dims);
 
         if (indices_dims.size() > 1) {
             std::reverse(indices_dims.begin(), indices_dims.end());
         }
 
-        dispatchData.indicesLastDim = indices_dims[indices_rank - 1];
-        size_t indices_set_size = 1;
-        for (size_t i = 0; i < (indices_rank - 1); i++) {
-            indices_set_size *= indices_dims[i];
-        }
+        dispatchData.indicesLastDim = indices_dims[indices_rank - 1].v;
 
-        dispatchData.gws = {1, 1, indices_set_size};
+        auto updates_rank = updates.Dimentions();
+        if (updates_rank == 4) {
+            dispatchData.gws = { updates.X().v,
+                                 updates.Y().v,
+                                 updates.Feature().v * updates.Batch().v };
+        } else if (updates_rank == 5) {
+            dispatchData.gws = { updates.X().v,
+                                 updates.Y().v * updates.Z().v,
+                                 updates.Feature().v * updates.Batch().v };
+        } else if (updates_rank == 6) {
+            dispatchData.gws = { updates.X().v * updates.Y().v,
+                                 updates.Z().v * updates.W().v,
+                                 updates.Feature().v * updates.Batch().v };
+        } else {
+            OPENVINO_THROW("Unknown rank: rank=", updates_rank);
+        }
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    // printf("kernel[%d] dispatchData.gws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
+    // printf("kernel[%d] dispatchData.lws: { %ld, %ld, %ld }\n", !is_first_kernel, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
 
     return dispatchData;
 }
@@ -96,6 +124,7 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
 
     auto indices_rank = params.indices_rank;
     if (indices_rank < 1) {
+        std::cout << "[" << __func__ << ":" << __LINE__ <<"] params.indices_rank: " << params.indices_rank << std::endl;
         return false;
     }
 
@@ -105,6 +134,7 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
         std::reverse(indices_dims.begin(), indices_dims.end());
 
         if (indices_dims[indices_rank - 1] > input_dims.size()) {
+            std::cout << "[" << __func__ << ":" << __LINE__ <<"] indices_rank: " << indices_rank << ", indices_dims[indices_rank - 1]: " << indices_dims[indices_rank - 1] << ", input_dims.size(): " << input_dims.size() << std::endl;
             return false;
         }
     }
@@ -117,48 +147,13 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t shape_info_offset, size_t rank) {
-    const auto& input = params.inputs[num];
-
-    auto input_dims = input.LogicalDims();
-    std::reverse(input_dims.begin(), input_dims.end());
-    auto dims = input.GetDims();
-    std::reverse(dims.begin(), dims.end());
-
-    std::vector<size_t> block_nd(rank + 1);
-    block_nd[rank] = 1;
-
-    std::vector<std::string> block_nd_s(rank + 1);
-    block_nd_s[rank] = "1";
-    size_t input_offset = shape_info_offset;
-
-    for (int32_t idx = static_cast<int32_t>(rank) - 1; idx >= 0; --idx) {
-        block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
-
-        size_t dim_offset = idx < 2 ? idx : (DataTensor::max_rank() - dims.size()) + idx; // convert to idx in default planar format
-        block_nd_s[idx] = "(" + toCodeString(dims[idx], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
-    }
-
-    std::string result;
-    if (input.is_dynamic()) {
-        for (auto& block : block_nd_s) {
-            result += block + ",";
-        }
-    } else {
-        for (size_t block : block_nd) {
-            result += toCodeString(block) + ",";
-        }
-    }
-    return result;
-}
-
 void ScatterNDUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_nd_update_params&>(params);
         OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
 
         for (size_t i = 0; i < 2; ++i) {
-            auto dispatchData = SetDefault(prim_params, (i == 1));
+            auto dispatchData = SetDefault(prim_params, (i == 0));
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
@@ -177,31 +172,22 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
 
     KernelData kd = KernelData::Default<scatter_nd_update_params>(params, 2);
     scatter_nd_update_params& newParams = *static_cast<scatter_nd_update_params*>(kd.params.get());
-    auto cldnn_jit = GetJitConstants(newParams);
-
+    
     GetUpdateDispatchDataFunc(kd);
-
+    
     // First iter - copy input data to output data
     // Second iter - update values specified by updates at specific index position specified by indices
     for (int i = 0; i < 2; i++) {
-        auto dispatchData = SetDefault(newParams, (i == 1));
+        auto cldnn_jit = GetJitConstants(newParams);
+        auto dispatchData = SetDefault(newParams, (i == 0));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         auto inputs_number = i == 0 ? 1 : 3;
 
-        if (i == 1) {
-            size_t input0_rank = newParams.inputs[0].LogicalDims().size();
-            size_t input2_rank = newParams.inputs[2].LogicalDims().size();
+        if (i == 0) {
+            cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
+        } else if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-            cldnn_jit.AddConstant(MakeJitConstant(
-                "INPUT0_BLOCK_ND",
-                GetInputBlockND(newParams, 0, newParams.inputs[0].get_dynamic_shape_offset(), input0_rank)));
-            cldnn_jit.AddConstant(MakeJitConstant(
-                "INPUT1_BLOCK_ND",
-                GetInputBlockND(newParams, 1, newParams.inputs[1].get_dynamic_shape_offset(), newParams.indices_rank - 1)));
-            cldnn_jit.AddConstant(MakeJitConstant(
-                "INPUT2_BLOCK_ND",
-                GetInputBlockND(newParams, 2, newParams.inputs[2].get_dynamic_shape_offset(), input2_rank)));
-
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
 
             const auto& ind_input = newParams.inputs[1];

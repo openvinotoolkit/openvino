@@ -76,6 +76,15 @@ void scatterNdUpdate(
     const ov::op::v15::ScatterNDUpdate::Reduction reduction_type = ov::op::v15::ScatterNDUpdate::Reduction::NONE) {
     const auto update_chunk_shape = span(dataShape).drop_front(indicesShape.back());
     const auto update_el_number = shape_size(update_chunk_shape);
+    // if (update_chunk_shape.size() == 1) {
+    //     printf("update_chunk_shape: %ld\n", update_chunk_shape[0]);
+    // } else if (update_chunk_shape.size() == 2) {
+    //     printf("update_chunk_shape: %ld, %ld\n", update_chunk_shape[0], update_chunk_shape[1]);
+    // } else if (update_chunk_shape.size() == 3) {
+    //     printf("update_chunk_shape: %ld, %ld, %ld\n", update_chunk_shape[0], update_chunk_shape[1], update_chunk_shape[2]);
+    // } else if (update_chunk_shape.size() == 4) {
+    //     printf("update_chunk_shape: %ld, %ld, %ld, %ld\n", update_chunk_shape[0], update_chunk_shape[1], update_chunk_shape[2], update_chunk_shape[3]);
+    // }
 
     std::memcpy(outBuf, inputData, sizeof(dataType) * shape_size(dataShape));
 
@@ -89,6 +98,7 @@ void scatterNdUpdate(
     const auto reduction = scatter_nd_update::reduction_functor_for<dataType>(reduction_type);
     std::vector<indicesType> indicesCopy(indices, indices + shape_size(indicesShape));
     const auto num_of_updates = shape_size(span(indicesShape).drop_back(1));
+    std::cout << "num_of_updates: " << num_of_updates << ", update_el_number: " << update_el_number << std::endl;
     for (size_t i = 0; i != num_of_updates; ++i) {
         const auto indices_coord = indicesCopy.data() + i * indicesShape.back();
         const auto coord = span(indices_coord, indicesShape.back());
