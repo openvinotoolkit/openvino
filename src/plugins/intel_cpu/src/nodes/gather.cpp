@@ -653,6 +653,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
 template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
 void Gather::execCompressed4Bit() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -663,7 +664,7 @@ void Gather::execCompressed4Bit() {
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
-    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+    cpu_parallel->parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
@@ -737,6 +738,7 @@ void Gather::execCompressed4Bit() {
 
 template <typename OUT_TYPE, typename IN_TYPE>
 void Gather::execCompressed8Bit() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const auto* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
     auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -748,7 +750,7 @@ void Gather::execCompressed8Bit() {
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
 
-    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+    cpu_parallel->parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
@@ -898,12 +900,13 @@ void Gather::execCompressed() {
 }
 
 void Gather::execReference() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeBOut;
-    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+    cpu_parallel->parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
