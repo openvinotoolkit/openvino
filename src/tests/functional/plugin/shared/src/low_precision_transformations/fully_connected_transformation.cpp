@@ -17,18 +17,11 @@
 namespace LayerTestsDefinitions {
 
 std::string FullyConnectedTransformation::getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj) {
-    ov::element::Type precision;
-    FullyConnectedShapes shapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::element::Type weightsType;
-    FullyConnectedParams activation;
-    std::string expectedPrimitiveType;
-    std::tie(precision, shapes, targetDevice, params, weightsType, activation, expectedPrimitiveType) = obj.param;
+    auto [precision, shapes, device, weightsType, activation, expectedPrimitiveType] = obj.param;
 
     std::ostringstream result;
     result <<
-        get_test_case_name_by_params(precision, shapes.inputA, targetDevice, params) <<
+        get_test_case_name_by_params(precision, shapes.inputA, device) <<
         shapes.inputB << "_" <<
         "transposeA=" << shapes.transposeA << "_" <<
         "transposeB=" << shapes.transposeB << "_" <<
@@ -44,13 +37,8 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 }
 
 void FullyConnectedTransformation::SetUp() {
-    ov::element::Type precision;
-    FullyConnectedShapes shapes;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::element::Type weightsType;
-    FullyConnectedParams activation;
-    std::string expectedPrimitiveType;
-    std::tie(precision, shapes, targetDevice, params, weightsType, activation, expectedPrimitiveType) = this->GetParam();
+    auto [precision, shapes, device, weightsType, activation, expectedPrimitiveType] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ shapes.inputA, shapes.inputB });
 
@@ -71,17 +59,17 @@ TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
-    const auto& activation = std::get<5>(GetParam());
+    const auto& activation = std::get<4>(GetParam());
     if (!activation.originalLayersNames.empty()) {
         const auto originalLayersNames = get_property_by_type("FullyConnected", "originalLayersNames");
         EXPECT_EQ(ov::util::to_lower(activation.originalLayersNames), originalLayersNames);
     }
 
     const auto& actualPrecision = get_runtime_precision_by_type("FullyConnected");
-    const auto expectedPrecision = std::get<4>(GetParam());
+    const auto expectedPrecision = std::get<3>(GetParam());
     EXPECT_EQ(actualPrecision, expectedPrecision.to_string());
 
-    const auto& expectedPrimitiveType = std::get<6>(GetParam());
+    const auto& expectedPrimitiveType = std::get<5>(GetParam());
     if (!expectedPrimitiveType.empty()) {
         const std::string actualPrimitiveType = get_property_by_type("FullyConnected", "primitiveType");
         EXPECT_EQ(expectedPrimitiveType, actualPrimitiveType);
