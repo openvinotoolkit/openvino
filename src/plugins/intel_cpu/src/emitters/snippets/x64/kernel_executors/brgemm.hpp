@@ -14,8 +14,10 @@ struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype,
                        const element::Type& in1_dtype,
+                       const element::Type& out_dtype,
                        bool is_with_comp,
-                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                       const dnnl_post_ops& post_ops);
     BrgemmKernelConfig() = delete;
 
     [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
@@ -30,8 +32,10 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
+                     const element::Type& out_dtype,
                      bool is_with_comp,
-                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                     const dnnl_post_ops& post_ops);
 
         const bool is_with_comp{false};
 
@@ -68,6 +72,7 @@ public:
         const void* B = nullptr;
         void* C = nullptr;
         void* scratch = nullptr;
+        const void* post_ops_binary_arg_vec = nullptr;
     };
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
 
