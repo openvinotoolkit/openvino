@@ -2069,9 +2069,9 @@ void TopK::prepareParams() {
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
-        const int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
+        int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
         if (static_cast<size_t>(src_k) > src_dims[axis]) {
-            THROW_CPU_NODE_ERR("gets top_k out of range!");
+            src_k = static_cast<int>(src_dims[axis]);
         }
         if (top_k != src_k) {
             top_k = src_k;
