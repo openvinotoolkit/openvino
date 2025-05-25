@@ -45,6 +45,7 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
 
 template <typename src_t, typename dst_t>
 void convert_and_copy_transposed(const src_t* src, dst_t* dst, ov::Shape shape) {
+    OPENVINO_ASSERT(shape.size() >= 2, "[GPU] Transposed shape must have a rank not lower than 2");
     size_t prefix_size = std::accumulate(shape.begin(), shape.end() - 2, static_cast<size_t>(1), std::multiplies<size_t>());
     size_t y = shape[shape.size() - 2];
     size_t x = shape[shape.size() - 1];
