@@ -2410,7 +2410,7 @@ struct MHAHelper {
         int32_t total_kv_len_aligned = 0;
         int32_t total_kv_len = 0;
         for (int32_t i = 0; i < seq_cout; i++) {
-            auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[i] : 0;
+            auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[i] : 1;
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
 
             // The score_aggregation_window may span multiple blocks, so need to allocate tmp buf for each block.
@@ -3009,7 +3009,7 @@ struct MHAHelper {
         if (output_score) {
             parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 0;
+                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 1;
                 auto* dst = output_score.ptr<float>() + _score_infos[b].score_offsets;
                 if (score_win_len) {
                     auto* src = _weight_bhl.ptr<float>(b, 0, pq);
@@ -3326,7 +3326,7 @@ struct MHA {
                 float* score_output = nullptr;
                 if (output_score) {
                     const auto score_win_len =
-                        score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[batch_in_seq] : 0;
+                        score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[batch_in_seq] : 1;
                     if (score_win_len) {
                         auto score_offset = _helper._score_infos[batch_in_seq].score_offsets_aligned;
                         score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
@@ -3360,7 +3360,7 @@ struct MHA {
                     const auto score_win_len =
                         score_aggregation_window
                             ? static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq])
-                            : 0;
+                            : 1;
                     if (score_win_len) {
                         q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
                         if (q_cnt + q_blk * _helper._block_size > q_start_idx_score) {
@@ -3446,7 +3446,7 @@ struct MHA {
                 auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] -
                                                    subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
-                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 0;
+                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 1;
                 const auto& score_info = _helper._score_infos[b];
                 auto dst_offset = score_info.score_offsets;
                 auto* dst = output_score.ptr<float>() + dst_offset;
