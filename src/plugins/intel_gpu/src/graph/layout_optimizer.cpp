@@ -941,16 +941,37 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
-            expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
-            expected_format = format::b_fs_zyx_fsv16;
+        if (i8_u8_input) {
+            cldnn::program_node& mutable_node = const_cast<cldnn::convolution_node&>(node);
+            mutable_node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            // shallow channel
+            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 4) {
+                mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
+                // mutable_node.set_preferred_input_fmt(0, cldnn::format::bfyx);
+            }
+            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 4) {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::byxf);
+                // mutable_node.set_preferred_input_fmt(0, cldnn::format::bfyx);
+            }
+            GPU_DEBUG_INFO << format(mutable_node.get_preferred_input_fmt(0))
+                            << ", " << format(mutable_node.get_preferred_output_fmt()) << std::endl;
+        } else {
+            if (input_layout.get_partial_shape().size() <= 4)
+                expected_format = format::b_fs_yx_fsv16;
+            else if (input_layout.get_partial_shape().size() == 5)
+                expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
+        GPU_DEBUG_INFO << "pf_IN: " << format(node.get_preferred_input_fmt())
+                        << ", dt: " << ov::element::Type_t(input_layout.data_type)
+                        << ", pf_OUT: " << format(node.get_preferred_output_fmt())
+                        << ", dt: " << ov::element::Type_t(output_layout.data_type) << std::endl;
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
