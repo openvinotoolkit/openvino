@@ -5,9 +5,7 @@
 #include "jit_gemm_emitter.hpp"
 
 #include "snippets/utils/utils.hpp"
-#include "transformations/tpp/common/op/brgemm.hpp"
 
-using namespace ov::intel_cpu::tpp;
 using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {

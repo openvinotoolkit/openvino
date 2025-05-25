@@ -17,7 +17,6 @@
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
-// #include "openvino/pass/manager.hpp"
 
 namespace ov::intel_cpu {
 
@@ -62,7 +61,6 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto& layout_c = brgemm_out_desc->get_layout();
 
         const auto element_type_a = brgemm->get_input_element_type(0);
-        // const bool transpose_b = !layout_b.empty() && layout_b.back() != layout_b.size() - 1;
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
