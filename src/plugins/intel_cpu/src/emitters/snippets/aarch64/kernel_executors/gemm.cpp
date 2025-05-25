@@ -7,9 +7,6 @@
 #include "openvino/core/parallel.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
-#define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN (-3.4028235e38f)
-
 namespace ov::intel_cpu::aarch64 {
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
@@ -19,8 +16,8 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                           GemmKernelKaiConfig& config) const {
     // update M/N/K/beta
-    int64_t M, N, K, beta;
-    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    // int64_t M, N, K, beta;
+    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
@@ -63,8 +60,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
                            dst_ptr,
                            dst_stride_row,
                            dst_stride_col,
-                           FLOAT_MIN,
-                           FLOAT_MAX);
+                           std::numeric_limits<float>::min(),
+                           std::numeric_limits<float>::max());
     }
 }
 

@@ -19,7 +19,7 @@ public:
     GemmKernelKaiConfig() = default;
 
     std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<GemmKernelKaiConfig>(new GemmKernelKaiConfig(*this));
+        return std::make_unique<GemmKernelKaiConfig>(*this);
     }
 
     size_t hash() const override {

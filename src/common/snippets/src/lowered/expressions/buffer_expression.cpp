@@ -7,7 +7,6 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/op/memory_access.hpp"
 
 
 namespace ov {
@@ -74,14 +73,6 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
 
     OPENVINO_ASSERT(allocation_rank > 0, "Allocation size must be positive");
     const size_t rank = std::min(static_cast<size_t>(allocation_rank), planar_shape.size());
-
-    // Some buffer after MemoryAccess node should be padded/rounded while need keep original shape for ops(matmul) senmatic,
-    // such as copy_b in kleidiAI. allocate adjusted size.
-    auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_port.get_expr()->get_node());
-    if (ma && ma->is_adjusted_output_size()) {
-        m_allocation_size = ma->get_adjusted_output_size(planar_shape, rank);
-        return;
-    }
 
     const auto& subtensor = ov::snippets::utils::get_projected_subtensor(parent_port);
 

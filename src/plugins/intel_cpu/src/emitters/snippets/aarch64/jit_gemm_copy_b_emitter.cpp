@@ -38,7 +38,7 @@ std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_prec
 }
 
 void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input regs, got", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input reg, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
 }
 

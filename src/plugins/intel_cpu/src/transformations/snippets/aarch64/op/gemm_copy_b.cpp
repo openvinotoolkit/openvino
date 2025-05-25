@@ -48,7 +48,7 @@ bool GemmCopyB::visit_attributes(AttributeVisitor& visitor) {
 
 void GemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(GemmRepack_ctor_validate_and_infer_types);
-    // During ctor call, BrgemmCopyB doesn't know his port descriptors.
+    // During ctor call, GemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
     validate_element_type(element_type);
@@ -84,36 +84,17 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
-size_t GemmCopyB::get_adjusted_output_size(const snippets::VectorDims& shape, const size_t& rank) const {
-    const size_t n_block_size = 64;
-    OPENVINO_ASSERT(shape.size() >= 2 && rank >= 2, "GemmCopyB should has at least 2 rank tensor");
-    const size_t K = *(shape.rbegin() + 1);
-    const size_t N = *shape.rbegin();
-    size_t n_block_num = N / n_block_size;
-    size_t n_tail_size = N % n_block_size;
-    size_t allocation_size = 0;
-    for (size_t i = 0; i < n_block_num; i++) {
-        allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_block_size, K);
-    }
-    if (n_tail_size > 0) {
-        allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
-    }
-    // convert byte size to element type size
-    return allocation_size / m_src_type.size();
-}
-
 GemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     const auto& brg_copyb = ov::as_type_ptr<GemmCopyB>(n);
     OPENVINO_ASSERT(brg_copyb, "Got invalid node in GemmCopyB::ShapeInfer");
     m_layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->input(0))->get_layout();
-    m_num_outs = brg_copyb->get_output_size();
 }
 
 ov::snippets::IShapeInferSnippets::Result GemmCopyB::ShapeInfer::infer(
     const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
-    std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
+    std::vector<ov::snippets::VectorDims> new_shapes(1, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
 }  // namespace ov::intel_cpu::aarch64
