@@ -52,14 +52,8 @@ public:
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    virtual bool is_adjusted_output_size() const override {
-        return true;
-    }
-    virtual size_t get_adjusted_output_size(const snippets::VectorDims& shape, const size_t& rank) const override;
-
     class ShapeInfer : public snippets::IShapeInferSnippets {
         std::vector<size_t> m_layout{};
-        size_t m_num_outs = 1;
 
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);

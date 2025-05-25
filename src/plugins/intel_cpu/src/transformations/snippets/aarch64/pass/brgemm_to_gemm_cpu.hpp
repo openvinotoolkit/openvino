@@ -11,7 +11,7 @@ namespace ov::intel_cpu::pass {
 /**
  * @interface BrgemmToGemmCPU
  * @brief The pass decompose Snippets Brgemm to specific ops
- *        BrgemmCPU -> copyB + GemmCPU
+ *        Brgemm -> copyB + GemmCPU
  * @ingroup snippets
  */
 class BrgemmToGemmCPU : public ov::pass::MatcherPass {

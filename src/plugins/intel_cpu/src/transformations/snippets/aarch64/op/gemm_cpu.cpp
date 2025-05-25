@@ -21,7 +21,7 @@ GemmCPU::GemmCPU(const Output<Node>& A,
                  const std::vector<size_t>& layout_b,
                  const std::vector<size_t>& layout_c)
     : Brgemm() {
-    // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
+    // We call default ctor of Gemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
