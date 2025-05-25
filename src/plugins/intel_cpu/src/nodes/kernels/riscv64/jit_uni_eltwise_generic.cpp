@@ -419,7 +419,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
-        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter));
 
     if (!ctx.emitter) {
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -546,7 +547,8 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
-              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
+              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+              OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter));
 
     if (precisions.empty()) {
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
