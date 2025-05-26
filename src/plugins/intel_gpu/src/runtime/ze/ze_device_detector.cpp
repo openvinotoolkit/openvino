@@ -30,14 +30,15 @@ static std::vector<ze_device_handle_t> get_sub_devices(ze_device_handle_t root_d
 std::map<std::string, device::ptr> ze_device_detector::get_available_devices(void* user_context,
                                                                              void* user_device,
                                                                              int ctx_device_id,
-                                                                             int target_tile_id) const {
+                                                                             int target_tile_id,
+                                                                             bool initialize_devices) const {
     std::vector<device::ptr> devices_list;
     if (user_context != nullptr) {
         devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
     } else if (user_device != nullptr) {
         devices_list = create_device_list_from_user_device(user_device);
     } else {
-        devices_list = create_device_list();
+        devices_list = create_device_list(initialize_devices);
     }
 
     devices_list = sort_devices(devices_list);
@@ -59,7 +60,7 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
                     sub_idx++;
                     continue;
                 }
-                auto sub_device_ptr = std::make_shared<ze_device>(root_device->get_driver(), sub_device);
+                auto sub_device_ptr = std::make_shared<ze_device>(root_device->get_driver(), sub_device, initialize_devices);
                 ret[map_id + "." + std::to_string(sub_idx++)] = sub_device_ptr;
             }
         }
@@ -68,7 +69,7 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
     return ret;
 }
 
-std::vector<device::ptr> ze_device_detector::create_device_list() const {
+std::vector<device::ptr> ze_device_detector::create_device_list(bool initialize_devices) const {
     std::vector<device::ptr> ret;
 
     ZE_CHECK(zeInit(ZE_INIT_FLAG_GPU_ONLY));
@@ -92,7 +93,7 @@ std::vector<device::ptr> ze_device_detector::create_device_list() const {
                 ZE_CHECK(zeDeviceGetProperties(all_devices[d], &device_properties));
 
                 if (ZE_DEVICE_TYPE_GPU == device_properties.type) {
-                    ret.emplace_back(std::make_shared<ze_device>(all_drivers[i], all_devices[d]));
+                    ret.emplace_back(std::make_shared<ze_device>(all_drivers[i], all_devices[d], initialize_devices));
                 }
             } catch (std::exception& ex) {
                 GPU_DEBUG_LOG << "Devices query/creation failed for driver " << i << ex.what() << std::endl;

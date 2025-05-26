@@ -208,13 +208,27 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
 }  // namespace
 
 
-ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device)
+ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool initialize)
 : _driver(driver)
 , _device(device)
 , _info(init_device_info(driver, device))
 , _mem_caps(init_memory_caps(device, _info)) {
+    if (initialize) {
+        this->initialize();
+    }
+}
+
+void ze_device::initialize() {
+    if (_is_initialized)
+        return;
+
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ZE_CHECK(zeContextCreate(driver, &context_desc, &_context));
+    _is_initialized = true;
+}
+
+bool ze_device::is_initialized() const {
+    return _is_initialized;
 }
 
 bool ze_device::is_same(const device::ptr other) {
@@ -222,11 +236,16 @@ bool ze_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _context == casted->get_context() && _device == casted->get_device() && _driver == casted->get_driver();
+    if (is_initialized() && casted.is_initialized()) {
+        // Do not compare contexts as one driver can have many different contexts
+        return _device == casted->get_device() && _driver == casted->get_driver();
+    }
+    return _info.is_same_device(casted->_info);
 }
 
 ze_device::~ze_device() {
-    zeContextDestroy(_context);
+    if (_is_initialized)
+        zeContextDestroy(_context);
 }
 
 }  // namespace ze

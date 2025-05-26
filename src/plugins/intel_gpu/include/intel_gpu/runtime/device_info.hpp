@@ -46,13 +46,13 @@ struct gfx_version {
                < std::tie(r.major, r.minor, r.revision); // same order
     }
 
-    bool operator==(const gfx_version& other) {
+    bool operator==(const gfx_version& other) const {
         return major == other.major &&
                minor == other.minor &&
                revision == other.revision;
     }
 
-    bool operator!=(const gfx_version& other) {
+    bool operator!=(const gfx_version& other) const {
         return !(*this == other);
     }
 };
@@ -63,14 +63,14 @@ struct pci_bus_info {
     uint32_t pci_device = 0;
     uint32_t pci_function = 0;
 
-    bool operator==(const pci_bus_info& other) {
+    bool operator==(const pci_bus_info& other) const {
         return pci_domain == other.pci_domain &&
                pci_bus == other.pci_bus &&
                pci_device == other.pci_device &&
                pci_function == other.pci_function;
     }
 
-    bool operator!=(const pci_bus_info& other) {
+    bool operator!=(const pci_bus_info& other) const {
         return !(*this == other);
     }
 };
@@ -136,6 +136,38 @@ struct device_info {
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
+
+    inline bool is_same_device(const device_info &other) const {
+        // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
+        // where the UUID may be missing or incorrectly generated
+        // Therefore, we also validate other attributes
+        if (uuid.uuid != other.uuid.uuid)
+            return false;
+
+        if (pci_info != other.pci_info)
+            return false;
+
+        if (sub_device_idx != other.sub_device_idx)
+            return false;
+
+        if (vendor_id != other.vendor_id ||
+            dev_name != other.dev_name ||
+            driver_version != other.driver_version)
+            return false;
+
+        if (dev_type != other.dev_type ||
+            gfx_ver != other.gfx_ver ||
+            arch != other.arch)
+            return false;
+
+        if (ip_version != other.ip_version || device_id != other.device_id)
+            return false;
+
+        if (execution_units_count != other.execution_units_count || max_global_mem_size != other.max_global_mem_size)
+            return false;
+
+        return true;
+    }
 };
 
 /// @}
