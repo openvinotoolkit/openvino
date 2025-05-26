@@ -36,15 +36,11 @@ public:
 
     // TODO: public for multi-threaded execution
     struct InputData {
-        // TODO: is it necessary to keep both fields alive? it doesn't seem like
-        // hostTensor field is ever used.
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
         ov::SoPtr<ZeroHostTensor> hostTensor;
     };
 
     struct OutputData {
-        // TODO: is it necessary to keep both fields alive? it doesn't seem like
-        // hostTensor field is ever used.
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
         ov::SoPtr<ZeroHostTensor> hostTensor;
         std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;

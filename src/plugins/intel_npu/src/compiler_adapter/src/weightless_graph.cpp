@@ -376,8 +376,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
                         descriptor.nameFromCompiler);
 
         begin_memcpy = std::chrono::steady_clock::now();
-        // TODO: should we copy the constant acknowledging strides? (if there
-        // are strides, we risk copying bogus data here)
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
         end_memcpy = std::chrono::steady_clock::now();
         memcpy_duration =
@@ -450,7 +448,6 @@ void WeightlessGraph::run_init_single_threaded() {
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    // TODO: this traverses full IR, so ideally only runs once for all inits
     const auto constants = get_all_constants_in_topological_order(_model);
 
     for (size_t initIndex = 0; initIndex < _initHandles.size(); ++initIndex) {
@@ -601,8 +598,6 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::free_init_resourcese(const size_t initIndex) {
-    std::shared_ptr<CommandQueue>& initCommandQueue = _initsCommandQueues.at(initIndex);
-
     if (_initsCommandQueues.at(initIndex) != nullptr) {
         _initsCommandQueues.at(initIndex).reset();
     }

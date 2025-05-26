@@ -22,7 +22,8 @@
 #include "weightless_graph.hpp"
 
 namespace {
-std::shared_ptr<void> loadLibrary(const std::string& libpath) {
+
+std::shared_ptr<void> load_library(const std::string& libpath) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     return ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
 #else
@@ -30,7 +31,7 @@ std::shared_ptr<void> loadLibrary(const std::string& libpath) {
 #endif
 }
 
-std::shared_ptr<intel_npu::ICompiler> getCompiler(std::shared_ptr<void> so) {
+std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
     static constexpr auto CreateFuncName = "CreateNPUCompiler";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
 
@@ -42,12 +43,22 @@ std::shared_ptr<intel_npu::ICompiler> getCompiler(std::shared_ptr<void> so) {
     return compilerPtr;
 }
 
-ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
-    auto compilerSO = loadLibrary(libpath);
-    auto compiler = getCompiler(compilerSO);
+ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
+    auto compilerSO = load_library(libpath);
+    auto compiler = get_compiler(compilerSO);
 
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
 }
+
+ov::Tensor make_tensor_from_vector(const std::vector<uint8_t>& vector) {
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector.size()}, vector.data());
+    auto impl = ov::get_tensor_impl(tensor);
+    std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
+        std::make_shared<std::vector<uint8_t>>(std::move(vector));
+    impl._so = std::move(sharedCompiledNetwork);
+    return ov::make_tensor(impl);
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -60,7 +71,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("MLIR compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-    _compiler = loadCompiler(libPath);
+    _compiler = load_compiler(libPath);
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -85,14 +96,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    auto tensor =
-        ov::Tensor(ov::element::u8, ov::Shape{networkDesc.compiledNetwork.size()}, networkDesc.compiledNetwork.data());
-    auto impl = ov::get_tensor_impl(tensor);
-    std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
-        std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
-    impl._so = std::move(sharedCompiledNetwork);
-    tensor = ov::make_tensor(impl);
-
+    ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
@@ -159,16 +163,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions.back();
         initMainNetworkDescriptions.pop_back();
 
-        // TODO make lambda function
-        auto tensorMain = ov::Tensor(ov::element::u8,
-                                     ov::Shape{mainNetworkDescription->compiledNetwork.size()},
-                                     mainNetworkDescription->compiledNetwork.data());
-        auto impl = ov::get_tensor_impl(tensorMain);
-        std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
-            std::make_shared<std::vector<uint8_t>>(std::move(mainNetworkDescription->compiledNetwork));
-        impl._so = std::move(sharedCompiledNetwork);
-        tensorMain = ov::make_tensor(impl);
-
+        ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
         ze_graph_handle_t mainGraphHandle = nullptr;
         if (_zeGraphExt) {
             // Depending on the config, we may get an error when trying to
@@ -189,15 +184,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         tensorsInits.reserve(initMainNetworkDescriptions.size());
         initNetworkMetadata.reserve(initMainNetworkDescriptions.size());
         for (auto& networkDesc : initMainNetworkDescriptions) {
-            auto tensor = ov::Tensor(ov::element::u8,
-                                     ov::Shape{networkDesc->compiledNetwork.size()},
-                                     networkDesc->compiledNetwork.data());
-            impl = ov::get_tensor_impl(tensor);
-            std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
-                std::make_shared<std::vector<uint8_t>>(std::move(networkDesc->compiledNetwork));
-            impl._so = std::move(sharedCompiledNetwork);
-            tensor = ov::make_tensor(impl);
-
+            ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
             ze_graph_handle_t graphHandle = nullptr;
             if (_zeGraphExt) {
                 // Depending on the config, we may get an error when trying to
