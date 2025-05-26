@@ -408,10 +408,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
         if (MSK_D2 == 1) {
             // Define mask dimensions for single Query dimension
-            uint mask_m = MSK_D1; // num_heads
+            uint mask_m = 1; // single query dimension
             uint mask_n = MSK_D3; // sequence_length
 
-            tile_load_t(&mask_tile, msk, mask_m, mask_n, 0, k0 + sg_i0_kq);
+            // In the case of single query dimension, set ld and offset_r to zero
+            // to avoid exceeding bounds for single dimension.
+            tile_load_t(&mask_tile, msk, mask_m, mask_n, 0, 0, k0 + sg_i0_kq);
         } else {
             // General case: attention mask matches Q*K^T shape
             uint mask_m = q; // Q sequence length
