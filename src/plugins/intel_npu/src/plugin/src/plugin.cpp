@@ -571,6 +571,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
 
+#ifndef VCL_FOR_COMPILER
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
@@ -578,6 +579,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
         }
     }
+#endif
 
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),

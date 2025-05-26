@@ -18,6 +18,11 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
+if(ENABLE_VCL_FOR_COMPILER)
+    include(cmake/download_compiler_libs.cmake)
+    add_definitions("-DVCL_FOR_COMPILER")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 
 if(ENABLE_NPU_DEBUG_CAPS)

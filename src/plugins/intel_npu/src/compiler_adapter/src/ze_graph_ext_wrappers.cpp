@@ -164,7 +164,7 @@ void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t gra
 }
 
 // Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
-static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
     std::string dataString(data.begin(), data.end());
     std::unordered_set<std::string> result;
     size_t i = 0, start = 0;
