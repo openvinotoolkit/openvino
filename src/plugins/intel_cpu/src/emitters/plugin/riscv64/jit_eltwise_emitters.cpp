@@ -324,6 +324,86 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("exponent_bias", 0x0000007f);
 }
 
+/// MOD ///
+jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_mod_emitter::get_inputs_num() const {
+    return 2;
+}
+size_t jit_mod_emitter::aux_vecs_count() const {
+    if (exec_prc_ == ov::element::f32) {
+        return 2;
+    } else if (exec_prc_ == ov::element::i32) {
+        return 0;
+    } else {
+        OPENVINO_THROW("Unsupported precision");
+    }
+}
+size_t jit_mod_emitter::aux_fp_gprs_count() const {
+    if (exec_prc_ == ov::element::f32) {
+        return 1;
+    } else if (exec_prc_ == ov::element::i32) {
+        return 0;
+    } else {
+        OPENVINO_THROW("Unsupported precision");
+    }
+}
+void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    switch (exec_prc_) {
+    case ov::element::i32:
+        h->vremu_vv(dst, src0, src1);
+        break;
+    case ov::element::f32: {
+        VReg tmp0 = VReg(aux_vec_idxs[0]);
+        VReg tmp1 = VReg(aux_vec_idxs[1]);
+        FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
+        h->vfdiv_vv(tmp0, src0, src1);
+        h->vfcvt_x_f_v(tmp1, tmp0);
+        h->vfcvt_f_x_v(tmp1, tmp1);
+        h->vmfgt_vv(mask_vreg(), tmp1, tmp0);
+        load_table_val("one", fp0);
+        h->vfsub_vf(tmp1, tmp1, fp0, VM::masked);
+        h->vfmul_vv(tmp0, tmp1, src1);
+        h->vfsub_vv(dst, src0, tmp0);
+        break;
+    }
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
+}
+std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::i32, element::i32},
+            {element::f32, element::f32}};
+}
+void jit_mod_emitter::register_table_entries() {
+    if(exec_prc_ == ov::element::f32){
+        push_arg_entry_of("one", CONST_1_F);
+    }
+}
+
 /// FLOOR ///
 jit_floor_emitter::jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
     jit_emitter(host, host_isa, exec_prc) {
@@ -450,7 +530,6 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, cons
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
-
     h->vfmul_vv(dst, src0, src1);
 }
 
