@@ -163,9 +163,9 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
 }  // namespace
 
 ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
-    : stream(config.get_property(ov::intel_gpu::queue_type), stream::get_expected_sync_method(config))
+    : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
     , _engine(engine)
-    , m_pool(engine, config.get_property(ov::enable_profiling)) {
+    , m_pool(engine, config.get_enable_profiling()) {
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
     command_queue_desc.pNext = nullptr;
