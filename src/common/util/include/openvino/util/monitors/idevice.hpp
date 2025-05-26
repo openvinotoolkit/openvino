@@ -10,18 +10,17 @@
 
 namespace ov {
 namespace util {
-namespace monitor {
-class PerformanceCounter {
+class IDevice {
 public:
-    PerformanceCounter(std::string deviceName) {}
+    IDevice(std::string device_name) : m_device_name(device_name) {}
     virtual std::map<std::string, double> get_utilization() = 0;
     const std::string name() {
-        return deviceName;
+        return m_device_name;
     }
+    virtual ~IDevice() = default;
 
 private:
-    std::string deviceName;
+    std::string m_device_name;
 };
-}  // namespace monitor
 }  // namespace util
 }  // namespace ov

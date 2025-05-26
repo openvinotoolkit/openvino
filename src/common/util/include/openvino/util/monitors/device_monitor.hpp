@@ -8,19 +8,17 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/util/monitors/performance_counter.hpp"
+#include "openvino/util/monitors/idevice.hpp"
 namespace ov {
 namespace util {
-namespace monitor {
 class DeviceMonitor {
 public:
     DeviceMonitor();
     virtual ~DeviceMonitor() = default;
-    std::map<std::string, double> get_utilization(const std::string& luid);
+    std::map<std::string, double> get_utilization(const std::string& device_id);
 
 private:
-    std::shared_ptr<ov::util::monitor::PerformanceCounter> performance_counter;
+    std::shared_ptr<ov::util::IDevice> m_device_performance;
 };
-}  // namespace monitor
 }  // namespace util
 }  // namespace ov

@@ -559,7 +559,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::map<std::string, double> Plugin::get_device_utilization(const std::string& device_luid) const {
-    ov::util::monitor::DeviceMonitor devices_monitor;
+    ov::util::DeviceMonitor devices_monitor;
     return devices_monitor.get_utilization(device_luid);
 }
 

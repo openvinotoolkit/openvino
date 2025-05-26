@@ -13,18 +13,18 @@ public:
     ~QueryWrapper();
     QueryWrapper(const QueryWrapper&) = delete;
     QueryWrapper& operator=(const QueryWrapper&) = delete;
-    bool pdhAddCounterW(LPCWSTR szFullCounterPath, DWORD_PTR dwUserData, PDH_HCOUNTER* phCounter);
-    bool pdhExpandWildCardPathW(LPCWSTR szDataSource,
-                                LPCWSTR szWildCardPath,
-                                PZZWSTR mszExpandedPathList,
-                                LPDWORD pcchPathListLength,
-                                DWORD dwFlags);
-    PDH_STATUS pdhGetFormattedCounterValue(PDH_HCOUNTER hCounter,
-                                           DWORD dwFormat,
-                                           LPDWORD lpdwType,
-                                           PPDH_FMT_COUNTERVALUE pValue);
-    bool pdhCollectQueryData();
-    bool pdhSetCounterScaleFactor(PDH_HCOUNTER hCounter, LONG lFactor);
+    bool pdh_add_counterW(LPCWSTR sz_full_counter_path, DWORD_PTR dw_user_data, PDH_HCOUNTER* ph_counter);
+    bool pdh_expand_wild_card_pathW(LPCWSTR sz_data_source,
+                                    LPCWSTR sz_wild_card_path,
+                                    PZZWSTR msz_expanded_path_list,
+                                    LPDWORD pcch_path_list_length,
+                                    DWORD dw_flags);
+    PDH_STATUS pdh_get_formatted_counter_value(PDH_HCOUNTER h_counter,
+                                               DWORD dw_format,
+                                               LPDWORD lpdw_type,
+                                               PPDH_FMT_COUNTERVALUE p_value);
+    bool pdh_collect_query_data();
+    bool pdh_set_counter_scale_factor(PDH_HCOUNTER h_counter, LONG l_factor);
 
 private:
     PDH_HQUERY query;
