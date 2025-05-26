@@ -1,4 +1,4 @@
-alabaster==0.7.14
+alabaster==0.7.16
 atomicwrites==1.4.1
 attrs==22.2.0
 Babel==2.11.0
