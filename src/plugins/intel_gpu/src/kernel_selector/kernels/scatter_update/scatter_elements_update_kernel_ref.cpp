@@ -87,6 +87,14 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, bool is_second) const {
     CommonDispatchData dispatchData;
+    KernelData kd = KernelData::Default<scatter_elements_update_params>(params, 2);
+    scatter_elements_update_params& newParams = *static_cast<scatter_elements_update_params*>(kd.params.get());
+    if (is_second && newParams.mode != ScatterUpdateReduction::NONE) {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+        return dispatchData;
+    }
+
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
