@@ -49,6 +49,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     bool supports_luid = supports_extension(extensions, ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0);
     bool supports_ip_version = supports_extension(extensions, ZE_DEVICE_IP_VERSION_EXT_NAME, ZE_DEVICE_IP_VERSION_VERSION_1_0);
     bool supports_mutable_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
+    bool supports_pci_properties = supports_extension(extensions, ZE_PCI_PROPERTIES_EXT_NAME, ZE_PCI_PROPERTIES_EXT_VERSION_1_0);
 
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
     ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_ip_version ? &ip_version_properties : nullptr};
@@ -140,6 +141,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.gfx_ver = {0, 0, 0}; // could find how to retrieve this from L0 so far
     info.arch = gpu_arch::unknown;
     info.ip_version = ip_version_properties.ipVersion;
+    info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
     info.device_id = device_properties.deviceId;
     info.num_slices = device_properties.numSlices;
@@ -178,6 +180,15 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
                                                                ZE_MUTABLE_COMMAND_EXP_FLAG_WAIT_EVENTS;
 
             info.supports_mutable_command_list = (mutable_list_props.mutableCommandFlags & required_features) == required_features;
+        }
+    }
+    if (supports_pci_properties) {
+        ze_pci_ext_properties_t pci_properties;
+        if (zeDevicePciGetPropertiesExt(device, &pci_properties) == ZE_RESULT_SUCCESS) {
+            info.pci_info.pci_bus = pci_properties.address.bus;
+            info.pci_info.pci_device = pci_properties.address.device;
+            info.pci_info.pci_domain = pci_properties.address.domain;
+            info.pci_info.pci_function = pci_properties.address.function;
         }
     }
 
