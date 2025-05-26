@@ -56,9 +56,11 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
-    std::string baseName = "npu_mlir_compiler";
-    auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-    _compiler = loadCompiler(libPath);
+    // std::string baseName = "npu_mlir_compiler";
+    // auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
+    //_compiler = loadCompiler(libPath);
+    _compiler = ov::SoPtr<intel_npu::ICompiler>(std::make_shared<intel_npu::VCLCompilerImpl>(),
+                                                VCLApi::getInstance()->getLibrary());
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -160,6 +162,8 @@ uint32_t PluginCompilerAdapter::get_version() const {
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     // PluginCompiler has all the same options as plugin
     // Returing empty string to let the plugin fallback to legacy registration
+
+    // TODO: for vcl, can call vcl API
     return {};
 }
 
