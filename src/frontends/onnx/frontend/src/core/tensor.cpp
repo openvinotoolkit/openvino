@@ -4,6 +4,8 @@
 
 #include "core/tensor.hpp"
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -287,6 +289,13 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant =
                 std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_data(m_model_dir));
         }
+
+        // Start of Weightless Caching Experimental
+        const auto data_position = ext_data.get_data_position();
+        constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(data_position.second, data_position.first, ov_type);
+        // End of Weightless Caching Experimental
+
         // ext_data.size() might be zero, need to recalc by using info about actually red data (for byte-size)
         element_count = constant->get_byte_size() / ov_type.size();
         if (ov::element::is_nibble_type(ov_type)) {

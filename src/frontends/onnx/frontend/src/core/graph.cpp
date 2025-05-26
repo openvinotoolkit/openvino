@@ -17,6 +17,7 @@
 #include "onnx_framework_node.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
@@ -236,6 +237,12 @@ void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
     for (const auto& pair : metadata) {
         model->set_rt_info(pair.second, framework_section, pair.first);
     }
+
+    // Start of Weightless Caching Experimental
+    for (const auto& pair : *get_mmap_cache()) {
+        model->set_rt_info(pair.first, framework_section, "onnx.weights");
+    }
+    // End of Weightless Caching Experimental
 }
 
 std::shared_ptr<ov::Model> Graph::convert() {

@@ -54,6 +54,16 @@ public:
         return m_data_length;
     }
 
+    // Start of Weightless Caching Experimental
+    std::string get_data_path() const {
+        return m_data_location;
+    }
+
+    std::pair<uint64_t, uint64_t> get_data_position() const {
+        return {m_offset, m_data_length};
+    }
+    // End of Weightless Caching Experimental
+
 private:
     std::string m_data_location{};
     uint64_t m_offset = 0;
