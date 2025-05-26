@@ -4339,7 +4339,7 @@ TEST(eval, evaluate_not_equal_string_1_x_3_4) {
 TEST(eval, evaluate_not_equal_string_3_4_x_3_4) {
     std::vector<std::string> input_values_a = {"Abc", "", "x", "aBcD", "", "", "", "", ".", "...", "321", "4"};
     std::vector<std::string> input_values_b = {"ABC", "Bbb", "", "", "", "", "", "", "1", "...", "123", "4"};
-    std::vector<bool> out_expected = {0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0};
+    std::vector<bool> out_expected = {1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0};
 
     const auto input_a_shape = Shape{3, 4};
     const auto input_b_shape = Shape{3, 4};
