@@ -20,7 +20,7 @@ namespace test {
 namespace utils {
 
 // NOTE: Default ranges are collected by data type and have resolution 1(for real types too)
-// to set up correct ranges and resolutions, please, configure range for Op in inputRanges structure
+// to set up correct ranges and resolutions, please, configure range for Op in input_ranges structure
 struct Range {
     std::vector<ov::test::utils::InputGenerateData> int_port_ranges;
     std::vector<ov::test::utils::InputGenerateData> real_port_ranges;
@@ -59,7 +59,7 @@ struct Range {
     }
 };
 
-extern std::map<ov::NodeTypeInfo, Range> inputRanges;
+const std::map<ov::NodeTypeInfo, Range>& get_input_ranges();
 
 class ModelRange {
     // key for map calculated in get_range_id and contais [Parameter Name]_[parameter type]

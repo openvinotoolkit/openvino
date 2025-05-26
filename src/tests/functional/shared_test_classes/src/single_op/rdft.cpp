@@ -39,12 +39,13 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     const auto node = funcInput->get_node_shared_ptr();
     const size_t inNodeCnt = node->get_input_size();
 
-    auto it = ov::test::utils::inputRanges.find(ov::op::v9::RDFT::get_type_info_static());
+    const auto& input_ranges = ov::test::utils::get_input_ranges();
+    auto it = input_ranges.find(ov::op::v9::RDFT::get_type_info_static());
     if (op_type == ov::test::utils::DFTOpType::INVERSE) {
-        it = ov::test::utils::inputRanges.find(ov::op::v9::IRDFT::get_type_info_static());
+        it = input_ranges.find(ov::op::v9::IRDFT::get_type_info_static());
     }
 
-    if (it != ov::test::utils::inputRanges.end()) {
+    if (it != input_ranges.end()) {
         ov::test::utils::Range ranges = it->second;
         inGenData = ranges.get_data(0, elemType);
     }

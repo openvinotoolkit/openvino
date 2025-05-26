@@ -35,12 +35,13 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
     const auto node = funcInput->get_node_shared_ptr();
     const size_t inNodeCnt = node->get_input_size();
 
-    auto it = ov::test::utils::inputRanges.find(ov::op::v7::DFT::get_type_info_static());
+    const auto& input_ranges = utils::get_input_ranges();
+    auto it = input_ranges.find(ov::op::v7::DFT::get_type_info_static());
     if (op_type == ov::test::utils::DFTOpType::INVERSE) {
-        it = ov::test::utils::inputRanges.find(ov::op::v7::IDFT::get_type_info_static());
+        it = input_ranges.find(ov::op::v7::IDFT::get_type_info_static());
     }
 
-    if (it != ov::test::utils::inputRanges.end()) {
+    if (it != input_ranges.end()) {
         ov::test::utils::Range ranges = it->second;
         inGenData = ranges.get_data(0, elemType);
     }

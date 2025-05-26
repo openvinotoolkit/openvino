@@ -65,9 +65,10 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
             set_real_number_generation_data(inGenData);
         }
 
+        const auto& input_ranges = get_input_ranges();
         const size_t inNodeCnt = node->get_input_size();
-        auto it = inputRanges.find(node->get_type_info());
-        if (it != inputRanges.end()) {
+        auto it = input_ranges.find(node->get_type_info());
+        if (it != input_ranges.end()) {
             auto ranges = it->second;
             inGenData = ranges.get_data(port, elemType);
         }
