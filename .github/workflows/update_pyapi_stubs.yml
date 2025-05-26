@@ -20,8 +20,8 @@ jobs:
       - name: Install OpenVINO nightly and stubgen
         run: |
           python -m pip install --pre -U openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-            STUBGEN_VERSION=$(grep pybind11-stubgen src/bindings/python/requirements_test.txt)
-            python -m pip install "$STUBGEN_VERSION"
+          STUBGEN_VERSION=$(grep pybind11-stubgen src/bindings/python/requirements_test.txt)
+          python -m pip install "$STUBGEN_VERSION"
           
       - name: Generate Python API stubs
         run: |
@@ -31,7 +31,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          find openvino/src/bindings/python -name "*.pyi" -exec git add {} \;
+          find src/bindings/python -name "*.pyi" -exec git add {} \;
           git diff --quiet && git diff --staged --quiet || git commit -m "Update Python API stub files"
           
       - name: Create Pull Request
