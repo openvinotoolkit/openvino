@@ -158,6 +158,9 @@ void Graph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config, _blob, _handle);
+    if (_blobIsReleased) {
+        _blob = std::nullopt;
+    }
 
     _batch_size = get_batch_size(_metadata);
 
@@ -191,7 +194,6 @@ bool Graph::release_blob(const Config& config, std::optional<ov::Tensor> blob, z
         return false;
     }
 
-    blob = std::nullopt;
     _logger.debug("Blob is released");
 
     return true;

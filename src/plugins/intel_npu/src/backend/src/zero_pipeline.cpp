@@ -82,7 +82,7 @@ Pipeline::Pipeline(const Config& config,
         size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (isMainInputWeightsName(desc.info.name)) {
-                continue;  // TODO avoid allocations as well
+                continue;
             }
 
             if (input_tensors.at(io_index).size() > 1) {

@@ -50,6 +50,8 @@ public:
         std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
     };
 
+    ~WeightlessGraph();
+
 private:
     InputData allocate_inputs(const size_t initIndex,
                               const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants);
