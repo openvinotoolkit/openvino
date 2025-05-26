@@ -23,7 +23,7 @@ jobs:
           
       - name: Generate Python API stubs
         run: |
-          python openvino/src/bindings/python/scripts/generate_pyapi_stubs.py
+          python src/bindings/python/scripts/generate_pyapi_stubs.py
           
       - name: Add and commit .pyi files
         run: |
