@@ -185,7 +185,7 @@ void test_variable_copy_from_fake_aligned_fc(bool is_caching_test) {
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("weights", weights_data));
     topology.add(data("bias", bias_data));
-    topology.add(fully_connected("fc", input_info("input"), "weights", "bias"));
+    topology.add(fully_connected("fc", input_info("input"), "weights", "bias", input_dyn_layout.get_partial_shape().size()));
     topology.add(read_value{"read_value", { input_info("fc") }, "v0", { variable_layout }});
 
 
