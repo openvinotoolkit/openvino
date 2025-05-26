@@ -414,7 +414,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
+            const auto partial_shape_size = input.get_partial_shape().size();
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // The first dimension (3) represents the three components of position encoding: time, height, and width
+            // enabling alignment across multimodal inputs like text, audio, and video
+            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            new_shape =
+                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -731,6 +737,8 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
     // Serialize magic number first
     write(stream, NPUW_SERIALIZATION_INDICATOR);
+    // Serilize LLMCompiledModel identifier
+    write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     // Serialize general meta info
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
@@ -794,8 +802,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_cfg);
 
         // Serialize CompiledModels
-        m_kvcache_compiled->serialize(model_stream);
-        m_prefill_compiled->serialize(model_stream);
+        // Note: no need to pass any encryption here as it's done in export_model()
+        EncryptContext enc_ctx(false, nullptr, nullptr);
+        m_kvcache_compiled->serialize(model_stream, enc_ctx);
+        m_prefill_compiled->serialize(model_stream, enc_ctx);
     };
 
     std::stringstream non_encrypted_stream;
@@ -837,6 +847,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     ov::npuw::s11n::IndicatorType serialization_indicator;
     read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+
+    ov::npuw::s11n::IndicatorType llm_compiled_indicator;
+    read(stream, llm_compiled_indicator);
+    NPUW_ASSERT(llm_compiled_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR &&
+                "This blob wasn't serialized via LLMCompiledModel!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
@@ -973,8 +988,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         compiled->implement_properties();
 
         // Deserialize CompiledModels
-        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
-        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
+        // Note: no need to pass any encryption here as it's done in import_model()
+        EncryptContext enc_ctx(false, nullptr, nullptr);
+        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
 
         return compiled;
     };

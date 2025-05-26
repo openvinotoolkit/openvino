@@ -414,7 +414,6 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     std::vector<ov::Shape> constantShapes;
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
-    constantShapes.push_back(ov::Shape({1, input_shapes[1].get_shape()[2], 1, 1}));
     constantShapes.push_back(ov::Shape({2}));
     constantShapes.push_back(ov::Shape({4}));
     constantShapes.push_back(ov::Shape({input_shapes[0].get_shape().size()}));
@@ -424,22 +423,22 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
                                                          std::vector<int64_t>{0, 2, 1, 3});
     auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[1],
                                                          std::vector<int64_t>{0, 2, 3, 1});
-    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
+    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4],
                                                          std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[6],
+    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
                                                          std::vector<int64_t>{0, 2, 1, 3});
 
     std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
                                                                    input_shapes[0].get_shape()[1] *
                                                                    input_shapes[0].get_shape()[2]),
                                               -1};
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[3], reshape0ConstData);
+    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[2], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[2]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1]),
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1])};
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4], reshape1ConstData);
+    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, constantShapes[3], reshape1ConstData);
     // Value is equal to '1' - to avoid situation e^(-1000) / (sum(e^(-1000)) = 0/0 = NAN
     auto selectConst = ov::op::v0::Constant::create(precisions[2], ov::Shape{1}, std::vector<float>{1});
 
@@ -452,7 +451,7 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     const auto less = std::make_shared<ov::op::v1::Less>(less0Param, less1Param);
     std::shared_ptr<ov::Node> selectCond = less;
     if (add->get_output_partial_shape(0) != input_shapes[3]) {
-        const auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, constantShapes[5],
+        const auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, constantShapes[4],
                                                                    add->get_output_shape(0));
         const auto broadcast = std::make_shared<ov::op::v3::Broadcast>(selectCond, broadcast_shape, ov::op::BroadcastType::NUMPY);
         selectCond = broadcast;
@@ -1124,6 +1123,71 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
+std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initOriginal() const {
+    const auto param_0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
+    const auto param_1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
+    const auto param_2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
+    const auto param_3 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
+    const auto param_4 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[4]);
+    ov::ParameterVector parameters = {param_0, param_1, param_2, param_3, param_4};
+    const auto matmul_0 = std::make_shared<ov::opset1::MatMul>(param_0, param_1);
+    const auto add_0 = std::make_shared<ov::opset1::Add>(matmul_0, param_2);
+
+    auto add0_shape = add_0->get_output_shape(0);
+    add0_shape.emplace(add0_shape.begin(), 1);
+    const auto reshape_up_const = ov::opset1::Constant::create(ov::element::i32, {add0_shape.size()}, add0_shape);
+    const auto reshape_up = std::make_shared<ov::opset1::Reshape>(add_0, reshape_up_const, false);
+
+    const auto add_1 = std::make_shared<ov::opset1::Add>(reshape_up, param_3);
+
+    auto add1_shape = add_1->get_output_shape(0);
+    add1_shape.erase(add1_shape.begin());
+    const auto reshape_down_const = ov::opset1::Constant::create(ov::element::i32, {add1_shape.size()}, add1_shape);
+    const auto reshape_down = std::make_shared<ov::opset1::Reshape>(add_1, reshape_down_const, false);
+
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(reshape_down, -1);
+    const auto matmul_1 = std::make_shared<ov::opset1::MatMul>(softmax, param_4);
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matmul_1)};
+    return std::make_shared<ov::Model>(results, parameters, "mha");
+}
+
+std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() const {
+    const auto data_0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
+    const auto data_1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
+    const auto data_2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
+    const auto data_3 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
+    const auto data_4 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[4]);
+    ov::ParameterVector parameters = {data_0, data_1, data_2, data_3, data_4};
+
+    auto input_reshape = input_shapes[3].to_shape();
+    input_reshape.erase(input_reshape.begin());
+    const auto input_reshape_down =
+        ov::opset1::Constant::create(ov::element::i32, {input_reshape.size()}, input_reshape);
+    const auto reshape = std::make_shared<ov::opset1::Reshape>(data_3, input_reshape_down, false);
+
+    const auto param_0 = std::make_shared<ov::opset1::Parameter>(precision, data_0->get_shape());
+    const auto param_1 = std::make_shared<ov::opset1::Parameter>(precision, data_1->get_shape());
+    const auto param_2 = std::make_shared<ov::opset1::Parameter>(precision, data_2->get_shape());
+    const auto param_3 = std::make_shared<ov::opset1::Parameter>(precision, reshape->get_shape());
+    const auto param_4 = std::make_shared<ov::opset1::Parameter>(precision, data_4->get_shape());
+
+    const auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(param_0, param_1);
+    const auto add_0 = std::make_shared<ov::opset1::Add>(matmul_0, param_2);
+    const auto add_1 = std::make_shared<ov::opset1::Add>(add_0, param_3);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_1, -1);
+    const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_4);
+
+    auto subgraph_body = std::make_shared<ov::Model>(NodeVector{matmul_1},
+                                                     ov::ParameterVector{param_0, param_1, param_2, param_3, param_4});
+    auto subgraph =
+        std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data_0, data_1, data_2, reshape, data_4},
+                                                     subgraph_body);
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
+    return std::make_shared<ov::Model>(results, parameters, "mha");
 }
 
 }  // namespace snippets

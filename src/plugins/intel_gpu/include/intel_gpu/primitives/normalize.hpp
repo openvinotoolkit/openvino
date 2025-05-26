@@ -50,7 +50,7 @@ struct normalize : public primitive_base<normalize> {
     /// @brief Scale input primitive id with values needed for scaling after the normalization.
     /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
     /// All other dimensions should be 1.
-    primitive_id scale_input;
+    input_info scale_input;
     /// @brief Determines if the normalization is done across or within spatial (see documentation above).
     bool across_spatial = true;
     /// @brief Epsilon for not dividing by zero while normalizing.
@@ -88,6 +88,13 @@ struct normalize : public primitive_base<normalize> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override { return {scale_input}; }
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        ret[idx++] = &scale_input;
+
+        return ret;
+    }
 };
 }  // namespace cldnn

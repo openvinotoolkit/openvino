@@ -14,6 +14,21 @@
 #include "spatial.hpp"
 #include "util.hpp"
 
+// NOTE: This construtor should only be used when exporting blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
+                                               const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+    : is_weightless(_is_weightless),
+      const_to_offset(_const_to_offset) {}
+
+// NOTE: This construtor can and should only be used when importing weightless blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                                               const s11n::WeightsContext::ConstsCache& _consts_cache)
+    : is_weightless(true),
+      weights(_weights),
+      consts_cache(_consts_cache) {
+    NPUW_ASSERT(_weights || !_consts_cache.empty());
+}
+
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
@@ -70,7 +85,11 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
         var.copy_to(tensor);
     }
     NPUW_ASSERT(tensor);
-    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+    size_t blob_size = var.get_byte_size();
+    if (blob_size > static_cast<decltype(blob_size)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    stream.write(reinterpret_cast<const char*>(var.data()), static_cast<std::streamsize>(blob_size));
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
@@ -95,7 +114,8 @@ enum class AnyType : int {
     BOOL,
     CACHE_MODE,
     ELEMENT_TYPE,
-    ANYMAP
+    ANYMAP,
+    PERFMODE
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -137,6 +157,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::AnyMap>()) {
         write(stream, static_cast<int>(AnyType::ANYMAP));
         write(stream, var.as<ov::AnyMap>());
+    } else if (var.is<ov::hint::PerformanceMode>()) {
+        write(stream, static_cast<int>(AnyType::PERFMODE));
+        write(stream, var.as<ov::hint::PerformanceMode>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -151,6 +174,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::hint::PerformanceMode& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
 
@@ -315,6 +342,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::AnyMap val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::PERFMODE) {
+        ov::hint::PerformanceMode val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -329,6 +360,10 @@ void ov::npuw::s11n::read(std::istream& stream, ov::CacheMode& var) {
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::hint::PerformanceMode& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
