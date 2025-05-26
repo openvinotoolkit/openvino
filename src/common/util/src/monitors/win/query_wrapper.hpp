@@ -28,5 +28,5 @@ public:
 
 private:
     PDH_HQUERY query;
-    HMODULE hPdh;
+    HMODULE h_pdh;
 };
