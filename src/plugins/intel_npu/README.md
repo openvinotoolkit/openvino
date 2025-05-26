@@ -126,6 +126,22 @@ Note: the current implementation of this property does not estimate or check the
 ## Supported Properties
 
 Properties can be used to query and adjust the behavior of the NPU plugin itself or various parameters that control model compilation and execution.  
+Starting from Openvino 2025.2 the list of supported properties is constructed dynamically in NPU plugin, based on current system configuration. Properties can be included or excluded from supported properties list based on whether there is full compiler and/or driver support for them. If the compiler from the currently installed driver does not support a property, that property will be disabled and not advertised in supported properties list.
+
+Properties will get registered and advertised based on the following logic:
+- Does the driver/compiler report supported properties? (older drivers do not)
+    - Yes:
+        - check if property is supported by driver
+            - if supported: **Enable** and advertise in supported_properties
+            - if NOT supported: **Disable** and don't advertise in supported properties
+    - No (fallback to legacy mode):
+        - check if property's support version >= compiler version
+            - true: **Enable** and advertise in supported properties
+            - false: **Disable** and don't advertise in supported properties
+
+![Properties registration logic](./docs/img/properties_init_sequence.png)
+
+Note: this logic does not affect OptionMode::Runtime type of options/properties. Those will get registered w/o any criteria, with the exception of some special-cases, like NPU_TURBO or WORKLOAD_TYPE (which are tied to driver grap extension version)
 
 The following methods are made available to return the value of a given property (at core level or model specific):
 ```
@@ -141,7 +157,14 @@ The following methods are made available to set the value of a given property (a
     compiled_model.set_property({{Key, Value}});
 ```
 
-The following properties are supported:
+To obtain the list of supported properties:
+```
+    plugin_supported_properties = core.get_property("NPU", ov::supported_properties);
+    [...]
+    model_supported_properties = compiled_model.get_property(ov::supported_properties);
+```
+
+The following properties are supported (may differ based on current system configuration: driver version, compiler version):
 
 | Parameter Name |            | Description | Supported Values | Default Value |
 | :---           | :---       | :---        |:---              |:--            |
@@ -150,7 +173,7 @@ The following properties are supported:
 | `ov::compilation_num_threads`/</br>`COMPILATION_NUM_THREADS` | RW | Maximum number of threads that can be used for compilation tasks. | `N/A` | `N/A` |
 | `ov::num_streams`/</br>`NUM_STREAMS` | RO | Not used by the NPU plugin.</br> Always set to 1. | `AUTO/`</br>`INT` | `1` |
 | `ov::optimal_number_of_infer_requests`/</br>`OPTIMAL_NUMBER_OF_INFER_REQUESTS` | RO | Returns the optimal number of inference requests to be used by the application. Depends on the platform version and on ov::hint::performance_mode. Please see the table below. | `N/A` | `N/A` |
-| `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
+| `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO |: Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
@@ -183,7 +206,12 @@ The following properties are supported:
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
 
 &nbsp;
-### Performance Hint: Default Number of Tiles / DMA Engines
+### Compiled_model properties VS Plugin properties
+While NPU plugin will publish all properties which are supported by the current system configuration (by current driver and current NPU compiler), the compiled_model will publish **only** the properties which have been explicitly set prior to it's compilation and used in it's compilation (with the exception of a couple properties which are hard-required by the framework, regardless to their value).
+In practice, this means that the list of properties published by compiled_model can vary, even on the same system configuration, if the model compilation parameters differ. The purpose of this is to always publish **only** the properties which have been actively used by the model compilation.
+
+&nbsp;
+### Performance Hint: Default Number of DPU Groups / DMA Engines
 
 The following table shows the default values for the number of Tiles and DMA Engines selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
 
