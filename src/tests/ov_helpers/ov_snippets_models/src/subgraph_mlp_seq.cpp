@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "fake_quantize_helper.hpp"
 #include "subgraph_mlp_seq.hpp"
 
 #include "snippets/op/subgraph.hpp"
@@ -48,7 +49,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     std::shared_ptr<Node> current = A_param;
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+        {256, {1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     float const_value = 0.1122f;
 
     auto mlp_layer = [&](size_t m, size_t n) {
@@ -87,7 +88,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
     }
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
+        {256, {1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A;
     float const_value = 0.1122f;
 
@@ -130,11 +131,11 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
     mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size);
 
     ov::builder::subgraph::FakeQuantizeOnData onData2 =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+        {256, {1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData2);
     auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
     ov::builder::subgraph::FakeQuantizeOnData onData1 =
-        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+        {256, {1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     auto dq_A = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(softmax, ov::element::f32, onData1);
 
     auto result = std::make_shared<ov::op::v0::Result>(dq_A);
@@ -155,18 +156,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     ov::NodeVector subgraph_nodes = {A};
 
     ov::builder::subgraph::FakeQuantizeOnData onData = {
-        256, {1, 1}, {0.0f}, {2.55f}, {0.f}, {255.f}, ov::element::u8
-    };
-
-    auto decomposed_fq = [](const ov::Output<ov::Node>& input,
-                            const ov::element::Type& out_precision,
-                            float il, float ih, float scale) -> std::shared_ptr<ov::Node> {
-        auto input_low = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {il});
-        auto input_high = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {ih});
-        auto output_scale = ov::op::v0::Constant::create(input.get_element_type(), {1, 1}, {scale});
-        auto max_node = std::make_shared<ov::op::v1::Maximum>(input, input_low);
-        auto min_node = std::make_shared<ov::op::v1::Minimum>(max_node, input_high);
-        return std::make_shared<ov::op::v1::Multiply>(min_node, output_scale);
+        256, {1}, {0.0f}, {2.55f}, {0.f}, {255.f}, ov::element::u8
     };
 
     std::shared_ptr<ov::Node> current = sub_A;
@@ -192,12 +182,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         subgraph_params.push_back(B);
         subgraph_nodes.push_back(B_const_trans);
 
-        current = decomposed_fq(current,
-                                ov::element::u8,
-                                onData.inputLowValues[0],
-                                onData.inputHighValues[0],
-                                0.00346764503f);
-        current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
+        current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::u8, false, false);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
@@ -231,12 +216,12 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     }
     mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size, false);
 
-    current = decomposed_fq(current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
-    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
+    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32, false, false);
+    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     current = std::make_shared<ov::op::v8::Softmax>(current, 1);
-    current = decomposed_fq(current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
-    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
+    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32, false, false);
+    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto result_subgraph = std::make_shared<ov::op::v0::Result>(current);
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
