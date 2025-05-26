@@ -905,7 +905,7 @@ void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, con
 }
 
 std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::f32}};
 }
 
 #undef CONST_1_F
