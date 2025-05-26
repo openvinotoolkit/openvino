@@ -17,9 +17,11 @@ jobs:
         with:
           python-version: '3.10'
           
-      - name: Install OpenVINO nightly
+      - name: Install OpenVINO nightly and stubgen
         run: |
-          pip install --pre -U openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+          python -m pip install --pre -U openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+            STUBGEN_VERSION=$(grep pybind11-stubgen src/bindings/python/requirements_test.txt)
+            python -m pip install "$STUBGEN_VERSION"
           
       - name: Generate Python API stubs
         run: |
