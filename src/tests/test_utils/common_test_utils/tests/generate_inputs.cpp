@@ -2,31 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include "openvino/op/util/op_types.hpp"
-#include "common_test_utils/type_ranges.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
+#include <gtest/gtest.h>
+
+#include "common_test_utils/type_ranges.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 using namespace testing;
 using namespace ov::util;
 
 using ov::Shape;
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
 using ov::op::v0::Concat;
+using ov::op::v0::Parameter;
 using ov::op::v0::Relu;
-using ov::op::v1::ReduceMean;
+using ov::op::v0::Result;
 using ov::op::v1::FloorMod;
+using ov::op::v1::ReduceMean;
 using ov::op::v1::Reshape;
 
 TEST(RangesTests, ranges_by_type_real) {
@@ -72,7 +73,8 @@ TEST(RangesTests, ranges_by_type_int) {
     auto int_range = modelRange.get_range_for_param(p0);
 
     ASSERT_EQ(int_range->start_from, std::numeric_limits<int8_t>::lowest());
-    uint32_t range = static_cast<double>(std::numeric_limits<int8_t>::max()) - static_cast<double>(std::numeric_limits<int8_t>::lowest());
+    uint32_t range = static_cast<double>(std::numeric_limits<int8_t>::max()) -
+                     static_cast<double>(std::numeric_limits<int8_t>::lowest());
     ASSERT_EQ(int_range->range, range);
     ASSERT_EQ(int_range->resolution, 1);
 
@@ -277,4 +279,3 @@ TEST(RangesTests, not_intersection) {
     ASSERT_EQ(floorMod_range->range, floorMod_range_ref.range);
     ASSERT_EQ(floorMod_range->resolution, floorMod_range_ref.resolution);
 }
-

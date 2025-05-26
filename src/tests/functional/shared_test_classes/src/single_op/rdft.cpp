@@ -3,8 +3,11 @@
 //
 
 #include "shared_test_classes/single_op/rdft.hpp"
+
 #include "common_test_utils/node_builders/rdft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/op/rdft.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
@@ -48,8 +51,11 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
 
     inputs.clear();
     Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
-                                            targetInputStaticShapes[0],
-                                            inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                                         targetInputStaticShapes[0],
+                                                                         inGenData.range,
+                                                                         inGenData.start_from,
+                                                                         inGenData.resolution,
+                                                                         inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 

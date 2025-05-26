@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_op/istft.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/istft.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {

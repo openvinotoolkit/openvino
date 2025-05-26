@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/core/preprocess/color_format.hpp"
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 
 namespace ov {
 namespace test {

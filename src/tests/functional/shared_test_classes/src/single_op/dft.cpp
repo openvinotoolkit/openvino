@@ -6,6 +6,8 @@
 
 #include "common_test_utils/node_builders/dft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
