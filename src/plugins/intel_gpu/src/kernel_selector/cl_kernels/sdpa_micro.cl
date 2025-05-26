@@ -404,23 +404,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-
+        const uint mask_m = MSK_D2;
+        const uint mask_n = MSK_D3;
         // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
-        if (MSK_D2 == 1) {
-            // Define mask dimensions for single Query dimension
-            uint mask_m = 1; // single query dimension
-            uint mask_n = MSK_D3; // sequence_length
-
-            // In the case of single query dimension, set ld and offset_r to zero
-            // to avoid exceeding bounds for single dimension.
-            tile_load_t(&mask_tile, msk, mask_m, mask_n, 0, 0, k0 + sg_i0_kq);
-        } else {
-            // General case: attention mask matches Q*K^T shape
-            uint mask_m = q; // Q sequence length
-            uint mask_n = k; // K sequence length
-
-            tile_load_t(&mask_tile, msk, mask_m, mask_n, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
-        }
+        // In the case of single query dimension, set ld and offset_r to zero
+        // to avoid exceeding bounds for single dimension.
+        const uint mask_ld = (mask_m == 1)? 0 : mask_n;
+        const uint mask_offset_r = (mask_m == 1)? 0 : sg_j0_kq + wg_j0;
+        tile_load_t(&mask_tile, msk, mask_m, mask_n, mask_ld, mask_offset_r, k0 + sg_i0_kq);
 #endif
 
 #if REMAINDER_K
