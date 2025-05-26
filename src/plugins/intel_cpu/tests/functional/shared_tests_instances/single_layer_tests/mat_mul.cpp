@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "single_op_tests/mat_mul.hpp"
+#include "internal_properties.hpp"
 
 namespace {
 using ov::test::MatMulLayerTest;

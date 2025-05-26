@@ -13,6 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "internal_properties.hpp"
 
 #include <algorithm>
 

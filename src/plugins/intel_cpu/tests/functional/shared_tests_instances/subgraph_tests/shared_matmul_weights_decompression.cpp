@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/shared_matmul_weights_decompression.hpp"
 
 #include "common_test_utils/test_constants.hpp"
+#include "internal_properties.hpp"
 
 using namespace ov::test;
 

@@ -8,6 +8,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "internal_properties.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
