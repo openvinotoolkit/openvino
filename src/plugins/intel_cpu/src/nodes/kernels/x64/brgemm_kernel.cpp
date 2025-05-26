@@ -261,6 +261,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
+    brgCopyKernelConf.orig_src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
     brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
     // copy_a_kernel assumes that in/out tensor has same data type except f16
     // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
