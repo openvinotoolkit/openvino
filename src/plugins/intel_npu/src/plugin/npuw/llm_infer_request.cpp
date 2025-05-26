@@ -313,6 +313,10 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(std::string prefill_output_name, o
 
     auto copy_tensor = [pattern, kvcache_desc, this](auto output_name,  const auto & prefill_out_tensor)  {
         const auto& input_name = std::regex_replace(output_name, pattern, "past_key_values");
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                return;
+            }
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
         // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
         //        taking into account kvcache dimension.
@@ -344,6 +348,7 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(std::string prefill_output_name, o
         copy_tensor(prefill_output_name, tensor);
     } else {
         LOG_DEBUG("Copying all KV-cache tensors from prefill to generate model");
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
 
         const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
