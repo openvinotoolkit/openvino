@@ -30,7 +30,7 @@ env:
 jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
-    timeout-minutes: 50
+    timeout-minutes: 200  # for testing purposes, return to 50
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -131,7 +131,7 @@ jobs:
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit_torch_export -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_export.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_torch_export -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_export.xml --durations=1000
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
@@ -141,7 +141,7 @@ jobs:
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml --durations=1000
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
