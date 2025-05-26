@@ -461,11 +461,15 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
 /// NOT EQUAL ///
 jit_not_equal_emitter::jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+    }
 
 jit_not_equal_emitter::jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+    }
 
 size_t jit_not_equal_emitter::get_inputs_num() const {
     return 2;
