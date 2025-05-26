@@ -626,6 +626,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
+        retVector.emplace_back(R"(.*Snippets.*MLP.*Quantized.*)");
     }
     if (!ov::with_cpu_x86_avx512_core_amx_int8())
         // TODO: Issue 92895
@@ -636,6 +637,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
         // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
@@ -673,6 +675,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MLP.*)");
     if (!ov::with_cpu_x86_avx512_core_amx()) {
         // Issue: 165178
         retVector.emplace_back(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\[\]_TS=\(\(.*)");

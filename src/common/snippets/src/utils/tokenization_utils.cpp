@@ -395,6 +395,108 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     return true;
 }
 
+std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops) {
+    OPENVINO_ASSERT(!ordered_ops.empty(), "Nothing to be tokenized!");
+
+    ov::OutputVector body_inputs, subgraph_inputs;
+    ov::ParameterVector body_parameters;
+    ov::ResultVector body_results;
+    std::vector<std::set<Input<Node>>> subgraph_result_inputs;
+
+    auto create_body_inputs = [&](const std::shared_ptr<ov::Node>& node) -> void {
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            const auto input = node->input(i);
+            const auto parent = input.get_source_output().get_node_shared_ptr();
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
+            if (constant && (ov::shape_size(input.get_shape()) == 1 ||
+                             ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+                             op::Subgraph::constant_input_should_be_inside_body(node))) {
+                // If Constant has one consumer - target node, we add Constant to body_inputs
+                // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
+                // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
+                // make a copy and add copy of Constant to body_inputs
+                // For example, this case is especially valid for Transposes nodes
+                //              (several Transposes have the same order so there can be the common Constant with this order)
+                if (constant->get_output_target_inputs(0).size() == 1) {
+                    body_inputs.push_back(input.get_source_output());
+                } else {
+                    const auto constant_consumers = constant->get_output_target_inputs(0);
+                    bool all_consumers_are_inside = std::all_of(constant_consumers.begin(), constant_consumers.end(),
+                                                                [&ordered_ops](const ov::Input<ov::Node>& input) {
+                                                                    return std::find(ordered_ops.begin(), ordered_ops.end(),
+                                                                                     input.get_node()->shared_from_this()) != ordered_ops.end();
+                                                                });
+                    if (all_consumers_are_inside) {
+                        body_inputs.push_back(input.get_source_output());
+                    } else {
+                        const auto constant_copy = constant->clone_with_new_inputs({});
+                        node->set_argument(input.get_index(), constant_copy);
+                        body_inputs.push_back(constant_copy);
+                    }
+                }
+            } else if (std::find(ordered_ops.begin(), ordered_ops.end(), parent) == ordered_ops.end()) {
+                auto parameter = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+                body_parameters.push_back(parameter);
+                body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+                body_inputs.push_back(parameter->output(0));
+
+                subgraph_inputs.push_back(input.get_source_output());
+
+                node->input(i).replace_source_output(parameter);
+            }
+        }
+    };
+
+    size_t hidden_data_count = 0;
+    std::string fused_names;
+    auto last_node = ordered_ops.back();
+
+    for (const auto& op : ordered_ops) {
+        create_body_inputs(op);
+        op->clear_control_dependencies();
+        fused_names += op->get_friendly_name() + ",";
+
+        if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
+            hidden_data_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+        }
+    }
+
+    for (const auto& output : last_node->outputs()) {
+        subgraph_result_inputs.push_back(output.get_target_inputs());
+    }
+    for (const auto& output : last_node->outputs()) {
+        body_results.push_back(std::make_shared<ov::opset1::Result>(last_node->output(output.get_index())));
+    }
+
+    if (body_results.size() != subgraph_result_inputs.size()) {
+        OPENVINO_THROW("body results and node results size mismatch during subgraph collapse");
+    }
+
+    auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
+    auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
+    // Copy runtime info from last node to subgraph - to copy topological order
+    copy_runtime_info(last_node, subgraph);
+    subgraph->set_friendly_name(last_node->get_friendly_name());
+
+    for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
+        for (const auto& target_input : subgraph_result_inputs[i]) {
+            target_input.replace_source_output(subgraph->output(i));
+        }
+    }
+    op::update_out_tensor_name(subgraph);
+
+    subgraph->validate_and_infer_types();
+
+    auto act_body = subgraph->body_ptr();
+    for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
+        act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+    }
+    subgraph->get_rt_info()["originalLayersNames"] = fused_names;
+    subgraph->set_virtual_port_count(hidden_data_count);
+
+    return subgraph;
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
