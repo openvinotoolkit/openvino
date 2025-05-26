@@ -17,6 +17,7 @@
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
+#include "version.hpp"
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
 static constexpr char cfg_message[] = "Path to the configuration file.";
@@ -34,6 +35,7 @@ static constexpr char inference_only_message[] =
         " Applicable only for \"performance\" mode. (default: true).";
 
 static constexpr char exec_filter_msg[] = "Optional. Run the scenarios that match provided string pattern.";
+static constexpr char version_message[] = "Optional. Print the version";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(cfg, "", cfg_message);
@@ -45,6 +47,7 @@ DEFINE_uint64(niter, 0, niter_message);
 DEFINE_uint64(t, 0, exec_time_message);
 DEFINE_bool(inference_only, true, inference_only_message);
 DEFINE_string(exec_filter, ".*", exec_filter_msg);
+DEFINE_bool(v, false, version_message);
 
 static void showUsage() {
     std::cout << "protopipe [OPTIONS]" << std::endl;
@@ -60,6 +63,8 @@ static void showUsage() {
     std::cout << "    -t <value>              " << exec_time_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -exec_filter            " << exec_filter_msg << std::endl;
+    std::cout << "    -v                      " << version_message << std::endl;
+
     std::cout << std::endl;
 }
 
@@ -70,7 +75,10 @@ bool parseCommandLine(int* argc, char*** argv) {
         showUsage();
         return false;
     }
-
+    if (FLAGS_v) {
+        std::cout << APP_VERSION << std::endl;
+        return false;
+    }
     if (FLAGS_cfg.empty()) {
         throw std::invalid_argument("Path to config file is required");
     }
