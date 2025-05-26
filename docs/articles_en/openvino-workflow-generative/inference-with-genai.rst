@@ -326,6 +326,83 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
          `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
 
 
+.. dropdown:: Text-to-Speech Generation
+
+   OpenVINO GenAI provides the `openvino_genai.Text2SpeechPipeline` API for performing inference with text-to-speech models,
+   such as the SpeechT5 TTS model. A speaker embedding vector can be specified to control the characteristics of the synthesized voice.
+   If no embedding is provided, the model defaults to a built-in speaker. Speaker embeddings can be generated using the following script:
+   `create_speaker_embedding.py <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/speech_generation/create_speaker_embedding.py>`__.
+   The example below demonstrates how to use the `Text2SpeechPipeline` API.
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: cpp
+
+         .. code-block:: python
+
+            import numpy as np
+            import openvino as ov
+            import openvino_genai
+            import soundfile as sf
+
+            device = "CPU"
+            speaker_embedding = np.fromfile("speaker_embedding.bin", dtype=np.float32).reshape(1, 512)
+            speaker_embedding = ov.Tensor(speaker_embedding)
+
+            pipe = openvino_genai.Text2SpeechPipeline(model_dir, device)
+
+            result = pipe.generate(args.text, speaker_embedding)
+
+            speech = result.speeches[0]
+            sf.write("output_audio.wav", speech.data[0], samplerate=16000)
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speech_generation/>`__.
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            #include "audio_utils.hpp"
+            #include "openvino/genai/whisper_pipeline.hpp"
+
+            int main(int argc, char* argv[]) try {
+                OPENVINO_ASSERT(argc == 3 || argc == 4,
+                                "Usage: ",
+                                argv[0],
+                                " <MODEL_DIR> \"<PROMPT>\" [<SPEAKER_EMBEDDING_BIN_FILE>]");
+
+                const std::string models_path = argv[1], prompt = argv[2];
+                const std::string device = "CPU";
+
+                ov::genai::Text2SpeechPipeline pipe(models_path, device);
+
+                ov::genai::Text2SpeechDecodedResults gen_speech;
+                if (argc == 4) {
+                    const std::string speaker_embedding_path = argv[3];
+                    auto speaker_embedding = utils::audio::read_speaker_embedding(speaker_embedding_path);
+                    gen_speech = pipe.generate(prompt, speaker_embedding);
+                } else {
+                    gen_speech = pipe.generate(prompt);
+                }
+
+                std::string output_file_name = "output_audio.wav";
+                auto waveform_size = gen_speech.speeches[0].get_size();
+                auto waveform_ptr = gen_speech.speeches[0].data<const float>();
+                auto bits_per_sample = gen_speech.speeches[0].get_element_type().bitwidth();
+                utils::audio::save_to_wav(waveform_ptr, waveform_size, output_file_name, bits_per_sample);
+
+                return EXIT_SUCCESS;
+            }
+
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speech_generation/>`__.
+
+
 .. dropdown:: Using GenAI in Chat Scenario
 
    For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache
