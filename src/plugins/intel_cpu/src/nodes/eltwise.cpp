@@ -811,12 +811,12 @@ public:
                     Algorithm::EltwiseFloor,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
+                    Algorithm::EltwiseNotEqual,
                     Algorithm::EltwisePowerStatic,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
-                    Algorithm::EltwiseSubtract,
-                    Algorithm::EltwiseNotEqual)) {
+                    Algorithm::EltwiseSubtract)) {
             return false;
         }
 
