@@ -35,7 +35,19 @@ BitMap::BitMap(const string& filename) {
 
     input.read(reinterpret_cast<char*>(&infoHeader), sizeof(BmpInfoHeader));
 
-    bool rowsReversed = infoHeader.height < 0;
+    // Limit BMP image size
+    constexpr auto bmp_dim_limit = 32 * 1024;
+    if ((infoHeader.width < 0) || (infoHeader.width > bmp_dim_limit)) {
+        std::cerr << "[BMP] wrong width\n";
+        return;
+    }
+
+    if ((infoHeader.height < -bmp_dim_limit) || (infoHeader.height > bmp_dim_limit)) {
+        std::cerr << "[BMP] wrong height\n";
+        return;
+    }
+
+    const auto rowsReversed = infoHeader.height < 0;
     _width = infoHeader.width;
     _height = abs(infoHeader.height);
     _shape.push_back(_height);
@@ -50,18 +62,19 @@ BitMap::BitMap(const string& filename) {
         cerr << "[BMP] compression not supported\n";
     }
 
-    int padSize = _width & 3;
+    const auto padSize = _width & 3;
     char pad[3];
-    size_t size = _width * _height * 3;
+    const auto row_size = _width * 3;
+    const auto size = row_size * _height;
 
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
 
     input.seekg(header.offset, ios::beg);
 
     // reading by rows in invert vertically
-    for (uint32_t i = 0; i < _height; i++) {
-        uint32_t storeAt = rowsReversed ? i : (uint32_t)_height - 1 - i;
-        input.read(reinterpret_cast<char*>(_data.get()) + _width * 3 * storeAt, _width * 3);
+    for (size_t i = 0; i < _height; ++i) {
+        auto storeAt = rowsReversed ? i : static_cast<size_t>(_height - 1 - i);
+        input.read(reinterpret_cast<char*>(_data.get()) + row_size * storeAt, row_size);
         input.read(pad, padSize);
     }
 }
