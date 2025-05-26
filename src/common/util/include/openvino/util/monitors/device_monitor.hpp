@@ -14,11 +14,13 @@ namespace util {
 class DeviceMonitor {
 public:
     DeviceMonitor();
-    virtual ~DeviceMonitor() = default;
+    virtual ~DeviceMonitor();
     std::map<std::string, double> get_utilization(const std::string& device_id);
 
 private:
     std::shared_ptr<ov::util::IDevice> m_device_performance;
 };
+
+std::map<std::string, double> get_utilization(const std::string& device_id);
 }  // namespace util
 }  // namespace ov

@@ -56,7 +56,7 @@ public:
         std::string full_3d_counter_path =
             std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_3D)\\Utilization Percentage");
         std::string full_compute_counter_path =
-            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_Compute)\\Utilization Percentage");
+            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_compute)\\Utilization Percentage");
         std::wstring full_3d_counter_path_w = ov::util::string_to_wstring(full_3d_counter_path);
         std::wstring full_compute_counter_path_w = ov::util::string_to_wstring(full_compute_counter_path);
         m_core_time_counters[m_luid][RENDER_ENGINE_COUNTER_INDEX] =
