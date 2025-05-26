@@ -68,6 +68,7 @@ jobs:
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
@@ -125,7 +126,7 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_FASTER_BUILD=ON \
+            -DENABLE_FASTER_BUILD=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
