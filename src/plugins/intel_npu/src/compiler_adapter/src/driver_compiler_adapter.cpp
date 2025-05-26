@@ -58,7 +58,6 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
 }
 
 }  // namespace
-
 namespace intel_npu {
 
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
@@ -295,11 +294,18 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
+<<<<<<< HEAD
     driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
     SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
 
     std::string buildFlags;
     buildFlags += irSerializer.serializeConfig(config, compilerVersion);
+=======
+    auto serializedIR = intel_npu::driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    std::string buildFlags;
+    buildFlags += intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion);
+>>>>>>> eb25485bf9 (Add VCLApi and VCLCompilerImpl)
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;
