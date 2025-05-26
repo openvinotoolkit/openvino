@@ -31,6 +31,7 @@
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/prelu.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
@@ -464,9 +465,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
+        const auto add_precision_sensitive_convert = true;
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
-            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16});
+            ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -921,8 +923,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager lptManager("GPU:LPT");
 
         auto lptPassConfig = lptManager.get_pass_config();
-        // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
+        // Ticket 168016: quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
         lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
+        // Ticket 168015: Low precision PRelu is not supported on GPU
+        lptPassConfig->disable<ov::pass::low_precision::PReluTransformation>();
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
