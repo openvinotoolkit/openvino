@@ -944,7 +944,13 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         if (i8_u8_input) {
             cldnn::program_node& mutable_node = const_cast<cldnn::convolution_node&>(node);
             mutable_node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
-            mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+            // GPU_DEBUG_COUT << node.id() << ": i8_u8_output: " << i8_u8_output << ", " << output_layout.to_short_string() << std::endl;
+            if (i8_u8_output) {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            } else {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            }
             // shallow channel
             if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 4) {
                 mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
