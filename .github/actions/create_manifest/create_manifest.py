@@ -90,6 +90,17 @@ def parse_version_from_toml(toml_file: str | Path) -> str:
     return match.group(2)
 
 
+def update_pyproject_toml(toml_file: str | Path, replacements: dict = None):
+    with open(toml_file, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    for pattern, new_string in replacements.items():
+        content = re.sub(pattern, new_string, content, flags=re.M)
+
+    with open(toml_file, "w", encoding="utf-8") as file:
+        file.write(content)
+
+
 def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
     manifest = Manifest()
     component_name = None
@@ -110,6 +121,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
         if repo.trigger:
             trigger_repo = repo
             component_name = repo.name
+            pyproject_file = version_file
 
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
@@ -123,6 +135,13 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
 
     set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
     set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
+
+    if ci_build_dev_tag:
+        replacements = {
+            # update extension version (2025.0.0.0 -> 2025.0.0.0.dev001)
+            r'(^\s*version\s*=\\s*["\'])(.*)(["\']\\s*)': r'\1\2.' + ci_build_dev_tag + r'\3' 
+        }
+        update_pyproject_toml(pyproject_file, replacements)
 
     component = Component(name=component_name, version=product_version, product_type=product_type,
                           target_arch=target_arch, build_type=build_type, build_event=event_type,
