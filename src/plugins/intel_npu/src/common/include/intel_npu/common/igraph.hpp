@@ -13,6 +13,9 @@
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+
 namespace intel_npu {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
@@ -54,12 +57,16 @@ public:
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
+    void resize_last_submitted_event(size_t batch);
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
+    std::optional<size_t> determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors) const;
+
+    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata, const std::vector<ov::SoPtr<ov::ITensor>>& tensors);
 
 protected:
     /**
@@ -79,7 +86,6 @@ protected:
      * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
      * the plugin.
      */
-    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
 
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;

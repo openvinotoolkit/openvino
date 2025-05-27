@@ -92,6 +92,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t ioIndex = 0;
+    auto batchSize = _graph->get_batch_size(_metadata, _userInputTensors.at(0));
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
         check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
 
@@ -101,7 +102,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
 
         get_level_zero_input(ioIndex) =
-            allocate_tensor(inputDescriptor, ioIndex, INPUT, *_inputAllocator, _graph->get_batch_size());
+            allocate_tensor(inputDescriptor, ioIndex, INPUT, *_inputAllocator, batchSize);
 
         ++ioIndex;
     }
@@ -116,7 +117,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
 
         _levelZeroOutputTensors.at(ioIndex) =
-            allocate_tensor(outputDescriptor, ioIndex, OUTPUT, *_outputAllocator, _graph->get_batch_size());
+            allocate_tensor(outputDescriptor, ioIndex, OUTPUT, *_outputAllocator, batchSize);
 
         ++ioIndex;
     }
@@ -125,12 +126,14 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 }
 
 void ZeroInferRequest::create_pipeline() {
+    _logger.debug("ZeroInferRequest::create_pipeline");
+    auto batch_size = _graph->get_batch_size(_metadata, _userInputTensors.at(0));
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
-        if (is_batched_input(inputIndex) && _graph->get_batch_size().has_value()) {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-                _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
-                              _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
-            } else {
+        if (batch_size.has_value()) {
+            // if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+            //     _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
+            //                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
+            // } else {
                 for (size_t i = 0; i < get_user_inputs(inputIndex).size(); i++) {
                     get_level_zero_inputs(inputIndex).resize(get_user_inputs(inputIndex).size());
 
@@ -138,9 +141,9 @@ void ZeroInferRequest::create_pipeline() {
                                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
 
                     get_level_zero_input(inputIndex, i) =
-                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator);
+                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator, batch_size);
                 }
-            }
+            // }
             continue;
         }
 
@@ -156,7 +159,7 @@ void ZeroInferRequest::create_pipeline() {
                                                            inputIndex,
                                                            INPUT,
                                                            *_inputAllocator,
-                                                           _graph->get_batch_size());
+                                                           batch_size);
     }
 
     for (size_t outputIndex = 0; outputIndex < _metadata.outputs.size(); ++outputIndex) {
@@ -171,7 +174,7 @@ void ZeroInferRequest::create_pipeline() {
                                                                   outputIndex,
                                                                   OUTPUT,
                                                                   *_outputAllocator,
-                                                                  _graph->get_batch_size());
+                                                                  batch_size);
     }
     _logger.debug("ZeroInferRequest::create_pipeline - init completed");
 
@@ -202,7 +205,7 @@ void ZeroInferRequest::create_pipeline() {
 
     // Construct pipeline
     _pipeline =
-        std::make_unique<Pipeline>(_config, _initStructs, _graph, _levelZeroInputTensors, _levelZeroOutputTensors);
+        std::make_unique<Pipeline>(_config, _initStructs, _graph, _levelZeroInputTensors, _levelZeroOutputTensors, batch_size.has_value() ? batch_size.value() : 1);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -226,11 +229,15 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
             _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
+            ov::SoPtr<ov::ITensor> soPtrTensor(tensor);
+            std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {soPtrTensor};
+            auto batch = _graph->get_batch_size(_metadata, tensorVector);
+
             levelZeroTensors = allocate_tensor(isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index),
                                                index,
                                                isInput,
                                                isInput ? *_inputAllocator : *_outputAllocator,
-                                               _graph->get_batch_size());
+                                               batch);
 
             updateCommandListArg = true;
         }
@@ -293,7 +300,8 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
-        if (is_batched_input(foundPort.idx)) {
+        std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {tensor};
+        if (is_batched_input(foundPort.idx) || _graph->get_batch_size(_metadata, tensorVector).has_value()) {
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
             get_level_zero_inputs(foundPort.idx).shrink_to_fit();
@@ -343,8 +351,11 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     get_user_inputs(foundPort.idx).resize(tensors.size());
     get_user_inputs(foundPort.idx) = tensors;
 
+    _logger.debug("ZeroInferRequest::set_tensors");
+    auto batch_size = _graph->get_batch_size(_metadata, tensors);
+
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        if (_graph->get_batch_size().has_value()) {
+        if (batch_size) {
             for (size_t i = 0; i < tensors.size(); i++) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
 
@@ -368,7 +379,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                       "create a L0 tensor");
 
                         get_level_zero_input(foundPort.idx, i) =
-                            allocate_tensor(_metadata.inputs.at(foundPort.idx), foundPort.idx, true, *_inputAllocator);
+                            allocate_tensor(_metadata.inputs.at(foundPort.idx), foundPort.idx, true, *_inputAllocator, batch_size);
                     }
 
                     data = get_level_zero_input(foundPort.idx, i)->data();
@@ -424,11 +435,13 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
 
+    auto batch_size = _graph->get_batch_size(_metadata, _userOutputTensors);
+
     levelZeroTensors = allocate_tensor(metadata,
                                        ioIndex,
                                        isInput,
                                        isInput ? *_inputAllocator : *_outputAllocator,
-                                       _graph->get_batch_size());
+                                       batch_size);
 
     auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
     if (zeroTensor != nullptr) {
@@ -575,8 +588,9 @@ void ZeroInferRequest::infer_async() {
             }
         }
 
-        if (is_batched_input(inputIndex)) {
-            if (_graph->get_batch_size().has_value()) {
+        auto batch_size = _graph->get_batch_size(_metadata, _userInputTensors.at(inputIndex));
+        if (is_batched_input(inputIndex) || batch_size.has_value()) {
+            if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     if (!is_remote_tensor(get_level_zero_input(inputIndex, i))) {
                         void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
