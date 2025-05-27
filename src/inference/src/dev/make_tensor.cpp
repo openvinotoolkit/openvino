@@ -58,18 +58,30 @@ public:
         OPENVINO_ASSERT(m_element_type.is_static());
     }
 
+    void* data() override {
+        return m_ptr;
+    }
+
+    void* data(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
     const void* data() const override {
         return m_ptr;
     }
 
     const void* data(const element::Type& element_type) const override {
-        if (!is_pointer_representable(element_type)) {
-            OPENVINO_THROW("Tensor data with element type ",
-                           get_element_type(),
-                           ", is not representable as pointer to ",
-                           element_type);
-        }
-        return data();
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
     }
 
     const element::Type& get_element_type() const override {
@@ -431,13 +443,20 @@ public:
         BaseRoiTensor::set_shape(new_shape);
     }
 
+    void* data() override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
     const void* data() const override {
         return static_cast<uint8_t*>(m_owner->data()) + m_offset;
     }
 
     const void* data(const element::Type& element_type) const override {
-        auto owner_data = m_owner->data(element_type);
-        return static_cast<uint8_t*>(owner_data) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
     }
 };
 

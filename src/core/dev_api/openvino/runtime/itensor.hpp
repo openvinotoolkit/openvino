@@ -55,7 +55,7 @@ public:
      * @return A host pointer to tensor memory
      * @{
      */
-    virtual void* data();
+    virtual void* data() = 0;
     virtual const void* data() const = 0;
     /// @}
 
@@ -67,7 +67,7 @@ public:
      * @return A host pointer to tensor memory
      * @{
      */
-    virtual void* data(const element::Type& type);
+    virtual void* data(const element::Type& type) = 0;
     virtual const void* data(const element::Type& type) const = 0;
     /// @}
 
