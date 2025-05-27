@@ -981,12 +981,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 GPU_DEBUG_TRACE_DETAIL << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
+                bool mem_from_padded_pool = _outputs[i]->is_mem_from_padded_pool();
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
-            }
-            // TODO: check need_reset_output_memory per output
-            if (need_reset_output_memory() && !can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+                _outputs[i]->mem_from_padded_pool(mem_from_padded_pool);
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
@@ -1013,6 +1010,17 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+        }
+
+        // TODO: check if memory from non_padded_pool is needed reset
+        if (need_reset_output_memory() && !can_be_optimized() && _outputs[i]->is_mem_from_padded_pool()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory from padded pool" << std::endl;
+            auto& stream = get_network().get_stream();
+            auto queue_type = stream.get_queue_type();
+            if (queue_type == QueueTypes::out_of_order) {
+                stream.wait_for_events({_deps[0].first->_impl_params->out_event});
+            }
+            add_dep_event(_outputs[i]->fill(stream, false));
         }
     }
 

@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -126,6 +127,188 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     ASSERT_TRUE(reorder_mem->size() <= reorder_mem->get_mem_tracker()->size())
                 << "reorder mem buffer size: " <<  reorder_mem->size() << "bytes is bigger than original size of allocated mem: "
                 << reorder_mem->get_mem_tracker()->size() << "bytes.";
+}
+
+TEST(memory_reuse_realloc_reset_test, basic_conv_with_memory_get_from_padded_pool) {
+    auto& engine = get_test_engine();
+
+    layout weight_layout = layout{ov::PartialShape{1, 1, 3, 3}, data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory(weight_layout);
+    set_values<float>(weights, {
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f
+    });
+
+    layout elt_layout1 = layout{ov::PartialShape{1, 1, 4, 4}, data_types::f32, format::bfyx};
+    auto elt_mem1 = engine.allocate_memory(elt_layout1);
+    set_values<float>(elt_mem1, {
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f
+    });
+
+    layout elt_layout2 = layout{ov::PartialShape{1, 1, 3, 3}, data_types::f32, format::bfyx};
+    auto elt_mem2 = engine.allocate_memory(elt_layout2);
+    set_values<float>(elt_mem2, {
+        1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f
+    });
+
+    std::vector<float> subtract_val = {0.f, };
+    auto input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto elt_input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+
+    topology topology(input_layout("elt_input", elt_input_l),
+                      data("weights", weights),
+                      reorder("reorder1-1", input_info("elt_input"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      reorder("reorder1-2", input_info("elt_input"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      concatenation("concat1", {input_info("reorder1-1"), input_info("reorder1-2")}, 2),
+                      convolution("conv1",
+                                  input_info("concat1"),
+                                  "weights",
+                                  "",     /*bias*/
+                                  1,
+                                  {2, 1}, /*stride*/
+                                  {1, 1}, /*dilation*/
+                                  {1, 1}, /*pad_above*/
+                                  {1, 1}, /*pad_below*/
+                                  false,
+                                  ov::op::PadType::EXPLICIT),
+                      reorder("reorder2-1", input_info("conv1"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      concatenation("concat2", {input_info("reorder1-1"), input_info("reorder2-1")}, 2),
+                      convolution("conv2",
+                                  input_info("concat2"),
+                                  "weights",
+                                  "",     /*bias*/
+                                  1,
+                                  {2, 1}, /*stride*/
+                                  {1, 1}, /*dilation*/
+                                  {1, 1}, /*pad_above*/
+                                  {1, 1}, /*pad_below*/
+                                  false,
+                                  ov::op::PadType::EXPLICIT),
+                      reorder("output", input_info("conv2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    // exec 1
+    {
+        std::vector<float> ref_output_1 = {
+            40, 60, 60, 40,
+            60, 90, 90, 60,
+            270, 430, 430, 270,
+            450, 720, 720, 450 };
+
+        network.set_input_data("elt_input", elt_mem1);
+        auto outputs_1 = network.execute();
+        auto output_mem_1 = outputs_1.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_mem_1_ptr(output_mem_1, get_test_stream());
+
+        for (size_t i = 0; i < output_mem_1->get_layout().get_linear_size(); ++i) {
+            ASSERT_EQ(output_mem_1_ptr[i], ref_output_1[i]);
+        }
+    }
+
+    // exec 2
+    {
+        std::vector<float> ref_output_2 = {
+            4, 6, 4,
+            14, 20, 14,
+            40, 56, 40 };
+
+        network.set_input_data("elt_input", elt_mem2);
+        auto outputs_2 = network.execute();
+        auto output_mem_2 = outputs_2.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
+
+        for (size_t i = 0; i < output_mem_2->get_layout().get_linear_size(); ++i) {
+            ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
+        }
+    }
+}
+
+TEST(memory_reuse_realloc_reset_test, basic_eltwise_reorder_with_memory_get_from_padded_pool) {
+    auto& engine = get_test_engine();
+
+    layout elt_layout1 = layout{ov::PartialShape{1, 1, 7, 7}, data_types::f32, format::bfyx};
+    auto elt_mem1 = engine.allocate_memory(elt_layout1);
+    set_values<float>(elt_mem1, {
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f, 10.f, 10.f, 10.f
+    });
+
+    layout elt_layout2 = layout{ov::PartialShape{1, 1, 3, 3}, data_types::f32, format::bfyx};
+    auto elt_mem2 = engine.allocate_memory(elt_layout2);
+    set_values<float>(elt_mem2, {
+        1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f
+    });
+
+    std::vector<float> subtract_val = {0.f, };
+    auto input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto elt_input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+
+    topology topology(input_layout("elt_input", elt_input_l),
+                      reorder("reorder1", input_info("elt_input"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
+                      eltwise("eltwise1", {input_info("reorder1"), input_info("elt_input")}, eltwise_mode::sum),
+                      reorder("reorder2", input_info("eltwise1"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
+                      eltwise("eltwise2", {input_info("reorder2"), input_info("elt_input")}, eltwise_mode::sum),
+                      reorder("output", input_info("eltwise2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    // exec 1
+    {
+        std::vector<float> ref_output_1 = {
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30,
+            30, 30, 30, 30, 30, 30, 30 };
+
+        network.set_input_data("elt_input", elt_mem1);
+        auto outputs_1 = network.execute();
+        auto output_mem_1 = outputs_1.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_mem_1_ptr(output_mem_1, get_test_stream());
+
+        for (size_t i = 0; i < output_mem_1->get_layout().get_linear_size(); ++i) {
+            ASSERT_EQ(output_mem_1_ptr[i], ref_output_1[i]);
+        }
+    }
+
+    // exec 2
+    {
+        std::vector<float> ref_output_2 = {
+            3, 3, 3,
+            3, 3, 3,
+            3, 3, 3 };
+
+        network.set_input_data("elt_input", elt_mem2);
+        auto outputs_2 = network.execute();
+        auto output_mem_2 = outputs_2.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
+
+        for (size_t i = 0; i < output_mem_2->get_layout().get_linear_size(); ++i) {
+            ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
+        }
+    }
 }
 
 TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
