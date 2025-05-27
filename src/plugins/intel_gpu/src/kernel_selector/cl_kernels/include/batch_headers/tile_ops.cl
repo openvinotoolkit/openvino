@@ -275,7 +275,7 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
         ptr += ld * offset_r + offset_c; \
         _Pragma("unroll") for (int i0 = 0; i0 < br * nbr; i0 += sg, ptr += ld*sg) { \
             int i = i0 + get_sub_group_local_id(); \
-            if (offset_r + i < m) \
+            if (m == 1 || offset_r + i < m) \
                 _Pragma("unroll") for (int j = 0; j < bc * nbc; j++) { \
                     if (offset_c + j < n) { \
                         tile_access(*t, i0, j, sg, br, bc, nbr) = ptr[get_sub_group_local_id() * ld + j]; \
