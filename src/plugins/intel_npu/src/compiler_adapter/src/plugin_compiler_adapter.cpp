@@ -15,6 +15,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -94,26 +95,38 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("func: %s line: %d", __func__, __LINE__);
     ze_graph_handle_t graphHandle = nullptr;
 
+    NetworkMetadata networkMeta;
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
             graphHandle =
                 _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(tensor.data()), tensor.get_byte_size());
+
+            networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
+            networkMeta.name = model->get_friendly_name();
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
     }
-
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphHandle,
-                                   std::move(networkDesc.metadata),
+                                   std::move(networkMeta),
                                    std::move(tensor),
                                    /* blobAllocatedByPlugin = */ false,
                                    config,
                                    _compiler);
+
+    // return std::make_shared<Graph>(_zeGraphExt,
+    //                                _zeroInitStruct,
+    //                                graphHandle,
+    //                                std::move(networkDesc.metadata),
+    //                                std::move(tensor),
+    //                                /* blobAllocatedByPlugin = */ false,
+    //                                config,
+    //                                _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
@@ -121,19 +134,21 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-    _logger.debug("parse start");
-    std::vector<uint8_t> network(blob.get_byte_size());
-    network.assign(reinterpret_cast<const uint8_t*>(blob.data()),
-                   reinterpret_cast<const uint8_t*>(blob.data()) + blob.get_byte_size());
-    auto networkMeta = _compiler->parse(network, config);
-    network.clear();
-    network.shrink_to_fit();
-    _logger.debug("parse end");
+    // _logger.debug("parse start");
+    // std::vector<uint8_t> network(blob.get_byte_size());
+    // network.assign(reinterpret_cast<const uint8_t*>(blob.data()),
+    //                reinterpret_cast<const uint8_t*>(blob.data()) + blob.get_byte_size());
+    // auto networkMeta = _compiler->parse(network, config);
+    // network.clear();
+    // network.shrink_to_fit();
+    // _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
+    NetworkMetadata networkMeta;
     if (_zeGraphExt) {
         graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     }
 
     return std::make_shared<Graph>(_zeGraphExt,
