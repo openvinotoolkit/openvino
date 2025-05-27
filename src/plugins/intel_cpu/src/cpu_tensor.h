@@ -27,6 +27,8 @@ public:
 
     const ov::Strides& get_strides() const override;
 
+    void* data() override;
+    void* data(const element::Type& type) override;
     const void* data() const override;
     const void* data(const element::Type& type) const override;
 
