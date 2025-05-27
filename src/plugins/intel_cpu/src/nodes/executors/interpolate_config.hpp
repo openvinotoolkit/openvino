@@ -70,6 +70,11 @@ struct InterpolateAttrs {
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 };
 
+
+static inline bool isFloatCompatible(ov::element::Type prc) {
+    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
+}
+
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
                                       const std::vector<int>& padEnd) {
