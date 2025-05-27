@@ -314,17 +314,17 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
                                                                    bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
 
-    auto input_pattern = any_input(pattern::type_matches_any(precisions));
+    auto input_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
     auto convert_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
 
     // zero points:
-    auto zp_pattern = any_input();
+    auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
     auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
-    auto scale_pattern = any_input();
+    auto scale_pattern = pattern::wrap_type<v0::Constant>();
     auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
     auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
