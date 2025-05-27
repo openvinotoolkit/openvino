@@ -50,7 +50,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
     const auto& b_shape = b_quantized.get_partial_shape();
     uint64_t actual_b_size = 1;
-    for (const auto d : b_shape) {
+    for (const auto& d : b_shape) {
         actual_b_size *= d.get_length();
     }
 
