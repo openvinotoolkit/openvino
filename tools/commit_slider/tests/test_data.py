@@ -76,7 +76,14 @@ class TestData():
         CompareBlobsData = 20,
         MulOutput = 21,
         CmpBlobsAutomatch = 22,
-        BrokenCompilation = 23
+        BrokenCompilation = 23,
+        TemplateData = 24,
+        CrossCheckBadAppl = 25,
+        CrossCheckBadModel = 26,
+        CrossCheckPerformance = 27,
+        CrossCheckPerformanceSeparateMode = 28,
+        CrossCheckPerformanceSeparateTemplate = 29,
+        CrossCheckPerformanceSeparateTemplateBadApp = 30
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -100,6 +107,91 @@ class FirstBadVersionData(TestData):
         self.requireTestData(
             requireBinarySearchData
         )
+
+
+class CrossCheckBadAppl(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckBadAppl
+
+    def getTestName(self):
+        return "CfgCrossCheckBadApplication"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class CrossCheckBadModel(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckBadModel
+
+    def getTestName(self):
+        return "CfgCrossCheckBadModel"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class CrossCheckPerformance(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckPerformance
+
+    def getTestName(self):
+        return "CfgCrossCheckPerformance"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class CrossCheckPerformanceSeparateTemplate(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckPerformanceSeparateTemplate
+
+    def getTestName(self):
+        return "CfgCrossCheckPerformanceSeparateTemplate"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class CrossCheckPerformanceSeparateTemplateBadApp(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckPerformanceSeparateTemplateBadApp
+
+    def getTestName(self):
+        return "CfgCrossCheckPerformanceSeparateTemplateBadApp"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class CrossCheckPerformanceSeparateMode(TestData):
+    def getTestCase():
+        return TestData.TestCase.CrossCheckPerformanceSeparateMode
+
+    def getTestName(self):
+        return "CfgCrossCheckPerformanceSeparateMode"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
 
 class CustomizedLogData(TestData):
     def getTestCase():
@@ -357,6 +449,32 @@ class BrokenCompilationData(TestData):
 
     def getTestName(self):
         return "BrokenCompilation"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class TemplateData(TestData):
+    def getTestCase():
+        return TestData.TestCase.TemplateData
+
+    def getTestName(self):
+        return "TemplateBrokenCompilation"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class TemplateBrokenCompilationData(TestData):
+    def getTestCase():
+        return TestData.TestCase.TemplateBrokenCompilation
+
+    def getTestName(self):
+        return "TemplateBrokenCompilation"
 
     def __init__(self):
         from test_util import requireBinarySearchData

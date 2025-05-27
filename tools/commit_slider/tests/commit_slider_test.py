@@ -7,7 +7,8 @@ from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
 from test_util import getExpectedCommit,\
-    getBordersByTestData, getActualCommit, getCSOutput
+    getBordersByTestData, getActualCommit, getCSOutput, \
+        createRepoAndUpdateData, runCSAndCheckPattern
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
@@ -16,7 +17,8 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
     AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData, \
-    BrokenCompilationData
+    BrokenCompilationData, TemplateData, CrossCheckBadAppl, CrossCheckBadModel, CrossCheckPerformance, \
+    CrossCheckPerformanceSeparateMode, CrossCheckPerformanceSeparateTemplate, CrossCheckPerformanceSeparateTemplateBadApp
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -27,10 +29,17 @@ class CommitSliderTest(TestCase):
 
         self.assertEqual(breakCommit, actualCommit)
 
-    # @skip_commit_slider_devtest
+    @skip_commit_slider_devtest
     def testBrokenCompilation(self):
         breakCommit, updatedData = getExpectedCommit(
             BrokenCompilationData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def teestBrokenCompTmplate(self):
+        breakCommit, updatedData = getExpectedCommit(
+            TemplateData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
@@ -40,6 +49,54 @@ class CommitSliderTest(TestCase):
             FirstBadVersionData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckBadAppl(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckBadAppl())
+        res = runCSAndCheckPattern(updatedData, ["failed", "failed", "success", "success"])
+
+        self.assertEqual(True, res)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckBadModel(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckBadModel())
+        res = runCSAndCheckPattern(updatedData, ["success", "failed", "success", "failed"])
+
+        self.assertEqual(True, res)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckPerformance(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckPerformance())
+        res = runCSAndCheckPattern(updatedData, ["500.0 FPS", "500.0 FPS", "1000.0 FPS", "1000.0 FPS"])
+
+        self.assertEqual(True, res)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckPerformanceSeparateMode(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckPerformanceSeparateMode())
+        res = runCSAndCheckPattern(updatedData, ["500.0 FPS", "500.0 FPS", "1000.0 FPS", "1000.0 FPS"])
+
+        self.assertEqual(True, res)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckPerformanceSeparateTemplate(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckPerformanceSeparateTemplate())
+        res = runCSAndCheckPattern(updatedData, ["rootcause", "OV"])
+
+        self.assertTrue(res)
+
+    @skip_commit_slider_devtest
+    def testCrossCheckPerformanceSeparateTemplateBadApp(self):
+        updatedData = createRepoAndUpdateData(
+            CrossCheckPerformanceSeparateTemplateBadApp())
+        res = runCSAndCheckPattern(updatedData, ["rootcause", "Model"])
+
+        self.assertTrue(res)
 
     @skip_commit_slider_devtest
     def testCustomizedLog(self):

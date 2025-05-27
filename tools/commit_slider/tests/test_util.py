@@ -148,6 +148,23 @@ def getExpectedCommit(td: TestData):
 
     return breakCommit, td
 
+def createRepoAndUpdateData(td: TestData):
+    markedVersionList = createRepo(td)
+
+    td.fillActualData(markedVersionList)
+    td.actualDataReceived = True
+
+    return td
+
+def runCSAndCheckPattern(td: TestData, pattern: list):
+    sliderOutput = runCS(td)
+    pattern = '((.|\n)*)'.join(pattern)
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    print(sliderOutput)
+    return matcher is not None
+
 def getActualCommit(td: TestData):
     sliderOutput = runCS(td)
     rejectReason, foundCommit = parseSliderOutput(sliderOutput)

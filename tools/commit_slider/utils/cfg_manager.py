@@ -23,6 +23,7 @@ class CfgManager():
         return input
 
     def applyTemplate(self):
+        from utils.templates.common_template import Template
         if not "template" in self.cfg:
             return self.cfg
         tmplName = self.cfg["template"]["name"]
@@ -37,12 +38,14 @@ class CfgManager():
         elif tmplName == "bm_arm_mac":
             fullCfg = self.generateArmBmTemplate()
         elif tmplName == "broken_compilation":
-            from utils.templates.common_template import Template
-            fullCfg = Template.getTemplate().generateBrokenCompTemplate(self.readJsonTmpl("broken_compilation.json"), self.cfg["template"])
+            fullCfg = Template.getTemplate(tmplName).generateBrokenCompTemplate(self.readJsonTmpl("broken_compilation.json"), self.cfg["template"])
+        elif tmplName == "bm_cc":
+            fullCfg = Template.getTemplate(tmplName).generateFullConfig(self.readJsonTmpl("benchmark_crosscheck.json"), self.cfg["template"])
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
             )
+        fullCfg['template'] = self.cfg["template"]["name"]
         return fullCfg
     
     def readJsonTmpl(self, tmplFileName: str):

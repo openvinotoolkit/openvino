@@ -92,19 +92,18 @@ def getParams():
         return argHolder, presetCfgData, presetCfgPath
 
     if argHolder.template != "undefined":
-        # todo collecting od additional args to helpers
         it = iter(additionalArgs)
         addDict = dict(zip(it, it))
         mergedArgs = {**(args.__dict__), **addDict}
         argHolder = DictHolder(mergedArgs)
         customCfgPath = "custom_cfg_on_run.json"
-        # todo: add params to template
+        # add CLI params to template
         jsonObj = {"template" : {"name" : argHolder.template}}
         for k, v in addDict.items():
-            jsonObj["template"][k] = v
-            if k == '-d':
-                print("Docs here:\n*************\ncommon part\n\nAPI:\nindependent params: --verbosity\n1. python3 commit_slider.py -t broken_compilation -d common for documentation.\n2. python3 commit_slider.py -t broken_compilation -cmake '<cmake params>'\n enter number of API for detailes information")
-                exit()
+            jsonObj['template'][k] = v
+            curTempl = jsonObj['template']
+            curTempl[k.replace('-', '')] = v
+            jsonObj['template'] = curTempl
         saveJSON(jsonObj, customCfgPath)
 
     customCfgData = loadJSONToString(customCfgPath)
@@ -388,6 +387,14 @@ def runCommandList(commit, cfgData):
 
 
 def fetchAppOutput(cfg, commit):
+    appCmd = cfg["appCmd"]
+    if isinstance(appCmd, list):
+        aggregatedOutput = ""
+        for cmd in appCmd:
+            curCfg = deepCopyJSON(cfg)
+            curCfg["appCmd"] = cmd
+            aggregatedOutput = aggregatedOutput + fetchAppOutput(curCfg, commit)
+        return aggregatedOutput
     commitLogger = getCommitLogger(cfg, commit)
     appPath = cfg["appPath"]
     # format appPath if it was cashed
@@ -404,7 +411,6 @@ def fetchAppOutput(cfg, commit):
             envKey = env["name"]
             envVal = env["val"]
             newEnv[envKey] = envVal
-    appCmd = cfg["appCmd"]
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -753,6 +759,12 @@ def checkAndGetSubclass(clName, parentClass):
     else:
         return cl[0]
 
+def getClassByMethod(method, methodRes, parentClass):
+    cl = [cl for cl in parentClass.__subclasses__() if getattr(cl, method)() == methodRes]
+    if not (cl.__len__() == 1):
+        raise CfgError("Class returning {} doesn't exist".format(methodRes))
+    else:
+        return cl[0]
 
 class DictHolder:
     def __init__(self, dict: dict = None):

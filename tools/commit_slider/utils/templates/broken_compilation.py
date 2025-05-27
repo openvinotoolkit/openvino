@@ -3,33 +3,51 @@ from utils.templates.common_template import Template
 class BrokenCompilationTemplate(Template):
     def __init__(self, cfg):
         # super().__init__(cfg)
-        # self.createCash()
         pass
+
+    def getClassName():
+        return 'broken_compilation'
+    
+    def printResult(commitPath, outLogger, getCommitInfo):
+        print("\n*****************<Commit slider output>*******************\n* Commit with broken compilation found:" + ' ' * 18 + '*')
+        if not commitPath.metaInfo["preValidationPassed"]:
+            msg = "Preliminary check failed, reason: {}".format(
+                commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            outLogger.info(msg)
+        elif not commitPath.metaInfo["postValidationPassed"]:
+            msg = "Output results invalid, reason: {}".format(
+                commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            outLogger.info(msg)
+        else:
+            for pathcommit in commitPath.getList():
+                from utils.common_mode import Mode
+                if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
+                    commitInfo = getCommitInfo(pathcommit)
+                    commMsg = "* {}".format(commitInfo)
+                    print(commMsg + ' ' * (57 - len(commMsg)) + '*')
+                    outLogger.info(commitInfo)
+        print('**********************************************************\n')
 
     def generateBrokenCompTemplate(cfg, customCfg):
         tmpJSON = cfg
         if '-v' in customCfg and customCfg['-v'] == 'false':
             tmpJSON['verboseOutput'] = False
         if '-c' in customCfg:
-            tmpJSON['commitList']['getCommitListCmd'] = "git log {} --boundary --pretty=\"%h\"".format(customCfg['-c'])
-
-        # if "errorPattern" in tmpl and\
-        #     "precommitPath" in tmpl and\
-        #     "testCmd" in tmpl:
-        #     tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
-        #     tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
-        #     tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
-        #     tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
-        #         tmpJSON["appCmd"],
-        #         tmpl["appCmd"],
-        #         "testCmd"
-        #     )
-        # else:
-        #     raise("Template is incomplete.")
-        # subPath = "private_linux_manylinux2014_release/"
-        # if "subPath" in tmpl:
-        #     subPath = tmpl["subPath"]
-        # tmpJSON["dlbConfig"]["subPath"] = subPath
-        # tmpJSON["cachedPathConfig"]["subPath"] = subPath
+            # WA: additional args are passed with '-' with standart argparser
+            customCfg['c'] = customCfg['-c']
+        if 'c' in customCfg:
+            curCfg = tmpJSON['runConfig']
+            curCfg['commitList'] = {'getCommitListCmd': "git log {} --boundary --pretty=\"%h\"".format(customCfg['c'])}
+            tmpJSON['runConfig'] = curCfg
+        # todo: move common method to helpers
+        if 'gitPath' in customCfg:
+            tmpJSON['gitPath'] = customCfg['gitPath']
+        if 'buildPath' in customCfg:
+            tmpJSON['buildPath'] = customCfg['buildPath']
+            tmpJSON['appPath'] = customCfg['buildPath']
 
         return tmpJSON
