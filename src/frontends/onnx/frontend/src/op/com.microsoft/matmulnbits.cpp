@@ -60,10 +60,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      ov::as_type<v0::Constant>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
-    CHECK_VALID_NODE(node,
-                     b_shape.is_static() && actual_b_size == expected_b_size,
-                     "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
-                     b_shape);
+    CHECK_VALID_NODE(
+        node,
+        b_shape.is_static() && actual_b_size == expected_b_size,
+        "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
+        b_shape);
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
                          a.get_element_type() == ov::element::dynamic,
@@ -166,21 +167,18 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             const auto zp_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
             switch (bits) {
             case 2:
-                casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                           static_cast<size_t>(n_blocks_per_col),
-                                           static_cast<size_t>(1)};
+                casted_b_shape =
+                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
                 zero_points = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, zp_const->get_data_ptr());
                 break;
             case 4:
-                casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                           static_cast<size_t>(n_blocks_per_col),
-                                           static_cast<size_t>(1)};
+                casted_b_shape =
+                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
                 zero_points = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, zp_const->get_data_ptr());
                 break;
             case 8:
-                casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                           static_cast<size_t>(n_blocks_per_col),
-                                           static_cast<size_t>(1)};
+                casted_b_shape =
+                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
                 zero_points = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, zp_const->get_data_ptr());
                 break;
             default:
