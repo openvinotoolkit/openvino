@@ -771,7 +771,6 @@ std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputI
                                 "Check if there are duplicate input names in the input file map.");
         }
         if (valueCount == 0) {
-            std::cout << "No input files specified. Using default input file -->" << inputFile << std::endl;
             processedInputFiles[testCaseIndex] = inputFile;
             continue;
         }
@@ -2283,7 +2282,6 @@ static int runSingleImageTest() {
                 ++inferIdx;
             }
         }
-        std::cout << "[Debug] Image bin precision processed!" << std::endl;
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
