@@ -50,6 +50,7 @@ public:
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
     void resize_last_submitted_event(size_t batch);
+    void set_batch_size(std::size_t batch);
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
