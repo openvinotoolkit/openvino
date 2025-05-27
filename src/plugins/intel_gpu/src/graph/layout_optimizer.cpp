@@ -137,6 +137,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
+    if (next.is_type<permute>())
+        return true;
+
     if (prev.is_dynamic() || next.is_dynamic())
         return false;
 
@@ -353,6 +356,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         return true;
     }
+
+    if (prev.is_type<permute>())
+        return true;
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
