@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+#include <sstream>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -301,3 +304,180 @@ TEST(OvSerializationTests, SerializeRawMeta) {
         EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
     }
 }
+
+namespace ov {
+namespace test {
+
+TEST(RTInfoSerialization, custom_info) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
+<net name="CustomRTI" version="11">
+	<layers>
+		<layer id="0" name="node_A" type="Parameter" version="opset1">
+			<data shape="10,10" element_type="f32" />
+			<rt_info>
+				<custom name="node_info_A" value="v_A" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<custom name="output_info_A" value="o_A" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="node_B" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="0" size="4" />
+			<rt_info>
+				<custom name="node_info_B" value="v_B" />
+			</rt_info>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<rt_info>
+						<custom name="output_info_B" value="o_B" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="node_C" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<rt_info>
+				<custom name="node_info_C" value="v_C" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+					<rt_info>
+						<custom name="output_info_C" value="o_C" />
+						<custom name="output_info_D" value="o_D" />
+					</rt_info>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="node_D" type="Result" version="opset1">
+			<rt_info>
+				<custom name="node_info_D" value="v_D" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{10, 10});
+    const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
+    const auto add = std::make_shared<op::v1::Add>(data, one);
+    const auto result = std::make_shared<op::v0::Result>(add);
+
+    const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
+        node->set_friendly_name("node_" + value);
+        node->get_rt_info()["node_info_" + value] = "v_" + value;
+        node->output(0).get_rt_info()["output_info_" + value] = "o_" + value;
+    };
+    add_info(data, "A");
+    add_info(one, "B");
+    add_info(add, "C");
+    add_info(result, "D");
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    model->set_friendly_name("CustomRTI");
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+}
+
+TEST(RTInfoSerialization, AnyMap_info) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
+<net name="CustomRTI" version="11">
+	<layers>
+		<layer id="0" name="data" type="Parameter" version="opset1">
+			<data shape="111" element_type="f64" />
+			<output>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="abs" type="Abs" version="opset1">
+			<rt_info>
+				<custom name="AnyMap">
+					<custom name="a" value="b" />
+					<custom name="i" value="7" />
+					<custom name="nested">
+						<custom name="c" value="d" />
+					</custom>
+					<custom name="x" value="3.14" />
+				</custom>
+			</rt_info>
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="result" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
+
+    data->set_friendly_name("data");
+    abs->set_friendly_name("abs");
+    result->set_friendly_name("result");
+
+    const auto empty = AnyMap{};
+    const auto nested = AnyMap{{"c", "d"}};
+    abs->get_rt_info()["AnyMap"] = AnyMap{{"a", "b"}, {"empty", empty}, {"i", 7}, {"x", 3.14}, {"nested", nested}};
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    model->set_friendly_name("CustomRTI");
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+}
+}  // namespace test
+}  // namespace ov
