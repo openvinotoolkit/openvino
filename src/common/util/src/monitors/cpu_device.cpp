@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2019-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
         m_query.pdh_collect_query_data();
     }
 
-    std::map<std::string, double> get_utilization() {
+    std::map<std::string, float> get_utilization() {
         auto ts = std::chrono::system_clock::now();
         if (ts > last_time_stamp) {
             auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() -
@@ -59,7 +59,7 @@ public:
             return {};
         }
         PDH_FMT_COUNTERVALUE display_value;
-        std::vector<double> cpus_load(core_time_counters.size());
+        std::vector<float> cpus_load(core_time_counters.size());
         for (std::size_t i = 0; i < core_time_counters.size(); ++i) {
             auto ret =
                 m_query.pdh_get_formatted_counter_value(core_time_counters[i], PDH_FMT_DOUBLE, NULL, &display_value);
@@ -69,9 +69,9 @@ public:
                 throw std::runtime_error("Error in counter data");
             }
 
-            cpus_load[i] = display_value.doubleValue * 100.0;
+            cpus_load[i] = static_cast<float>(display_value.doubleValue * 100.0f);
         }
-        std::map<std::string, double> cpus_utilization;
+        std::map<std::string, float> cpus_utilization;
         if (cpus_load.size() == 1) {
             cpus_utilization["Total"] = cpus_load.at(0);
             return cpus_utilization;
@@ -107,7 +107,7 @@ class CPUDevice::PerformanceImpl {
 public:
     PerformanceImpl() {}
 
-    std::map<std::string, double> get_utilization() {
+    std::map<std::string, float> get_utilization() {
         // TODO: Implement.
         return {{"Total", 0.0}};
     }
@@ -119,21 +119,21 @@ namespace util {
 // not implemented
 class CPUDevice::PerformanceImpl {
 public:
-    std::map<std::string, double> get_utilization() {
-        return {{"Total", 0.0}};
+    std::map<std::string, float> get_utilization() {
+        return {{"Total", 0.0f}};
     }
 };
 #endif
 CPUDevice::CPUDevice(int numCores) : IDevice("CPU"), n_cores(numCores >= 0 ? numCores : 0) {}
-std::map<std::string, double> CPUDevice::get_utilization() {
+std::map<std::string, float> CPUDevice::get_utilization() {
     if (!m_perf_impl)
         m_perf_impl = std::make_shared<PerformanceImpl>();
     if (n_cores == 0)
         return m_perf_impl->get_utilization();
-    std::map<std::string, double> ret;
-    ret["Total"] = 0.0;
+    std::map<std::string, float> ret;
+    ret["Total"] = 0.0f;
     for (int i = 0; i < n_cores; i++) {
-        ret[std::to_string(i)] = 0.0;
+        ret[std::to_string(i)] = 0.0f;
     }
     return ret;
 }

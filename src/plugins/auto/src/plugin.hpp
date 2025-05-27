@@ -52,10 +52,11 @@ public:
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::string& model_precision = "FP32") const;
 
-    MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
-                                                  const std::string& model_precision = "FP32",
-                                                  unsigned int priority = 0,
-                                                  const std::map<std::string, double>& utilization_thresholds = {});
+    MOCKTESTMACRO DeviceInformation
+    select_device(const std::vector<DeviceInformation>& meta_devices,
+                  const std::string& model_precision = "FP32",
+                  unsigned int priority = 0,
+                  const std::unordered_map<std::string, unsigned>& utilization_thresholds = {});
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
@@ -70,7 +71,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::map<std::string, double> get_device_utilization(const std::string& device) const;
+    MOCKTESTMACRO std::map<std::string, float> get_device_utilization(const std::string& device) const;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,

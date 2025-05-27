@@ -722,7 +722,7 @@ class OPENVINO_API Any {
     }
 
     template <class T,
-              typename std::enable_if<std::is_same<T, std::map<std::string, double>>::value, void>::type* = nullptr>
+              typename std::enable_if<std::is_same<T, std::map<std::string, unsigned>>::value, void>::type* = nullptr>
     T& as_impl(int) {
         impl_check();
         if (is<T>()) {
@@ -731,7 +731,7 @@ class OPENVINO_API Any {
             const auto& amap = _impl->as<AnyMap>();
             auto temp_map = std::make_shared<Impl<T>>();
             for (const auto& kv : amap) {
-                temp_map->value[kv.first] = kv.second.as<double>();
+                temp_map->value[kv.first] = kv.second.as<unsigned>();
             }
             _temp = temp_map;
             return _temp->as<T>();
@@ -787,7 +787,7 @@ class OPENVINO_API Any {
               typename std::enable_if<
                   (util::Istreamable<T>::value || util::Readable<T>::value) && !std::is_same<T, std::string>::value &&
                   (!std::is_arithmetic<T>::value || std::is_same<typename std::decay<T>::type, bool>::value) &&
-                  !std::is_same<T, std::map<std::string, double>>::value>::type* = nullptr>
+                  !std::is_same<T, std::map<std::string, unsigned>>::value>::type* = nullptr>
     T& as_impl(int) {
         impl_check();
 

@@ -207,7 +207,7 @@ public:
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
                                   unsigned int priority,
-                                  const std::map<std::string, double>& utilization_thresholds) {
+                                  const std::unordered_map<std::string, unsigned>& utilization_thresholds) {
                 return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds);
             });
         ON_CALL(*plugin, get_valid_device)
@@ -247,18 +247,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ::testing::ValuesIn(SelectDeviceTest::CreateConfigs()),
                          SelectDeviceTest::getTestCaseName);
 
-using ConfigFilterParams = std::tuple<std::map<std::string, double>,                    // utilization threshold,
+using ConfigFilterParams = std::tuple<std::unordered_map<std::string, unsigned>,        // utilization threshold,
                                       std::vector<ov::auto_plugin::DeviceInformation>,  // device candidate list
-                                      std::map<std::string, double>,                    // device utilization
+                                      std::map<std::string, float>,                    // device utilization
                                       ov::auto_plugin::DeviceInformation                // expected selected device
                                       >;
 class SelectDeviceWithUtilizationTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigFilterParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigFilterParams> obj) {
-        std::map<std::string, double> threshold;
+        std::unordered_map<std::string, unsigned> threshold;
         std::vector<ov::auto_plugin::DeviceInformation> devices;
         ov::auto_plugin::DeviceInformation selectedDeviceInfo;
-        std::map<std::string, double> deviceUtilization;
+        std::map<std::string, float> deviceUtilization;
         std::tie(threshold, devices, deviceUtilization, selectedDeviceInfo) = obj.param;
         std::ostringstream result;
         for (const auto& item : threshold) {
@@ -315,10 +315,10 @@ public:
     }
 
 protected:
-    std::map<std::string, double> threshold;
+    std::unordered_map<std::string, unsigned> threshold;
     std::vector<ov::auto_plugin::DeviceInformation> devices;
     ov::auto_plugin::DeviceInformation selectedDeviceInfo;
-    std::map<std::string, double> deviceUtilization;
+    std::map<std::string, float> deviceUtilization;
 };
 
 TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
@@ -328,21 +328,21 @@ TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
     compare(result, selectedDeviceInfo);
 }
 
-const std::map<std::string, double> testUtilizThreshold_15 = {{"CPU", 15},
-                                                              {"GPU", 15},
-                                                              {"GPU.0", 15},
-                                                              {"GPU.1", 15},
-                                                              {"NPU", 15}};
-const std::map<std::string, double> testUtilizThreshold_80 = {{"CPU", 80},
-                                                              {"GPU", 80},
-                                                              {"GPU.0", 80},
-                                                              {"GPU.1", 80},
-                                                              {"NPU", 80}};
-const std::map<std::string, double> testUtilizThreshold_100 = {{"CPU", 100},
-                                                               {"GPU", 100},
-                                                               {"GPU.0", 100},
-                                                               {"GPU.1", 100},
-                                                               {"NPU", 100}};
+const std::unordered_map<std::string, unsigned> testUtilizThreshold_15 = {{"CPU", 15},
+                                                                          {"GPU", 15},
+                                                                          {"GPU.0", 15},
+                                                                          {"GPU.1", 15},
+                                                                          {"NPU", 15}};
+const std::unordered_map<std::string, unsigned> testUtilizThreshold_80 = {{"CPU", 80},
+                                                                          {"GPU", 80},
+                                                                          {"GPU.0", 80},
+                                                                          {"GPU.1", 80},
+                                                                          {"NPU", 80}};
+const std::unordered_map<std::string, unsigned> testUtilizThreshold_100 = {{"CPU", 100},
+                                                                           {"GPU", 100},
+                                                                           {"GPU.0", 100},
+                                                                           {"GPU.1", 100},
+                                                                           {"NPU", 100}};
 const std::vector<ConfigFilterParams> testValidConfigs = {
     ConfigFilterParams{testUtilizThreshold_80,                // utilization threshold
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},  // device candidates list
@@ -383,60 +383,60 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                        {"GPU", {}, -1, "01", "GPU", 2}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU", 2}},
-                       {{"Total", 85.2}, {npuUuid, 20}},
+                       {{"Total", 85}, {npuUuid, 20}},
                        {"NPU", {}, -1, "01", "NPU", 2}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
-                       {{"Total", 85.2}, {"00000000", 20}},
+                       {{"Total", 85}, {"00000000", 20}},
                        {"CPU", {}, -1, "01", "CPU_01", 1}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
-                       {{"Total", 85.2}, {"00000001", 20}},
+                       {{"Total", 85}, {"00000001", 20}},
                        {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"Total", 85.2}, {"00000001", 20}, {"00000002", 50}},
+                       {{"Total", 85}, {"00000001", 20}, {"00000002", 50}},
                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
                         {"NPU", {}, -1, "01", "NPU", 0}},
-                       {{"Total", 85.2}, {"00000001", 20}, {"00000002", 50}, {npuUuid, 30}},
+                       {{"Total", 85}, {"00000001", 20}, {"00000002", 50}, {npuUuid, 30}},
                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
                         {"NPU", {}, -1, "01", "NPU", 0}},
-                       {{"Total", 85.2}, {"00000001", 82}, {"00000002", 50}, {npuUuid, 30}},
+                       {{"Total", 85}, {"00000001", 82}, {"00000002", 50}, {npuUuid, 30}},
                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"Total", 15.2}, {"00000001", 90}, {"00000002", 50}},
+                       {{"Total", 15}, {"00000001", 90}, {"00000002", 50}},
                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}},
+                       {{"Total", 15}, {"00000001", 10}, {"00000002", 90}},
                        {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
-                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}},
+                       {{"Total", 15}, {"00000001", 10}, {"00000002", 90}},
                        {"CPU", {}, -1, "01", "CPU_01", 1}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
                         {"NPU", {}, -1, "01", "NPU", 4}},
-                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}, {npuUuid, 88}},
+                       {{"Total", 15}, {"00000001", 10}, {"00000002", 90}, {npuUuid, 88}},
                        {"CPU", {}, -1, "01", "CPU_01", 1}},
     ConfigFilterParams{testUtilizThreshold_100,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
@@ -449,7 +449,7 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
-                       {{"Total", 15.2}, {"00000001", 90}, {"00000002", 10}},
+                       {{"Total", 15}, {"00000001", 90}, {"00000002", 10}},
                        {"CPU", {}, -1, "01", "CPU_01", 1}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,

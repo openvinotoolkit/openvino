@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2019-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ public:
         return counter_list;
     }
 
-    std::map<std::string, double> get_utilization() {
+    std::map<std::string, float> get_utilization() {
         if (m_luid.empty())
             return {};
         auto ts = std::chrono::system_clock::now();
@@ -125,9 +125,9 @@ public:
         m_last_time_stamp = std::chrono::system_clock::now();
         auto ret = m_query.pdh_collect_query_data();
         PDH_FMT_COUNTERVALUE display_value;
-        std::map<std::string, double> utilization_map;
+        std::map<std::string, float> utilization_map;
         for (auto item : m_core_time_counters) {
-            double utilization = 0.0;
+            float utilization = 0.0f;
             auto luid = item.first;
             auto core_counters = item.second;
             for (int counter_index = 0; counter_index < MAX_COUNTER_INDEX; counter_index++) {
@@ -138,10 +138,10 @@ public:
                     if (status != ERROR_SUCCESS) {
                         continue;
                     }
-                    utilization += display_value.doubleValue;
+                    utilization += static_cast<float>(display_value.doubleValue);
                 }
             }
-            utilization_map[luid] = utilization * 100.0;
+            utilization_map[luid] = utilization * 100.0f;
         }
         return utilization_map;
     }
@@ -168,7 +168,7 @@ class XPUDevice::PerformanceImpl {
 public:
     PerformanceImpl(const std::string& device_luid) {}
 
-    std::map<std::string, double> get_utilization() {
+    std::map<std::string, float> get_utilization() {
         // TODO: Implement.
         return {};
     }
@@ -181,14 +181,14 @@ namespace util {
 class XPUDevice::PerformanceImpl {
 public:
     PerformanceImpl(const std::string& device_luid) {}
-    std::map<std::string, double> get_utilization() {
+    std::map<std::string, float> get_utilization() {
         // TODO: Implement.
         return {};
     }
 };
 #endif
 XPUDevice::XPUDevice(const std::string& device_luid) : IDevice("XPU"), m_device_luid(device_luid) {}
-std::map<std::string, double> XPUDevice::get_utilization() {
+std::map<std::string, float> XPUDevice::get_utilization() {
     if (!m_perf_impl) {
         m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
     }

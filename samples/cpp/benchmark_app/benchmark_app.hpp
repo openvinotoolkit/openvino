@@ -247,7 +247,7 @@ static const char load_config_message[] =
     "                                                       \"DEVICE_PROPERTIES\": "
     "\"{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}\"\n"
     "                                                       \"DEVICES_UTILIZATION_THRESHOLD\": "
-    "\"{CPU:75.5,GPU:88,NPU:100}\"\n"
+    "\"{CPU:75,GPU:88,NPU:100}\"\n"
     "                                               }\n"
     "                                       }";
 

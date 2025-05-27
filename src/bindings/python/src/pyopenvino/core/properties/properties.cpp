@@ -328,7 +328,7 @@ void regmodule_properties(py::module m) {
     });
 
     m_intel_auto.def("devices_utilization_threshold", [](py::args& args) {
-        std::map<std::string, double> value = {};
+        std::map<std::string, unsigned> value = {};
         for (auto v : args) {
             if (!py::isinstance<py::dict>(v)) {
                 throw py::type_error("Incorrect passed value: " + std::string(py::str(v)) +
@@ -344,7 +344,7 @@ void regmodule_properties(py::module m) {
                     throw py::type_error("Incorrect passed value in value: " + std::string(py::str(item.second)) +
                                          ", expected float/int instead of " + typeid(item.second).name());
                 }
-                value[py::cast<std::string>(item.first)] = py::cast<py::float_>(item.second);
+                value[py::cast<std::string>(item.first)] = py::cast<unsigned>(item.second);
             }
         }
         return ov::intel_auto::devices_utilization_threshold(value);

@@ -189,7 +189,7 @@ def part8():
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={intel_auto.devices_utilization_threshold: {'CPU': 78.5, 'GPU': 55}},
+        config={intel_auto.devices_utilization_threshold: {'CPU': 78, 'GPU': 55}},
     )
     #! [part8]
 

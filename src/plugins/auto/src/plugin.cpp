@@ -469,7 +469,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    auto_s_context->m_utilization_thresholds = load_config.get_property(ov::intel_auto::devices_utilization_threshold);
+    auto device_utilization_thresholds = load_config.get_property(ov::intel_auto::devices_utilization_threshold);
+    if (!device_utilization_thresholds.empty()) {
+        auto_s_context->m_utilization_thresholds.insert(device_utilization_thresholds.begin(),
+                                                        device_utilization_thresholds.end());
+    }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -558,8 +562,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::map<std::string, double> Plugin::get_device_utilization(const std::string& device_luid) const {
-    return ov::util::get_utilization(device_luid);
+std::map<std::string, float> Plugin::get_device_utilization(const std::string& device_luid) const {
+    return ov::util::get_device_utilization(device_luid);
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
@@ -655,7 +659,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceIn
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
                                         const std::string& model_precision,
                                         unsigned int priority,
-                                        const std::map<std::string, double>& utilization_thresholds) {
+                                        const std::unordered_map<std::string, unsigned>& utilization_thresholds) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
@@ -712,7 +716,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             ov::DeviceIDParser parsed{device->device_name};
             if (!utilization_thresholds.empty() && utilization_thresholds.count(parsed.get_device_name())) {
                 std::string device_luid;
-                std::map<std::string, double> device_utilization;
+                std::map<std::string, float> device_utilization;
                 try {
                     device_luid = device->device_name.find("CPU") == std::string::npos
                                       ? get_core()

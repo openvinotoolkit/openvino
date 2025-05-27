@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2019-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class CPUDevice : public IDevice {
 public:
     CPUDevice(int n_cores = 0);
     virtual ~CPUDevice() = default;
-    std::map<std::string, double> get_utilization() override;
+    std::map<std::string, float> get_utilization() override;
 
 private:
     int n_cores;

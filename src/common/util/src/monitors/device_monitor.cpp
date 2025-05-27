@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2019-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ DeviceMonitor::DeviceMonitor() {}
 
 DeviceMonitor::~DeviceMonitor() = default;
 
-std::map<std::string, double> DeviceMonitor::get_utilization(const std::string& device_id) {
+std::map<std::string, float> DeviceMonitor::get_utilization(const std::string& device_id) {
     if (device_id.empty() && !m_device_performance)
         m_device_performance = std::make_shared<ov::util::CPUDevice>();
     else
@@ -25,7 +25,7 @@ std::map<std::string, double> DeviceMonitor::get_utilization(const std::string& 
     return m_device_performance->get_utilization();
 }
 
-std::map<std::string, double> get_utilization(const std::string& device_id) {
+std::map<std::string, float> get_device_utilization(const std::string& device_id) {
     DeviceMonitor devices_monitor;
     return devices_monitor.get_utilization(device_id);
 }

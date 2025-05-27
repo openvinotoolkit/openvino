@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2019-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class XPUDevice : public IDevice {
 public:
     XPUDevice(const std::string& device_luid);
     virtual ~XPUDevice() = default;
-    std::map<std::string, double> get_utilization() override;
+    std::map<std::string, float> get_utilization() override;
 
 private:
     std::string m_device_luid;
