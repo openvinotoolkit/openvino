@@ -1,5 +1,37 @@
 # NPU Properties
-What is a property from NPU Plugin's POV and Step-by-step guide on how to add one
+What is a property from NPU Plugin's POV and Step-by-step guide on how to add one  
+Practical manual for NPU plugin properties
+
+## Table of Contents
+
+- [Glossary](#glossary)
+- [Structure of a property (Class hierarchy)](#structure-of-a-property-class-hierarchy)
+  - [Property vs Option vs Metric](#property-vs-option-vs-metric)
+  - [OptionBase<T>](#optionbaset)
+  - [OptionDesc](#optiondesc)
+  - [Config](#config)
+  - [FilteredConfig](#filteredconfig)
+  - [Properties](#properties)
+- [How to add a new public (option backed) property](#how-to-add-a-new-public-option-backed-property)
+  - [Step 1. Define the new property](#step-1-define-the-new-property)
+  - [Step 2. Define the internal option descriptor](#step-2-define-the-internal-option-descriptor)
+  - [Step 3. Register the new option](#step-3-register-the-new-option)
+  - [Step 4. Link the new property to the new option](#step-4-link-the-new-property-to-the-new-option)
+    - [For plugin](#for-plugin)
+    - [For compiled-model (if required)](#for-compiled-model-if-required)
+  - [Step 5. Python bindings](#step-5-python-bindings)
+  - [Step 6. Update documentation](#step-6-update-documentation)
+- [How to add a new public (metric backed) property](#how-to-add-a-new-public-metric-backed-property)
+  - [Step 1. Define the new property](#step-1-define-the-new-property-1)
+  - [Step 2. Define and register a callback function for the new (metric) Property](#step-2-define-and-register-a-callback-function-for-the-new-metric-property)
+  - [Step 3. Python bindings](#step-3-python-bindings)
+  - [Step 4. Update documentation](#step-4-update-documentation)
+- [Compiled-model properties](#compiled-model-properties)
+- [Special cases](#special-cases)
+  - [SC.1 Adding a new property which requires custom functions](#sc1-adding-a-new-property-which-requires-custom-functions)
+  - [SC.2 Adding a new (metric-backed) property which requires customization](#sc2-adding-a-new-metric-backed-property-which-requires-customization)
+  - [SC.3 Filtering out options at registration phase](#sc3-filtering-out-options-at-registration-phase)
+- [Removing a public property](#removing-a-public-property)
 
 ## Glossary
 
@@ -12,9 +44,24 @@ What is a property from NPU Plugin's POV and Step-by-step guide on how to add on
 | Compiler | Npu compiler as viewed from the plugin’s perspective.</br>Can be Compiler-In-Driver or Compiler-In-Plugin | `CID` | 
 | “Anonymous” property</br>OR</br>compiler-private property | A setting from application level which the plugin has no knowledge of</br>(it is not registered, plugin is not aware of its datatype)</br> but which the compiler reports as supported via is_supported() API. | N/A |
 
+<br>
+
 ## Structure of a property (Class hierarchy)
 
 ![Properties Class Hierarchy](./img/properties_class_hierarchy.png)
+
+<br>
+
+### Property vs Option vs Metric
+As it can be observed in the above class hierarchy diagram, a Property is a public interface to an internal information, the top layer of abstraction.  
+A property can connect internally to an Option or to a Metric.  
+The main difference between Option and Metric is that while Options are entries in our internal database (Config) which can be modified at any time, Metrics are static read-only pieces of information  
+which do not exist in the internal database. Metrics can not be set or changed externally, their values are not stored in the plugin and they most often just a direct system or driver call.  
+Example of Metrics in NPU Plugin are: driver version, compiler version, device architecture, pci information, gops, uuid, luid, etc.
+To summarize:  
+A property can map internally to **one** of the 2 types:  
+- either a Option, if it has an entry in our internal Config, it is a mutable setting used either by compiler or by inference
+- either a Metric, if it is a static immutable piece of information that only needs to be returned on request (system/platform/hardware etc information) 
 
 ### OptionBase\<T\> 
 Implements the option descriptor. This class contains all the details of a config option: name, datatype, default value, parser, public/private, mutability, compiler version (for legacy support), etc. This serves as the key in our configuration map. 
@@ -105,8 +152,10 @@ such as enabling/disabling keys based on their availability/support on the curre
 is the top level class and serves as the NPU Plugin’s interface to OpenVino and the application layer.  
 It’s main purpose is to implement get_property and set_property interfaces and the callback functions of each property.  
 ```` Note: This layer dynamically changes based on system configuration and compiler_type ````
-  
-# How to add a new public property
+
+<br><br>
+
+# How to add a new public (option backed) property
 
 The following steps how to add a new simple property which maps to a compiler configuration option.  
 _*simple in this context means that it has no special callback function required for it, just set/get_  
@@ -135,7 +184,7 @@ Example:
 // 
 // EXAMPLE_PROPERTY 
 //  
-struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::example_property> {  
+struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::ExampleType> {  
 
     static std::string_view key() { 
         return ov::intel_npu::example_property.name();
@@ -145,7 +194,7 @@ struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::exam
         return "ov::intel_npu::ExampleType"; 
     } 
 
-    static ov::intel_npu::BatchMode defaultValue() { 
+    static ov::intel_npu::ExampleType defaultValue() { 
         return ov::intel_npu::ExampleType::VAL3; 
     } 
 
@@ -257,21 +306,123 @@ openvino/docs/articles_en/openvino-workflow/running-inference/inference-devices-
 openvino/src/plugins/intel_npu/README.md 
 ```
 
-# Adding a new property which requires custom functions
+<br><br>
+
+# How to add a new public (metric backed) property
+As described in the first paragraph, Metrics do not have an entry in our internal Config, they are static immutable data which just needs to be returned at get_property calls.  
+This means we do not need to define and Option nor register an Option for it.  
+
+## Step 1. Define the new property
+First step is to define the new property's name, datatype and string-name in the public header in  
+```bash
+openvino/src/inference/include/openvino/runtime/intel_npu/properties.hpp
+```  
+Example:  
+```cpp
+static constexpr ov::Property<ExampleType,ov::PropertyMutability::RO> example_property{"NPU_EXAMPLE_PROPERTY"};
+```
+Notes:  
+- please note the NPU_ prefix in the property's string name. This is mandatory for npu-only private properties 
+- mutability is Read-Only
+- datatype of the property is enum ExampleType { VAL1, VAL2, VAL3 } 
+
+## Step 2. Define and register a callback function for the new (metric) Property
+You need to register the new property and define a callback function for it, in properties.cpp.  
+For plugin: npu_plugin/plugin/src/properties.cpp > function registerPluginProperties()  
+For compiled-model: npu_plugin/plugin/src/properties.cpp > function registerCompiledModelProperties()  
+```cpp
+    REGISTER_SIMPLE_METRIC(ov::intel_npu::example_property, true, _metrics->GetDriverVersion());
+```
+**Explanation**
+this macro will register a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which will be public and included in supported_properties (second parameter)  
+which will execute _metrics->GetDriverVersion() function as it's get_property callback
+
+## Step 3. Python bindings
+In order for the property to be property exposed in python API, add python wrapper for the new property in pyOpenvino  
+openvino/src/bindings/python/src/pyopenvino/core/properties/properties.cpp:  
+In section // sumbodule npu  
+```cpp
+    wrap_property_RO(m_intel_npu, ov::intel_npu::example_property, "example_property"); 
+```
+
+## Step 4. Update documentation
+Document the new property in the appropaite sections (+ additional information, if required) in:  
+```bash
+openvino/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst 
+openvino/src/plugins/intel_npu/README.md 
+```
+
+<br><br>
+
+# Compiled-model properties
+By internal convention, what needs to be included in compiled-model properties gets decided based on the following statements:  
+- every option which has an effect on model compilation (meaning options with mode=OptionMode::CompileTime or OptionMode::Both) need to be included
+- options (with some specific exceptions) should be publicly advertised in compiled-model's supported_properties **ONLY** if they have been explicitly set prior to model compilation.  
+- compiled-model properties (with a few specific exceptions) are all READ-ONLY, for the reason that the model has already been compiled.
+This is to ensure that we only expose settings we are sure were taken into account by compiler.  
+
+To facilitate registering properties in compiled-model **ONLY** if they have been explicitly set prior to model compilation, properties.cpp offers a helper macro:
+#### TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)
+This macro will register the provided property (OPT_NAME) to the provided option (OPT_TYPE) only if a value for it exists in the config. (default values do not live in config, but directly read from OptionsDesc)  
+Example:  
+```cpp
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
+```
+
+<br><br>
+
+# Special cases
+## SC.1 Adding a new property which requires custom functions
 If the new property requires a custom callback function, only Step 4. changes.  
 Instead of using TRY_REGISTER_SIMPLE_PROPERTY macro, you can choose from the following helper macros:  
 
-### TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)  
+#### TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)  
 This can be used when callback is standard, but visibility (public/private) is custom.  
 Instead of using automaticly the value from optionsBase, one can define a custom function to determine  
 whether the property will be public (included in supported_properties) or private and provide as PROP_VISIBILITY parameter. 
-### TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC) 
+#### TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC) 
 This macro can be used whenever a custom callback function is required for this property,  
 provided as a lambda function as PROP_RETFUNC parameter.  
 (Standard callback function just returns the value of the config)  
-### TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)
+#### TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)
 This macro bypasses all automatic descriptor fetching, availability checks, and compatibility verifications  
 and gives you the possibility to register a completely custom property with custom visibility and custom callback function. 
+
+## SC.2 Adding a new (metric-backed) property which requires customization
+As oppposed to option-backed properties, for metric-backed ones we only have 1 extra helper macro,  
+apart from REGISTER_SIMPLE_METRIC (which lets you define name, visibility and return value as a single function call):  
+
+#### REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)
+This macro offers the possibility to define a full custom callback function, as a lambda function propided as parameter PROP_RETFUNC,  
+instead of just a single value function call as REGISTER_SIMPLE_METRIC.  
+Example:  
+```cpp
+    REGISTER_CUSTOM_METRIC(ov::device::full_name,
+                           !_metrics->GetAvailableDevicesNames().empty(),
+                           [&](const Config& config) {
+                               const auto specifiedDeviceName = get_specified_device_name(config);
+                               return _metrics->GetFullDeviceName(specifiedDeviceName);
+                           });
+```
+
+## SC.3 Filtering out options at registration phase
+There is a possibility to get options filtered out right at the options registration phase too, if desired by a specific cornercase.  
+If the option is not registered, it will be virtually inexistent in the whole stack at runtime, so there will be no added overhead by all the availability checks and verifications the properties manager does.  
+To achieve this, we can condition the registration of the option in:  
+plugin.cpp > (function) void Plugin::init_options()  
+Example:  
+```cpp
+    if (_backend) {
+        if (_backend->isCommandQueueExtSupported()) {
+            REGISTER_OPTION(TURBO);
+            REGISTER_OPTION(WORKLOAD_TYPE);
+        }
+    }
+```
+The above code will register TURBO and WORKLOAD_TYPE options only if command queue extension is supported by the backend (and of course, first if a backend exists)  
+Having skipped the option registration (in case command queue extension is not supported), the option will not exist in the stack, will not be checked for compiler support, will not be enabled/disabled dinamically and **can not be enabled dynamically** anymore at runtime.
+
+<br><br>
 
 # Removing a public property
 Removing a public property can be done by removing everything added in section “How do add a new public property” step-by-step.  
