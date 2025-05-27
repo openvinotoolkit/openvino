@@ -26,25 +26,25 @@ VCLApi::VCLApi() {
     }
 
     try {
-#define symbol_statement(symbol) \
-    this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol));
-        symbols_list();
-#undef symbol_statement
+#define vcl_symbol_statement(vcl_symbol) \
+    this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
+        vcl_symbols_list();
+#undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }
 
-#define symbol_statement(symbol)                                                                  \
-    try {                                                                                         \
-        this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol)); \
-    } catch (const std::runtime_error&) {                                                         \
-        this->symbol = nullptr;                                                                   \
+#define vcl_symbol_statement(vcl_symbol)                                                                      \
+    try {                                                                                                     \
+        this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
+    } catch (const std::runtime_error&) {                                                                     \
+        this->vcl_symbol = nullptr;                                                                           \
     }
-#undef symbol_statement
+#undef vcl_symbol_statement
 
-#define symbol_statement(symbol) symbol = this->symbol;
-    symbols_list();
-#undef symbol_statement
+#define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
+    vcl_symbols_list();
+#undef vcl_symbol_statement
 }
 
 const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
@@ -52,7 +52,7 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
     return instance;
 }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", ov::log::Level::DEBUG) {
     _logger.debug("VCLCompilerImpl constructor start");
     // Initialize the VCL API
     vcl_result_t ret = VCL_RESULT_SUCCESS;
@@ -159,9 +159,31 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         OPENVINO_THROW("Failed to destroy VCL executable: 0x", ret);
     }
 
-    // TODO: Need to create networkdescription.
-    _logger.debug("VCLCompilerImpl compile end");
-    return NetworkDescription(std::move(compiledNetwork), NetworkMetadata());
+    // TODO: Need to create networkdescription with right Metadata
+    NetworkMetadata metadata;
+    metadata.inputs = {IODescriptor{"input",
+                                    ov::element::f32,
+                                    {1, 3, 4, 5},
+                                    false,
+                                    false,
+                                    false,
+                                    {},
+                                    "input",
+                                    {"input"},
+                                    std::optional<ov::PartialShape>({1, 3, 4, 5})}};
+    metadata.outputs = {IODescriptor{"output",
+                                     ov::element::f32,
+                                     {1, 3, 4, 5},
+                                     false,
+                                     false,
+                                     false,
+                                     {},
+                                     "output",
+                                     {"output"},
+                                     std::optional<ov::PartialShape>({1, 3, 4, 5})}};
+
+    _logger.debug("VCLCompilerImpl compile end, blob size:%d", compiledNetwork.size());
+    return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
@@ -197,7 +219,7 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
 
     vcl_profiling_output_t profOutput;
     profOutput.data = NULL;
-    ret = vclGetDecodedProfilingBuffer(profilingHandle, VCL_PROFILING_LAYER_LEVEL, &profOutput);
+    ret = vclGetDecodedProfilingBuffer(profilingHandle, request, &profOutput);
     if (ret != VCL_RESULT_SUCCESS || profOutput.data == NULL) {
         OPENVINO_THROW("Failed to get VCL profiling output: 0x", ret);
     }
