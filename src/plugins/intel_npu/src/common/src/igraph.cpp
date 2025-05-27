@@ -83,6 +83,10 @@ void IGraph::resize_last_submitted_event(size_t batch) {
     _last_submitted_event.resize(batch);
 }
 
+void IGraph::set_batch_size(std::size_t batch) {
+    _batch_size = batch;
+}
+
 uint32_t IGraph::get_unique_id() {
     return _unique_id++;
 }
@@ -96,6 +100,10 @@ uint32_t IGraph::get_last_submitted_id() const {
 }
 
 std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+    if (get_batch_size() > 1) {
+        return get_batch_size();
+    }
+
     if (tensors.empty()) {
         return std::nullopt; // Return std::nullopt if no input tensors are set
     }
