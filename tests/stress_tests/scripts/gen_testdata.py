@@ -6,7 +6,7 @@
 """ Script to generate XML config file with the list of IR models
 Usage: 
     python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
-    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,... --ref_conf <reference_config>.xml ("references_config.xml" by default)
+    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,... --refs_conf <reference_config>.xml ("references_config.xml" by default)
 """
 # pylint:disable=line-too-long
 
@@ -75,7 +75,7 @@ def get_args(parser):
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file to generate IR-models '
                              'list from the directory with IR data cache.')
-    parser.add_argument('--ref_conf', required=False, type=Path,
+    parser.add_argument('--refs_conf', required=False, type=Path,
                         help='Path to a reference config .xml file '
                              'list with reference values.')
     parser.add_argument('--ir_cache_dir', type=Path,
@@ -101,11 +101,11 @@ def main():
     test_conf_obj = ET.parse(str(args.test_conf))
     model_recs = get_model_recs(test_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
 
-    ref_conf_name = "references_config.xml"
-    if args.ref_conf:
-        ref_conf_name = str(args.ref_conf)
-    ref_conf_obj = ET.parse(ref_conf_name)
-    ref_recs = get_ref_recs(ref_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
+    refs_conf_name = "references_config.xml"
+    if args.refs_conf:
+        refs_conf_name = str(args.refs_conf)
+    refs_conf_obj = ET.parse(refs_conf_name)
+    ref_recs = get_ref_recs(refs_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
     
     if not os.path.exists(args.ir_cache_dir):
         raise FileNotFoundError("Directory 'ir_cache_dir' was not found.")
@@ -153,7 +153,7 @@ def main():
                 ref_recs.append(reference_element)
     
     test_conf_obj.write(args.test_conf, xml_declaration=True)
-    ref_conf_obj.write(ref_conf_name, xml_declaration=True)
+    refs_conf_obj.write(refs_conf_name, xml_declaration=True)
 
 if __name__ == "__main__":
     main()
