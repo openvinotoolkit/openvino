@@ -69,30 +69,30 @@ private:
  */
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-std::pair<size_t, std::shared_ptr<uint8_t>> serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                                        ze_graph_compiler_version_info_t compilerVersion,
-                                                        const uint32_t supportedOpsetVersion);
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion);
 
 std::string serializeConfig(const Config& config,
                             ze_graph_compiler_version_info_t compilerVersion,
                             bool turboSupported = false);
 
-uint8_t* allocateBlob(uint64_t size) {
-    uint8_t* ptr = static_cast<uint8_t*>(std::calloc(static_cast<size_t>(size), sizeof(uint8_t)));
+// uint8_t* allocateBlob(uint64_t size) {
+//     uint8_t* ptr = static_cast<uint8_t*>(std::calloc(static_cast<size_t>(size), sizeof(uint8_t)));
 
-    if (ptr == nullptr) {
-        throw std::runtime_error("Memory allocation failed in allocateBlob!");
-    }
+//     if (ptr == nullptr) {
+//         throw std::runtime_error("Memory allocation failed in allocateBlob!");
+//     }
 
-    return ptr;
-}
+//     return ptr;
+// }
 
-void deallocateBlob(uint8_t* ptr) {
-    if (ptr == nullptr) {
-        throw std::runtime_error("Pointer is nullptr in deallocateBlob!");
-    }
+// void deallocateBlob(uint8_t* ptr) {
+//     if (ptr == nullptr) {
+//         throw std::runtime_error("Pointer is nullptr in deallocateBlob!");
+//     }
 
-    free(ptr);
-}
+//     free(ptr);
+// }
 
 }  // namespace intel_npu::driver_compiler_utils

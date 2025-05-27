@@ -73,22 +73,6 @@ private:
 };
 
 // Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
-std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
-    std::string dataString(data.begin(), data.end());
-    std::unordered_set<std::string> result;
-    size_t i = 0, start = 0;
-    while (i < dataString.length()) {
-        if (dataString[i] == '<') {
-            start = ++i;
-        } else if (dataString[i] == '>') {
-            std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(std::move(temp));
-            i++;
-        } else {
-            i++;
-        }
-    }
-    return result;
-}
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
 
 }  // namespace intel_npu
