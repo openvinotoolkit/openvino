@@ -75,6 +75,9 @@ def get_args(parser):
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file to generate IR-models '
                              'list from the directory with IR data cache.')
+    parser.add_argument('--ref_conf', required=False, type=Path,
+                        help='Path to a reference config .xml file '
+                             'list with reference values.')
     parser.add_argument('--ir_cache_dir', type=Path,
                         default=abs_path('../ir_cache'),
                         help='Directory with IR data cache.')
