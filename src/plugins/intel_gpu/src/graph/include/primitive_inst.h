@@ -327,8 +327,8 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
-    layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
+    const layout& get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
+    const layout& get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
@@ -514,6 +514,7 @@ private:
     void do_runtime_in_place_kv_cache();
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
+    void do_runtime_skip_lora();
 };
 
 /*
