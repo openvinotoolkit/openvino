@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cpu_tensor.h"
-
 #include <utility>
 
+#include "cpu_tensor.h"
 #include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 namespace {
 constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
-    return type == element::dynamic || tensor_type == type;
+    return type == ov::element::dynamic || tensor_type == type;
 }
 }  // namespace
 
