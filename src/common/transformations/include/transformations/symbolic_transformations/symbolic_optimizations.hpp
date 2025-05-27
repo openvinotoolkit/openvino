@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SymbolicOptimizations");
-    explicit SymbolicOptimizations(bool full_run = true);
+    explicit SymbolicOptimizations(bool full_run = true, std::shared_ptr<ov::pass::PassConfig> pass_config = nullptr);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
     std::shared_ptr<ov::pass::Manager> get_manager() {
         return m_manager;

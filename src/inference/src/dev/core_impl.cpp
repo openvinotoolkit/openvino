@@ -1456,11 +1456,9 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    ov::AnyMap properties;
-    if (arguments.count(ov::device::priorities.name())) {
-        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
-    }
-    return plugin.supports_model_caching(properties);
+    ov::AnyMap properties_to_virtual_dev = arguments.empty() ? ov::AnyMap{ov::device::priorities("")} : arguments;
+    return ov::is_virtual_device(plugin.get_name()) ? plugin.supports_model_caching(properties_to_virtual_dev)
+                                                    : plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
@@ -1726,18 +1724,19 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
-    std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
-
+    CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
-#else
-        ov::util::create_directory_recursive(dir);
-#endif
-        cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
+        if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type>) {
+            // if path native type is same as wstring type (e.g. Windows) convert to wstring
+            // in case of string has unicode without conversion wrong created dir may have incorrect name
+            // should be removed if cache_dir will path instead of string
+            ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
+        } else {
+            ov::util::create_directory_recursive(dir);
+        }
+        cache_config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
-
-    return {dir, std::move(cache_manager)};
+    return cache_config;
 }
 
 std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
