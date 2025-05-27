@@ -82,31 +82,6 @@ class CfgManager():
 
         return tmpJSON
 
-    def dgenerateBrokenCompTemplate(self):
-        tmpl = self.cfg["template"]
-        tmpJSON = self.readJsonTmpl("broken_compilation.json")
-
-        # if "errorPattern" in tmpl and\
-        #     "precommitPath" in tmpl and\
-        #     "testCmd" in tmpl:
-        #     tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
-        #     tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
-        #     tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
-        #     tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
-        #         tmpJSON["appCmd"],
-        #         tmpl["appCmd"],
-        #         "testCmd"
-        #     )
-        # else:
-        #     raise("Template is incomplete.")
-        # subPath = "private_linux_manylinux2014_release/"
-        # if "subPath" in tmpl:
-        #     subPath = tmpl["subPath"]
-        # tmpJSON["dlbConfig"]["subPath"] = subPath
-        # tmpJSON["cachedPathConfig"]["subPath"] = subPath
-
-        return tmpJSON
-
     def generatebmFunctionalTemplate(self):
         tmpl = self.cfg["template"]
         tmpJSON = self.readJsonTmpl("bm_output.json")
