@@ -162,7 +162,7 @@ public:
     }
 
     [[noreturn]] void* data(const element::Type& element_type) override {
-        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.dataelement_type)'");
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
     }
 };
 
