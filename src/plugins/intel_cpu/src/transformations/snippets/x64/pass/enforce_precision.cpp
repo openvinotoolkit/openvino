@@ -10,7 +10,6 @@
 #include <set>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
