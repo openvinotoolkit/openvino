@@ -79,6 +79,10 @@ const std::shared_ptr<Event>& IGraph::get_last_submitted_event(size_t indexOfCom
     return _last_submitted_event[indexOfCommandList];
 }
 
+void IGraph::resize_last_submitted_event(size_t batch) {
+    _last_submitted_event.resize(batch);
+}
+
 uint32_t IGraph::get_unique_id() {
     return _unique_id++;
 }
@@ -91,7 +95,48 @@ uint32_t IGraph::get_last_submitted_id() const {
     return _last_submitted_id;
 }
 
-std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
+std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+    if (tensors.empty()) {
+        return std::nullopt; // Return std::nullopt if no input tensors are set
+    }
+
+    const auto& first_tensor = tensors.at(0);
+    if (!first_tensor) {
+        return std::nullopt; // Return std::nullopt if the first tensor is null
+    }
+
+    const auto& first_shape = first_tensor->get_shape();
+    if (first_shape.empty()) {
+        return std::nullopt; // Return std::nullopt if the shape is empty
+    }
+
+    const size_t candidateBatchSize = first_shape.at(0); // Assume batch size is the first dimension
+
+    auto checkBatchSizeConsistency = [candidateBatchSize](const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+        for (const auto& tensor : tensors) {
+            if (!tensor) {
+                return false; // Tensor is null
+            }
+
+            const auto& shape = tensor->get_shape();
+            if (shape.empty() || shape.at(0) != candidateBatchSize) {
+                return false; // Inconsistent batch size
+            }
+        }
+        return true;
+    };
+
+    if (!checkBatchSizeConsistency(tensors)) {
+        _logger.info("Inconsistent batch sizes in input tensors");
+        return std::nullopt; // Return std::nullopt if batch sizes are inconsistent
+    }
+
+    _logger.debug("Dynamic Batching is handled by the plugin");
+
+    return candidateBatchSize;
+}
+
+std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
@@ -99,8 +144,8 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
 
     const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
-        _logger.warning("Networks using dynamic shapes are not supported when batching is handled by the plugin");
-        return std::nullopt;
+        _logger.warning("Networks using dynamic batch are handled by the plugin");
+        return !tensors.empty() ? determine_batch_size(tensors) : std::nullopt;
     }
     if (firstOutputShape.rank().get_length() == 0) {
         _logger.warning("Networks using rank 0 shapes for inputs/outputs are not supported when batching is "
@@ -108,7 +153,7 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
         return std::nullopt;
     }
 
-    const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_length();
+    const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_max_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
