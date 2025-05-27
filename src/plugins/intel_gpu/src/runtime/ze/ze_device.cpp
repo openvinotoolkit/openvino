@@ -43,7 +43,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     std::vector<ze_driver_extension_properties_t> extensions(num_ext);
     ZE_CHECK(zeDriverGetExtensionProperties(driver, &num_ext, &extensions[0]));
 
-    ze_driver_properties_t driver_properties;
+    ze_driver_properties_t driver_properties{ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES};
     ZE_CHECK(zeDriverGetProperties(driver, &driver_properties));
 
     bool supports_luid = supports_extension(extensions, ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0);
@@ -183,7 +183,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         }
     }
     if (supports_pci_properties) {
-        ze_pci_ext_properties_t pci_properties;
+        ze_pci_ext_properties_t pci_properties{ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES, nullptr};
         if (zeDevicePciGetPropertiesExt(device, &pci_properties) == ZE_RESULT_SUCCESS) {
             info.pci_info.pci_bus = pci_properties.address.bus;
             info.pci_info.pci_device = pci_properties.address.device;

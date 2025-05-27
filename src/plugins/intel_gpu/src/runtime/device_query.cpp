@@ -28,7 +28,7 @@ device_query::device_query(engine_types engine_type,
     case runtime_types::ze: {
         OPENVINO_ASSERT(engine_type == engine_types::ze);
         ze::ze_device_detector ze_detector;
-        _available_devices = ze_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        _available_devices = ze_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
 #endif
