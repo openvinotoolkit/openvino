@@ -128,6 +128,10 @@ public:
     }
 };
 
+// Second test group inheriting from the first
+class DynamicBatchedTensorsRunTests : public BatchedTensorsRunTests {
+};
+
 TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -420,7 +424,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
     }
 }
 
-TEST_P(BatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer) {
+TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -467,7 +471,7 @@ TEST_P(BatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer) {
     }
 }
 
-TEST_P(BatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInfer) {
+TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
