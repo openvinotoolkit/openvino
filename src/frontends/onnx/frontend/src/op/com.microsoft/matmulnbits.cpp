@@ -47,6 +47,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
     const auto blob_size = (block_size * bits + 7) / 8;
 
+    const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
+    const auto& b_shape = b_quantized.get_partial_shape();
+    uint64_t actual_b_size = 1;
+    for (const auto d : b_shape) {
+        actual_b_size *= d.get_length();
+    }
+
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
     // in documentation: ...Input B is a 2D constant Matrix.
@@ -54,9 +61,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                      ov::as_type<v0::Constant>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
     CHECK_VALID_NODE(node,
-                     b_quantized.get_partial_shape().rank() == 3,
-                     "Expected rank of quantized weights is 3 [N][n_blocks_per_col][blob_size], got: ",
-                     b_quantized.get_partial_shape().rank());
+                     b_shape.is_static() && actual_b_size == expected_b_size,
+                     "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
+                     b_shape);
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
                          a.get_element_type() == ov::element::dynamic,
@@ -153,9 +160,33 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             // according to the link, zero point are:
             // Constrain quantized zero point types to uint8/int32/float16/float.
             // Input zero_points is stored as uint8_t or same as type(A). It has the same packing method as input B
-            zero_points =
-                op::util::reshape(zero_points,
-                                  ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+            CHECK_VALID_NODE(node,
+                             ov::as_type<v0::Constant>(zero_points.get_node()) != nullptr,
+                             "MatMulNBits limitation: accepting only a constant as a zero_points");
+            const auto zp_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
+            switch (bits) {
+            case 2:
+                casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                           static_cast<size_t>(n_blocks_per_col),
+                                           static_cast<size_t>(1)};
+                zero_points = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, zp_const->get_data_ptr());
+                break;
+            case 4:
+                casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                           static_cast<size_t>(n_blocks_per_col),
+                                           static_cast<size_t>(1)};
+                zero_points = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, zp_const->get_data_ptr());
+                break;
+            case 8:
+                casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                           static_cast<size_t>(n_blocks_per_col),
+                                           static_cast<size_t>(1)};
+                zero_points = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, zp_const->get_data_ptr());
+                break;
+            default:
+                FRONT_END_THROW("Unsupported bits count");
+                break;
+            }
         }
 
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
