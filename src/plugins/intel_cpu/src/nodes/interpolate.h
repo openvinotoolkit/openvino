@@ -126,6 +126,102 @@ protected:
     std::vector<uint8_t> pillow_working_buf;
     size_t m_threads_num = 0lu;
 };
+class InterpolateJitExecutor : public InterpolateExecutorBase {
+public:
+    InterpolateJitExecutor(const InterpolateAttrs &interpAttrs,
+                           const VectorDims &srcDims,
+                           const VectorDims &dstDims,
+                           const std::vector<float> &dataScales,
+                           const dnnl::primitive_attr &attr);
+
+    void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
+
+private:
+    // nearest neighbor
+    void NNPlanar(const uint8_t *in_ptr_,
+                  uint8_t *out_ptr_,
+                  const void *post_ops_data_,
+                  int B,
+                  int C,
+                  int ID,
+                  int IH,
+                  int IW,
+                  int OD,
+                  int OH,
+                  int OW);
+
+    void NNCGathered(const uint8_t *in_ptr_,
+                     uint8_t *out_ptr_,
+                     const void *post_ops_data_,
+                     int B,
+                     int C,
+                     int ID,
+                     int IH,
+                     int IW,
+                     int OD,
+                     int OH,
+                     int OW);
+
+    // onnx linear
+    void linearOnnxPlanar(const uint8_t *in_ptr_,
+                          uint8_t *out_ptr_,
+                          const void *post_ops_data_,
+                          int B,
+                          int C,
+                          int ID,
+                          int IH,
+                          int IW,
+                          int OD,
+                          int OH,
+                          int OW);
+
+    void linearOnnxCGathered(const uint8_t *in_ptr_,
+                             uint8_t *out_ptr_,
+                             const void *post_ops_data_,
+                             int B,
+                             int C,
+                             int ID,
+                             int IH,
+                             int IW,
+                             int OD,
+                             int OH,
+                             int OW);
+
+    // cubic
+    void cubicPlanar(const uint8_t *in_ptr_,
+                     uint8_t *out_ptr_,
+                     const void *post_ops_data_,
+                     int B,
+                     int C,
+                     int IH,
+                     int IW,
+                     int OH,
+                     int OW);
+
+    void cubicCGathered(const uint8_t *in_ptr_,
+                        uint8_t *out_ptr_,
+                        const void *post_ops_data_,
+                        int B,
+                        int C,
+                        int IH,
+                        int IW,
+                        int OH,
+                        int OW);
+
+    // pillow bilinear and pillow bicubic
+    void pillowCGathered(const uint8_t *in_ptr_,
+                         uint8_t *out_ptr_,
+                         const void *post_ops_data_,
+                         int B,
+                         int C,
+                         int IH,
+                         int IW,
+                         int OH,
+                         int OW);
+
+private:
+    std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
+};
 
 class Interpolate : public Node {
 public:
@@ -167,100 +263,6 @@ private:
     InterpolateAttrs interpAttrs;
     size_t dataRank = 0;
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
-
-    class InterpolateJitExecutor : public InterpolateExecutorBase {
-    public:
-        InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
-                               const VectorDims& srcDims,
-                               const VectorDims& dstDims,
-                               const std::vector<float>& dataScales,
-                               const dnnl::primitive_attr& attr);
-
-        void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
-
-    private:
-        // nearest neighbor
-        void NNPlanar(const uint8_t* in_ptr_,
-                      uint8_t* out_ptr_,
-                      const void* post_ops_data_,
-                      int B,
-                      int C,
-                      int ID,
-                      int IH,
-                      int IW,
-                      int OD,
-                      int OH,
-                      int OW);
-        void NNCGathered(const uint8_t* in_ptr_,
-                         uint8_t* out_ptr_,
-                         const void* post_ops_data_,
-                         int B,
-                         int C,
-                         int ID,
-                         int IH,
-                         int IW,
-                         int OD,
-                         int OH,
-                         int OW);
-
-        // onnx linear
-        void linearOnnxPlanar(const uint8_t* in_ptr_,
-                              uint8_t* out_ptr_,
-                              const void* post_ops_data_,
-                              int B,
-                              int C,
-                              int ID,
-                              int IH,
-                              int IW,
-                              int OD,
-                              int OH,
-                              int OW);
-        void linearOnnxCGathered(const uint8_t* in_ptr_,
-                                 uint8_t* out_ptr_,
-                                 const void* post_ops_data_,
-                                 int B,
-                                 int C,
-                                 int ID,
-                                 int IH,
-                                 int IW,
-                                 int OD,
-                                 int OH,
-                                 int OW);
-
-        // cubic
-        void cubicPlanar(const uint8_t* in_ptr_,
-                         uint8_t* out_ptr_,
-                         const void* post_ops_data_,
-                         int B,
-                         int C,
-                         int IH,
-                         int IW,
-                         int OH,
-                         int OW);
-        void cubicCGathered(const uint8_t* in_ptr_,
-                            uint8_t* out_ptr_,
-                            const void* post_ops_data_,
-                            int B,
-                            int C,
-                            int IH,
-                            int IW,
-                            int OH,
-                            int OW);
-
-        // pillow bilinear and pillow bicubic
-        void pillowCGathered(const uint8_t* in_ptr_,
-                             uint8_t* out_ptr_,
-                             const void* post_ops_data_,
-                             int B,
-                             int C,
-                             int IH,
-                             int IW,
-                             int OH,
-                             int OW);
-
-    private:
-        std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
-    };
 
     class InterpolateRefExecutor : public InterpolateExecutorBase {
     public:

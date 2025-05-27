@@ -2732,7 +2732,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                                                       uint8_t* out_ptr_,
                                                       const void* post_ops_data_,
                                                       int B,
@@ -2798,7 +2798,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
     }  // batch end
 }
 
-void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
                                                    uint8_t* out_ptr_,
                                                    const void* post_ops_data_,
                                                    int B,
@@ -2840,7 +2840,7 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
                                                            uint8_t* out_ptr_,
                                                            const void* post_ops_data_,
                                                            int B,
@@ -2873,7 +2873,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
     });
 }
 
-void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               const void* post_ops_data_,
                                                               int B,
@@ -2954,7 +2954,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
                                                          uint8_t* out_ptr_,
                                                          const void* post_ops_data_,
                                                          int B,
@@ -2966,8 +2966,8 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     const int idxNum = 1;
     auto* xOrigin = static_cast<int*>(&auxTable[0]);
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(Interpolate::CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[(Interpolate::CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
     int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = div_up(C, blkSize);
@@ -2979,7 +2979,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
         uint8_t* out_ptr_nhw = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h + CGatherLen * w) * dstDataSize;
         const uint8_t* in_ptr_n = in_ptr_ + (IH * IW * CSize * b) * srcDataSize;
 
-        std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(batch) or src(CB)
+        std::vector<int> kernelIndex(Interpolate::CUBIC_GRID_LEN * Interpolate::CUBIC_GRID_LEN);  // 16 address offset to src(batch) or src(CB)
         int iy = yOrigin[h];
         int ix = xOrigin[w];
         for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
@@ -2988,7 +2988,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
             for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
                 int xInRange = std::max(0, std::min(x, IW - 1));
                 xInRange = yInRange + xInRange * CGatherLen * srcDataSize;
-                kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
+                kernelIndex[i * Interpolate::CUBIC_GRID_LEN + j] = xInRange;
             }
         }
         auto arg = jit_interpolate_call_args();
@@ -2996,8 +2996,8 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
         arg.src_ptr[0] = in_ptr_n;
         arg.index = static_cast<int*>(&kernelIndex[0]);
         // 0 for weight_W, 1 for weight_H
-        arg.weight_ptr[0] = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
-        arg.weight_ptr[1] = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
+        arg.weight_ptr[0] = static_cast<float*>(&xFactor[w * Interpolate::CUBIC_GRID_LEN]);
+        arg.weight_ptr[1] = static_cast<float*>(&yFactor[h * Interpolate::CUBIC_GRID_LEN]);
 
         // for by channel, src + step, dst + step, process next step on continuous memory
         // for blk, src + IW*IH*blkSize, dst + OW*OH*blkSize, process the blkSize on next CB
@@ -3008,7 +3008,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
                                                       uint8_t* out_ptr_,
                                                       const void* post_ops_data_,
                                                       int B,
@@ -3021,12 +3021,12 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
     auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
     auto* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
-    tblAdvance += CUBIC_GRID_LEN * OW;
+    tblAdvance += Interpolate::CUBIC_GRID_LEN * OW;
     auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
     auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
 
-    tblAdvance += CUBIC_GRID_LEN * OH;
+    tblAdvance += Interpolate::CUBIC_GRID_LEN * OH;
     auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW * OH;
     auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
@@ -3051,7 +3051,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
                                                           uint8_t* out_ptr_,
                                                           [[maybe_unused]] const void* post_ops_data_,
                                                           int B,
@@ -4252,7 +4252,7 @@ InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpA
     }
 }
 
-Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                                             const VectorDims& srcDims,
                                                             const VectorDims& dstDims,
                                                             const std::vector<float>& dataScales,
@@ -4303,7 +4303,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     }
 }
 
-void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
