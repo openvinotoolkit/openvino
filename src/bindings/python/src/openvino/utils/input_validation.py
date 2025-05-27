@@ -5,7 +5,8 @@
 """Helper functions for validating user input."""
 
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Any, Optional
+from collections.abc import Callable, Iterable
 
 import numpy as np
 
@@ -89,8 +90,8 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
 
 def check_valid_attributes(
     op_name,  # type: str
-    attributes,  # type: Dict[str, Any]
-    requirements,  # type: List[Tuple[str, bool, Type, Optional[Callable]]]
+    attributes,  # type: dict[str, Any]
+    requirements,  # type: list[tuple[str, bool, Type, Optional[Callable]]]
 ):
     # type: (...) -> bool
     """Perform attributes validation according to specified type, value criteria.

@@ -5,7 +5,8 @@
 import os
 import sys
 from functools import wraps
-from typing import Callable, Any, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 from pathlib import Path
 import importlib.util
 from types import ModuleType

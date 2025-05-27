@@ -4,14 +4,14 @@
 
 import builtins
 import torch
-from typing import Any, Tuple, Optional, Type
+from typing import Any, Optional
 
 originals_map = {
     "divmod": builtins.divmod
 }
 
 
-def patched_divmod(lhs: Any, rhs: Any) -> Tuple[Any, Any]:
+def patched_divmod(lhs: Any, rhs: Any) -> tuple[Any, Any]:
     # TorchScript tracing outputs torch.Tensor for `x.shape[-1]` instead of scalar.
     # For example, it leads to TypeError issue during tracing of `divmod(x.shape[-1], 5)`
     # since builtin `divmod()` expects both scalar inputs.
