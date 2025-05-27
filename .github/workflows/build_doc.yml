@@ -15,7 +15,6 @@ jobs:
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
-      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -33,8 +32,6 @@ jobs:
           ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
       - name: Show affected components
         run: |
