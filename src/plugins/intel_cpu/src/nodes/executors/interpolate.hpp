@@ -8,19 +8,19 @@
 
 #include "node.h"
 
-enum { MAX_INPUT_INTERPOLATE = 8 };
+enum : uint8_t { MAX_INPUT_INTERPOLATE = 8 };
 
 namespace ov::intel_cpu {
 
-enum InterpolateLayoutType { planar, block, by_channel };
+enum InterpolateLayoutType : uint8_t { planar, block, by_channel };
 
-enum InterpolateMode { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
+enum InterpolateMode : uint8_t { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
 
-enum InterpolateCoordTransMode { half_pixel, pytorch_half_pixel, asymmetric, tf_half_pixel_for_nn, align_corners };
+enum InterpolateCoordTransMode : uint8_t { half_pixel, pytorch_half_pixel, asymmetric, tf_half_pixel_for_nn, align_corners };
 
-enum class InterpolateNearestMode { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
+enum class InterpolateNearestMode : uint8_t { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
 
-enum class InterpolateShapeCalcMode { sizes, scales };
+enum class InterpolateShapeCalcMode : uint8_t { sizes, scales };
 
 struct InterpolateAttrs {
     InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
