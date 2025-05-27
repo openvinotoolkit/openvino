@@ -390,7 +390,7 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
     }
-    // Skipped because K,N blocking is disabled until heuristic is updated (ticket: 156014)
+    // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
