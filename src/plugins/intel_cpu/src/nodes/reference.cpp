@@ -4,10 +4,27 @@
 
 #include "reference.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "shape_inference/shape_inference.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 

@@ -4,6 +4,7 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include "common/utils.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 
 namespace ov::intel_cpu::riscv64 {

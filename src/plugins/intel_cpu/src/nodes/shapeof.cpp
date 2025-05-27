@@ -4,8 +4,22 @@
 
 #include "shapeof.h"
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "shape_inference/custom/shapeof.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 

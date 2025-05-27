@@ -6,5 +6,7 @@
 
 #include <utility>
 
+#include "nodes/executors/executor.hpp"
+
 ov::intel_cpu::ConvertExecutor::ConvertExecutor(ov::intel_cpu::ExecutorContext::CPtr context)
     : convertContext(std::move(context)) {}

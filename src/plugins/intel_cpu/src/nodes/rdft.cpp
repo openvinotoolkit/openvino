@@ -4,22 +4,36 @@
 
 #include "rdft.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/rdft.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/rdft_kernel.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

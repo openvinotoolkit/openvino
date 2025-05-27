@@ -6,11 +6,27 @@
 
 #include <graph.h>
 
-#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
 #include "input.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_state.h"
 #include "memory_state_base.h"
+#include "node.h"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "proxy_mem_blk.h"
 
 namespace ov::intel_cpu::node {

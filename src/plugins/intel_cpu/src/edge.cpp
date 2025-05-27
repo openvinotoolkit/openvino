@@ -4,10 +4,29 @@
 
 #include "edge.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <new>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/node_config.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/pp.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
+#include "weights_cache.hpp"
 
 using namespace dnnl;
 

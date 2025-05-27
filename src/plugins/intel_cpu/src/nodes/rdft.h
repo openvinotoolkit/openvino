@@ -4,9 +4,18 @@
 
 #pragma once
 
-#include "common/primitive_hashing_utils.hpp"
+#include <common/utils.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/rdft_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
