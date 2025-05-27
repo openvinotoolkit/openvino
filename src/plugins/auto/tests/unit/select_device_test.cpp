@@ -286,12 +286,13 @@ public:
 
     void SetUp() override {
         std::tie(threshold, devices, deviceUtilization, selectedDeviceInfo) = GetParam();
+        std::map<std::string, unsigned> properties_thresholds(threshold.begin(), threshold.end());
         std::vector<std::string> npuCability = {"FP32", "FP16", "INT8", "BIN"};
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCability));
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::devices_utilization_threshold.name()), config))
-            .WillByDefault(Return(ov::Any(threshold)));
+            .WillByDefault(Return(ov::Any(properties_thresholds)));
         ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any("00000000")));
         ON_CALL(*core, get_property(StrEq("GPU.0"), StrEq(ov::device::luid.name()), _))
@@ -304,7 +305,7 @@ public:
                 get_property(StrEq(ov::test::utils::DEVICE_AUTO),
                              StrEq(ov::intel_auto::devices_utilization_threshold.name()),
                              _))
-            .WillByDefault(Return(ov::Any(threshold)));
+            .WillByDefault(Return(ov::Any(properties_thresholds)));
         ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& luid) {
             return deviceUtilization;
         });
