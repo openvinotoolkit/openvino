@@ -18,15 +18,15 @@ struct TypeInfo {
     bool m_is_quantized;
     const char* m_cname;
     const char* m_type_name;
-    const char* const* aliases;
-    size_t alias_count;
+    const char* const* m_aliases;
+    size_t m_alias_count;
 
     bool has_name(const std::string& type) const {
         if (type == m_type_name) {
             return true;
         } else {
-            const auto last = aliases + alias_count;
-            return std::find(aliases, last, type) != last;
+            const auto last = m_aliases + m_alias_count;
+            return std::find(m_aliases, last, type) != last;
         }
     }
 
