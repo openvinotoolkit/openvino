@@ -812,6 +812,8 @@ public:
                     Algorithm::EltwiseMod,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
+                    Algorithm::EltwiseNegative,
+                    Algorithm::EltwiseNotEqual,
                     Algorithm::EltwisePowerStatic,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
