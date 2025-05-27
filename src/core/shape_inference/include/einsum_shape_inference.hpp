@@ -81,18 +81,17 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                     ++dim_ind;
                 }
             }
-            for (auto label_it : single_input_label_to_shape) {
+            for (const auto& [label, shape] : single_input_label_to_shape) {
                 // Repeated labels in single input node are eliminated, so we can merge them into the global
                 // label_to_shape.
-                if (label_to_shape.find(label_it.first) == label_to_shape.end()) {
-                    label_to_shape[label_it.first] = label_it.second;
+                if (label_to_shape.find(label) == label_to_shape.end()) {
+                    label_to_shape[label] = shape;
                 } else {
-                    NODE_VALIDATION_CHECK(op,
-                                          TRShape::broadcast_merge_into(label_to_shape[label_it.first],
-                                                                        label_it.second,
-                                                                        op::AutoBroadcastType::NUMPY),
-                                          "Different input dimensions indicated by the same labels for Einsum "
-                                          "must be broadcastable.");
+                    NODE_VALIDATION_CHECK(
+                        op,
+                        TRShape::broadcast_merge_into(label_to_shape[label], shape, op::AutoBroadcastType::NUMPY),
+                        "Different input dimensions indicated by the same labels for Einsum "
+                        "must be broadcasttable.");
                 }
             }
         } else {

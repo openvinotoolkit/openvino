@@ -38,10 +38,11 @@ void GroupQueryAttention::validate_and_infer_types() {
     const auto& batch_size = q_shape[0];
     const auto& sequence_len = q_shape[2];
     const auto& head_size = q_shape[3];
-    const auto& past_sequence_len = get_input_partial_shape(3)[2];
+    auto kv_shape = PartialShape{batch_size, m_kv_num_heads, get_input_partial_shape(3)[2], head_size};
+    auto& output_kv_len = kv_shape[2];
 
-    auto output_kv_len = past_sequence_len;
-    if (past_sequence_len.is_dynamic() || sequence_len.is_dynamic()) {
+    // auto output_kv_len = past_sequence_len;
+    if (output_kv_len.is_dynamic() || sequence_len.is_dynamic()) {
         // For dynamic shapes, concatenate the past and current sequence lengths.
         output_kv_len += sequence_len;
     }
@@ -52,8 +53,9 @@ void GroupQueryAttention::validate_and_infer_types() {
                           "GroupQueryAttention only suuports f32 and f16");
 
     set_output_type(0, element_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
-    set_output_type(1, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
-    set_output_type(2, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
+    for (auto&& port : {1, 2}) {
+        set_output_type(port, element_type, kv_shape);
+    }
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {

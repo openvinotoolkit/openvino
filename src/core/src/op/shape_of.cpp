@@ -80,9 +80,12 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
                 return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
             });
 
-            const auto limit = Tensor(out_et, Shape{}, &limit_val);
-            const auto mask = Tensor(element::boolean, Shape{in_shape_rank}, dynamic_mask.data());
-            eval_status = v1::Select().evaluate(outputs, {mask, limit, outputs[0]});
+            const TensorVector inputs{
+                {out_et, Shape{}, &limit_val},                                  // mask
+                {element::boolean, Shape{in_shape_rank}, dynamic_mask.data()},  // limit
+                outputs[0]                                                      // output
+            };
+            eval_status = v1::Select().evaluate(outputs, inputs);
         }
         return eval_status;
     } else {
