@@ -843,19 +843,6 @@ TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkupNonC
 
     manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
 
-    {
-        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
-        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
-        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
-        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
-        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
-        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
-        auto scale = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{});
-        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
-        auto add = std::make_shared<opset10::Add>(parameter, multiply);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
-    }
-
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
