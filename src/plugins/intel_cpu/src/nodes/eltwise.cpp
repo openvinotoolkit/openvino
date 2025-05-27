@@ -813,6 +813,7 @@ public:
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwiseNegative,
+                    Algorithm::EltwiseNotEqual,
                     Algorithm::EltwisePowerStatic,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
