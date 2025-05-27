@@ -15,7 +15,7 @@ namespace pass {
  * @brief Decomposes Softmax to a range of low-level operations
  * @ingroup snippets
  */
-class SoftmaxDecomposition: public ov::pass::MatcherPass {
+class SoftmaxDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::SoftmaxDecomposition");
     SoftmaxDecomposition();

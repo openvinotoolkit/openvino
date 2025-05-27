@@ -16,7 +16,7 @@ namespace pass {
  * @brief The pass tokenizes FullyConnected like (with constant path on B input) MatMuls
  * @ingroup snippets
  */
-class TokenizeFCSnippets: public ov::pass::MatcherPass {
+class TokenizeFCSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeFCSnippets");
     TokenizeFCSnippets(const SnippetsTokenization::Config& config);

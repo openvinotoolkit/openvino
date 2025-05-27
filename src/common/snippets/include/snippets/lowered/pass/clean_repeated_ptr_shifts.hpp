@@ -21,18 +21,20 @@ namespace pass {
  *              This condition should be removed when Buffers stop being inplace by default.
  * @ingroup snippets
  */
-class CleanRepeatedDataPointerShifts: public RangedPass {
+class CleanRepeatedDataPointerShifts : public RangedPass {
 public:
     OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "", RangedPass)
     CleanRepeatedDataPointerShifts() = default;
 
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 
 private:
     bool reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

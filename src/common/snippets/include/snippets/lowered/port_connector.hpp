@@ -7,9 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "port_descriptor.hpp"
 #include "expression_port.hpp"
-
+#include "port_descriptor.hpp"
 
 namespace ov {
 namespace snippets {
@@ -22,8 +21,12 @@ public:
     PortConnector() = default;
     explicit PortConnector(ExpressionPort source_descriptor, const std::set<ExpressionPort>& consumer_descriptors = {});
 
-    const ExpressionPort& get_source() const { return m_source_port; }
-    std::set<ExpressionPort> get_consumers() const { return m_consumer_ports; }
+    const ExpressionPort& get_source() const {
+        return m_source_port;
+    }
+    std::set<ExpressionPort> get_consumers() const {
+        return m_consumer_ports;
+    }
 
     void add_consumer(const ExpressionPort& consumer);
     void remove_consumer(const ExpressionPort& consumer);
@@ -37,7 +40,6 @@ private:
 };
 using PortConnectorPtr = std::shared_ptr<PortConnector>;
 
-
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

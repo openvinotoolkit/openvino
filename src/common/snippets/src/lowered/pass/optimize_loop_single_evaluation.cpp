@@ -4,18 +4,20 @@
 
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
+                                       lowered::LinearIR::constExprIt begin,
+                                       lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeLoopSingleEvaluation")
     const auto& loop_manager = linear_ir.get_loop_manager();
 
@@ -48,8 +50,7 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::Li
     return is_modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

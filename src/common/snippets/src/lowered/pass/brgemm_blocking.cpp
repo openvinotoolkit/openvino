@@ -7,9 +7,9 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -20,10 +20,12 @@ namespace pass {
 using namespace ov::snippets::utils;
 using PortType = LoopPort::Type;
 
-lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop_handlers(size_t work_amount, size_t block_size) {
+lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop_handlers(size_t work_amount,
+                                                                                          size_t block_size) {
     OPENVINO_ASSERT(block_size != 0, "block size must be non zero");
     SpecificIterationHandlers handlers;
-    const auto tail_size = utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
+    const auto tail_size =
+        utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
     if (tail_size != 0)
         handlers.register_pass<lowered::SpecificLoopIterType::LAST_ITER, lowered::pass::UpdateSubtensors>(tail_size);
     return handlers;
@@ -112,7 +114,9 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const
             return get_full_dim_value();
         return default_blk;
     };
-    return std::make_tuple(get_block_size(m, get_default_m_blk(m)), get_block_size(n, get_default_n_blk(n)), get_block_size(k, get_default_k_blk(k)));
+    return std::make_tuple(get_block_size(m, get_default_m_blk(m)),
+                           get_block_size(n, get_default_n_blk(n)),
+                           get_block_size(k, get_default_k_blk(k)));
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_brgemm_dimensions(const ExpressionPtr& brgemm_expr) {
@@ -130,7 +134,8 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_brgemm_dimensions(con
     const auto& k0 = *in_0_planar_dims.rbegin();
     const auto& k1 = *++in_1_planar_dims.rbegin();
     size_t k = 0;
-    OPENVINO_ASSERT(utils::merge_dynamic_dim(k, k0, k1), "Brgemm input descriptors have incompatible K dimension value.");
+    OPENVINO_ASSERT(utils::merge_dynamic_dim(k, k0, k1),
+                    "Brgemm input descriptors have incompatible K dimension value.");
     return std::make_tuple(m, n, k);
 }
 
@@ -165,7 +170,7 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
