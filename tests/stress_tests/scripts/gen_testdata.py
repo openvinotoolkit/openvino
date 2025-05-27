@@ -141,6 +141,7 @@ def main():
                     #"full_path": full_path,
                     "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
                     "test": "create_exenetwork",
+                    "device": "CPU",
                     "vmpeak": str(random.randint(1, 1103949)),
                     "vmrss" : str(random.randint(1, 129329)),
                     "vmhwm" : str(random.randint(1, 129329))
