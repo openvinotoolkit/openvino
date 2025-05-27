@@ -434,7 +434,7 @@ void Pooling::getSupportedDescriptors() {
 }
 
 void Pooling::prepareParams() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
     }
@@ -539,7 +539,7 @@ void Pooling::prepareParams() {
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
 #ifdef CPU_DEBUG_CAPS
-        auto pd = dnnlExecPtr->getPrimitiveDesc();
+        const auto* pd = dnnlExecPtr->getPrimitiveDesc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
     }
@@ -648,7 +648,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     }
 
     if (useACL) {
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
             NodeConfig config;
             config.inConfs.resize(getParentEdges().size());

@@ -456,7 +456,7 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = f32data + n * batch_size;
+                        const auto* ptr = f32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {
                             reinterpret_cast<const float*>(ptr),
                             std::min(batch_size, static_cast<size_t>(f32data + size - ptr)),
@@ -529,8 +529,8 @@ void Input::cloneBlobIfRequired() {
         } else {
             if (m_constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
-                auto dst = memory->getDataAs<StringMemory::OvString>();
+                const auto* src = m_constOp->get_data_ptr<StringMemory::OvString>();
+                auto* dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
