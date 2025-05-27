@@ -29,6 +29,9 @@ public:
                const ov::Shape& shape,
                const ov::Allocator& allocator);
 
+    void* data() override;
+    void* data(const ov::element::Type& type) override;
+
     const void* data() const override;
     const void* data(const ov::element::Type& type) const override;
 
