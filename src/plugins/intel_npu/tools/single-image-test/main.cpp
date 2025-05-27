@@ -2222,19 +2222,6 @@ static int runSingleImageTest() {
             }
             inputFilesForOneInfer.push_back(std::move(entireModelFiles));
         }
-        // Log what is in inputFilesForOneInfer
-        std::cout << "[Debug] Parsed input files for model: " << std::endl;
-        for (size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
-            std::cout << "Input " << i << ": ";
-            for (const auto& files : inputFilesForOneInfer[i]) {
-                std::cout << "[";
-                for (const auto& file : files) {
-                    std::cout << file << " ";
-                }
-                std::cout << "]";
-            }
-            std::cout << std::endl;
-        }
 
         // Declare output file / reference file variables
         std::vector<std::string> refFilesPerCase;
