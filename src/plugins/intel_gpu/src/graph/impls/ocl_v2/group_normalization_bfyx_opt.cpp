@@ -318,8 +318,12 @@ public:
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        auto desc = params.typed_desc<group_normalization>();
-        const auto& shape = params.output_layouts[0].get_shape();
+        ov::Shape shape;
+        // Consider output buffer is allocated in primitive allocation when dynamic shape with uppder boundary
+        if (params.output_layouts[0].is_dynamic())
+            shape = params.output_layouts[0].get_partial_shape().get_max_shape();
+        else
+            shape = params.output_layouts[0].get_shape();
         auto buf = BufferDescriptor{shape[0] * shape[1], ov::element::f32};
         return {buf, buf};
     }
