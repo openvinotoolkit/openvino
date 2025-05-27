@@ -174,7 +174,9 @@ protected:
     OpenvinoVersion _ovVersion;
 };
 
-// TODO inherit v2.0 instead, reuse common code instead of copy-pasting
+/**
+ * @brief The version that adds support for init schedules (weights separation).
+ */
 template <>
 class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
@@ -182,8 +184,16 @@ public:
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
              const std::vector<uint64_t> initSizes = std::vector<uint64_t>());
 
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
+     * previous information.
+     */
     void read(std::istream& stream) override;
 
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are written in addition to
+     * the previous information.
+     */
     void write(std::ostream& stream) override;
 
     std::vector<uint64_t> get_init_sizes() const override;

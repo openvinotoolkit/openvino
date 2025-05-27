@@ -57,7 +57,8 @@ public:
     virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
-     * @brief TODO
+     * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
+     * the same scope.
      *
      * @param model
      * @param config
@@ -75,7 +76,7 @@ public:
                                                              const Config& config) = 0;
 
     /**
-     * @brief Sequantial compilation of Init(s) and Main
+     * @brief Sequential compilation of Init(s) and Main
      *
      * "Stateless compiler" approach
      * We want to get multiple Inits in the case of a large number of weights.

@@ -10,8 +10,9 @@
 namespace intel_npu {
 
 //
-// TODO
+// Prefixes used to identify special inputs/outputs
 //
+
 constexpr std::string_view READVALUE_PREFIX = "vpux_ie_read_value_";
 constexpr std::string_view ASSIGN_PREFIX = "vpux_ie_assign_";
 constexpr std::string_view SHAPE_TENSOR_PREFIX = "vpux_ie_shape_";

@@ -299,17 +299,36 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
- * @brief TODO
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: integer. Default is "3".
+ *
+ * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
  */
 static constexpr ov::Property<uint32_t> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
 
 /**
- * @brief TODO
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "false".
+ *
+ * This option enables/disables the "weights separation" feature. If enabled, the result of compilation will be a binary
+ * object stripped of a significant amount of weights. Before running the model, these weights need to be provided by
+ * external means.
  */
 static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
+/**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: bool. Default is "false".
+ */
 static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
 
+/**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: integer.
+ *
+ * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
+ * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "3".
+ */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 
 /**

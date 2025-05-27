@@ -888,7 +888,6 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
     std::shared_ptr<ov::Model> originalModel;
     if (!initSizes.empty()) {
         // Read the init compiled models as well
-        // TODO adjust for multiple init parts
         size_t cursorPosition = mainSize;
         std::vector<std::shared_ptr<IGraph>> initGraphs;
         ov::Tensor tensorInit;

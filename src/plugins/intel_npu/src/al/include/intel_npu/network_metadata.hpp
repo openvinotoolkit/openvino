@@ -65,17 +65,21 @@ struct IODescriptor {
     bool isShapeTensor = false;
 
     /**
-     * @brief TODO
+     * @brief If "true", the current object describes an input for an init schedule (weights separation).
      */
     bool isInitInputWeights = false;
 
     /**
-     * @brief TODO
+     * @brief If "true", the current object describes an output for an init schedule (weights separation).
      */
     bool isInitOutputWeights = false;
 
     /**
-     * @brief TODO
+     * @brief If "true", the current object describes a weights input for the main schedule (weights separation).
+     *
+     * @details If weights separation is enabled, a significant amount of weights are cut off from the compiled model
+     * and then corresponding placeholders are created as inputs. These inputs are meant to be obtained by running the
+     * init schedule(s).
      */
     bool isMainInputWeights = false;
 

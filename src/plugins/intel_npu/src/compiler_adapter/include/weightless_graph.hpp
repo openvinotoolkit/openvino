@@ -13,6 +13,12 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Wrapper over multiple "ze_graph_handle_t" objects, one for each init/main schedule (weights separation).
+ *
+ * @details This class contains most implementation details for running the init schedules and setting the results as
+ * inputs to the main one.
+ */
 class WeightlessGraph final : public Graph {
 public:
     WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
@@ -30,6 +36,10 @@ public:
 
     std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
 
+    /**
+     * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
+     * init schedules are run and the result of this is set as inputs to the main compiled model.
+     */
     void initialize(const Config& config) override;
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
@@ -60,20 +70,15 @@ private:
 
     void run_pipeline(const size_t initIndex);
 
-    /**
-     * @brief TODO
-     */
     void run_init_single_threaded();
 
     void run_init_multi_threaded();
 
     void set_weights_inputs();
 
-    void free_init_resourcese(const size_t initIndex);
-
-    std::vector<ze_graph_handle_t> _initHandles;
+    std::vector<ze_graph_handle_t> _initsHandles;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
-    std::vector<NetworkMetadata> _initMetadata;
+    std::vector<NetworkMetadata> _initsMetadata;
     std::shared_ptr<ov::Model> _model;
 
     std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
@@ -85,10 +90,16 @@ private:
     std::vector<std::unique_ptr<Fence>> _initsFences;
 
     /**
-     * @brief TODO
+     * @brief Tensors holding the L0 buffers corresponding to the inputs of the main schedule.
+     * @details Each vector entry corresponds to the output of one init schedule. The allocations have been performed
+     * per init compiled model and not per init schedule output for performance reasons.
      */
-    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
-    mutable std::vector<ov::SoPtr<ZeroHostTensor>> _initOutputsTensors;
+    mutable std::vector<ov::SoPtr<ZeroHostTensor>> _mainInputsAllocatedTensors;
+    /**
+     * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
+     * @details Each map entry corresponds to one input of the main schedule.
+     */
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _mainInputsViewTensors;
 };
 
 }  // namespace intel_npu
