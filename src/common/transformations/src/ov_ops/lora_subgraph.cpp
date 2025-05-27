@@ -12,8 +12,10 @@ namespace internal {
 
 LoraSubgraph::LoraSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args) {
     SubGraphOp::set_function(body);
-    for (size_t i = 0; i < body->get_parameters().size(); ++i)
-        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    for (size_t i = 0; i < body->get_parameters().size(); ++i) {
+        size_t input_index = i < 3 ? i : i - 1;
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(input_index, i));
+    }
     for (size_t i = 0; i < body->get_output_size(); ++i)
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     constructor_validate_and_infer_types();

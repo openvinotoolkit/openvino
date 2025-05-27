@@ -258,9 +258,10 @@ protected:
 
             for (size_t m = 0; m < M; ++m) {
                 for (size_t n = 0; n < N; ++n) {
+                    std::string scaled_alpha = "(alpha_" + std::to_string(n) + " / TO_ACCUMULATOR_TYPE(LORA_RANK))";
                     res += generate_block_write(dtype,
                                                 "ptrC + SUBGROUP_SIZE * " + std::to_string(n),
-                                                "sum_" + std::to_string(m) + "_" + std::to_string(n) + " * alpha_" + std::to_string(n));
+                                                "sum_" + std::to_string(m) + "_" + std::to_string(n) + " * " + scaled_alpha);
                 }
                 res += "ptrC += N;";
             }

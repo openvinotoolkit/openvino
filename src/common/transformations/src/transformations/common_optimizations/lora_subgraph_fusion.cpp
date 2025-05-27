@@ -14,7 +14,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -29,12 +32,23 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     auto transpose1_m = optional<ov::op::v1::Transpose>({lora_input_m, transpose_const1_m}, consumers_count(1));
 
     auto read_value1_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto convert1_m = optional<ov::op::v0::Convert>(read_value1_m, consumers_count(1));
+    auto convert1_m = optional<ov::op::v0::Convert>(read_value1_m, consumers_count(2));
     auto matmul1_m = wrap_type<ov::op::v0::MatMul>({transpose1_m, convert1_m}, consumers_count(1));
 
     auto read_value2_m = wrap_type<ov::op::util::ReadValueBase>();
     auto convert2_m = optional<ov::op::v0::Convert>(read_value2_m, consumers_count(1));
-    auto multiply_m = wrap_type<ov::op::v1::Multiply>({matmul1_m, convert2_m}, consumers_count(1));
+
+    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({convert1_m}, consumers_count(1));
+    auto indices_pattern_m = wrap_type<ov::op::v0::Constant>();
+    auto axis_pattern_m = wrap_type<ov::op::v0::Constant>();
+    auto gather_m = wrap_type<ov::op::util::GatherBase>({shape_of_m, indices_pattern_m, axis_pattern_m}, consumers_count(1));
+    auto convert_m = optional<ov::op::v0::Convert>(gather_m, consumers_count(1));
+
+    auto power_const_m = wrap_type<ov::op::v0::Constant>();
+    auto power_m = wrap_type<ov::op::v1::Power>({convert_m, power_const_m}, consumers_count(1));
+    auto divide_m = wrap_type<ov::op::v1::Multiply>({convert2_m, power_m}, consumers_count(1));
+
+    auto multiply_m = wrap_type<ov::op::v1::Multiply>({matmul1_m, divide_m}, consumers_count(1));
 
     auto read_value3_m = wrap_type<ov::op::util::ReadValueBase>();
     auto convert3_m = optional<ov::op::v0::Convert>(read_value3_m, consumers_count(1));
@@ -51,9 +65,10 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         const auto& matmul1 = pattern_map.at(matmul1_m);
         const auto& state_1 =
             pattern_map.count(convert1_m) ? pattern_map.at(convert1_m) : pattern_map.at(read_value1_m);
-        const auto& multiply = pattern_map.at(multiply_m);
         const auto& state_2 =
             pattern_map.count(convert2_m) ? pattern_map.at(convert2_m) : pattern_map.at(read_value2_m);
+        const auto& divide_state_alpha = pattern_map.at(divide_m);
+        const auto& shape_of_state_a = pattern_map.at(shape_of_m);
         const auto& matmul2 = pattern_map.at(matmul2_m);
         const auto& state_3 =
             pattern_map.count(convert3_m) ? pattern_map.at(convert3_m) : pattern_map.at(read_value3_m);
@@ -81,7 +96,8 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
             pattern_map.count(transpose1_m) ? pattern_map.at(transpose1_m).get_node()->input(0)
                                             : matmul1.get_node()->input(0),
             matmul1.get_node()->input(1),
-            find_connected_input(multiply.get_node(), state_2.get_node()),
+            shape_of_state_a.get_node()->input(0),
+            find_connected_input(divide_state_alpha.get_node(), state_2.get_node()),
             matmul2.get_node()->input(1),
         };
         const ov::OutputVector external_connections{
