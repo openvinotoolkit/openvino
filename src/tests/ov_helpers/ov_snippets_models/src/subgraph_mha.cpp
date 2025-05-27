@@ -811,7 +811,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
                                               static_cast<int64_t>(input_shapes[0].get_shape()[1])};
     auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
 
-    const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
+    const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(
+        256, {1, 1, 1, 1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
     const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose0Param, ov::element::f32, fq_signed_params);
     const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose1Param, ov::element::f32, fq_signed_params);
     const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose2Param, ov::element::f32, fq_signed_params);
@@ -832,7 +833,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq3, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(addParam, element::f32).get());
-    const auto deq = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.1122});
+    const auto deq = std::make_shared<ov::op::v0::Constant>(
+        ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{0.1122});
     const auto deq_mul = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
@@ -843,7 +845,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
     const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
 
-    const auto fq_unsigned_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {0}, {0.245}, {0}, {255}, ov::element::u8);
+    const auto fq_unsigned_params = ov::builder::subgraph::FakeQuantizeOnData(
+        256, {1, 1, 1, 1}, {0}, {0.245}, {0}, {255}, ov::element::u8);
     const auto fq4 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(reshape1, ov::element::f32, fq_unsigned_params);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose2Const);
@@ -865,7 +868,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
     auto data3 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
 
-    const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
+    const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(
+        256, {1, 1, 1, 1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
     const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data0, ov::element::f32, fq_signed_params);
     const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data1, ov::element::f32, fq_signed_params);
     const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data3, ov::element::f32, fq_signed_params);
@@ -904,7 +908,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq3, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(addParam, element::f32).get());
-    const auto deq = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.1122});
+    const auto deq = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{0.1122});
     const auto deq_mul = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },

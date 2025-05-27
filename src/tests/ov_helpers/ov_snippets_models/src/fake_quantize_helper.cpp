@@ -196,10 +196,12 @@ std::shared_ptr<ov::Node> FakeQuantizeFunction::getDecomposedFakeQuantizeOps(con
                                                                              bool doDequantize) {
     auto inputShape = input.get_shape();
     auto inputType = input.get_element_type();
+    auto rank = inputShape.size();
+    ov::Shape onesShape(rank, 1);
 
-    const auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1}, {il});
-    const auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1}, {ih});
-    const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {scale});
+    const auto input_low = ov::op::v0::Constant::create(ov::element::f32, onesShape, {il});
+    const auto input_high = ov::op::v0::Constant::create(ov::element::f32, onesShape, {ih});
+    const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, onesShape, {scale});
 
     std::shared_ptr<ov::Node> current = std::make_shared<ov::opset1::Maximum>(input, input_low);
     current->set_friendly_name("inputLow");
@@ -223,12 +225,12 @@ std::shared_ptr<ov::Node> FakeQuantizeFunction::getDecomposedFakeQuantizeOps(con
     if (doDequantize) {
         current = std::make_shared<ov::opset1::Multiply>(
             current,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{1}, std::vector<float>{0.0745098f}));
+            std::make_shared<ov::opset1::Constant>(element::f32, onesShape, std::vector<float>{0.0745098f}));
         current->set_friendly_name("divide");
 
         current = std::make_shared<ov::opset1::Add>(
             current,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{1}, std::vector<float>{1.f}));
+            std::make_shared<ov::opset1::Constant>(element::f32, onesShape, std::vector<float>{1.f}));
         current->set_friendly_name("add");
     }
 
