@@ -4,6 +4,10 @@
 
 #include "mvn_list.hpp"
 
+#include <vector>
+
+#include "utils/arch_macros.h"
+
 namespace ov::intel_cpu {
 
 const std::vector<MVNExecutorDesc>& getMVNExecutorsList() {

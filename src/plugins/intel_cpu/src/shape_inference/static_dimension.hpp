@@ -5,12 +5,11 @@
 #pragma once
 
 #include <cstddef>
-#include <limits>
 #include <ostream>
-#include <stdexcept>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/interval.hpp"
 
 namespace ov::intel_cpu {
 

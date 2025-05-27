@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "memory_state.h"
+#include "openvino/core/any.hpp"
 
 namespace ov {
 namespace intel_cpu {

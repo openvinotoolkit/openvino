@@ -4,9 +4,18 @@
 
 #include "mlp_utils.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #if defined(HAVE_AVX512F)
 #    include <immintrin.h>
+
+#    include "../scaled_attn/common.hpp"
 #endif
 #include "../scaled_attn/transpose_kernel.hpp"
 

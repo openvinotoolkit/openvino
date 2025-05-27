@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
 #include <openvino/core/node.hpp>
 #include <openvino/op/op.hpp>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 
 namespace ov::intel_cpu {
 /**

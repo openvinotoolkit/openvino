@@ -3,6 +3,16 @@
 //
 
 #include "dnnl_executor.h"
+
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
+
+#include "dnnl_extension_utils.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 using namespace dnnl;
 
 namespace ov::intel_cpu {

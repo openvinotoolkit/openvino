@@ -4,9 +4,17 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
 #include "cpu_memory.h"
 #include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils/plain_tensor.hpp"
 

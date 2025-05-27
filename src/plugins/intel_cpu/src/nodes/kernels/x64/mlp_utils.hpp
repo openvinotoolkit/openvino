@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <vector>
+#include <cstdint>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"

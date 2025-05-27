@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "../scaled_attn/executor_pa_common.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)

@@ -4,12 +4,23 @@
 
 #pragma once
 
-#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <memory>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu::x64 {
 

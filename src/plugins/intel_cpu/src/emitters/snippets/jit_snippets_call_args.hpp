@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-#include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
 namespace ov::intel_cpu {

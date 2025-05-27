@@ -4,11 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/dft_uni_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
 namespace node {
 
 class DFT : public Node {

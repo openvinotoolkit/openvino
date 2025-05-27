@@ -4,8 +4,23 @@
 
 #include "composite.h"
 
-#include "cpu_memory.h"
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "allocation_context.hpp"
+#include "graph_context.h"
+#include "node.h"
 #include "nodes/input.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"

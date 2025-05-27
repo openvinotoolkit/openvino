@@ -6,8 +6,23 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {

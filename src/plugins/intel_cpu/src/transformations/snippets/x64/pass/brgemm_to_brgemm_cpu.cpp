@@ -4,13 +4,21 @@
 
 #include "brgemm_to_brgemm_cpu.hpp"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_shape.h"
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
@@ -18,7 +26,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

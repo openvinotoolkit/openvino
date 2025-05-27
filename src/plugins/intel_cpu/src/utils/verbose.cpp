@@ -1,6 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <utility>
+
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
@@ -14,8 +23,6 @@
 #    include "../src/common/c_types_map.hpp"
 #    include "../src/common/verbose.hpp"
 #    include "cpu_types.h"
-#    include "dnnl_debug.h"
-#    include "dnnl_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 

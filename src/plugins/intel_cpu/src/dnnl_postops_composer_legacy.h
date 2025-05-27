@@ -8,13 +8,13 @@
  */
 #pragma once
 
-#include <string>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
+#include <vector>
 
 #include "cpu_memory.h"
-#include "dnnl_types.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {

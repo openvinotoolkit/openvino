@@ -3,9 +3,15 @@
 //
 #include "causal_mask_preprocess.hpp"
 
-#include <algorithm>
+#include <memory>
 #include <utility>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, Config cfg)

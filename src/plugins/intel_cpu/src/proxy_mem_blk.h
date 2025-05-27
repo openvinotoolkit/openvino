@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <unordered_set>
+
 #include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace intel_cpu {

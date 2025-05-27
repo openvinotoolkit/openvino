@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ov {
 namespace intel_cpu {

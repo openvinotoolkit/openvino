@@ -5,12 +5,15 @@
 #include "post_ops.hpp"
 
 #include <cstddef>
+#include <memory>
+#include <vector>
 
 #include "cpu_types.h"
 #include "node.h"
 #include "nodes/conv.h"
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {

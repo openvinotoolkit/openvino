@@ -4,15 +4,39 @@
 
 #include "convert_matmul_to_fc.hpp"
 
-#include "itt.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/fully_connected.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {

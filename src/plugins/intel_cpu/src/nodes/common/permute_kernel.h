@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <utility>
 
-#include "node.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {

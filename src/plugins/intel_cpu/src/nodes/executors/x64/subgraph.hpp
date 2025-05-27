@@ -4,8 +4,22 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_memory.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/repacked_input.hpp"
 #include "graph_context.h"
 #include "nodes/executors/subgraph.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

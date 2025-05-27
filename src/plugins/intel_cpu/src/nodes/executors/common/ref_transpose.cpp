@@ -4,7 +4,19 @@
 
 #include "ref_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/transpose.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {

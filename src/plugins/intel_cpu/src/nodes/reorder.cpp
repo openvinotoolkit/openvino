@@ -5,24 +5,44 @@
 #include "reorder.h"
 
 #include <dnnl_extension_utils.h>
-#include <dnnl_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include <common/primitive_hashing_utils.hpp>
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "cache/multi_cache.h"
 #include "convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
 #include "nodes/executors/transpose_list.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu::node {
 

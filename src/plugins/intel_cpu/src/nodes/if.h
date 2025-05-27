@@ -7,10 +7,18 @@
 #include <graph.h>
 #include <node.h>
 
+#include <cstddef>
+#include <deque>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/node.hpp"
 #include "openvino/op/if.hpp"
 
 namespace ov {

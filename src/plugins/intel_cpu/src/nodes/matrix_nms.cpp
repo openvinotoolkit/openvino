@@ -5,12 +5,27 @@
 #include "matrix_nms.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matrix_nms.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"

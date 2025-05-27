@@ -4,8 +4,25 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
 #include "nodes/executors/interpolate_config.hpp"
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+enum { MAX_INPUT_INTERPOLATE = 8 };
 
 namespace ov::intel_cpu {
 

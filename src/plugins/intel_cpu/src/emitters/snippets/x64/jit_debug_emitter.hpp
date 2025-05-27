@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <memory>
+#include <vector>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
