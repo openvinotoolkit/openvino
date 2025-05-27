@@ -105,30 +105,30 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
     }
 
     if (tensors.empty()) {
-        return std::nullopt; // Return std::nullopt if no input tensors are set
+        return std::nullopt;  // Return std::nullopt if no input tensors are set
     }
 
     const auto& first_tensor = tensors.at(0);
     if (!first_tensor) {
-        return std::nullopt; // Return std::nullopt if the first tensor is null
+        return std::nullopt;  // Return std::nullopt if the first tensor is null
     }
 
     const auto& first_shape = first_tensor->get_shape();
     if (first_shape.empty()) {
-        return std::nullopt; // Return std::nullopt if the shape is empty
+        return std::nullopt;  // Return std::nullopt if the shape is empty
     }
 
-    const size_t candidateBatchSize = first_shape.at(0); // Assume batch size is the first dimension
+    const size_t candidateBatchSize = first_shape.at(0);  // Assume batch size is the first dimension
 
     auto checkBatchSizeConsistency = [candidateBatchSize](const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
         for (const auto& tensor : tensors) {
             if (!tensor) {
-                return false; // Tensor is null
+                return false;  // Tensor is null
             }
 
             const auto& shape = tensor->get_shape();
             if (shape.empty() || shape.at(0) != candidateBatchSize) {
-                return false; // Inconsistent batch size
+                return false;  // Inconsistent batch size
             }
         }
         return true;
@@ -136,7 +136,7 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
 
     if (!checkBatchSizeConsistency(tensors)) {
         _logger.info("Inconsistent batch sizes in input tensors");
-        return std::nullopt; // Return std::nullopt if batch sizes are inconsistent
+        return std::nullopt;  // Return std::nullopt if batch sizes are inconsistent
     }
 
     _logger.debug("Dynamic Batching is handled by the plugin");
@@ -144,7 +144,8 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
     return candidateBatchSize;
 }
 
-std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;

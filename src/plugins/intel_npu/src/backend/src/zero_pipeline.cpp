@@ -20,7 +20,8 @@ Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors, size_t batch_size)
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
+                   size_t batch_size)
     : _init_structs(init_structs),
       _graph(graph),
       _config(config),
@@ -35,7 +36,9 @@ Pipeline::Pipeline(const Config& config,
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
 
-    _logger.info("Pipeline - initialize started, batch %i, number_of_command_lists %i", batch, _number_of_command_lists);
+    _logger.info("Pipeline - initialize started, batch %i, number_of_command_lists %i",
+                 batch,
+                 _number_of_command_lists);
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
