@@ -897,7 +897,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(transpose0, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(brgemm1Param, element::f32).get(), transA, transB);
 
-    const auto fq3 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(matMul0, ov::element::i8, false, false);
+    const auto fq3 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(matMul0, ov::element::i8);
     const auto add = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
@@ -911,7 +911,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
     const auto softMax = std::make_shared<ov::opset1::Softmax>(deq_mul, 3);
-    const auto fq4 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(softMax, ov::element::u8, false, false);
+    const auto fq4 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(softMax, ov::element::u8);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -919,7 +919,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq4, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(transpose2, element::f32).get(), transA, transB);
-    const auto fq5 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(matMul1, ov::element::i8, false, false);
+    const auto fq5 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(matMul1, ov::element::i8);
 
     auto subgraph =
         std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,

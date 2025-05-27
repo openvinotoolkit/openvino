@@ -182,7 +182,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         subgraph_params.push_back(B);
         subgraph_nodes.push_back(B_const_trans);
 
-        current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::u8, false, false);
+        current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::u8);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
@@ -216,11 +216,11 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     }
     mlp_layer(static_cast<unsigned long>(input_shapes[0][1].get_length()), hidden_matmul_size, false);
 
-    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32, false, false);
+    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32);
     current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     current = std::make_shared<ov::op::v8::Softmax>(current, 1);
-    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32, false, false);
+    current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(current, ov::element::f32);
     current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto result_subgraph = std::make_shared<ov::op::v0::Result>(current);

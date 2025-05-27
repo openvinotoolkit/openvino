@@ -40,8 +40,8 @@ public:
     static std::shared_ptr<ov::Node> getDecomposedFakeQuantizeOps(
         const ov::Output<ov::Node>& input,
         const ov::element::Type outType,
-        bool doRounding,
-        bool doDequantize);
+        bool doRounding = false,
+        bool doDequantize = false);
 };
 
 }  // namespace snippets
