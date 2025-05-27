@@ -71,7 +71,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                              })) ||
                                                 out_scales.size() != 0));
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
-                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16;
+                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16 ||
+                                 out_scales.empty();
 
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -124,7 +125,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(result);
         }
 
-        if (do_rounding || out_scales.empty()) {
+        if (do_rounding) {
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
             result = std::make_shared<ov::op::v5::Round>(result, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(result);
@@ -339,16 +340,7 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
             }
         }
 
-        // Rounding can be avoided if scales are integer
-        bool is_scale_integer = true;
-        for (float s : isc) {
-            if (std::abs(s - std::round(s)) > thr) {
-                is_scale_integer = false;
-                break;
-            }
-        }
-
-        if (is_crop_aligned && is_scale_integer) {
+        if (is_crop_aligned) {
             out_scales = isc;
         }
     }
