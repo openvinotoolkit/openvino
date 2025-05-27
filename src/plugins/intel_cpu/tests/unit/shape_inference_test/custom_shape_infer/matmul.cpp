@@ -1,12 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/op/matmul.hpp"
+
 #include <gtest/gtest.h>
 
 #include "custom_shape_infer.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -139,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                 make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
                          CPUMatMulTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

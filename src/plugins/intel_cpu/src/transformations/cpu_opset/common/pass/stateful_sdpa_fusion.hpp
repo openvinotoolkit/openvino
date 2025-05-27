@@ -4,7 +4,11 @@
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu {
 class StatefulSDPAFusion : public ov::pass::MatcherPass {

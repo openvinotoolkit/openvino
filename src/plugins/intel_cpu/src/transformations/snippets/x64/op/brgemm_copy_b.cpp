@@ -4,8 +4,27 @@
 
 #include "brgemm_copy_b.hpp"
 
+#include <cassert>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {

@@ -4,10 +4,25 @@
 
 #include "nodes/executors/subgraph.hpp"
 
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
+#include <vector>
 
+#include "cache/multi_cache.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "snippets/generator.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 

@@ -3,11 +3,16 @@
 //
 #pragma once
 
-#include "cpu_types.h"
-#include "openvino/util/env_util.hpp"
-#ifdef CPU_DEBUG_CAPS
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <map>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
 
-#    include <dnnl_debug.h>
+#include "cpu_shape.h"
+#ifdef CPU_DEBUG_CAPS
 
 #    include <chrono>
 #    include <iostream>
@@ -19,7 +24,6 @@
 #    include "edge.h"
 #    include "memory_control.hpp"
 #    include "nodes/node_config.h"
-#    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
 #    include "utils/general_utils.h"

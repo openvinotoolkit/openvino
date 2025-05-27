@@ -4,12 +4,22 @@
 
 #include "fullyconnected.h"
 
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <openvino/op/constant.hpp>
+#include <mutex>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
+#include "config.h"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
@@ -19,8 +29,16 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -33,7 +51,9 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "utils/precision_support.h"
+#endif
 
 using namespace dnnl;
 using namespace ov::element;

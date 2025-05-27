@@ -4,10 +4,23 @@
 
 #include "brgemm_cpu.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {

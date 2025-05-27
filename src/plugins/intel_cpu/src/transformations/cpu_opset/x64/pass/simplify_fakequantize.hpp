@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
 #include <vector>
 
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"

@@ -4,14 +4,30 @@
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
+#include <common/c_types_map.hpp>
 #include <common/memory_desc_wrapper.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {

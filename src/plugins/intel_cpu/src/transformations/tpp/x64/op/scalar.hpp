@@ -4,9 +4,13 @@
 
 #pragma once
 
-#include "eltwise.hpp"
-#include "snippets/op/reduce.hpp"
-#include "transformations/tpp/common/op/modifiers.hpp"
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/op/scalar.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 // Note that the tpp::op::Scalar is not derived from the TensorProcessingPrimitive modifier. We don't need it because

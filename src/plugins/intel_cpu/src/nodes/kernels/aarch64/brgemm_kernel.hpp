@@ -4,10 +4,12 @@
 //
 #pragma once
 
-#include <cpu/aarch64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/aarch64/brgemm/brgemm_types.hpp>
 #include <cpu/aarch64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/aarch64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <memory>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {

@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "cpu/aarch64/jit_generator.hpp"
 #include "jit_emitter.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

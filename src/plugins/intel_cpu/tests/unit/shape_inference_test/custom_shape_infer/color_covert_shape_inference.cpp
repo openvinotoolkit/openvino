@@ -10,6 +10,7 @@
 #include "openvino/op/i420_to_rgb.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/op/parameter.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

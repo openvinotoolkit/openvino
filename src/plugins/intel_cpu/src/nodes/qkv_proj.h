@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "kernels/x64/mlp_kernel.hpp"
 #endif
 
 namespace ov {

@@ -6,6 +6,9 @@
 
 #include <cassert>
 #include <cstddef>
+#include <set>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
 #include "nodes/executors/eltwise.hpp"

@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {

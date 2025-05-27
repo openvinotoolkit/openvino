@@ -4,8 +4,18 @@
 
 #pragma once
 
-#include "executors/convert_list.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_shape.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/executors/convert.hpp"
+#include "nodes/node_config.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -6,6 +6,7 @@
 #include "custom_shape_infer.hpp"
 #include <memory>
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/strided_slice.hpp"
 namespace ov {
 namespace intel_cpu {
