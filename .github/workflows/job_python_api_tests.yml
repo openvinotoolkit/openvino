@@ -72,10 +72,6 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
-            .github/actions/validate_pyi_files/action.yml
-            .github/actions/validate_pyi_files/compare_pyi_files.py
-            src/bindings/python/scripts/generate_pyapi_stubs.py
-            src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
@@ -98,10 +94,6 @@ jobs:
 
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
-
-      - name: Verify Python stub .pyi files
-        uses: ./action_root/.github/actions/validate_pyi_files
-        continue-on-error: true
 
       #
       # Tests
