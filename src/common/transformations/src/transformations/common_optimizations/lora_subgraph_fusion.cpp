@@ -15,10 +15,10 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/lora_subgraph.hpp"
@@ -38,7 +38,7 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     auto read_value2_m = wrap_type<ov::op::util::ReadValueBase>();
     auto convert2_m = optional<ov::op::v0::Convert>(read_value2_m, consumers_count(1));
 
-    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({convert1_m}, consumers_count(1));
+    auto shape_of_m = wrap_type<ov::op::util::ShapeOfBase>({convert1_m}, consumers_count(1));
     auto indices_pattern_m = wrap_type<ov::op::v0::Constant>();
     auto axis_pattern_m = wrap_type<ov::op::v0::Constant>();
     auto gather_m = wrap_type<ov::op::util::GatherBase>({shape_of_m, indices_pattern_m, axis_pattern_m}, consumers_count(1));
