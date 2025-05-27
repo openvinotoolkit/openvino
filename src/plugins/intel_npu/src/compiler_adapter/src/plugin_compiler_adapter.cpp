@@ -52,15 +52,14 @@ namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
-      _logger("PluginCompilerAdapter", Logger::global().level()) {
+      _logger("PluginCompilerAdapter", ov::log::Level::DEBUG) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
     // std::string baseName = "npu_mlir_compiler";
     // auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     //_compiler = loadCompiler(libPath);
-    _compiler = ov::SoPtr<intel_npu::ICompiler>(std::make_shared<intel_npu::VCLCompilerImpl>(),
-                                                VCLApi::getInstance()->getLibrary());
+    _compiler = ov::SoPtr<intel_npu::ICompiler>(VCLCompilerImpl::getInstance(), VCLApi::getInstance()->getLibrary());
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -84,7 +83,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
-
+    _logger.debug("func: %s line: %d", __func__, __LINE__);
     auto tensor =
         ov::Tensor(ov::element::u8, ov::Shape{networkDesc.compiledNetwork.size()}, networkDesc.compiledNetwork.data());
     auto impl = ov::get_tensor_impl(tensor);
@@ -92,7 +91,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
     impl._so = std::move(sharedCompiledNetwork);
     tensor = ov::make_tensor(impl);
-
+    _logger.debug("func: %s line: %d", __func__, __LINE__);
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {

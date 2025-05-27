@@ -13,23 +13,25 @@
 namespace intel_npu {
 
 // clang-format off
-#define symbols_list()                                        \
-    symbol_statement(vclCompilerCreate)              \
-    symbol_statement(vclGetVersion)           \
-    symbol_statement(vclCompilerDestroy)           \
-    symbol_statement(vclCompilerGetProperties)          \
-    symbol_statement(vclAllocatedExecutableCreate)         \
-    symbol_statement(vclExecutableDestroy) \
-    symbol_statement(vclExecutableGetSerializableBlob)                      \
-    symbol_statement(vclQueryNetworkCreate)                     \
-    symbol_statement(vclQueryNetwork)                    \
-    symbol_statement(vclQueryNetworkDestroy)                      \
-    symbol_statement(vclProfilingCreate)                    \
-    symbol_statement(vclProfilingDestroy)                   \
-    symbol_statement(vclGetDecodedProfilingBuffer)       \
-    symbol_statement(vclLogHandleGetString)                         \
-    symbol_statement(vclGetCompilerSupportedOptions)                 \
-    symbol_statement(vclGetCompilerIsOptionSupported)
+#define vcl_symbols_list()                                  \
+    vcl_symbol_statement(vclCompilerCreate)                 \
+    vcl_symbol_statement(vclGetVersion)                     \
+    vcl_symbol_statement(vclCompilerDestroy)                \
+    vcl_symbol_statement(vclCompilerGetProperties)          \
+    vcl_symbol_statement(vclExecutableCreate)               \
+    vcl_symbol_statement(vclAllocatedExecutableCreate)      \
+    vcl_symbol_statement(vclExecutableDestroy)              \
+    vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
+    vcl_symbol_statement(vclQueryNetworkCreate)             \
+    vcl_symbol_statement(vclQueryNetwork)                   \
+    vcl_symbol_statement(vclQueryNetworkDestroy)            \
+    vcl_symbol_statement(vclProfilingCreate)                \
+    vcl_symbol_statement(vclProfilingGetProperties)         \
+    vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
+    vcl_symbol_statement(vclProfilingDestroy)               \
+    vcl_symbol_statement(vclLogHandleGetString)             \
+    vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
+    vcl_symbol_statement(vclGetCompilerIsOptionSupported)
 
 // clang-format on
 
@@ -46,33 +48,38 @@ public:
         return lib;
     }
 
-#define symbol_statement(symbol) decltype(&::symbol) symbol;
-    symbols_list();
-#undef symbol_statement
+#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
+    vcl_symbols_list();
+#undef vcl_symbol_statement
 
 private:
     std::shared_ptr<void> lib;
 };
 
-#define symbol_statement(symbol)                                                                            \
-    template <typename... Args>                                                                             \
-    inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                            \
-        if (ptr->symbol == nullptr) {                                                                       \
-            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
-        }                                                                                                   \
-        return ptr->symbol(std::forward<Args>(args)...);                                                    \
+#define vcl_symbol_statement(vcl_symbol)                                                                            \
+    template <typename... Args>                                                                                     \
+    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
+        const auto& ptr = VCLApi::getInstance();                                                                    \
+        if (ptr->vcl_symbol == nullptr) {                                                                           \
+            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
+        }                                                                                                           \
+        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
     }
-symbols_list();
-#undef symbol_statement
-#define symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
-symbols_list();
-#undef symbol_statement
+vcl_symbols_list();
+#undef vcl_symbol_statement
+#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
+vcl_symbols_list();
+#undef vcl_symbol_statement
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {
 public:
     VCLCompilerImpl();
     ~VCLCompilerImpl() override;
+
+    static std::shared_ptr<VCLCompilerImpl>& getInstance() {
+        static std::shared_ptr<VCLCompilerImpl> compiler = std::make_shared<VCLCompilerImpl>();
+        return compiler;
+    }
 
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -92,9 +99,6 @@ private:
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;
     Logger _logger;
-
-    // Helper function to serialize the model to a blob
-    ov::Tensor serializeModelToBlob(const std::shared_ptr<const ov::Model>& model) const;
 };
 
 }  // namespace intel_npu
