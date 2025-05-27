@@ -3091,7 +3091,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
+void InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
                                                       const VectorDims& dstDim5d,
                                                       const std::vector<float>& dataScales,
                                                       [[maybe_unused]] InterpolateLayoutType layout,
@@ -3127,7 +3127,7 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPa
 // scale is float(outShape) / float(inShape)
 // strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
-float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
+float InterpolateExecutorBase::coordTransToInput(int outCoord,
                                                               float scale,
                                                               int inShape,
                                                               int outShape) const {
@@ -3163,7 +3163,7 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
     }
 }
 
-int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
+int InterpolateExecutorBase::nearestRound(float originCoord,
                                                        bool isDownsample,
                                                        InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
@@ -3195,7 +3195,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
     }
 }
 
-void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
+void InterpolateExecutorBase::linearOnnxCF(int outCoord,
                                                         float scale,
                                                         int inShape,
                                                         int outShape,
@@ -3216,7 +3216,7 @@ void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
     }
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& srcDimPad5d,
+void InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& srcDimPad5d,
                                                               const VectorDims& dstDim5d,
                                                               const std::vector<float>& dataScales,
                                                               InterpolateLayoutType layout) {
@@ -3331,7 +3331,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcDimPad5d,
+void InterpolateExecutorBase::buildTblLinear(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
                                                           int kernel_width,
@@ -3411,7 +3411,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
     }
 }
 
-std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float mantissa, float a) {
+std::vector<float> InterpolateExecutorBase::getCubicCoeffs(float mantissa, float a) {
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.f);
 
@@ -3425,7 +3425,7 @@ std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float ma
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d,
+void InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d,
                                                          const VectorDims& dstDim5d,
                                                          const std::vector<float>& dataScales,
                                                          float cubicCoeff,
@@ -3438,7 +3438,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
-    size_t idxWeightSize = (CUBIC_GRID_LEN + idxNum) * OW + (CUBIC_GRID_LEN + idxNum) * OH;
+    size_t idxWeightSize = (Interpolate::CUBIC_GRID_LEN + idxNum) * OW + (Interpolate::CUBIC_GRID_LEN + idxNum) * OH;
     if (layout != InterpolateLayoutType::planar) {
         auxTable.resize(idxWeightSize);
     } else {
@@ -3456,13 +3456,13 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         xOrigin[ox] = ix_r;
         float m = ix - ix_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
-        xFactor[CUBIC_GRID_LEN * ox] = coffes[0];
-        xFactor[CUBIC_GRID_LEN * ox + 1] = coffes[1];
-        xFactor[CUBIC_GRID_LEN * ox + 2] = coffes[2];
-        xFactor[CUBIC_GRID_LEN * ox + 3] = coffes[3];
+        xFactor[Interpolate::CUBIC_GRID_LEN * ox] = coffes[0];
+        xFactor[Interpolate::CUBIC_GRID_LEN * ox + 1] = coffes[1];
+        xFactor[Interpolate::CUBIC_GRID_LEN * ox + 2] = coffes[2];
+        xFactor[Interpolate::CUBIC_GRID_LEN * ox + 3] = coffes[3];
     }
 
-    tblAdvance += CUBIC_GRID_LEN * OW;
+    tblAdvance += Interpolate::CUBIC_GRID_LEN * OW;
     auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
     auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
@@ -3472,14 +3472,14 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         yOrigin[oy] = iy_r;
         float m = iy - iy_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
-        yFactor[CUBIC_GRID_LEN * oy] = coffes[0];
-        yFactor[CUBIC_GRID_LEN * oy + 1] = coffes[1];
-        yFactor[CUBIC_GRID_LEN * oy + 2] = coffes[2];
-        yFactor[CUBIC_GRID_LEN * oy + 3] = coffes[3];
+        yFactor[Interpolate::CUBIC_GRID_LEN * oy] = coffes[0];
+        yFactor[Interpolate::CUBIC_GRID_LEN * oy + 1] = coffes[1];
+        yFactor[Interpolate::CUBIC_GRID_LEN * oy + 2] = coffes[2];
+        yFactor[Interpolate::CUBIC_GRID_LEN * oy + 3] = coffes[3];
     }
 
     if (layout == InterpolateLayoutType::planar) {
-        tblAdvance += CUBIC_GRID_LEN * OH;
+        tblAdvance += Interpolate::CUBIC_GRID_LEN * OH;
         auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
         tblAdvance += OH * OW;
         auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
@@ -3493,7 +3493,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 }
 
-float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
+float InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
     if (m < 0.0f) {
         m = -m;
     }
@@ -3503,7 +3503,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
     return 0.0f;
 }
 
-float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
+float InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     float a = -0.5f;
     if (m < 0.0f) {
         m = -m;
@@ -3517,7 +3517,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     return 0.0f;
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
+void InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
                                                           [[maybe_unused]] float cubicCoeff,
@@ -3540,8 +3540,8 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
         filterArgs args;
         float scaleClip = pillowScale < 1.0f ? 1.0f : pillowScale;
         args.ScaleClipReciprocal = 1.0f / scaleClip;
-        args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
-                                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
+        args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? Interpolate::PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
+                                                                       : Interpolate::PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
         args.filterLen = static_cast<int>(std::ceil(args.filterRadius) * 2 + 1);
         args.weightGen =
             (mode == InterpolateMode::bilinear_pillow) ? this->getPillowBilinearCoeffs : this->getPillowBicubicCoeffs;
@@ -4185,7 +4185,7 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
+void InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4]) {
         return;
     }
@@ -4204,7 +4204,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     pillow_working_buf.resize(bufSize);
 }
 
-Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
+InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                                               const VectorDims& srcDims,
                                                               const VectorDims& dstDims,
                                                               const std::vector<float>& dataScales)
