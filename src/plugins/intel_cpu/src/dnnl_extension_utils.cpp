@@ -4,14 +4,31 @@
 
 #include "dnnl_extension_utils.h"
 
-#include <common/primitive_desc.hpp>
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;

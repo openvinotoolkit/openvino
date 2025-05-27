@@ -3,17 +3,15 @@
 //
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
 
-#include "common.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
 

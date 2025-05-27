@@ -4,6 +4,17 @@
 
 #include "jit_eltwise_common.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <map>
+#include <set>
+#include <vector>
+
+#include "nodes/executors/eltwise.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 namespace ov::intel_cpu {
 
 static void set_intersection(const std::set<std::vector<element::Type>>& precisions1,

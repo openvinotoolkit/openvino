@@ -6,6 +6,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
