@@ -41,46 +41,55 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# Change ownership of the home directory to the non-root user
+RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+# Switch to the non-root user
+USER ${USER_NAME}
+
 # Build Pythons
 # Python 3.9
-RUN cd /usr/src && \
+RUN cd /home/${USER_NAME} && \
     wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
     tar xvf Python-3.9.21.tar.xz
-RUN cd /usr/src/Python-3.9.21 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+RUN cd /home/${USER_NAME}/Python-3.9.21 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/home/${USER_NAME}/python3.9 && \
     make altinstall
 
 # Python 3.10
-RUN cd /usr/src && \
+RUN cd /home/${USER_NAME} && \
     wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
     tar xvf Python-3.10.16.tar.xz
-RUN cd /usr/src/Python-3.10.16 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+RUN cd /home/${USER_NAME}/Python-3.10.16 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/home/${USER_NAME}/python3.10 && \
     make altinstall
 
 # Python 3.11
-RUN cd /usr/src && \
+RUN cd /home/${USER_NAME} && \
     wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
     tar xvf Python-3.11.9.tar.xz
-RUN cd /usr/src/Python-3.11.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+RUN cd /home/${USER_NAME}/Python-3.11.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/home/${USER_NAME}/python3.11 && \
     make altinstall
 
 # Python 3.12
-RUN cd /usr/src && \
+RUN cd /home/${USER_NAME} && \
     wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
     tar xvf Python-3.12.9.tar.xz
-RUN cd /usr/src/Python-3.12.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+RUN cd /home/${USER_NAME}/Python-3.12.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/home/${USER_NAME}/python3.12 && \
     make altinstall
 
 # Python 3.13
-RUN cd /usr/src && \
+RUN cd /home/${USER_NAME} && \
     wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
     tar xvf Python-3.13.2.tar.xz
-RUN cd /usr/src/Python-3.13.2 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+RUN cd /home/${USER_NAME}/Python-3.13.2 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/home/${USER_NAME}/python3.13 && \
     make altinstall
+
+ENV PATH="/home/${USER_NAME}/python3.9/bin:/home/${USER_NAME}/python3.10/bin:/home/${USER_NAME}/python3.11/bin:/home/${USER_NAME}/python3.12/bin:/home/${USER_NAME}/python3.13/bin:$PATH"
+
+USER root
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -95,9 +104,9 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Use Python 3.9 as default
-RUN python3.10 -m venv venv
+RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.10 10
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
@@ -143,7 +152,7 @@ RUN cd git-2.49.0 && \
     make configure && ./configure --prefix=/usr && make install
 
 # Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+# RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
 
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv

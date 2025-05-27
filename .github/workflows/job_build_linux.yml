@@ -309,7 +309,6 @@ jobs:
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
-                -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} \
                 -DOpenVINO_BINARY_DIR=${BUILD_DIR} \
                 -DOpenVINO_DIR=${BUILD_DIR} \
                 ${BUILD_DIR}
