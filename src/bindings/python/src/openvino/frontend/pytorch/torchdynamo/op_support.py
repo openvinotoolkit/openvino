@@ -145,6 +145,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten._unsafe_index.Tensor": None,
             "torch.ops.aten.index_select.default": None,
             "torch.ops.aten.index_copy.default": None,
+            "torch.ops.aten.index_put.default": None,
             "torch.ops.aten.isfinite.default": None,
             "torch.ops.aten.isinf.default": None,
             "torch.ops.aten.isnan.default": None,

@@ -948,6 +948,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
         {"aten.index_copy.default", op::translate_index_copy_},
+        {"aten.index_put.default", op::translate_index_put},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
