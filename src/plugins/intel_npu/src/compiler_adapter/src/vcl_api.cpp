@@ -161,26 +161,26 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
 
     // TODO: Need to create networkdescription with right Metadata
     NetworkMetadata metadata;
-    metadata.inputs = {IODescriptor{"input",
-                                    ov::element::f32,
-                                    {1, 3, 4, 5},
-                                    false,
-                                    false,
-                                    false,
-                                    {},
-                                    "input",
-                                    {"input"},
-                                    std::optional<ov::PartialShape>({1, 3, 4, 5})}};
-    metadata.outputs = {IODescriptor{"output",
-                                     ov::element::f32,
-                                     {1, 3, 4, 5},
-                                     false,
-                                     false,
-                                     false,
-                                     {},
-                                     "output",
-                                     {"output"},
-                                     std::optional<ov::PartialShape>({1, 3, 4, 5})}};
+    // metadata.inputs = {IODescriptor{"input",
+    //                                 ov::element::f32,
+    //                                 {1, 3, 4, 5},
+    //                                 false,
+    //                                 false,
+    //                                 false,
+    //                                 {},
+    //                                 "input",
+    //                                 {"input"},
+    //                                 std::optional<ov::PartialShape>({1, 3, 4, 5})}};
+    // metadata.outputs = {IODescriptor{"output",
+    //                                  ov::element::f32,
+    //                                  {1, 3, 4, 5},
+    //                                  false,
+    //                                  false,
+    //                                  false,
+    //                                  {},
+    //                                  "output",
+    //                                  {"output"},
+    //                                  std::optional<ov::PartialShape>({1, 3, 4, 5})}};
 
     _logger.debug("VCLCompilerImpl compile end, blob size:%d", compiledNetwork.size());
     return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
