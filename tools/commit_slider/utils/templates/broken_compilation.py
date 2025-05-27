@@ -1,10 +1,6 @@
 from utils.templates.common_template import Template
 
 class BrokenCompilationTemplate(Template):
-    def __init__(self, cfg):
-        # super().__init__(cfg)
-        pass
-
     def getClassName():
         return 'broken_compilation'
     
