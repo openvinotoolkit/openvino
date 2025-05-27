@@ -96,6 +96,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes);
     meta.write(stream);
+    meta.append_blob_size_and_magic(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

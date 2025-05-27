@@ -45,32 +45,26 @@ void OpenvinoVersion::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
 }
 
+MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize) : _version(version), _blobDataSize(blobDataSize) {}
+
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
-    : MetadataBase{METADATA_VERSION_2_0},
-      _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
-      _blobDataSize{blobSize} {}
+    : MetadataBase{METADATA_VERSION_2_0, blobSize},
+      _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
+
+Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         const std::vector<uint64_t> initSizes)
+    : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
+      _initSizes{initSizes} {
+    _version = METADATA_VERSION_2_1;
+}
 
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
 }
 
-void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
-    stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
-    _ovVersion.write(stream);
-    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
-    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
-}
-
-Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
-                                         std::optional<OpenvinoVersion> ovVersion,
-                                         const std::vector<uint64_t> initSizes)
-    : MetadataBase{METADATA_VERSION_2_1},
-      _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
-      _blobDataSize{blobSize},
-      _initSizes{initSizes} {}
-
 void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
-    _ovVersion.read(stream);
+    Metadata<METADATA_VERSION_2_0>::read(stream);
 
     uint64_t numberOfInits;
     stream.read(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
@@ -81,18 +75,24 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
     }
 }
 
-void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
+void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
+    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
+}
+
+void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
+}
+
+void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write(stream);
 
     uint64_t numberOfInits = _initSizes.size();
     stream.write(reinterpret_cast<const char*>(&numberOfInits), sizeof(numberOfInits));
     for (uint64_t initSize : _initSizes) {
         stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
     }
-
-    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
-    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -113,22 +113,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
 }
 
 bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
-    auto logger = Logger::global().clone("NPUBlobMetadata");
-    // checking if we can import the blob
-    if (_ovVersion != CURRENT_OPENVINO_VERSION) {
-        logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
-                     _ovVersion.get_major(),
-                     _ovVersion.get_minor(),
-                     _ovVersion.get_patch(),
-                     OPENVINO_VERSION_MAJOR,
-                     OPENVINO_VERSION_MINOR,
-                     OPENVINO_VERSION_PATCH);
-        return false;
-    }
-    return true;
-}
-
-bool Metadata<METADATA_VERSION_2_1>::is_compatible() {
     auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion != CURRENT_OPENVINO_VERSION) {
@@ -213,10 +197,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     return storedMeta;
 }
 
-uint64_t Metadata<METADATA_VERSION_2_0>::get_blob_size() const {
-    return _blobDataSize;
-}
-uint64_t Metadata<METADATA_VERSION_2_1>::get_blob_size() const {
+uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 

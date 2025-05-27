@@ -405,9 +405,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     std::vector<ze_graph_handle_t> initGraphHandles;
     ze_graph_handle_t mainGraphHandle;
     size_t callNumber = 0;
-    bool compilationDone = false;
 
-    while (!compilationDone) {
+    while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
 
         const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
@@ -445,10 +444,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
             initGraphHandles.push_back(graphHandle);
         } else {
             networkMetadata.name = model->get_friendly_name() + "_main";
-            compilationDone = true;
             mainNetworkMetadata = std::move(networkMetadata);
             mainGraphHandle = graphHandle;
             serializedIR = SerializedIR();
+            // By convention, the main schedule is the last result produced by the compiler
+            break;
         }
     }
 
@@ -494,6 +494,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
                                        config);
     }
 
+    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
+    // "Graph" object as wrapper over all L0 handles.
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
     for (const auto& initBlob : initBlobs) {

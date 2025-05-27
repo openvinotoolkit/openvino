@@ -286,6 +286,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
                                        _compiler);
     }
 
+    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
+    // "Graph" object as wrapper over all L0 handles.
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
     for (const auto& initBlob : initBlobs) {

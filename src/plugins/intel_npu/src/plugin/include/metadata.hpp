@@ -14,12 +14,9 @@
 
 namespace intel_npu {
 
-struct MetadataBase {
-protected:
-    uint32_t _version;
-
+class MetadataBase {
 public:
-    MetadataBase(uint32_t version) : _version(version) {}
+    MetadataBase(uint32_t version, uint64_t blobDataSize);
 
     /**
      * @brief Reads metadata from a stream.
@@ -31,9 +28,11 @@ public:
      */
     virtual void write(std::ostream& stream) = 0;
 
+    void append_blob_size_and_magic(std::ostream& stream);
+
     virtual bool is_compatible() = 0;
 
-    virtual uint64_t get_blob_size() const = 0;
+    virtual uint64_t get_blob_size() const;
 
     virtual std::vector<uint64_t> get_init_sizes() const = 0;
 
@@ -68,6 +67,10 @@ public:
     static constexpr uint16_t get_minor(uint32_t version) {
         return static_cast<uint16_t>(version);
     }
+
+protected:
+    uint32_t _version;
+    uint64_t _blobDataSize;
 };
 
 /**
@@ -89,12 +92,7 @@ constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_1};
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
 
-struct OpenvinoVersion {
-private:
-    uint16_t _major;
-    uint16_t _minor;
-    uint16_t _patch;
-
+class OpenvinoVersion {
 public:
     constexpr OpenvinoVersion(uint16_t major, uint16_t minor, uint16_t patch)
         : _major(major),
@@ -120,6 +118,11 @@ public:
     uint16_t get_patch() const;
 
     bool operator!=(const OpenvinoVersion& version);
+
+private:
+    uint16_t _major;
+    uint16_t _minor;
+    uint16_t _patch;
 };
 
 constexpr OpenvinoVersion CURRENT_OPENVINO_VERSION(OPENVINO_VERSION_MAJOR,
@@ -136,11 +139,7 @@ struct Metadata : public MetadataBase {};
  * @brief Template specialization for metadata version 1.0.
  */
 template <>
-struct Metadata<METADATA_VERSION_2_0> : public MetadataBase {
-protected:
-    OpenvinoVersion _ovVersion;
-    uint64_t _blobDataSize;
-
+class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
 
@@ -169,19 +168,15 @@ public:
      */
     bool is_compatible() override;
 
-    uint64_t get_blob_size() const override;
-
     std::vector<uint64_t> get_init_sizes() const override;
+
+protected:
+    OpenvinoVersion _ovVersion;
 };
 
 // TODO inherit v2.0 instead, reuse common code instead of copy-pasting
 template <>
-struct Metadata<METADATA_VERSION_2_1> : public MetadataBase {
-protected:
-    OpenvinoVersion _ovVersion;
-    uint64_t _blobDataSize;
-    std::vector<uint64_t> _initSizes;
-
+class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
     Metadata(uint64_t blobSize,
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
@@ -191,11 +186,10 @@ public:
 
     void write(std::ostream& stream) override;
 
-    bool is_compatible() override;
-
-    uint64_t get_blob_size() const override;
-
     std::vector<uint64_t> get_init_sizes() const override;
+
+protected:
+    std::vector<uint64_t> _initSizes;
 };
 
 /**
