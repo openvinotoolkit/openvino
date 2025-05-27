@@ -162,7 +162,14 @@ void Graph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
-    _batch_size = get_batch_size(_metadata);
+
+    _batch_size = get_batch_size(_metadata, {});
+
+    const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
+    if (firstOutputShape[0].is_dynamic()) {
+        _logger.debug("Dynamic batch, will initialize command_lists later");
+        return;
+    }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
