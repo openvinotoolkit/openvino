@@ -81,7 +81,8 @@ def parse_ov_version(header_file: str | Path) -> str:
 
 
 def parse_version_from_toml(toml_file: str | Path) -> str:
-    toml = Path(toml_file).read_text()
+    with open(toml_file, "r", encoding="utf-8") as file:
+        toml = file.read()
     version_pattern = r'(^\s*\[project\][^\[]*?^\s*version\s*=\s*["\'])(.*)(["\']\s*)'
     match = re.search(version_pattern, toml, flags=re.M)
     if not match:
