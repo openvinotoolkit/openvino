@@ -41,6 +41,7 @@
 #include "permute_inst.h"
 #include "dft_inst.h"
 #include "lstm_seq_inst.h"
+#include "group_normalization_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -137,8 +138,12 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    if (next.is_type<permute>())
-        return true;
+    if (prev.is_dynamic() && next.is_dynamic()) {
+        if (next.is_type<permute>())
+            return true;
+        if (next.is_type<group_normalization>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx)
+            return true;
+    }
 
     if (prev.is_dynamic() || next.is_dynamic())
         return false;
@@ -357,8 +362,12 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
     }
 
-    if (prev.is_type<permute>())
-        return true;
+    if (prev.is_dynamic()) {
+        if (prev.is_type<permute>())
+            return true;
+        if (prev.is_type<group_normalization>() && fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
+            return true;
+    }
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
