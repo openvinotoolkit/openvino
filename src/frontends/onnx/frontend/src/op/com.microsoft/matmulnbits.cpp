@@ -156,7 +156,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         if (!zero_points.get_node_shared_ptr()) {
             zero_points = default_zp;
-        } else {
+        } else if (zero_points.get_element_type() == ov::element::u8) {
             // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits
             // according to the link, zero point are:
             // Constrain quantized zero point types to uint8/int32/float16/float.
@@ -165,26 +165,34 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                              ov::as_type<v0::Constant>(zero_points.get_node()) != nullptr,
                              "MatMulNBits limitation: accepting only a constant as a zero_points");
             const auto zp_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
+            ov::element::Type zp_type = ov::element::dynamic;
             switch (bits) {
             case 2:
-                casted_b_shape =
-                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
-                zero_points = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, zp_const->get_data_ptr());
+                zp_type = ov::element::u2;
                 break;
             case 4:
-                casted_b_shape =
-                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
-                zero_points = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, zp_const->get_data_ptr());
+                zp_type = ov::element::u4;
                 break;
             case 8:
-                casted_b_shape =
-                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)};
-                zero_points = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, zp_const->get_data_ptr());
+                zp_type = ov::element::u8;
                 break;
             default:
                 FRONT_END_THROW("Unsupported bits count");
                 break;
             }
+            zero_points = std::make_shared<v0::Constant>(
+                ov::element::u2,
+                ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)},
+                zp_const->get_data_ptr());
+        } else if (zero_points.get_element_type() == a.get_element_type()) {
+            const auto& zp_shape = zero_points.get_partial_shape();
+            CHECK_VALID_NODE(
+                node,
+                zp_shape.is_static() && zp_shape.get_shape() == Shape({static_cast<uint64_t>(N), n_blocks_per_col}),
+                "Expected input Zero Point shape is static and equal to shape [N][n_blocks_per_col], got: ",
+                zp_shape);
+        } else {
+            FRONT_END_THROW("Unexpected zero point type");
         }
 
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
