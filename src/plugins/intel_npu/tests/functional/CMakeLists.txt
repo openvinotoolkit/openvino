@@ -82,6 +82,18 @@ install(
   COMPONENT tests
   EXCLUDE_FROM_ALL)
 
+# For developer builds we need to find the output folder of compiled binaries
+get_target_property(EXE_LOCATION ${TARGET_NAME} RUNTIME_OUTPUT_DIRECTORY)
+
+if(EXE_LOCATION)
+    # Copy tests skip config to binary output folder
+    configure_file(
+        ${SKIP_CONFIG_PATH}
+        ${EXE_LOCATION}/${SKIP_CONFIG}
+        COPYONLY
+    )
+endif()
+
 install(
   FILES ${BLOBS}
   DESTINATION tests/intel_npu_blobs
