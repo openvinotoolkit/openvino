@@ -181,7 +181,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 break;
             }
             zero_points = std::make_shared<v0::Constant>(
-                ov::element::u2,
+                zp_type,
                 ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(1)},
                 zp_const->get_data_ptr());
         } else if (zero_points.get_element_type() == a.get_element_type()) {
