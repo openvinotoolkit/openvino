@@ -60,6 +60,8 @@ struct memory {
     engine* get_engine() const { return _engine; }
     const layout& get_layout() const { return _layout; }
     allocation_type get_allocation_type() const { return _type; }
+    bool is_mem_from_padded_pool() const { return _memory_from_padded_pool; }
+    void mem_from_padded_pool(bool from_padded_pool) { _memory_from_padded_pool = from_padded_pool; }
     // TODO: must be moved outside memory class
     virtual bool is_memory_reset_needed(layout l) {
         // To avoid memory reset, output memory must meet the following requirements:
@@ -136,6 +138,7 @@ protected:
     // before run of memory destructor, when engine is static
     size_t _bytes_count;
     std::shared_ptr<MemoryTracker> m_mem_tracker = nullptr;
+    bool _memory_from_padded_pool = false;
 
 private:
     allocation_type _type;
