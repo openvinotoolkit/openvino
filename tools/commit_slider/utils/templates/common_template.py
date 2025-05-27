@@ -57,6 +57,7 @@ class Template(ABC):
         #     if filename.endswith(".py"):
         #         modulename = filename[:-3]
         #         importlib.import_module(modulename)
+
         if tmplName == 'broken_compilation':
             from utils.templates.broken_compilation import BrokenCompilationTemplate
             return BrokenCompilationTemplate
@@ -65,41 +66,3 @@ class Template(ABC):
             return BenchmarkCrossCheckTemplate
         else:
             return Template
-
-    # @staticmethod
-    # def factory(cfg):
-    #     tmplClassName = util.checkAndGetClassnameByConfig(
-    #         cfg, "modeMap", "mode"
-    #     )
-    #     keyName = cfg["runConfig"][specialCfg]
-    #     map = cfg[mapName]
-    #     if not (keyName in map):
-    #         raise CfgError(
-    #             "{keyName} is not registered in {mapName}".format(
-    #                 keyName=keyName, mapName=mapName
-    #             )
-    #         )
-    #     else:
-    #         return map[keyName]
-    #         cl = util.checkAndGetSubclass(modeClassName, Template)
-    #     return cl(cfg)
-
-    # def __init__(self, cfg) -> None:
-    #     self.checkCfg(cfg)
-    #     self.commitPath = self.CommitPath()
-    #     traversalClassName = util.checkAndGetClassnameByConfig(
-    #         cfg, "traversalMap", "traversal"
-    #     )
-    #     traversalClass = util.checkAndGetSubclass(
-    #         traversalClassName, self.Traversal
-    #     )
-    #     self.traversal = traversalClass(self)
-    #     self.cfg = cfg
-    #     logPath = util.getActualPath("logPath", cfg)
-    #     self.commonLogger = util.setupLogger(
-    #         "commonLogger", logPath, "common_log.log"
-    #     )
-    #     self.outLogger = util.setupLogger(
-    #         "outLogger", logPath, "out_log.log"
-    #     )
-    #     self.checkOutPathPattern = "check_output_cache.json"
