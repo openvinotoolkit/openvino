@@ -354,6 +354,13 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     _logger.debug("ZeroInferRequest::set_tensors");
     auto batch_size = _graph->get_batch_size(_metadata, tensors);
 
+    // Check if any tensor has a greater shape than expected
+    if (tensors.size() > _levelZeroInputTensors.at(foundPort.idx).size() && batch_size.value() != tensors.size()) {
+        batch_size = tensors.size();
+        _graph->set_batch_size(tensors.size());
+        _pipelineNeedsReallocation = true;
+    }
+
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         if (batch_size) {
             for (size_t i = 0; i < tensors.size(); i++) {
@@ -435,7 +442,8 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
 
-    auto batch_size = _graph->get_batch_size(_metadata, _userOutputTensors);
+    std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {userTensors};
+    auto batch_size = _graph->get_batch_size(_metadata, tensorVector);
 
     levelZeroTensors = allocate_tensor(metadata,
                                        ioIndex,
@@ -556,11 +564,11 @@ void ZeroInferRequest::infer_async() {
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
-        if (!_pipelineIsCreated) {
+        if (!_pipelineIsCreated || _pipelineNeedsReallocation) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
-            create_pipeline();
-
+            create_pipeline(); // Reallocate pipeline if necessary
             _pipelineIsCreated = true;
+            _pipelineNeedsReallocation = false; // Reset reallocation flag
         } else {
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 update_pipeline_if_memory_changed();

@@ -34,7 +34,7 @@ Pipeline::Pipeline(const Config& config,
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
-    
+
     _logger.debug("Pipeline - initialize started, batch %i, number_of_command_lists %i", batch, _number_of_command_lists);
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
