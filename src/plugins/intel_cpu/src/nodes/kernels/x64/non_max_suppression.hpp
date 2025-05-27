@@ -51,7 +51,7 @@ private:
                                                          isa == dnnl::impl::cpu::x64::avx2,
                                                          Xbyak::Ymm,
                                                          Xbyak::Xmm>::type;
-    uint32_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
     const int scalar_step = 1;
 
@@ -109,7 +109,7 @@ private:
     Xbyak::Opmask k_mask = Xbyak::Opmask(7);
     Xbyak::Opmask k_mask_one = Xbyak::Opmask(6);
 
-    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector<isa>> exp_injector;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_t<isa>> exp_injector;
 
     inline void hard_nms();
 

@@ -88,10 +88,15 @@ if (WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
 endif()
 
+# explicitly set include directories for gtest before the dnnl include directories as dnnl third_party dir also contains
+# gtest. This is necessary to ensure a proper order of include directories in the compilation command line
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:gtest,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gtest_main,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>)

@@ -14,20 +14,20 @@ namespace ov::intel_cpu {
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
 
-template void RegPrinter::print<float, Xmm>(jit_generator& h, Xmm reg, const char* name);
-template void RegPrinter::print<int, Xmm>(jit_generator& h, Xmm reg, const char* name);
-template void RegPrinter::print<float, Ymm>(jit_generator& h, Ymm reg, const char* name);
-template void RegPrinter::print<int, Ymm>(jit_generator& h, Ymm reg, const char* name);
-template void RegPrinter::print<float, Zmm>(jit_generator& h, Zmm reg, const char* name);
-template void RegPrinter::print<int, Zmm>(jit_generator& h, Zmm reg, const char* name);
-template void RegPrinter::print<float, Reg64>(jit_generator& h, Reg64 reg, const char* name);
-template void RegPrinter::print<int, Reg64>(jit_generator& h, Reg64 reg, const char* name);
-template void RegPrinter::print<float, Reg32>(jit_generator& h, Reg32 reg, const char* name);
-template void RegPrinter::print<int, Reg32>(jit_generator& h, Reg32 reg, const char* name);
-template void RegPrinter::print<char, Reg16>(jit_generator& h, Reg16 reg, const char* name);
-template void RegPrinter::print<unsigned char, Reg16>(jit_generator& h, Reg16 reg, const char* name);
-template void RegPrinter::print<char, Reg8>(jit_generator& h, Reg8 reg, const char* name);
-template void RegPrinter::print<unsigned char, Reg8>(jit_generator& h, Reg8 reg, const char* name);
+template void RegPrinter::print<float, Xmm>(jit_generator_t& h, Xmm reg, const char* name);
+template void RegPrinter::print<int, Xmm>(jit_generator_t& h, Xmm reg, const char* name);
+template void RegPrinter::print<float, Ymm>(jit_generator_t& h, Ymm reg, const char* name);
+template void RegPrinter::print<int, Ymm>(jit_generator_t& h, Ymm reg, const char* name);
+template void RegPrinter::print<float, Zmm>(jit_generator_t& h, Zmm reg, const char* name);
+template void RegPrinter::print<int, Zmm>(jit_generator_t& h, Zmm reg, const char* name);
+template void RegPrinter::print<float, Reg64>(jit_generator_t& h, Reg64 reg, const char* name);
+template void RegPrinter::print<int, Reg64>(jit_generator_t& h, Reg64 reg, const char* name);
+template void RegPrinter::print<float, Reg32>(jit_generator_t& h, Reg32 reg, const char* name);
+template void RegPrinter::print<int, Reg32>(jit_generator_t& h, Reg32 reg, const char* name);
+template void RegPrinter::print<char, Reg16>(jit_generator_t& h, Reg16 reg, const char* name);
+template void RegPrinter::print<unsigned char, Reg16>(jit_generator_t& h, Reg16 reg, const char* name);
+template void RegPrinter::print<char, Reg8>(jit_generator_t& h, Reg8 reg, const char* name);
+template void RegPrinter::print<unsigned char, Reg8>(jit_generator_t& h, Reg8 reg, const char* name);
 
 template <typename T>
 void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
@@ -91,7 +91,7 @@ struct vmm_traits<Zmm> {
 };
 
 template <typename T>
-void RegPrinter::save_vmm(jit_generator& h) {
+void RegPrinter::save_vmm(jit_generator_t& h) {
     h.sub(h.rsp, vmm_traits<T>::vmm_len * vmm_traits<T>::vmm_cnt);
     for (size_t i = 0; i < vmm_traits<T>::vmm_cnt; i++) {
         h.uni_vmovups(h.ptr[h.rsp + i * vmm_traits<T>::vmm_len], T(i));
@@ -99,52 +99,52 @@ void RegPrinter::save_vmm(jit_generator& h) {
 }
 
 template <typename T>
-void RegPrinter::restore_vmm(jit_generator& h) {
+void RegPrinter::restore_vmm(jit_generator_t& h) {
     for (size_t i = 0; i < vmm_traits<T>::vmm_cnt; i++) {
         h.uni_vmovups(T(i), h.ptr[h.rsp + i * vmm_traits<T>::vmm_len]);
     }
     h.add(h.rsp, vmm_traits<T>::vmm_len * vmm_traits<T>::vmm_cnt);
 }
 
-void RegPrinter::save_reg(jit_generator& h) {
+void RegPrinter::save_reg(jit_generator_t& h) {
     h.sub(h.rsp, reg_len * reg_cnt);
     for (size_t i = 0; i < reg_cnt; i++) {
         h.mov(h.ptr[h.rsp + i * reg_len], Reg64(i));
     }
 }
 
-void RegPrinter::restore_reg(jit_generator& h) {
+void RegPrinter::restore_reg(jit_generator_t& h) {
     for (size_t i = 0; i < reg_cnt; i++) {
         h.mov(Reg64(i), h.ptr[h.rsp + i * reg_len]);
     }
     h.add(h.rsp, reg_len * reg_cnt);
 }
 
-void RegPrinter::preamble(jit_generator& h) {
+void RegPrinter::preamble(jit_generator_t& h) {
     save_reg(h);
     mayiuse(cpu_isa_t::avx512_core) ? save_vmm<Zmm>(h)
                                     : (mayiuse(cpu_isa_t::avx2) ? save_vmm<Ymm>(h) : save_vmm<Xmm>(h));
 }
 
-void RegPrinter::postamble(jit_generator& h) {
+void RegPrinter::postamble(jit_generator_t& h) {
     mayiuse(cpu_isa_t::avx512_core) ? restore_vmm<Zmm>(h)
                                     : (mayiuse(cpu_isa_t::avx2) ? restore_vmm<Ymm>(h) : restore_vmm<Xmm>(h));
     restore_reg(h);
 }
 
 // ABI requires 16-bype stack alignment before a call
-void RegPrinter::align_rsp(jit_generator& h) {
+void RegPrinter::align_rsp(jit_generator_t& h) {
     constexpr int alignment = 16;
     h.mov(h.r15, h.rsp);
     h.and_(h.rsp, ~(alignment - 1));
 }
 
-void RegPrinter::restore_rsp(jit_generator& h) {
+void RegPrinter::restore_rsp(jit_generator_t& h) {
     h.mov(h.rsp, h.r15);
 }
 
 template <typename PRC_T, typename REG_T>
-void RegPrinter::print_vmm(jit_generator& h, REG_T vmm, const char* name) {
+void RegPrinter::print_vmm(jit_generator_t& h, REG_T vmm, const char* name) {
     preamble(h);
 
     h.push(h.rax);
@@ -185,7 +185,7 @@ void RegPrinter::print_vmm(jit_generator& h, REG_T vmm, const char* name) {
 }
 
 template <typename PRC_T, typename REG_T>
-void RegPrinter::print_reg(jit_generator& h, REG_T reg, const char* name) {
+void RegPrinter::print_reg(jit_generator_t& h, REG_T reg, const char* name) {
     preamble(h);
 
     h.push(h.rax);
