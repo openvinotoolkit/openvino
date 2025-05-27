@@ -3612,7 +3612,7 @@ void InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
     generateTbl(IH, OH, fy, filterArgsY, weightY, indexY);
 }
 
-void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
                                                 uint8_t* out_ptr_,
                                                 int B,
                                                 int C,
@@ -3642,7 +3642,7 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                                                         uint8_t* out_ptr_,
                                                         int B,
                                                         int C,
@@ -3741,7 +3741,7 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                                    uint8_t* out_ptr_,
                                                    int B,
                                                    int C,
@@ -3752,8 +3752,8 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
     const int idxNum = 1;
     auto* xOrigin = static_cast<int*>(&auxTable[0]);
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(Interpolate::CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[(Interpolate::CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
     auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
@@ -3772,15 +3772,15 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
             float retX = 0.f;
             for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
                 int xInRange = std::max(0, std::min(x, IW - 1));
-                retX += xFactor[ox * CUBIC_GRID_LEN + j] * in_ptr_nch[xInRange];
+                retX += xFactor[ox * Interpolate::CUBIC_GRID_LEN + j] * in_ptr_nch[xInRange];
             }
-            retY += yFactor[oy * CUBIC_GRID_LEN + i] * retX;
+            retY += yFactor[oy * Interpolate::CUBIC_GRID_LEN + i] * retX;
         }
         out_ptr_nc[oy * OW + ox] = retY;
     });
 }
 
-float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
+float InterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
     const uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
@@ -3809,7 +3809,7 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t 
     }
 }
 
-void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
+void InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
     uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
@@ -3838,7 +3838,7 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
     }
 }
 
-void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               int B,
                                                               int C,
@@ -3973,7 +3973,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
                                                     uint8_t* out_ptr_,
                                                     int B,
                                                     int C,
@@ -4081,7 +4081,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               int B,
                                                               int C,
@@ -4350,7 +4350,7 @@ void InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, con
     }
 }
 
-void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
+void InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                                                uint8_t* out_ptr_,
                                                [[maybe_unused]] const void* post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
