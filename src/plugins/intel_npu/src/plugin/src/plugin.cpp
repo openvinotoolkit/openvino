@@ -755,8 +755,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    ov::Tensor tensorBig, tensorMain, tensorInit;
-    std::vector<ov::Tensor> tensorsInits;
+    ov::Tensor tensor;
     bool tensorFromProperty = false;
 
     std::istream stream{origStream.rdbuf()};
@@ -766,16 +765,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        tensorBig = blob_it->second.as<ov::Tensor>();
+        tensor = blob_it->second.as<ov::Tensor>();
         tensorFromProperty = true;
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
             loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            tensorBig = ov::Tensor(
-                tensorBig,
+            tensor = ov::Tensor(
+                tensor,
                 ov::Coordinate{static_cast<size_t>(origStream.tellg())},
-                ov::Coordinate{tensorBig.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
         } else {
-            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensorBig.data()), tensorBig.get_byte_size());
+            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
             stream.rdbuf(&buffer);
         }
         npu_plugin_properties.erase(blob_it);
@@ -834,90 +833,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        uint64_t mainSize;
-        std::vector<uint64_t> initSizes;
-        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
-        if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
-            if (!storedMeta->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
-
-            size_t accumulator = 0;
-            initSizes = storedMeta->get_init_sizes();
-            mainSize = storedMeta->get_blob_size() - std::accumulate(initSizes.begin(), initSizes.end(), accumulator);
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-            mainSize = MetadataBase::getFileSize(stream);
-        }
-
-        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            tensorMain = ov::Tensor(ov::element::u8, ov::Shape{mainSize});
-            stream.read(tensorMain.data<char>(), mainSize);
-        } else {
-            tensorMain = ov::Tensor(tensorBig,
-                                    ov::Coordinate{0},
-                                    ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
-        }
-
-        std::shared_ptr<ov::Model> originalModel;
-        if (!initSizes.empty()) {
-            // Read the init compiled models as well
-            // TODO adjust for multiple init parts
-            size_t cursorPosition = mainSize;
-
-            std::vector<std::shared_ptr<IGraph>> initGraphs;
-            for (uint64_t initSize : initSizes) {
-                if (tensorFromProperty == false) {
-                    tensorInit = ov::Tensor(ov::element::u8, ov::Shape{initSize});
-                    stream.read(tensorInit.data<char>(), initSize);
-                } else {
-                    tensorInit = ov::Tensor(tensorBig,
-                                            ov::Coordinate{cursorPosition},
-                                            ov::Coordinate{cursorPosition + initSize});
-                }
-                tensorsInits.push_back(tensorInit);
-                cursorPosition += initSize;
-            }
-
-            // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-            if (localConfig.get<MODEL_PTR>()) {
-                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
-            } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
-                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
-                const size_t weightsPathLength = weightsPath.length();
-                std::string xmlPath = weightsPath;
-
-                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
-                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION) == 0) {
-                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION.length(),
-                                    XML_EXTENSION);
-                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION)) {
-                    OPENVINO_THROW("Invalid path to the weights: ",
-                                   weightsPath,
-                                   ". A \".bin\" or \".onnx\" extension was expected.");
-                }
-
-                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
-            } else {
-                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
-            }
-
-            runOVPasses(originalModel);
-        }
-
-        auto graph = compiler->parse(std::move(tensorMain),
-                                     std::move(tensorsInits),
-                                     !tensorFromProperty,
-                                     localConfig,
-                                     originalModel);
-        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+        const std::shared_ptr<IGraph> graph =
+            parse(stream, tensor, compiler, tensorFromProperty, localConfig, properties);
 
         const std::shared_ptr<ov::Model> modelDummy =
             create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
@@ -931,6 +848,98 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_TASK_SKIP(PLUGIN_IMPORT_MODEL);
 
     return compiledModel;
+}
+
+std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
+                                      const ov::Tensor& tensorBig,
+                                      const std::unique_ptr<ICompilerAdapter>& compiler,
+                                      const bool tensorFromProperty,
+                                      const Config& config,
+                                      const ov::AnyMap& properties) const {
+    uint64_t mainSize;
+    std::vector<uint64_t> initSizes;
+    ov::Tensor tensorMain;
+    std::vector<ov::Tensor> tensorsInits;
+
+    const bool skipCompatibility = config.get<DISABLE_VERSION_CHECK>();
+    if (!skipCompatibility) {
+        auto storedMeta = read_metadata_from(stream);
+        if (!storedMeta->is_compatible()) {
+            OPENVINO_THROW("Incompatible blob version!");
+        }
+
+        size_t accumulator = 0;
+        initSizes = storedMeta->get_init_sizes();
+        mainSize = storedMeta->get_blob_size() - std::accumulate(initSizes.begin(), initSizes.end(), accumulator);
+    } else {
+        _logger.info("Blob compatibility check skipped.");
+        mainSize = MetadataBase::getFileSize(stream);
+    }
+
+    if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+        tensorMain = ov::Tensor(ov::element::u8, ov::Shape{mainSize});
+        stream.read(tensorMain.data<char>(), mainSize);
+    } else {
+        tensorMain = ov::Tensor(tensorBig,
+                                ov::Coordinate{0},
+                                ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+    }
+
+    std::shared_ptr<ov::Model> originalModel;
+    if (!initSizes.empty()) {
+        // Read the init compiled models as well
+        // TODO adjust for multiple init parts
+        size_t cursorPosition = mainSize;
+        std::vector<std::shared_ptr<IGraph>> initGraphs;
+        ov::Tensor tensorInit;
+        for (uint64_t initSize : initSizes) {
+            if (tensorFromProperty == false) {
+                tensorInit = ov::Tensor(ov::element::u8, ov::Shape{initSize});
+                stream.read(tensorInit.data<char>(), initSize);
+            } else {
+                tensorInit =
+                    ov::Tensor(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            }
+            tensorsInits.push_back(tensorInit);
+            cursorPosition += initSize;
+        }
+
+        // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
+        if (config.get<MODEL_PTR>()) {
+            originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
+        } else if (!config.get<WEIGHTS_PATH>().empty()) {
+            const std::string weightsPath = config.get<WEIGHTS_PATH>();
+            const size_t weightsPathLength = weightsPath.length();
+            std::string xmlPath = weightsPath;
+
+            if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION) == 0) {
+                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                WEIGHTS_EXTENSION.length(),
+                                XML_EXTENSION);
+            } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                       weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION)) {
+                OPENVINO_THROW("Invalid path to the weights: ",
+                               weightsPath,
+                               ". A \".bin\" or \".onnx\" extension was expected.");
+            }
+
+            originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+        } else {
+            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+        }
+
+        runOVPasses(originalModel);
+    }
+
+    auto graph =
+        compiler->parse(std::move(tensorMain), std::move(tensorsInits), !tensorFromProperty, config, originalModel);
+    graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+    return graph;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

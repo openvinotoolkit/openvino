@@ -50,9 +50,9 @@ ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
 }
 
-ov::Tensor make_tensor_from_vector(const std::vector<uint8_t>& vector) {
+ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector.size()}, vector.data());
-    auto impl = ov::get_tensor_impl(tensor);
+    auto impl = ov::get_tensor_impl(std::move(tensor));
     std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
         std::make_shared<std::vector<uint8_t>>(std::move(vector));
     impl._so = std::move(sharedCompiledNetwork);
