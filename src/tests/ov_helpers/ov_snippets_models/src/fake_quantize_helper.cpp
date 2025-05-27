@@ -191,14 +191,15 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
 
 std::shared_ptr<ov::Node> FakeQuantizeFunction::getDecomposedFakeQuantizeOps(const ov::Output<ov::Node>& input,
                                                                              const ov::element::Type outType,
+                                                                             float il, float ih, float scale,
                                                                              bool doRounding,
                                                                              bool doDequantize) {
     auto inputShape = input.get_shape();
     auto inputType = input.get_element_type();
 
-    const auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f});
-    const auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1}, {20.f});
-    const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {13.4211f});
+    const auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1}, {il});
+    const auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1}, {ih});
+    const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {scale});
 
     std::shared_ptr<ov::Node> current = std::make_shared<ov::opset1::Maximum>(input, input_low);
     current->set_friendly_name("inputLow");
@@ -254,7 +255,8 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
         const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
         parameter->set_friendly_name("parameter");
 
-        auto decomposed_fq_op_result = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(parameter->output(0), ov::element::f32, true, true);
+        auto decomposed_fq_op_result = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(
+            parameter->output(0), ov::element::f32, 1.f, 20.f, 13.4211f, true, true);
 
         const auto result = std::make_shared<ov::opset1::Result>(decomposed_fq_op_result);
         result->set_friendly_name("result");
