@@ -188,7 +188,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             const auto& zp_shape = zero_points.get_partial_shape();
             CHECK_VALID_NODE(
                 node,
-                zp_shape.is_static() && zp_shape.get_shape() == Shape({static_cast<uint64_t>(N), n_blocks_per_col}),
+                zp_shape.is_static() &&
+                    zp_shape == Shape({static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col)}),
                 "Expected input Zero Point shape is static and equal to shape [N][n_blocks_per_col], got: ",
                 zp_shape);
         } else {
