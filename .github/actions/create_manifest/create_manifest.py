@@ -113,7 +113,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
 
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
-    product_version = f"{version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
+    product_version = f'{version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}'
 
     merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
     target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
