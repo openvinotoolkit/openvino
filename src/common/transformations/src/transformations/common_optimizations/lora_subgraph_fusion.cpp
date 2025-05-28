@@ -68,7 +68,6 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         const auto& state_2 =
             pattern_map.count(convert2_m) ? pattern_map.at(convert2_m) : pattern_map.at(read_value2_m);
         const auto& divide_state_alpha = pattern_map.at(divide_m);
-        const auto& shape_of_state_a = pattern_map.at(shape_of_m);
         const auto& matmul2 = pattern_map.at(matmul2_m);
         const auto& state_3 =
             pattern_map.count(convert3_m) ? pattern_map.at(convert3_m) : pattern_map.at(read_value3_m);
@@ -96,7 +95,6 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
             pattern_map.count(transpose1_m) ? pattern_map.at(transpose1_m).get_node()->input(0)
                                             : matmul1.get_node()->input(0),
             matmul1.get_node()->input(1),
-            shape_of_state_a.get_node()->input(0),
             find_connected_input(divide_state_alpha.get_node(), state_2.get_node()),
             matmul2.get_node()->input(1),
         };
