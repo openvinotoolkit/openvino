@@ -7,6 +7,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/monitors/device_monitor.hpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -101,4 +102,28 @@ TEST(UtilsTests, split_by_delimiter_empty_and_comma) {
     const std::unordered_set<std::string> expected_set = {"", ""};
 
     ASSERT_EQ(split_set, expected_set);
+}
+
+TEST(UtilsTests, device_monitor) {
+    std::string cpu_device_id = "";
+    std::map<std::string, float> utilization;
+    ASSERT_NO_THROW(utilization = get_device_utilization(cpu_device_id));
+#ifdef _WIN32
+    ASSERT_FALSE(utilization.empty() && utilization.count("Total") && utilization.at("Total") >= 0.0f)
+        << "Expected non-empty utilization map for CPU device";
+#else
+    bool ret = utilization == std::map<std::string, float>{{"Total", -1.0f}};
+    ASSERT_TRUE(ret) << "Expected utilization map with 'Total' key only for CPU device";
+#endif
+
+    std::string invalid_device_id = "INVALID_DEVICE_ID";
+#ifdef _WIN32
+    ASSERT_THROW(utilization = get_device_utilization(invalid_device_id), std::runtime_error)
+        << "Expected exception for invalid device ID";
+#else
+    // On non-Windows platforms, we expect no exception and an empty utilization map
+    ASSERT_NO_THROW(utilization = get_device_utilization(invalid_device_id))
+        << "Expected no exception for invalid device ID on non-Windows platforms";
+    ASSERT_TRUE(utilization.empty()) << "Expected empty utilization map for invalid device ID";
+#endif
 }

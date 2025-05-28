@@ -347,28 +347,28 @@ const std::unordered_map<std::string, unsigned> testUtilizThreshold_100 = {{"CPU
 const std::vector<ConfigFilterParams> testValidConfigs = {
     ConfigFilterParams{testUtilizThreshold_80,                // utilization threshold
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},  // device candidates list
-                       {{"Total", 15.3}},                     // device utilization
+                       {{"Total", 15.3f}},                     // device utilization
                        {"CPU", {}, -1, "01", "CPU_01", 0}},   // expected list of device candidates after filtering
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},
-                       {{"Total", 85.2}},
+                       {{"Total", 85.2f}},
                        {"CPU", {}, -1, "01", "CPU_01", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
-                       {{"Total", 15.3}, {"00000000", 20}},
+                       {{"Total", 15.3f}, {"00000000", 20}},
                        {"GPU", {}, -1, "01", "GPU", 0}},
     ConfigFilterParams{testUtilizThreshold_80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
-                       {{"Total", 15.3}, {npuUuid, 20}},
+                       {{"Total", 15.3f}, {npuUuid, 20}},
                        {"NPU", {}, -1, "01", "NPU", 0}},
     ConfigFilterParams{
         testUtilizThreshold_80,
         {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
-        {{"Total", 85.2}, {"00000000", 20}, {npuUuid, 20}},
+        {{"Total", 85.2f}, {"00000000", 20}, {npuUuid, 20}},
         {"GPU", {}, -1, "01", "GPU", 0}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
-                       {{"Total", 85.2}, {"00000000", 20}},
+                       {{"Total", 85.2f}, {"00000000", 20}},
                        {"GPU", {}, -1, "01", "GPU", 0}},
     ConfigFilterParams{testUtilizThreshold_15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},

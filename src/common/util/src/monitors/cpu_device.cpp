@@ -83,6 +83,8 @@ public:
     }
 
     int query_number_of_cores() {
+        // Query the number of logical processors
+        // Only fouces on the total usage, so we can use _Total counter
         return 0;
     }
 
@@ -109,7 +111,7 @@ public:
 
     std::map<std::string, float> get_utilization() {
         // TODO: Implement.
-        return {{"Total", 0.0}};
+        return {{"Total", -1.0f}};
     }
 };
 
@@ -120,7 +122,7 @@ namespace util {
 class CPUDevice::PerformanceImpl {
 public:
     std::map<std::string, float> get_utilization() {
-        return {{"Total", 0.0f}};
+        return {{"Total", -1.0f}};
     }
 };
 #endif
@@ -131,9 +133,9 @@ std::map<std::string, float> CPUDevice::get_utilization() {
     if (n_cores == 0)
         return m_perf_impl->get_utilization();
     std::map<std::string, float> ret;
-    ret["Total"] = 0.0f;
+    ret["Total"] = -1.0f;
     for (int i = 0; i < n_cores; i++) {
-        ret[std::to_string(i)] = 0.0f;
+        ret[std::to_string(i)] = -1.0f;
     }
     return ret;
 }

@@ -744,7 +744,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                         }
                     }
                 } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("Failed to get luid for %s", device->device_name.c_str());
+                    LOG_DEBUG_TAG("Failed to get luid and utilization for %s. Will keep it in the list",
+                                  device->device_name.c_str());
                 }
             }
             if (is_excluded) {
