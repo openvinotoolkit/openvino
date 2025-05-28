@@ -834,7 +834,7 @@ static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
         baseEdge->allocate(proxyMemBlock);
 
         int count = 0;
-        for (auto& output : outputNodes) {
+        for (const auto& output : outputNodes) {
             if (output.second == child) {
                 outputMemBlocks[output.first] = proxyMemBlock;
                 count++;
@@ -960,13 +960,13 @@ int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
 }
 
 static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->init();
     }
 }
 
 static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->validate();
     }
 }
@@ -1007,7 +1007,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         return clusterIdx;
     };
 
-    for (auto& edge : graphEdges) {
+    for (const auto& edge : graphEdges) {
         [[maybe_unused]] const auto clusterIdx = addToCluster(edge);
         DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
@@ -1067,7 +1067,7 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
         int64_t boxSize = 0;
         bool isConst = false, isOutput = false, isInput = false;
 
-        for (auto& edge : clusters[i]) {
+        for (const auto& edge : clusters[i]) {
             const auto& parent = edge->getParent();
             const auto& child = edge->getChild();
 

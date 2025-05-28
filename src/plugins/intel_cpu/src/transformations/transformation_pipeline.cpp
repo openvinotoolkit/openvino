@@ -307,8 +307,8 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     }
 
     auto consumers = node->output(0).get_target_inputs();
-    for (auto& input : consumers) {
-        const auto consumer = input.get_node();
+    for (const auto& input : consumers) {
+        auto* const consumer = input.get_node();
         if (ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer)) {
             continue;
         }
@@ -1176,11 +1176,8 @@ void Transformations::MainSnippets() {
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
     if (!ignoreCallback) {
-#if defined(OPENVINO_ARCH_ARM64)
-        CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
-#else
+        CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
-#endif
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
         // TODO: enable MLP SEQ tokenization as a part of 163370
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSeqSnippets);
