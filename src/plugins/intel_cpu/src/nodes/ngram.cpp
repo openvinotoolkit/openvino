@@ -115,7 +115,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto* srcData = getSrcDataAtPortAs<const float>(0);
+    const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     std::vector<size_t> batchLenghts;

@@ -77,8 +77,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         OutputVector outputs;
         size_t hidden_size = 0;
         std::vector<int> proj_size;
-        for (auto& child : children) {
-            auto mm = ov::as_type<op::v0::MatMul>(child.get_node());
+        for (const auto& child : children) {
+            auto* mm = ov::as_type<op::v0::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;

@@ -100,7 +100,7 @@ void AdaptivePooling::getSupportedDescriptors() {
 }
 
 bool AdaptivePooling::needShapeInfer() const {
-    const auto newSpatialDimsPtr = getSrcDataAtPortAs<int32_t>(1);
+    auto* const newSpatialDimsPtr = getSrcDataAtPortAs<int32_t>(1);
     for (int i = 0; i < spatialDimsCount; i++) {
         if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
@@ -151,8 +151,8 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("doesn't support demanded precisions");
     }
 
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
     int* indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
@@ -196,7 +196,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int chPadding =
         blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 : chPadding / blockSize);
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -267,9 +267,9 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     parallel_for5d(N, blockCount, OD, OH, OW, [&](int n, int blkIdx, int od, int oh, int ow) {
-        auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
-        auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
-                       ow * outStrides[4];
+        const auto* srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
+        auto* dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
+                        ow * outStrides[4];
         int cStart = 0, cEnd = C, inResidual = 0, outResidual = 0;
         if (!isTailCFmt) {
             cStart = blkIdx * blockSize;
