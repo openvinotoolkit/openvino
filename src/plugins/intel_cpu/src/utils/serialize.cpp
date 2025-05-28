@@ -75,7 +75,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Note: Don't use seekg with mmaped stream. This may affect the performance of some models.
     // Get file size before seek content.
     // Blob from cache may have other header, so need to skip this.
-    auto buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
+    auto* buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
     const auto file_size = mmemory->size();
     const size_t hdr_pos = m_istream.tellg();
 
