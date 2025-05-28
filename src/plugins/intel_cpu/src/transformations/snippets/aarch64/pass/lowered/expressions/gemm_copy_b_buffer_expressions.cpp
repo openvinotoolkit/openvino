@@ -10,6 +10,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::snippets::lowered;
@@ -32,6 +33,8 @@ void RepackedWeightsBufferExpression::validate() const {
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::aarch64::GemmCopyB>(parent_out.get_expr()->get_node()) &&
                         parent_out.get_index() == 0,
                     "RepackedWeightsBufferExpression expects GemmCopyB as parent expression");
+    OPENVINO_ASSERT(one_of(get_node()->get_input_element_type(0), ov::element::f32),
+                    "RepackedWeightsBufferExpression after GemmCopyB currently only support f32 data type on arm");
 }
 
 void RepackedWeightsBufferExpression::init_allocation_size(
@@ -40,9 +43,27 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
     const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
     OPENVINO_ASSERT(in_subtensor.size() >= 2 && allocation_rank >= 2, "GemmCopyB should has at least 2 rank tensor");
+    const auto& element_type = get_node()->get_input_element_type(0);
     const size_t N = *in_subtensor.rbegin();
     const size_t K = *++in_subtensor.rbegin();
-    const size_t n_block_size = 64;
+
+    const auto& consumers = get_output_port_connector(0)->get_consumers();
+    ExpressionPtr child_gemm_expr = nullptr;
+    // maybe connected to loopEnd besides gemm
+    for (const auto& consumer : consumers) {
+        if (ov::is_type<ov::intel_cpu::aarch64::GemmCPU>(consumer.get_expr()->get_node())) {
+            child_gemm_expr = consumer.get_expr();
+            break;
+        }
+    }
+    OPENVINO_ASSERT(child_gemm_expr, "RepackedWeightsBufferExpression must connect to gemm");
+    const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm_expr->get_input_port(1));
+    const size_t n_block_size = *gemm_in_subtensor.rbegin();
+    if (snippets::utils::is_dynamic_value(N) || snippets::utils::is_dynamic_value(K) ||
+        snippets::utils::is_dynamic_value(n_block_size)) {
+        m_allocation_size = snippets::utils::get_dynamic_value<size_t>();
+        return;
+    }
     size_t n_block_num = N / n_block_size;
     size_t n_tail_size = N % n_block_size;
     m_allocation_size = 0;
@@ -53,7 +74,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
         m_allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
     }
     // convert byte size to element type size
-    m_allocation_size = m_allocation_size / get_node()->get_input_element_type(0).size();
+    m_allocation_size = m_allocation_size / element_type.size();
 }
 
 }  // namespace ov::intel_cpu::aarch64

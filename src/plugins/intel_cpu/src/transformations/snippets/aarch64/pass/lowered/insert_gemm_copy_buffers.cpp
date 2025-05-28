@@ -28,8 +28,8 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
         OPENVINO_ASSERT(copy_b_consumers.size() == 1,
                         "BufferCopyB must have only one consumer on each out port - Gemm");
         const auto& buffer_op = std::make_shared<ov::snippets::op::Buffer>(copy_b->output(0));
-        BufferExpressionPtr buffer_expr = nullptr;
-        buffer_expr = factory->build<ov::intel_cpu::aarch64::RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
+        BufferExpressionPtr buffer_expr =
+            factory->build<ov::intel_cpu::aarch64::RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
         return linear_ir.insert_expr(
             buffer_expr,
             LoopManager::get_common_outer_loops(copy_b_expr, copy_b_consumers.begin()->get_expr()),
@@ -42,12 +42,13 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& gemm_expr = *expr_it;
         if (const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(gemm_expr->get_node())) {
-            // GemmCopyB might be extracted from the body
             if (const auto copy_b_expr = get_copy_b_expr(gemm_expr)) {
                 auto insertion_it = std::next(linear_ir.find_before(expr_it, copy_b_expr));
                 OPENVINO_ASSERT(copy_b_expr->get_output_count() == 1, "gemm copyb must have only one output");
-                insertion_it = std::next(insert_copy_b_buffer(copy_b_expr, insertion_it));
+                insert_copy_b_buffer(copy_b_expr, insertion_it);
                 modified = true;
+            } else {
+                OPENVINO_ASSERT("GemmCopyB must connect to gemmCPU in subgraph, and not be extracted from the body");
             }
         }
     }

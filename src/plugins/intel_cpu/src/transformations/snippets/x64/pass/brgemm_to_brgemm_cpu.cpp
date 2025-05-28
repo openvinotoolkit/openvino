@@ -142,6 +142,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_cpu);
+        ov::copy_runtime_info(brgemm, brgemm_cpu);
 
         // Transfer ports
         PortDescriptorUtils::set_port_descriptor(brgemm_cpu->input(0), brgemm_in0_desc->get_subtensor(), layout_a);

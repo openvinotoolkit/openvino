@@ -24,11 +24,6 @@ public:
 
     GemmCopyB(const Output<Node>& x,
               const element::Type src_type,
-              const size_t offset_in = 0lu,
-              const size_t offset_out0 = 0lu,
-              const std::vector<size_t>& layout_input = {});
-    GemmCopyB(const Output<Node>& x,
-              const element::Type src_type,
               const PortDescriptor& desc_in0,
               const PortDescriptor& desc_out0,
               const std::vector<size_t>& layout_input = {});
@@ -41,15 +36,8 @@ public:
         return get_output_offset(0);
     }
 
-    element::Type get_src_element_type() const {
-        return m_src_type;
-    }
-
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-    bool has_evaluate() const override {
-        return false;
-    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     class ShapeInfer : public snippets::IShapeInferSnippets {

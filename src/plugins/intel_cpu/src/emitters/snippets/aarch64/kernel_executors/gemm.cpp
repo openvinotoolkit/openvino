@@ -5,12 +5,15 @@
 #include "gemm.hpp"
 
 #include "openvino/core/parallel.hpp"
+#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {
+    m_kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+}
 
 void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -34,8 +37,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
     const auto& K = config.get_K();
     const auto& lda = config.get_LDA();
     const auto& ldc = config.get_LDC();
-    const size_t BLOCK_SIZE = 8;
-    size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const size_t& BLOCK_SIZE = ov::intel_cpu::aarch64::gemm_utils::repacking::get_inner_n_block(element::f32);
+    size_t n_blocks = ov::snippets::utils::div_up(N, BLOCK_SIZE);
     const size_t lhs_stride = lda * sizeof(float);  // K not split, it's also K * sizeof(float)
     const size_t dst_stride_row = ldc * sizeof(float);
     const size_t dst_stride_col = sizeof(float);

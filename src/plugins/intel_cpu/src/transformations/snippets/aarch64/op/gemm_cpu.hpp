@@ -21,14 +21,6 @@ public:
 
     GemmCPU(const Output<Node>& A,
             const Output<Node>& B,
-            const size_t offset_a = 0,
-            const size_t offset_b = 0,
-            const size_t offset_c = 0,
-            const std::vector<size_t>& layout_a = {},
-            const std::vector<size_t>& layout_b = {},
-            const std::vector<size_t>& layout_c = {});
-    GemmCPU(const Output<Node>& A,
-            const Output<Node>& B,
             const PortDescriptor& desc_a,
             const PortDescriptor& desc_b,
             const PortDescriptor& desc_c,
@@ -39,8 +31,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
