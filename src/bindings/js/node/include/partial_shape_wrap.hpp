@@ -33,6 +33,7 @@ public:
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
     Napi::Value to_string(const Napi::CallbackInfo& info);
     Napi::Value get_dimensions(const Napi::CallbackInfo& info);
+    ov::PartialShape get_value() const;
 
 private:
     ov::PartialShape _partial_shape;

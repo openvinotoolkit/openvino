@@ -7,6 +7,7 @@
 #include "node/include/addon.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/partial_shape_wrap.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -44,6 +45,9 @@ const char* get_attr_type<ModelWrap>();
 template <>
 const char* get_attr_type<TensorWrap>();
 
+template <>
+const char* get_attr_type<PartialShapeWrap>();
+
 template <typename T>
 bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
     OPENVINO_THROW("Validation for this type is not implemented!");
@@ -70,6 +74,9 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <typename... Ts>
 std::string get_signature() {

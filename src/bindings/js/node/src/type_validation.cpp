@@ -23,6 +23,7 @@ namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
 static const char TENSOR[] = "Tensor";
+static const char PARTIALSHAPE[] = "PartialShape";
 static const char BUFFER[] = "Buffer";
 }  // namespace BindingTypename
 namespace NapiArg {
@@ -111,6 +112,11 @@ const char* get_attr_type<TensorWrap>() {
 }
 
 template <>
+const char* get_attr_type<PartialShapeWrap>() {
+    return BindingTypename::PARTIALSHAPE;
+}
+
+template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value) {
     return napi_string == value.Type();
 }
@@ -152,6 +158,13 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value) {
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
 
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }

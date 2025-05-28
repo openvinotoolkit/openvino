@@ -191,4 +191,28 @@ describe('ov.Model tests', () => {
       );
     });
   });
+
+  describe('Model.reshape()', () => {
+    const staticShape = '1, 3, 224, 224';
+    const dynamicShape = '?, -1, 1..3, 224';
+
+    it('should have ctor (PartialShape, variablesShapes)', () => {
+      const partialShape = new ov.PartialShape(dynamicShape);
+      const reshapedModel = model.reshape(partialShape, {});
+      assert.ok(reshapedModel instanceof ov.Model);
+    });
+
+    it('should have ctor (string, variablesShapes)', () => {
+      const reshapedModel = model.reshape(staticShape, {});
+      assert.ok(reshapedModel instanceof ov.Model);
+    });
+
+    it('should not accept empty arguments', () => {
+      assert.throws(
+        () => model.reshape(),
+        /'reshape' method called with incorrect parameters./,
+      );
+    });
+
+  });
 });

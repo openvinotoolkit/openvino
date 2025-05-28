@@ -108,7 +108,7 @@ public:
      * @return Napi::Array containing a shape of requested output.
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
-    
+
     /**
      * @brief Helper function to access model output elements types.
      * @return Napi::String representing the element type of the requested output.
@@ -122,6 +122,9 @@ public:
      * @return Napi::Value Cloned model returned from the API
      */
     Napi::Value clone(const Napi::CallbackInfo& info);
+
+    /** @brief Reshapes model input.*/
+    Napi::Value reshape(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

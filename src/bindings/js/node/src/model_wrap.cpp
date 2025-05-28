@@ -28,6 +28,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
                         InstanceMethod("clone", &ModelWrap::clone),
+                        InstanceMethod("reshape", &ModelWrap::reshape),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -198,6 +199,28 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
             return cpp_to_js(info.Env(), _model->clone());
         } else {
             OPENVINO_THROW("'clone'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures)) {
+            auto shape = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(info[0].ToObject())->get_value();
+            // _model->reshape(shape, variable_shapes);
+            std::cout << "overload ps and object" << shape << std::endl;
+            return info.This();
+        } else if (ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures)) {
+            auto shape = ov::PartialShape(info[0].ToString());
+            std::cout << "overload str and object" << std::endl;
+            // _model->reshape(shape, variables_shapes);
+            return info.This();
+        } else {
+            OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
