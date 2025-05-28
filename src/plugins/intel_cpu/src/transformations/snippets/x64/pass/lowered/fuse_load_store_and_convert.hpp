@@ -27,10 +27,10 @@ public:
              snippets::lowered::LinearIR::constExprIt end) override;
 
 private:
-    bool fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
-                           snippets::lowered::LinearIR::constExprIt& convert_it);
-    bool fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
-                            snippets::lowered::LinearIR::constExprIt& convert_it);
+    static bool fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
+                                  snippets::lowered::LinearIR::constExprIt& convert_it);
+    static bool fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
+                                   snippets::lowered::LinearIR::constExprIt& convert_it);
 };
 
 }  // namespace ov::intel_cpu::pass
