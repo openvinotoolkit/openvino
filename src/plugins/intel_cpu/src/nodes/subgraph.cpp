@@ -54,7 +54,7 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
-#    include "transformations/snippets/aarch64/shape_inference.hpp"
+#    include "transformations/snippets/arm/shape_inference.hpp"
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
