@@ -323,23 +323,23 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
 
 void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W) {
     if (ov::element::f32 == input_prec) {
-        auto float_src_data = reinterpret_cast<const float*>(src_data);
+        const auto* float_src_data = reinterpret_cast<const float*>(src_data);
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(float_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());
         }
     } else if (ov::element::bf16 == input_prec) {
-        auto bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
+        const auto* bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(bf16_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());

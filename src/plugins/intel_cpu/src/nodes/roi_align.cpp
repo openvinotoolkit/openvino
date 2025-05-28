@@ -920,9 +920,9 @@ void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 template <typename inputType, typename outputType>
 void ROIAlign::executeSpecified() {
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
