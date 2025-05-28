@@ -4,16 +4,25 @@
 
 #include "brgemm_to_brgemm_tpp.hpp"
 
-#include "cpu_shape.h"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::tpp::pass {
 

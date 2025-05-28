@@ -1,12 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cpu/platform.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
+#include <memory>
 #include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -16,14 +25,15 @@
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
-#include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -1884,7 +1894,7 @@ static inline void dequant(float* dst,
                            [[maybe_unused]] const bool quant_bychannel) {
     cvt_copy(dst, reinterpret_cast<ov::float16*>(src), 1, K * N, 0, 0);
     for (size_t i = N; i < block_size; i++) {
-        memset(dst + i * K, 0, sizeof(T) * K);
+        memset(dst + i * K, 0, sizeof(float) * K);
     }
 }
 
@@ -2410,7 +2420,7 @@ struct MHAHelper {
         int32_t total_kv_len_aligned = 0;
         int32_t total_kv_len = 0;
         for (int32_t i = 0; i < seq_cout; i++) {
-            auto score_win_len = score_aggregation_window.ptr<int32_t>()[i];
+            auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[i] : 1;
             auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
 
             // The score_aggregation_window may span multiple blocks, so need to allocate tmp buf for each block.
@@ -2538,7 +2548,7 @@ struct MHAHelper {
                             score_block_ptr,
                             reinterpret_cast<DATA_TYPE*>(score),
                             1,
-                            rnd_up(cur_kv_len, _block_size),
+                            cur_kv_len,
                             0,
                             0,
                             0);
@@ -3009,7 +3019,7 @@ struct MHAHelper {
         if (output_score) {
             parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-                const auto score_win_len = score_aggregation_window.ptr<int32_t>()[b];
+                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 1;
                 auto* dst = output_score.ptr<float>() + _score_infos[b].score_offsets;
                 if (score_win_len) {
                     auto* src = _weight_bhl.ptr<float>(b, 0, pq);
@@ -3325,7 +3335,8 @@ struct MHA {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
                 float* score_output = nullptr;
                 if (output_score) {
-                    const auto score_win_len = score_aggregation_window.ptr<int32_t>()[batch_in_seq];
+                    const auto score_win_len =
+                        score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[batch_in_seq] : 1;
                     if (score_win_len) {
                         auto score_offset = _helper._score_infos[batch_in_seq].score_offsets_aligned;
                         score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
@@ -3357,7 +3368,9 @@ struct MHA {
                 ScoreAggregationInfo* score_info_ptr = nullptr;
                 if (output_score) {
                     const auto score_win_len =
-                        static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq]);
+                        score_aggregation_window
+                            ? static_cast<size_t>(score_aggregation_window.ptr<int32_t>()[batch_in_seq])
+                            : 1;
                     if (score_win_len) {
                         q_start_idx_score = q_len >= score_win_len ? q_len - score_win_len : 0;
                         if (q_cnt + q_blk * _helper._block_size > q_start_idx_score) {
@@ -3443,7 +3456,7 @@ struct MHA {
                 auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] -
                                                    subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
-                const auto score_win_len = score_aggregation_window.ptr<int32_t>()[b];
+                const auto score_win_len = score_aggregation_window ? score_aggregation_window.ptr<int32_t>()[b] : 1;
                 const auto& score_info = _helper._score_infos[b];
                 auto dst_offset = score_info.score_offsets;
                 auto* dst = output_score.ptr<float>() + dst_offset;

@@ -4,25 +4,61 @@
 
 #include "normalize.h"
 
-#include <memory>
-#include <shape_inference/shape_inference_pass_through.hpp>
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "common/cpu_memcpy.h"
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/float16.hpp>
+#include <common/nstl.hpp>
+#include <common/utils.hpp>
+#include <cpu/primitive_attr_postops.hpp>
+#include <cpu/ref_depthwise_injector.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "fake_quantize.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -730,7 +766,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     try {
         auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
         if (!norm) {
-            errorMessage = "Only opset1 NormalizeL2 operation is supported";
+            errorMessage = "Only v0 NormalizeL2 operation is supported";
             return false;
         }
 

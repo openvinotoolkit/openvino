@@ -4,14 +4,27 @@
 
 #include "graph.h"
 
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
+#include <atomic>
+#include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <deque>
+#include <exception>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
+#include <new>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -20,7 +33,7 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/primitive_desc_iface.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "edge.h"
 #include "graph_context.h"
@@ -29,8 +42,9 @@
 #include "infer_request.h"
 #include "itt.h"
 #include "memory_control.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -42,19 +56,39 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "perf_count.h"
+#include "proxy_mem_blk.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
-#include "utils/precision_support.h"
 #include "utils/verbose.h"
+#include "weights_cache.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
+#endif
+
+#if defined(__x86_64__) && defined(__linux__)
+#    include "openvino/runtime/properties.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include <common/primitive_desc_iface.hpp>
+
+#    include "onednn/iml_type_mapper.h"
+#    include "utils/precision_support.h"
 #endif
 
 using namespace dnnl;
@@ -569,7 +603,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
     // pretend the reorder is not available to use Convert node instead
-    if (hasHardwareSupport(ov::element::f16) && result && parse_impl_name(result->impl()->name()) == ref_any) {
+    if (hasHardwareSupport(ov::element::f16) && (result != nullptr) &&
+        parse_impl_name(result->impl()->name()) == ref_any) {
         dnnl_primitive_desc_destroy(result);
         return false;
     }
@@ -1411,6 +1446,7 @@ protected:
     std::vector<NodePtr>& m_executableGraphNodes;
 };
 
+// NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
 #    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
@@ -1511,6 +1547,7 @@ public:
 };
 #        endif
 #    endif
+// NOLINTEND(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
 
 #    if (OV_THREAD == OV_THREAD_OMP)
 class UpdateNodes : public UpdateNodesBase {
@@ -1612,7 +1649,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
     }
 }
 
-static int GetNumaNodeId(const GraphContext::CPtr& context) {
+static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
     int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
@@ -1975,8 +2012,9 @@ void Graph::EnforceInferencePrecision() {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (inferPrec == ov::element::f16)
+    if (inferPrec == ov::element::f16) {
         return;  // precision of configured by ov::pass::ConvertPrecision
+    }
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
