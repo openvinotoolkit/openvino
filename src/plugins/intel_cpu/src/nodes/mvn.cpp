@@ -2033,7 +2033,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].constant(true);
     }
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
         config.outConfs[0].setMemDesc(
@@ -2218,7 +2218,7 @@ void MVN::prepareParams() {
     }
 #endif
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
     mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
     if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -2237,7 +2237,7 @@ void MVN::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs,
                                                                                           srcMemoryDescs,
                                                                                           dstMemoryDescs,
@@ -2780,7 +2780,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 if (thread_idx >= threads_num) {
                     return mean_internal;
                 }
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
+                auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
                 for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.f;
                 }
@@ -2809,7 +2809,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr =
+                    auto* variance_buffer_ptr =
                         &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++) {
                         variance_buffer_ptr[i] = 0.f;
@@ -2879,7 +2879,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                 for (size_t cb = 0; cb < CB; cb++) {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                    auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
+                    auto* mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -2913,8 +2913,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                        auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;
@@ -2948,8 +2948,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                        auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* variance_buffer_ptr = &variance_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;
@@ -2968,7 +2968,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;

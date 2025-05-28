@@ -87,7 +87,7 @@ const_dnnl_primitive_desc_t DnnlExecutorLegacy::getPrimitiveDesc() const {
 }
 
 impl_desc_type DnnlExecutorLegacy::getImplementationType() const {
-    auto pd = getPrimitiveDesc();
+    const auto* pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 

@@ -560,7 +560,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
     int rank_level = input_rank_level == 0 ? 1 : input_rank_level;
     init_rank.resize(rank_level, 0);
 
-    for (auto& row : streams_info_table) {
+    for (const auto& row : streams_info_table) {
         if (row[NUMBER_OF_STREAMS] < 0) {
             for (int i = 0; i < abs(row[NUMBER_OF_STREAMS]); i++) {
                 init_rank[rank_level - 1] = num_sub_streams + i;

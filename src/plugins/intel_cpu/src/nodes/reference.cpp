@@ -123,8 +123,8 @@ void Reference::executeDynamicImpl(const dnnl::stream& strm) {
                     i);
             }
             if (tensor.get_element_type() == element::string) {
-                auto srcPtr = tensor.data<StringMemory::OvString>();
-                auto dstPtr = memory->getDataAs<StringMemory::OvString>();
+                auto* srcPtr = tensor.data<StringMemory::OvString>();
+                auto* dstPtr = memory->getDataAs<StringMemory::OvString>();
                 std::copy(srcPtr, srcPtr + tensor.get_size(), dstPtr);
             } else {
                 cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());

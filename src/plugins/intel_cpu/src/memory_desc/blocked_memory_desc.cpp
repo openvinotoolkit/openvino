@@ -33,8 +33,8 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc& rhs, CmpMa
         return false;
     }
 
-    auto& thisStrides = this->getStrides();
-    auto& rhsStrides = rhs.getStrides();
+    const auto& thisStrides = this->getStrides();
+    const auto& rhsStrides = rhs.getStrides();
 
     if (thisStrides.size() != rhsStrides.size()) {
         return false;

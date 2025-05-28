@@ -378,14 +378,14 @@ public:
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                   const ov::ITensorAccessor& tensor_accessor) override {
-        const auto op = m_node.get();
+        auto* const op = m_node.get();
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
                 new_inputs.emplace_back(std::make_shared<ov::op::v0::Constant>(t));
-            } else if (auto c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
+            } else if (const auto* c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
                 new_inputs.emplace_back(c->clone_with_new_inputs(ov::OutputVector{}));
             } else {
                 new_inputs.emplace_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),

@@ -943,7 +943,7 @@ void Deconvolution::prepareParams() {
     if (!wghMemPtr || !wghMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("Weight memory is undefined.");
     }
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
@@ -1145,7 +1145,7 @@ void Deconvolution::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
@@ -1296,7 +1296,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());

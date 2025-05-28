@@ -80,7 +80,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (nmsBase == nullptr) {
         THROW_CPU_NODE_ERR("is not an instance of MulticlassNmsBase.");
     }
-    auto& atrri = nmsBase->get_attrs();
+    const auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
@@ -421,7 +421,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto original_index = original_offset + j;
             const auto& box_info = m_filtBoxes[original_index];
 
-            auto selected_base = selected_outputs + (output_offset + j) * 6;
+            auto* selected_base = selected_outputs + (output_offset + j) * 6;
             selected_base[0] = box_info.class_index;
             selected_base[1] = box_info.score;
 

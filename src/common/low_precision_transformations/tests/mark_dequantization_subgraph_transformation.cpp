@@ -821,6 +821,32 @@ TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkupNonConst) {
+    // KeepDequantizationPrecision pass should not match the specified subgraph,
+    // as it only targets constant weights, scales, and zero points.
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
 TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
     // This test uses the legacy TransformationTests class because ConvertPrecision pass
     // internally inserts additional nodes for data type consistency, which causes the

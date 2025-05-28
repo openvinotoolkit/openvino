@@ -82,7 +82,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
-    auto& attrs = matrix_nms->get_attrs();
+    const auto& attrs = matrix_nms->get_attrs();
     if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID) {
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
     } else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE) {
@@ -241,7 +241,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 
     if (scoresData[candidateIndex[0]] > m_postThreshold) {
         auto box_index = candidateIndex[0];
-        auto box = boxesData + box_index * 4;
+        const auto* box = boxesData + box_index * 4;
         filterBoxes[0].box.x1 = box[0];
         filterBoxes[0].box.y1 = box[1];
         filterBoxes[0].box.x2 = box[2];
@@ -266,7 +266,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
             continue;
         }
         auto boxIndex = candidateIndex[i];
-        auto box = boxesData + boxIndex * 4;
+        const auto* box = boxesData + boxIndex * 4;
         filterBoxes[numDet].box.x1 = box[0];
         filterBoxes[numDet].box.y1 = box[1];
         filterBoxes[numDet].box.x2 = box[2];
@@ -453,7 +453,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
-            auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
+            auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
             selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;

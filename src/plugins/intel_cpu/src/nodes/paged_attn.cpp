@@ -74,7 +74,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
@@ -242,7 +242,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
-        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        const auto* pastLens = inputs[5]->getDataAs<const int32_t>();
         for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
         }

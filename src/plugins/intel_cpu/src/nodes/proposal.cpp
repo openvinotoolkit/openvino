@@ -31,13 +31,13 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto round_ratios = conf.round_ratios;
 
     auto num_ratios = conf.ratios.size();
-    auto ratios = conf.ratios.data();
+    auto* ratios = conf.ratios.data();
 
     auto num_scales = conf.scales.size();
-    auto scales = conf.scales.data();
+    auto* scales = conf.scales.data();
 
     std::vector<float> anchors(num_scales * num_ratios * 4);
-    auto anchors_ptr = anchors.data();
+    auto* anchors_ptr = anchors.data();
 
     // base box's width & height & center location
     const auto base_area = static_cast<float>(base_size * base_size);

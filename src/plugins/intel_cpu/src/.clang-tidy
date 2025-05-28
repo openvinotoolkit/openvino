@@ -69,6 +69,7 @@ Checks: >
   readability-container-size-empty,
   readability-else-after-return,
   readability-implicit-bool-conversion,
+  readability-qualified-auto,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,

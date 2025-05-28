@@ -156,7 +156,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }

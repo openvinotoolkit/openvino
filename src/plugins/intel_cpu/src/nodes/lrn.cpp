@@ -105,7 +105,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return true;
         }
         std::vector<bool> norm(dataRank, false);
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
                 errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                 return false;
@@ -237,7 +237,7 @@ void Lrn::prepareParams() {
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }

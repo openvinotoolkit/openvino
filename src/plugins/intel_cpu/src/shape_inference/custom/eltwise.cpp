@@ -40,7 +40,7 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             continue;
         }
 
-        auto& input_shape = input_shapes[i].get();
+        const auto& input_shape = input_shapes[i].get();
         if (input_shape.size() > output_shape.size()) {
             OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
         }
