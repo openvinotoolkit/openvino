@@ -16,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
