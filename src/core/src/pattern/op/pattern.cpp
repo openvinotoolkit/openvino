@@ -338,14 +338,12 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
 
     std::vector<std::string> parsed;
     size_t pos = 0, pos_next;
-    auto& token = parsed.emplace_back();
     while ((pos_next = s.find(',', pos)) != std::string::npos) {
-        token = s.substr(pos, pos_next - pos);
-        parsed.push_back(token);
+        parsed.push_back(s.substr(pos, pos_next - pos));
         pos = pos_next + 1;
     }
     // collect whole string if no delimiter is found
-    token = s.substr(pos, pos_next);
+    parsed.push_back(s.substr(pos, pos_next));
 
     std::vector<std::pair<int64_t, std::string>> idx_to_name;
 

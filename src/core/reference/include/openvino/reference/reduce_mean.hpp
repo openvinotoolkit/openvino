@@ -27,7 +27,8 @@ void reduce_mean(const T* in, T* out, const Shape& in_shape, const AxisSet& redu
     if (const auto input_size = shape_size(in_shape); input_size != 0) {
         const auto out_shape = util::reduce(in_shape, reduction_axes);
         const auto out_size = shape_size(out_shape);
-        std::transform(out, std::next(out, out_size), out, [count = input_size / out_size](auto&& value) -> T {
+        const auto count = input_size / out_size;
+        std::transform(out, std::next(out, out_size), out, [count = static_cast<T>(count)](auto&& value) -> T {
             return value / count;
         });
     }
