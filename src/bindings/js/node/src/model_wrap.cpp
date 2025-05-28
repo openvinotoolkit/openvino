@@ -209,15 +209,11 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
 Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
-        if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures)) {
-            auto shape = Napi::ObjectWrap<PartialShapeWrap>::Unwrap(info[0].ToObject())->get_value();
-            // _model->reshape(shape, variable_shapes);
+        if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures) || ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures) ) {
+            const auto shape = js_to_cpp<ov::PartialShape>(info.Env(), info[0]);
+            const auto variable_shapes = js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
+            _model->reshape(shape, variable_shapes);
             std::cout << "overload ps and object" << shape << std::endl;
-            return info.This();
-        } else if (ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures)) {
-            auto shape = ov::PartialShape(info[0].ToString());
-            std::cout << "overload str and object" << std::endl;
-            // _model->reshape(shape, variables_shapes);
             return info.This();
         } else {
             OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));

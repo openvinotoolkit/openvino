@@ -193,18 +193,25 @@ describe('ov.Model tests', () => {
   });
 
   describe('Model.reshape()', () => {
-    const staticShape = '1, 3, 224, 224';
-    const dynamicShape = '?, -1, 1..3, 224';
+    const pShape = '[?,?,1..3,224]';
 
     it('should have ctor (PartialShape, variablesShapes)', () => {
-      const partialShape = new ov.PartialShape(dynamicShape);
+      const partialShape = new ov.PartialShape(pShape);
       const reshapedModel = model.reshape(partialShape, {});
-      assert.ok(reshapedModel instanceof ov.Model);
+      assert.ok( reshapedModel instanceof ov.Model );
+
+      const newShape = reshapedModel.input().getPartialShape();
+      assert.ok( newShape instanceof ov.PartialShape );
+      assert.deepStrictEqual( newShape, partialShape );
+      assert.deepStrictEqual( newShape.toString(), pShape );
+      
     });
 
     it('should have ctor (string, variablesShapes)', () => {
-      const reshapedModel = model.reshape(staticShape, {});
+      const reshapedModel = model.reshape(pShape, {});
       assert.ok(reshapedModel instanceof ov.Model);
+      const newShape = reshapedModel.input().getPartialShape();
+      assert.deepStrictEqual( newShape.toString(), pShape);
     });
 
     it('should not accept empty arguments', () => {

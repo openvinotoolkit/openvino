@@ -6,8 +6,8 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/model_wrap.hpp"
-#include "node/include/tensor.hpp"
 #include "node/include/partial_shape_wrap.hpp"
+#include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
 
