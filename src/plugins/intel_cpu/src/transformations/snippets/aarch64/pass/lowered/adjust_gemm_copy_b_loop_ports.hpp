@@ -10,16 +10,16 @@
 namespace ov::intel_cpu::pass::aarch64 {
 
 /**
- * @interface AdjustBrgemmCopyBLoopPorts
+ * @interface AdjustGemmCopyBLoopPorts
  * @brief BrgemmCopyB is located outside of blocking loops and repacks input data into a blocked layout.
  *        This layout should be accounted for when we increment BrgemmCopyB data pointers. This pass
  *        Finds loop ports connected to BrgemmCopyB and sets appropriate pointer increments.
  * @ingroup snippets
  */
-class AdjustBrgemmCopyBLoopPorts : public snippets::lowered::pass::ConstPass {
+class AdjustGemmCopyBLoopPorts : public snippets::lowered::pass::ConstPass {
 public:
-    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "", ConstPass)
-    AdjustBrgemmCopyBLoopPorts() = default;
+    OPENVINO_RTTI("AdjustGemmCopyBLoopPorts", "", ConstPass)
+    AdjustGemmCopyBLoopPorts() = default;
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     static bool update_loop_info(const snippets::lowered::UnifiedLoopInfoPtr& uni_loop_info);
     const std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr>& get_affected_loops() {

@@ -56,7 +56,7 @@
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
-#    include "transformations/snippets/aarch64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #    include "transformations/snippets/aarch64/shape_inference.hpp"
@@ -638,7 +638,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                           ov::intel_cpu::pass::GemmCPUBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::InitLoops,
-                                          ov::intel_cpu::pass::aarch64::AdjustBrgemmCopyBLoopPorts);
+                                          ov::intel_cpu::pass::aarch64::AdjustGemmCopyBLoopPorts);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
                                           ov::snippets::lowered::pass::InsertBuffers,
                                           ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers);

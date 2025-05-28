@@ -8,9 +8,6 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
-#define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN (-3.4028235e38f)
-
 namespace ov::intel_cpu::aarch64 {
 
 GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t N, const size_t K, const size_t n_blk_size)
@@ -22,8 +19,8 @@ GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t N, const size_t 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
     return !ov::snippets::utils::one_of(0ul, m_N, m_K, m_n_blk_size);
 }
-#define PRINT(X) ss << #X << " = " << (X) << "\n"
 #ifdef SNIPPETS_DEBUG_CAPS
+#    define PRINT(X) ss << #    X << " = " << (X) << "\n"
 std::string GemmCopyBKernelKaiConfig::to_string() const {
     std::stringstream ss;
     PRINT(m_N);
@@ -31,19 +28,20 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
     PRINT(m_n_blk_size);
     return ss.str();
 }
+#    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n) {
+void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n_blk_size) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::one_of(0ul, N, K, n)) {
+    if (ov::snippets::utils::one_of(0ul, N, K, n_blk_size)) {
         m_N = 0;
         m_K = 0;
         m_n_blk_size = 0;
     } else {
         m_N = N;
         m_K = K;
-        m_n_blk_size = n;
+        m_n_blk_size = n_blk_size;
     }
     m_hash = compute_hash();
 }
@@ -81,9 +79,9 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
-    const auto K = config.get_K();            // K
-    const auto N = config.get_N();            // N-rhs_stride
-    const auto& n_blk_size = config.get_n();  // n_blk
+    const auto K = config.get_K();                     // K
+    const auto N = config.get_N();                     // N-rhs_stride
+    const auto& n_blk_size = config.get_n_blk_size();  // n_blk
     const size_t nr = ukernel.get_nr();
     const size_t kr = ukernel.get_kr();
     const size_t sr = ukernel.get_sr();

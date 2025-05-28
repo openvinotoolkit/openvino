@@ -34,7 +34,7 @@ public:
     virtual std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K, size_t n);
+    void update(size_t N, size_t K, size_t n_blk_size);
 
     size_t hash() const override {
         return m_hash;
@@ -46,7 +46,7 @@ public:
     [[nodiscard]] size_t get_K() const {
         return m_K;
     }
-    [[nodiscard]] size_t get_n() const {
+    [[nodiscard]] size_t get_n_blk_size() const {
         return m_n_blk_size;
     }
 

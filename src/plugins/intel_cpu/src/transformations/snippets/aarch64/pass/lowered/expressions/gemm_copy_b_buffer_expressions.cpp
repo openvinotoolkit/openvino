@@ -38,11 +38,24 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
+    // const auto& child_expr = get_output_port_connector(0)->get_consumers().begin()->get_expr(); // get n_blk from
+    // gemm?
     const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
     OPENVINO_ASSERT(in_subtensor.size() >= 2 && allocation_rank >= 2, "GemmCopyB should has at least 2 rank tensor");
+    const auto& element_type = get_node()->get_input_element_type(0);
+    OPENVINO_ASSERT(one_of(element_type, ov::element::f32), "GemmCopyB currently only support f32 data type on arm");
     const size_t N = *in_subtensor.rbegin();
     const size_t K = *++in_subtensor.rbegin();
+    // OPENVINO_ASSERT(1, "child_expr is gemm");
+    // const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_expr->get_input_port(1));
+    // const size_t n_block_size = *gemm_in_subtensor.rbegin();
     const size_t n_block_size = 64;
+    // std::cout << "n_block_size:" << n_block_size << std::endl;
+    if (snippets::utils::is_dynamic_value(N) || snippets::utils::is_dynamic_value(K) ||
+        snippets::utils::is_dynamic_value(n_block_size)) {
+        m_allocation_size = 0;  // snippets::utils::get_dynamic_value<size_t>();
+        return;
+    }
     size_t n_block_num = N / n_block_size;
     size_t n_tail_size = N % n_block_size;
     m_allocation_size = 0;
@@ -53,7 +66,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
         m_allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
     }
     // convert byte size to element type size
-    m_allocation_size = m_allocation_size / get_node()->get_input_element_type(0).size();
+    m_allocation_size = m_allocation_size / element_type.size();
 }
 
 }  // namespace ov::intel_cpu::aarch64

@@ -8,6 +8,7 @@
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::snippets::utils;
@@ -22,12 +23,30 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
     if (ov::is_type<GemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     }
-    if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
-        OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
-                        "BufferExpression on gemm's B input must have at least one input");
+    if (ov::is_type<RepackedWeightsBufferExpression>(b_input_expr)) {
+        OPENVINO_ASSERT(b_input_expr->get_input_count() == 1,
+                        "RepackedWeightsBufferExpression on gemm's B input must has one input");
         auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
         if (ov::is_type<GemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
+        }
+    }
+    return nullptr;
+}
+
+ov::snippets::lowered::ExpressionPtr get_gemm_expr(const ov::snippets::lowered::ExpressionPtr& gemm_copyb_expr) {
+    OPENVINO_ASSERT(ov::is_type<GemmCopyB>(gemm_copyb_expr->get_node()),
+                    "get_gemm_expr must be called only for GemmCopyB node");
+    OPENVINO_ASSERT(gemm_copyb_expr->get_output_count() == 1, "gemm copyb expr must has one output");
+    auto copyb_output_expr = gemm_copyb_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+    if (ov::is_type<GemmCPU>(copyb_output_expr->get_node())) {
+        return copyb_output_expr;
+    }
+    if (ov::is_type<RepackedWeightsBufferExpression>(copyb_output_expr)) {
+        OPENVINO_ASSERT(copyb_output_expr->get_output_count() == 1, "gemm copyb buffer expr must has one output");
+        auto buffer_output_expr = copyb_output_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+        if (ov::is_type<GemmCPU>(buffer_output_expr->get_node())) {
+            return buffer_output_expr;
         }
     }
     return nullptr;

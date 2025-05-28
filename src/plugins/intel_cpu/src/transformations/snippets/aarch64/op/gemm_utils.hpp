@@ -21,6 +21,14 @@ namespace repacking {
  * @return The expression pointer for the GemmCopyB operation.
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& gemm_expr);
+
+/**
+ * @brief Retrieves the expression pointer for the gemm expression corresponding to the given gemm_copy_b
+ * expression.
+ * @param gemm_expr The expression pointer for the gemm_copy_b operation.
+ * @return The expression pointer for the gemm operation.
+ */
+snippets::lowered::ExpressionPtr get_gemm_expr(const snippets::lowered::ExpressionPtr& gemm_copyb_expr);
 }  // namespace repacking
 }  // namespace intel_cpu::aarch64::gemm_utils
 }  // namespace ov

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "adjust_brgemm_copy_b_loop_ports.hpp"
+#include "adjust_gemm_copy_b_loop_ports.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -12,7 +12,7 @@
 
 namespace ov::intel_cpu {
 
-bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::update_loop_info(
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
     OPENVINO_ASSERT(loop_info, "Invalid loop info pointer");
     bool modified = false;
@@ -20,21 +20,22 @@ bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                       snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
         const auto& p = *loop_port.get_expr_port();
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
-            const auto& node = p.get_expr()->get_node();
-            if (auto brg = as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(node)) {
+            const auto& expr = p.get_expr();
+            if (as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node())) {
                 // from format KN to NK64n(64 is n block), and for each K64n, repack to nK8n
                 if (loop_port.is_incremented()) {
                     if (loop_port.get_dim_idx() == 0) {
                         // N blocking loop
-                        const auto& in_0_shape = brg->get_input_shape(0);
+                        const auto& in_0_shape = ov::snippets::utils::get_planar_vdims(expr->get_input_port(0));
                         int64_t K = in_0_shape.back();  // K dimension(K is not blocked)
                         // NK repacked and padded to to N(K+1)
                         // ptr_increment is 1, inc is 64. inc=inc*ptr_increment=64*(K+1)
-                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (K + 1));
+                        const auto k_pad = snippets::utils::dynamic_safe_add(K, 1l);
+                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_pad);
                         loop_desc.finalization_offset =
-                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, (K + 1));
+                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_pad);
                     } else {
-                        OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
+                        OPENVINO_THROW("Unexpected loop port dimension index in AdjustGemmCopyBLoopPorts");
                     }
                     modified = true;
                 }
@@ -45,8 +46,8 @@ bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     return modified;
 }
 
-bool pass::aarch64::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustBrgemmCopyBLoopPorts")
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustGemmCopyBLoopPorts")
 
     bool modified = false;
 

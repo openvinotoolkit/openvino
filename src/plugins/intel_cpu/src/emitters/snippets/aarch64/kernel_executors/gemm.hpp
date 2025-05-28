@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "common/utils.hpp"
-#include "cpu_memory.h"
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
