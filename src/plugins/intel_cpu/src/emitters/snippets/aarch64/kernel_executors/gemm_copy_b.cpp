@@ -6,10 +6,8 @@
 
 #include "openvino/core/parallel.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
-
-#define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN (-3.4028235e38f)
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -22,8 +20,8 @@ GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t N, const size_t 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
     return !ov::snippets::utils::one_of(0ul, m_N, m_K, m_n_blk_size);
 }
-#define PRINT(X) ss << #X << " = " << (X) << "\n"
 #ifdef SNIPPETS_DEBUG_CAPS
+#    define PRINT(X) ss << #X << " = " << (X) << "\n"
 std::string GemmCopyBKernelKaiConfig::to_string() const {
     std::stringstream ss;
     PRINT(m_N);
@@ -31,19 +29,20 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
     PRINT(m_n_blk_size);
     return ss.str();
 }
+#    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n) {
+void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n_blk_size) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::one_of(0ul, N, K, n)) {
+    if (ov::snippets::utils::one_of(0ul, N, K, n_blk_size)) {
         m_N = 0;
         m_K = 0;
         m_n_blk_size = 0;
     } else {
         m_N = N;
         m_K = K;
-        m_n_blk_size = n;
+        m_n_blk_size = n_blk_size;
     }
     m_hash = compute_hash();
 }
@@ -57,7 +56,9 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
 }
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {
+    m_kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+}
 
 void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                                const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -70,7 +71,10 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     int64_t N = *in0_shape.rbegin();
     int64_t K = *++in0_shape.rbegin();
-    int64_t n_blk_size = N > 64 ? 64 : N;
+    const auto& child_gemm = intel_cpu::aarch64::gemm_utils::repacking::get_gemm_expr(expr);
+    OV_CPU_JIT_EMITTER_ASSERT(child_gemm, "Can not get gemm after gemm_copyb.");
+    const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm->get_input_port(1));
+    const size_t n_blk_size = *gemm_in_subtensor.rbegin();
     config.update(N, K, n_blk_size);
     biasMem.resize(N * sizeof(float), 0);
 }
@@ -81,13 +85,13 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
-    const auto K = config.get_K();            // K
-    const auto N = config.get_N();            // N-rhs_stride
-    const auto& n_blk_size = config.get_n();  // n_blk
+    const auto K = config.get_K();                     // K
+    const auto N = config.get_N();                     // N-rhs_stride
+    const auto& n_blk_size = config.get_n_blk_size();  // n_blk
     const size_t nr = ukernel.get_nr();
     const size_t kr = ukernel.get_kr();
     const size_t sr = ukernel.get_sr();
-    size_t n_blocks = (N + n_blk_size - 1) / n_blk_size;
+    size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
     size_t dst_offset = 0;
     int8_t* bias = static_cast<int8_t*>(executor->get_bias_mem());
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {

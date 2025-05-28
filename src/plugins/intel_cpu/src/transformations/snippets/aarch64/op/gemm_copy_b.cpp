@@ -13,20 +13,6 @@ namespace ov::intel_cpu::aarch64 {
 
 GemmCopyB::GemmCopyB(const Output<Node>& x,
                      const element::Type src_type,
-                     const size_t offset_in,
-                     const size_t offset_out0,
-                     const std::vector<size_t>& layout_input)
-    : snippets::modifier::MemoryAccess(1, 1),
-      op::Op({x}),
-      m_src_type(src_type) {
-    set_output_size(1);
-    set_input_port_descriptor({0, offset_in}, 0);
-    set_output_port_descriptor({0, offset_out0}, 0);
-    custom_constructor_validate_and_infer_types(layout_input);
-}
-
-GemmCopyB::GemmCopyB(const Output<Node>& x,
-                     const element::Type src_type,
                      const PortDescriptor& desc_in0,
                      const PortDescriptor& desc_out0,
                      const std::vector<size_t>& layout_input)
@@ -69,7 +55,7 @@ void GemmCopyB::validate_and_infer_types() {
 }
 
 void GemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::f16, element::i8),
+    OPENVINO_ASSERT(one_of(element_type, element::f32),
                     "GemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 
@@ -85,8 +71,8 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
 }
 
 GemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
-    const auto& brg_copyb = ov::as_type_ptr<GemmCopyB>(n);
-    OPENVINO_ASSERT(brg_copyb, "Got invalid node in GemmCopyB::ShapeInfer");
+    const auto& copyb = ov::as_type_ptr<GemmCopyB>(n);
+    OPENVINO_ASSERT(copyb, "Got invalid node in GemmCopyB::ShapeInfer");
     m_layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->input(0))->get_layout();
 }
 

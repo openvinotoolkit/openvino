@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "common/utils.hpp"
-#include "cpu_memory.h"
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
@@ -37,9 +35,7 @@ public:
 
     // No need kernel update, just update config is enough for update. The universal ukernel is reused with any config.
     void update_kernel(const GemmKernelKaiConfig& config,
-                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {
-        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
-    }
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {}
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);

@@ -96,8 +96,10 @@
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#endif
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"

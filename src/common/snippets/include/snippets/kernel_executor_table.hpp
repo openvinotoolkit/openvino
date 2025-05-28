@@ -108,12 +108,12 @@ protected:
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
     virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
+    /** Stores pointer to compiled kernel since the last update_kernel() call */
+    std::shared_ptr<KernelType> m_kernel = nullptr;
 
 private:
     /** Contains all the necessary information to compile a desired kernel*/
     Conf m_config {};
-    /** Stores pointer to compiled kernel since the last update_kernel() call */
-    std::shared_ptr<KernelType> m_kernel = nullptr;
 };
 
 class KernelExecutorTable {

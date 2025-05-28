@@ -34,7 +34,7 @@ public:
     virtual std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K, size_t n);
+    void update(size_t N, size_t K, size_t n_blk_size);
 
     size_t hash() const override {
         return m_hash;
@@ -46,16 +46,16 @@ public:
     [[nodiscard]] size_t get_K() const {
         return m_K;
     }
-    [[nodiscard]] size_t get_n() const {
+    [[nodiscard]] size_t get_n_blk_size() const {
         return m_n_blk_size;
     }
 
 private:
     [[nodiscard]] size_t compute_hash() const;
 
-    size_t m_N;
-    size_t m_K;
-    size_t m_n_blk_size;
+    size_t m_N = 0;
+    size_t m_K = 0;
+    size_t m_n_blk_size = 0;
     size_t m_hash{SIZE_MAX};
 };
 
@@ -65,9 +65,7 @@ public:
     GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config);
 
     void update_kernel(const GemmCopyBKernelKaiConfig& config,
-                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {
-        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
-    }
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {}
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0);
