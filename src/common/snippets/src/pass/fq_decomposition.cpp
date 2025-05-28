@@ -71,7 +71,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                              })) ||
                                                 out_scales.size() != 0));
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
-                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16;
+                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16 ||
+                                 out_scales.empty();
 
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
