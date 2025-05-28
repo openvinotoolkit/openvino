@@ -139,7 +139,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     if ci_build_dev_tag:
         replacements = {
             # update extension version (2025.0.0.0 -> 2025.0.0.0.dev001)
-            r'(^\s*version\s*=\\s*["\'])(.*)(["\']\\s*)': r'\1\2.' + ci_build_dev_tag + r'\3' 
+            r'(^\s*\[project\][^\[]*?^\s*version\s*=\s*["\'])(.*)(["\']\s*)': r'\1\2' + f'.{ci_build_dev_tag}' + r'\3'
         }
         update_pyproject_toml(pyproject_file, replacements)
 
