@@ -3,9 +3,11 @@
 //
 
 #include "interpolate_config.hpp"
+
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "openvino/core/parallel.hpp"
+
 #include "common/primitive_hashing_utils.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -127,39 +129,36 @@ void InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
 // scale is float(outShape) / float(inShape)
 // strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
-float InterpolateExecutorBase::coordTransToInput(int outCoord,
-                                                 float scale,
-                                                 int inShape,
-                                                 int outShape) const {
+float InterpolateExecutorBase::coordTransToInput(int outCoord, float scale, int inShape, int outShape) const {
     if (scale == 1.0f || (inShape == outShape)) {
         return outCoord;
     }
     switch (coordTransMode) {
-        case InterpolateCoordTransMode::half_pixel: {
+    case InterpolateCoordTransMode::half_pixel: {
+        return (outCoord + 0.5f) / scale - 0.5f;
+    }
+    case InterpolateCoordTransMode::pytorch_half_pixel: {
+        if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
         }
-        case InterpolateCoordTransMode::pytorch_half_pixel: {
-            if (outShape > 1) {
-                return (outCoord + 0.5f) / scale - 0.5f;
-            }
-            return 0;
+        return 0;
+    }
+    case InterpolateCoordTransMode::asymmetric: {
+        return static_cast<float>(outCoord) / scale;
+    }
+    case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
+        return (outCoord + 0.5f) / scale;
+    }
+    case InterpolateCoordTransMode::align_corners: {
+        if (outShape > 1) {
+            return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
         }
-        case InterpolateCoordTransMode::asymmetric: {
-            return static_cast<float>(outCoord) / scale;
-        }
-        case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-            return (outCoord + 0.5f) / scale;
-        }
-        case InterpolateCoordTransMode::align_corners: {
-            if (outShape > 1) {
-                return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-            }
-            return 0;
-        }
-        default: {
-            OPENVINO_THROW("does not support specified coordinate transformation mode");
-            break;
-        }
+        return 0;
+    }
+    default: {
+        OPENVINO_THROW("does not support specified coordinate transformation mode");
+        break;
+    }
     }
 }
 
@@ -167,31 +166,31 @@ int InterpolateExecutorBase::nearestRound(float originCoord,
                                           bool isDownsample,
                                           InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
-        case InterpolateNearestMode::round_prefer_floor: {
-            if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
-                return static_cast<int>(std::floor(originCoord));
-            }
-            return static_cast<int>(std::round(originCoord));
-        }
-        case InterpolateNearestMode::round_prefer_ceil: {
-            return static_cast<int>(std::round(originCoord));
-        }
-        case InterpolateNearestMode::floor: {
+    case InterpolateNearestMode::round_prefer_floor: {
+        if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
         }
-        case InterpolateNearestMode::ceil: {
+        return static_cast<int>(std::round(originCoord));
+    }
+    case InterpolateNearestMode::round_prefer_ceil: {
+        return static_cast<int>(std::round(originCoord));
+    }
+    case InterpolateNearestMode::floor: {
+        return static_cast<int>(std::floor(originCoord));
+    }
+    case InterpolateNearestMode::ceil: {
+        return static_cast<int>(std::ceil(originCoord));
+    }
+    case InterpolateNearestMode::simple: {
+        if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
         }
-        case InterpolateNearestMode::simple: {
-            if (isDownsample) {
-                return static_cast<int>(std::ceil(originCoord));
-            }
-            return static_cast<int>(originCoord);
-        }
-        default: {
-            OPENVINO_THROW("does not support specified nearest round mode");
-            break;
-        }
+        return static_cast<int>(originCoord);
+    }
+    default: {
+        OPENVINO_THROW("does not support specified nearest round mode");
+        break;
+    }
     }
 }
 
@@ -438,7 +437,8 @@ void InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d,
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
-    size_t idxWeightSize = (baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OW + (baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OH;
+    size_t idxWeightSize =
+        (baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OW + (baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OH;
     if (layout != InterpolateLayoutType::planar) {
         auxTable.resize(idxWeightSize);
     } else {
@@ -540,11 +540,12 @@ void InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
         filterArgs args;
         float scaleClip = pillowScale < 1.0f ? 1.0f : pillowScale;
         args.ScaleClipReciprocal = 1.0f / scaleClip;
-        args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? baseInterpolateAttrs.PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
-                                                                       : baseInterpolateAttrs.PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
+        args.filterRadius = (mode == InterpolateMode::bilinear_pillow)
+                                ? baseInterpolateAttrs.PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
+                                : baseInterpolateAttrs.PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
         args.filterLen = static_cast<int>(std::ceil(args.filterRadius) * 2 + 1);
         args.weightGen =
-                (mode == InterpolateMode::bilinear_pillow) ? this->getPillowBilinearCoeffs : this->getPillowBicubicCoeffs;
+            (mode == InterpolateMode::bilinear_pillow) ? this->getPillowBilinearCoeffs : this->getPillowBicubicCoeffs;
         return args;
     };
 
@@ -612,7 +613,6 @@ void InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
     generateTbl(IH, OH, fy, filterArgsY, weightY, indexY);
 }
 
-
 void InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4]) {
         return;
@@ -636,48 +636,48 @@ InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpA
                                                  const VectorDims& srcDims,
                                                  const VectorDims& dstDims,
                                                  const std::vector<float>& dataScales)
-        : baseInterpolateAttrs(interpAttrs), 
-          mode(interpAttrs.mode),
-          coordTransMode(interpAttrs.coordTransMode),
-          configured_for_layout(interpAttrs.layout),
-          srcDimPad5d(to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd))),
-          dstDim5d(to5Dim(dstDims)),
-          inputPrec(interpAttrs.inPrc),
-          outputPrec(interpAttrs.outPrc),
-          srcDataSize(interpAttrs.inPrc.size()),
-          dstDataSize(interpAttrs.outPrc.size()),
-          dataRank(srcDims.size()),
-          spatialDimSize(getSpatialDimsNum(dataRank)) {
+    : baseInterpolateAttrs(interpAttrs),
+      mode(interpAttrs.mode),
+      coordTransMode(interpAttrs.coordTransMode),
+      configured_for_layout(interpAttrs.layout),
+      srcDimPad5d(to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd))),
+      dstDim5d(to5Dim(dstDims)),
+      inputPrec(interpAttrs.inPrc),
+      outputPrec(interpAttrs.outPrc),
+      srcDataSize(interpAttrs.inPrc.size()),
+      dstDataSize(interpAttrs.outPrc.size()),
+      dataRank(srcDims.size()),
+      spatialDimSize(getSpatialDimsNum(dataRank)) {
     switch (mode) {
-        case InterpolateMode::nearest: {
-            buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
-            break;
+    case InterpolateMode::nearest: {
+        buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
+        break;
+    }
+    case InterpolateMode::linear_onnx: {
+        buildTblLinearOnnx(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout);
+        break;
+    }
+    case InterpolateMode::linear: {
+        static constexpr int LINEAR_KERNEL = 2;
+        buildTblLinear(srcDimPad5d, dstDim5d, dataScales, LINEAR_KERNEL, interpAttrs.antialias);
+        break;
+    }
+    case InterpolateMode::cubic: {
+        buildTblCubic(srcDimPad5d, dstDim5d, dataScales, interpAttrs.cubeCoeff, interpAttrs.layout);
+        break;
+    }
+    case InterpolateMode::bilinear_pillow:
+    case InterpolateMode::bicubic_pillow: {
+        buildTblPillow(srcDimPad5d, dstDim5d, dataScales, interpAttrs.cubeCoeff, interpAttrs.layout);
+        if ((srcDimPad5d[4] != dstDim5d[4]) && (srcDimPad5d[3] != dstDim5d[3])) {
+            create_pillow_working_buf(interpAttrs.layout);
         }
-        case InterpolateMode::linear_onnx: {
-            buildTblLinearOnnx(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout);
-            break;
-        }
-        case InterpolateMode::linear: {
-            static constexpr int LINEAR_KERNEL = 2;
-            buildTblLinear(srcDimPad5d, dstDim5d, dataScales, LINEAR_KERNEL, interpAttrs.antialias);
-            break;
-        }
-        case InterpolateMode::cubic: {
-            buildTblCubic(srcDimPad5d, dstDim5d, dataScales, interpAttrs.cubeCoeff, interpAttrs.layout);
-            break;
-        }
-        case InterpolateMode::bilinear_pillow:
-        case InterpolateMode::bicubic_pillow: {
-            buildTblPillow(srcDimPad5d, dstDim5d, dataScales, interpAttrs.cubeCoeff, interpAttrs.layout);
-            if ((srcDimPad5d[4] != dstDim5d[4]) && (srcDimPad5d[3] != dstDim5d[3])) {
-                create_pillow_working_buf(interpAttrs.layout);
-            }
-            break;
-        }
-        default: {
-            OPENVINO_THROW("Interpolate executor does not support interpolate mode: ", mode);
-            break;
-        }
+        break;
+    }
+    default: {
+        OPENVINO_THROW("Interpolate executor does not support interpolate mode: ", mode);
+        break;
+    }
     }
 }
 

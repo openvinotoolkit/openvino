@@ -78,6 +78,4 @@ private:
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
 };
 
-} // namespace ov::intel_cpu::node
-
-
+}  // namespace ov::intel_cpu::node

@@ -3,14 +3,17 @@
 //
 
 #include "interpolate.hpp"
+
 #include <nodes/common/cpu_memcpy.h>
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/core/except.hpp"
-#include "utils/bfloat16.hpp"
-#include "openvino/core/parallel.hpp"
+
 #include <algorithm>
 #include <cmath>
+
 #include "common/primitive_hashing_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu {
 
@@ -90,55 +93,55 @@ void InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
         const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c);
         // do not combined 1d/2d to 3d unified process to get rid of invalid computing.
         switch (spatialDimSize) {
-            case 1:
-                for (int i = 0; i < OW; i++) {
-                    float src0 = in_ptr_nc[indexPtr[0][i]];
-                    float src1 = in_ptr_nc[indexPtr[1][i]];
+        case 1:
+            for (int i = 0; i < OW; i++) {
+                float src0 = in_ptr_nc[indexPtr[0][i]];
+                float src1 = in_ptr_nc[indexPtr[1][i]];
 
-                    out_ptr_nc[i] = src0 * weightPtr[0][i] + src1 * weightPtr[1][i];
-                }
-                break;
-            case 2:
-                for (int i = 0; i < OH * OW; i++) {
-                    float src00 = in_ptr_nc[indexPtr[0][i]];
-                    float src01 = in_ptr_nc[indexPtr[1][i]];
-                    float src10 = in_ptr_nc[indexPtr[2][i]];
-                    float src11 = in_ptr_nc[indexPtr[3][i]];
+                out_ptr_nc[i] = src0 * weightPtr[0][i] + src1 * weightPtr[1][i];
+            }
+            break;
+        case 2:
+            for (int i = 0; i < OH * OW; i++) {
+                float src00 = in_ptr_nc[indexPtr[0][i]];
+                float src01 = in_ptr_nc[indexPtr[1][i]];
+                float src10 = in_ptr_nc[indexPtr[2][i]];
+                float src11 = in_ptr_nc[indexPtr[3][i]];
 
-                    out_ptr_nc[i] = src00 * weightPtr[2][i] * weightPtr[0][i] + src01 * weightPtr[2][i] * weightPtr[1][i] +
-                                    src10 * weightPtr[3][i] * weightPtr[0][i] + src11 * weightPtr[3][i] * weightPtr[1][i];
-                }
-                break;
-            case 3:
-                for (int i = 0; i < OD * OH * OW; i++) {
-                    float src000 = in_ptr_nc[indexPtr[0][i]];
-                    float src001 = in_ptr_nc[indexPtr[1][i]];
-                    float src010 = in_ptr_nc[indexPtr[2][i]];
-                    float src011 = in_ptr_nc[indexPtr[3][i]];
-                    float src100 = in_ptr_nc[indexPtr[4][i]];
-                    float src101 = in_ptr_nc[indexPtr[5][i]];
-                    float src110 = in_ptr_nc[indexPtr[6][i]];
-                    float src111 = in_ptr_nc[indexPtr[7][i]];
+                out_ptr_nc[i] = src00 * weightPtr[2][i] * weightPtr[0][i] + src01 * weightPtr[2][i] * weightPtr[1][i] +
+                                src10 * weightPtr[3][i] * weightPtr[0][i] + src11 * weightPtr[3][i] * weightPtr[1][i];
+            }
+            break;
+        case 3:
+            for (int i = 0; i < OD * OH * OW; i++) {
+                float src000 = in_ptr_nc[indexPtr[0][i]];
+                float src001 = in_ptr_nc[indexPtr[1][i]];
+                float src010 = in_ptr_nc[indexPtr[2][i]];
+                float src011 = in_ptr_nc[indexPtr[3][i]];
+                float src100 = in_ptr_nc[indexPtr[4][i]];
+                float src101 = in_ptr_nc[indexPtr[5][i]];
+                float src110 = in_ptr_nc[indexPtr[6][i]];
+                float src111 = in_ptr_nc[indexPtr[7][i]];
 
-                    // float dstValue =
-                    // weightPtr[4][i] * weightPtr[2][i] * weightPtr[0][i] * src000 +
-                    // weightPtr[4][i] * weightPtr[2][i] * weightPtr[1][i] * src001 +
-                    // weightPtr[4][i] * weightPtr[3][i] * weightPtr[0][i] * src010 +
-                    // weightPtr[4][i] * weightPtr[3][i] * weightPtr[1][i] * src011 +
-                    // weightPtr[5][i] * weightPtr[2][i] * weightPtr[0][i] * src100 +
-                    // weightPtr[5][i] * weightPtr[2][i] * weightPtr[1][i] * src101 +
-                    // weightPtr[5][i] * weightPtr[3][i] * weightPtr[0][i] * src110 +
-                    // weightPtr[5][i] * weightPtr[3][i] * weightPtr[1][i] * src111;
+                // float dstValue =
+                // weightPtr[4][i] * weightPtr[2][i] * weightPtr[0][i] * src000 +
+                // weightPtr[4][i] * weightPtr[2][i] * weightPtr[1][i] * src001 +
+                // weightPtr[4][i] * weightPtr[3][i] * weightPtr[0][i] * src010 +
+                // weightPtr[4][i] * weightPtr[3][i] * weightPtr[1][i] * src011 +
+                // weightPtr[5][i] * weightPtr[2][i] * weightPtr[0][i] * src100 +
+                // weightPtr[5][i] * weightPtr[2][i] * weightPtr[1][i] * src101 +
+                // weightPtr[5][i] * weightPtr[3][i] * weightPtr[0][i] * src110 +
+                // weightPtr[5][i] * weightPtr[3][i] * weightPtr[1][i] * src111;
 
-                    out_ptr_nc[i] =
-                            weightPtr[4][i] * (weightPtr[2][i] * (weightPtr[0][i] * src000 + weightPtr[1][i] * src001) +
-                                               weightPtr[3][i] * (weightPtr[0][i] * src010 + weightPtr[1][i] * src011)) +
-                            weightPtr[5][i] * (weightPtr[2][i] * (weightPtr[0][i] * src100 + weightPtr[1][i] * src101) +
-                                               weightPtr[3][i] * (weightPtr[0][i] * src110 + weightPtr[1][i] * src111));
-                }
-                break;
-            default:
-                break;
+                out_ptr_nc[i] =
+                    weightPtr[4][i] * (weightPtr[2][i] * (weightPtr[0][i] * src000 + weightPtr[1][i] * src001) +
+                                       weightPtr[3][i] * (weightPtr[0][i] * src010 + weightPtr[1][i] * src011)) +
+                    weightPtr[5][i] * (weightPtr[2][i] * (weightPtr[0][i] * src100 + weightPtr[1][i] * src101) +
+                                       weightPtr[3][i] * (weightPtr[0][i] * src110 + weightPtr[1][i] * src111));
+            }
+            break;
+        default:
+            break;
         }
     });
 }
@@ -153,7 +156,7 @@ void InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                       int OW) {
     const int idxNum = 1;
     auto* xOrigin = static_cast<int*>(&auxTable[0]);
-    auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]); 
+    auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
     auto* yOrigin = static_cast<int*>(&auxTable[(baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OW]);
     auto* yFactor = reinterpret_cast<float*>(&auxTable[(baseInterpolateAttrs.CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
@@ -185,58 +188,58 @@ void InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
 float InterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
     const uint8_t* baseOffset = base + offset;
     switch (prec) {
-        case ov::element::u8: {
-            return static_cast<float>(*baseOffset);
-            break;
-        }
-        case ov::element::i8: {
-            const auto* valuePtr = reinterpret_cast<const int8_t*>(baseOffset);
-            return static_cast<float>(*valuePtr);
-            break;
-        }
-        case ov::element::bf16: {
-            const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
-            return bfloat16_t::from_bits(*valuePtr);
-            break;
-        }
-        case ov::element::f32: {
-            const auto* valuePtr = reinterpret_cast<const float*>(baseOffset);
-            return *valuePtr;
-            break;
-        }
-        default: {
-            OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
-            break;
-        }
+    case ov::element::u8: {
+        return static_cast<float>(*baseOffset);
+        break;
+    }
+    case ov::element::i8: {
+        const auto* valuePtr = reinterpret_cast<const int8_t*>(baseOffset);
+        return static_cast<float>(*valuePtr);
+        break;
+    }
+    case ov::element::bf16: {
+        const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
+        return bfloat16_t::from_bits(*valuePtr);
+        break;
+    }
+    case ov::element::f32: {
+        const auto* valuePtr = reinterpret_cast<const float*>(baseOffset);
+        return *valuePtr;
+        break;
+    }
+    default: {
+        OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
+        break;
+    }
     }
 }
 
 void InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
     uint8_t* baseOffset = base + offset;
     switch (prec) {
-        case ov::element::u8: {
-            auto data = static_cast<uint8_t>(value < 0 ? 0 : value);
-            cpu_memcpy(baseOffset, &data, 1);
-            break;
-        }
-        case ov::element::i8: {
-            auto data = static_cast<int8_t>(value);
-            cpu_memcpy(baseOffset, &data, 1);
-            break;
-        }
-        case ov::element::bf16: {
-            uint16_t data = bfloat16_t(value).to_bits();
-            cpu_memcpy(baseOffset, &data, 2);
-            break;
-        }
-        case ov::element::f32: {
-            cpu_memcpy(baseOffset, &value, sizeof(float));
-            break;
-        }
-        default: {
-            OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
-            break;
-        }
+    case ov::element::u8: {
+        auto data = static_cast<uint8_t>(value < 0 ? 0 : value);
+        cpu_memcpy(baseOffset, &data, 1);
+        break;
+    }
+    case ov::element::i8: {
+        auto data = static_cast<int8_t>(value);
+        cpu_memcpy(baseOffset, &data, 1);
+        break;
+    }
+    case ov::element::bf16: {
+        uint16_t data = bfloat16_t(value).to_bits();
+        cpu_memcpy(baseOffset, &data, 2);
+        break;
+    }
+    case ov::element::f32: {
+        cpu_memcpy(baseOffset, &value, sizeof(float));
+        break;
+    }
+    default: {
+        OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
+        break;
+    }
     }
 }
 
@@ -350,11 +353,11 @@ void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
                                     continue;
                                 }
                                 float w =
-                                        weightOD[oz * diaOD + iz] * weightOH[oy * diaOH + iy] * weightOW[ox * diaOW + ix];
+                                    weightOD[oz * diaOD + iz] * weightOH[oy * diaOH + iy] * weightOW[ox * diaOW + ix];
                                 float value = getValue(in_ptr_nc,
                                                        (idxOD[oz * diaOD + iz] * IH * IW + idxOH[oy * diaOH + iy] * IW +
                                                         idxOW[ox * diaOW + ix]) *
-                                                       srcDataSize,
+                                                           srcDataSize,
                                                        inputPrec);
 
                                 sum += w * value;
@@ -420,15 +423,15 @@ void InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
             // IH * OW buf needed
             if (parallel_num < m_threads_num) {
                 xpass_out_ptr_nc =
-                        static_cast<uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
+                    static_cast<uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
                 ypass_in_ptr_nc =
-                        static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
+                    static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
                 auto buffer_size = static_cast<size_t>(OW) * IH;
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
                 ypass_in_ptr_nc =
-                        static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+                    static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         } else if (xPass && !yPass) {
             xpass_out_ptr_nc = out_ptr_nc;
@@ -545,12 +548,12 @@ void InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
                         result = 0.f;
                         for (f = 0; f < filterL; f++) {
                             float pixel =
-                                    getValue(in_ptr_b, ((ih * IW + (f + filterS)) * C + c) * srcDataSize, inputPrec);
+                                getValue(in_ptr_b, ((ih * IW + (f + filterS)) * C + c) * srcDataSize, inputPrec);
                             result += pixel * weight[f];
                         }
                         if (!isFloatCompatible(outputPrec)) {
                             result =
-                                    static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
                         }
                         setValue(xpass_out_ptr_b, ((ih * OW + ow) * C + c) * dstDataSize, result, outputPrec);
                     }
@@ -568,12 +571,12 @@ void InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
                         result = 0.f;
                         for (f = 0; f < filterL; f++) {
                             float pixel =
-                                    getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
+                                getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
                             result += pixel * weight[f];
                         }
                         if (!isFloatCompatible(outputPrec)) {
                             result =
-                                    static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
                         }
                         setValue(out_ptr_b, ((oh * OW + ow) * C + c) * dstDataSize, result, outputPrec);
                     }
@@ -594,54 +597,54 @@ void InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     switch (mode) {
-        case InterpolateMode::nearest: {
-            NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
-            break;
-        }
-        case InterpolateMode::linear_onnx: {
-            linearOnnxRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
-            break;
-        }
-        case InterpolateMode::cubic: {
-            cubicRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
-            break;
-        }
-        case InterpolateMode::linear: {
-            float fz = (dataRank == 5) ? dataScales[dataRank - 3] : 1.f;
-            float fy = dataScales[dataRank - 2];
-            float fx = dataScales[dataRank - 1];
+    case InterpolateMode::nearest: {
+        NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        break;
+    }
+    case InterpolateMode::linear_onnx: {
+        linearOnnxRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        break;
+    }
+    case InterpolateMode::cubic: {
+        cubicRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        break;
+    }
+    case InterpolateMode::linear: {
+        float fz = (dataRank == 5) ? dataScales[dataRank - 3] : 1.f;
+        float fy = dataScales[dataRank - 2];
+        float fx = dataScales[dataRank - 1];
 
-            bool isDownsample = (fx < 1.f) || (fy < 1.f) || (fz < 1.f);
-            int kernel_width = 2;
-            linearInterpolation(in_ptr_,
-                                out_ptr_,
-                                N,
-                                C,
-                                ID,
-                                IH,
-                                IW,
-                                fx,
-                                fy,
-                                fz,
-                                OD,
-                                OH,
-                                OW,
-                                kernel_width,
-                                isDownsample && antialias);
-            break;
+        bool isDownsample = (fx < 1.f) || (fy < 1.f) || (fz < 1.f);
+        int kernel_width = 2;
+        linearInterpolation(in_ptr_,
+                            out_ptr_,
+                            N,
+                            C,
+                            ID,
+                            IH,
+                            IW,
+                            fx,
+                            fy,
+                            fz,
+                            OD,
+                            OH,
+                            OW,
+                            kernel_width,
+                            isDownsample && antialias);
+        break;
+    }
+    case InterpolateMode::bilinear_pillow:
+    case InterpolateMode::bicubic_pillow: {
+        if (refInterpAttrs.NCHWAsNHWC) {
+            pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        } else {
+            pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
         }
-        case InterpolateMode::bilinear_pillow:
-        case InterpolateMode::bicubic_pillow: {
-            if (refInterpAttrs.NCHWAsNHWC) {
-                pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
-            } else {
-                pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
-            }
-            break;
-        }
-        default: {
-            OPENVINO_THROW("Interpolate layer has unsupported interpolate mode: ", mode);
-        }
+        break;
+    }
+    default: {
+        OPENVINO_THROW("Interpolate layer has unsupported interpolate mode: ", mode);
+    }
     }
 }
 

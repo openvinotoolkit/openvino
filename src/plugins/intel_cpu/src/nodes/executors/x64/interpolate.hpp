@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "nodes/executors/interpolate_config.hpp"
 #include "common/primitive_cache.hpp"
+#include "nodes/executors/interpolate_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
@@ -46,9 +46,9 @@ struct jit_uni_interpolate_kernel {
     }
 
     explicit jit_uni_interpolate_kernel(jit_interpolate_config_params jcp, const dnnl_primitive_attr& attr)
-            : ker_(nullptr),
-              jcp_(jcp),
-              attr_(attr) {}
+        : ker_(nullptr),
+          jcp_(jcp),
+          attr_(attr) {}
     virtual ~jit_uni_interpolate_kernel() {}
 
     virtual void create_ker() = 0;
@@ -59,19 +59,19 @@ struct jit_uni_interpolate_kernel {
 
 class InterpolateJitExecutor : public InterpolateExecutorBase {
 public:
-    InterpolateJitExecutor(const InterpolateAttrs &interpAttrs,
-                           const VectorDims &srcDims,
-                           const VectorDims &dstDims,
-                           const std::vector<float> &dataScales,
-                           const dnnl::primitive_attr &attr);
+    InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+                           const VectorDims& srcDims,
+                           const VectorDims& dstDims,
+                           const std::vector<float>& dataScales,
+                           const dnnl::primitive_attr& attr);
 
-    void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
+    void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
 private:
     // nearest neighbor
-    void NNPlanar(const uint8_t *in_ptr_,
-                  uint8_t *out_ptr_,
-                  const void *post_ops_data_,
+    void NNPlanar(const uint8_t* in_ptr_,
+                  uint8_t* out_ptr_,
+                  const void* post_ops_data_,
                   int B,
                   int C,
                   int ID,
@@ -81,9 +81,9 @@ private:
                   int OH,
                   int OW);
 
-    void NNCGathered(const uint8_t *in_ptr_,
-                     uint8_t *out_ptr_,
-                     const void *post_ops_data_,
+    void NNCGathered(const uint8_t* in_ptr_,
+                     uint8_t* out_ptr_,
+                     const void* post_ops_data_,
                      int B,
                      int C,
                      int ID,
@@ -94,9 +94,9 @@ private:
                      int OW);
 
     // onnx linear
-    void linearOnnxPlanar(const uint8_t *in_ptr_,
-                          uint8_t *out_ptr_,
-                          const void *post_ops_data_,
+    void linearOnnxPlanar(const uint8_t* in_ptr_,
+                          uint8_t* out_ptr_,
+                          const void* post_ops_data_,
                           int B,
                           int C,
                           int ID,
@@ -106,9 +106,9 @@ private:
                           int OH,
                           int OW);
 
-    void linearOnnxCGathered(const uint8_t *in_ptr_,
-                             uint8_t *out_ptr_,
-                             const void *post_ops_data_,
+    void linearOnnxCGathered(const uint8_t* in_ptr_,
+                             uint8_t* out_ptr_,
+                             const void* post_ops_data_,
                              int B,
                              int C,
                              int ID,
@@ -119,9 +119,9 @@ private:
                              int OW);
 
     // cubic
-    void cubicPlanar(const uint8_t *in_ptr_,
-                     uint8_t *out_ptr_,
-                     const void *post_ops_data_,
+    void cubicPlanar(const uint8_t* in_ptr_,
+                     uint8_t* out_ptr_,
+                     const void* post_ops_data_,
                      int B,
                      int C,
                      int IH,
@@ -129,9 +129,9 @@ private:
                      int OH,
                      int OW);
 
-    void cubicCGathered(const uint8_t *in_ptr_,
-                        uint8_t *out_ptr_,
-                        const void *post_ops_data_,
+    void cubicCGathered(const uint8_t* in_ptr_,
+                        uint8_t* out_ptr_,
+                        const void* post_ops_data_,
                         int B,
                         int C,
                         int IH,
@@ -140,9 +140,9 @@ private:
                         int OW);
 
     // pillow bilinear and pillow bicubic
-    void pillowCGathered(const uint8_t *in_ptr_,
-                         uint8_t *out_ptr_,
-                         const void *post_ops_data_,
+    void pillowCGathered(const uint8_t* in_ptr_,
+                         uint8_t* out_ptr_,
+                         const void* post_ops_data_,
                          int B,
                          int C,
                          int IH,

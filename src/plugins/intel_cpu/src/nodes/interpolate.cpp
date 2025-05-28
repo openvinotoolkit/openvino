@@ -3,9 +3,6 @@
 //
 
 #include "interpolate.h"
-#include "executors/interpolate_config.hpp"
-#include "executors/x64/interpolate.hpp"
-#include "executors/common/interpolate.hpp"
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -20,6 +17,9 @@
 #include "common/cpu_memcpy.h"
 #include "cpu_types.h"
 #include "eltwise.h"
+#include "executors/common/interpolate.hpp"
+#include "executors/interpolate_config.hpp"
+#include "executors/x64/interpolate.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -193,8 +193,9 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 errorMessage = "Only const 'scales_or_sizes' input is supported for static shapes in Interpolate-11";
                 return false;
             }
-            if (interp_v11->get_input_size() > 2 && ov::as_type_ptr<const ov::op::v0::Constant>(
-                    interp_v11->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
+            if (interp_v11->get_input_size() > 2 &&
+                ov::as_type_ptr<const ov::op::v0::Constant>(interp_v11->get_input_node_shared_ptr(AXES_ID_V11)) ==
+                    nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-11";
                 return false;
             }
@@ -336,15 +337,16 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 }
             }
 
-            const auto scalesNode =
-                ov::as_type_ptr<const ov::op::v0::Constant>(interp_v4->get_input_node_shared_ptr(interpAttrs.SCALES_ID));
+            const auto scalesNode = ov::as_type_ptr<const ov::op::v0::Constant>(
+                interp_v4->get_input_node_shared_ptr(interpAttrs.SCALES_ID));
             if (scalesNode) {
                 scales = scalesNode->cast_vector<float>();
                 isScaleConstant = true;
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp_v4->get_input_node_shared_ptr(interpAttrs.AXES_ID))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(
+                           interp_v4->get_input_node_shared_ptr(interpAttrs.AXES_ID))
                            ->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
@@ -412,7 +414,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(interpAttrs.AXES_ID_V11))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(
+                           interp->get_input_node_shared_ptr(interpAttrs.AXES_ID_V11))
                            ->cast_vector<int>();
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
                     interpAttrs.NCHWAsNHWC = true;
@@ -553,7 +556,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
             if (isAxesSpecified) {
                 config.inConfs[interpAttrs.AXES_ID_V11].setMemDesc(
-                    creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(interpAttrs.AXES_ID_V11)));
+                    creatorsMap.at(LayoutType::ncsp)
+                        ->createSharedDesc(axesType, getInputShapeAtPort(interpAttrs.AXES_ID_V11)));
             }
         } else {
             config.inConfs[interpAttrs.TARGET_SHAPE_ID].setMemDesc(
@@ -714,7 +718,8 @@ bool Interpolate::needShapeInfer() const {
 void Interpolate::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
-    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? interpAttrs.TARGET_SHAPE_ID : get_scale_id();
+    const size_t port =
+        interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? interpAttrs.TARGET_SHAPE_ID : get_scale_id();
     const auto& memory = getParentEdgeAt(port)->getMemory();
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         const auto* scales_dyn = memory.getDataAs<const float>();

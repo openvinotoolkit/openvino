@@ -4,44 +4,37 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <oneapi/dnnl/dnnl.hpp>
-#include "openvino/core/except.hpp"
-#include <algorithm>
-#include "cpu_types.h"
-#include <cstddef>
-#include "openvino/core/type/element_type.hpp"
 #include <vector>
 
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
-
 
 namespace ov::intel_cpu {
 
-enum : uint8_t {
-    MAX_INPUT_INTERPOLATE = 8
-};
+enum : uint8_t { MAX_INPUT_INTERPOLATE = 8 };
 
-enum InterpolateLayoutType : uint8_t {
-    planar, block, by_channel
-};
+enum InterpolateLayoutType : uint8_t { planar, block, by_channel };
 
-enum InterpolateMode : uint8_t {
-    nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow
-};
+enum InterpolateMode : uint8_t { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
 
 enum InterpolateCoordTransMode : uint8_t {
-    half_pixel, pytorch_half_pixel, asymmetric, tf_half_pixel_for_nn, align_corners
+    half_pixel,
+    pytorch_half_pixel,
+    asymmetric,
+    tf_half_pixel_for_nn,
+    align_corners
 };
 
-enum class InterpolateNearestMode : uint8_t {
-    round_prefer_floor, round_prefer_ceil, floor, ceil, simple
-};
+enum class InterpolateNearestMode : uint8_t { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
 
-enum class InterpolateShapeCalcMode : uint8_t {
-    sizes, scales
-};
+enum class InterpolateShapeCalcMode : uint8_t { sizes, scales };
 
 struct InterpolateAttrs {
     InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
@@ -77,7 +70,6 @@ struct InterpolateAttrs {
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 };
 
-
 static inline bool isFloatCompatible(ov::element::Type prc) {
     return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
 }
@@ -99,16 +91,16 @@ inline int clipCoord(int pos, int length) {
 
 inline size_t getSpatialDimsNum(const Dim rank) {
     switch (rank) {
-        case 1:
-        case 3:
-            return 1;
-        case 2:
-        case 4:
-            return 2;
-        case 5:
-            return 3;
-        default:
-            OPENVINO_THROW("Can't define number spatial");
+    case 1:
+    case 3:
+        return 1;
+    case 2:
+    case 4:
+        return 2;
+    case 5:
+        return 3;
+    default:
+        OPENVINO_THROW("Can't define number spatial");
     }
 }
 
@@ -219,6 +211,5 @@ protected:
     std::vector<uint8_t> pillow_working_buf;
     size_t m_threads_num = 0lu;
 };
-
 
 }  // namespace ov::intel_cpu

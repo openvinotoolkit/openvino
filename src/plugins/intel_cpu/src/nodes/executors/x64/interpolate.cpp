@@ -3,6 +3,7 @@
 //
 
 #include "interpolate.hpp"
+
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
@@ -1606,15 +1607,12 @@ private:
     }
 };
 
-
-
-
 InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                                const VectorDims& srcDims,
                                                const VectorDims& dstDims,
                                                const std::vector<float>& dataScales,
                                                const dnnl::primitive_attr& attr)
-        : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
+    : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
@@ -1638,20 +1636,20 @@ InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAtt
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jcp.layout != InterpolateLayoutType::planar) {
-    if (mayiuse(cpu::x64::avx512_core)) {
-        interpolateKernel =
-            std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
-    } else if (mayiuse(cpu::x64::avx2)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            interpolateKernel =
+                std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
+        } else if (mayiuse(cpu::x64::avx2)) {
+            interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
+        } else if (mayiuse(cpu::x64::sse41)) {
+            interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
+        }
+    } else if (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == ov::element::f32) {
+        // gather ISA(for planar JIT kernel) for avx2 and fp32
         interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
-    } else if (mayiuse(cpu::x64::sse41)) {
-        interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
+    } else {
+        OPENVINO_THROW("Can't create InterpolateJitExecutor");
     }
-} else if (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == ov::element::f32) {
-    // gather ISA(for planar JIT kernel) for avx2 and fp32
-    interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
-} else {
-    OPENVINO_THROW("Can't create InterpolateJitExecutor");
-}
 #endif  // OPENVINO_ARCH_X86_64
     if (interpolateKernel) {
         interpolateKernel->create_ker();
@@ -1661,52 +1659,51 @@ InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAtt
 }
 
 void InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
-        size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-        size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
-        if (!interpolateKernel) {
-            OPENVINO_THROW("Can't execute, kernel for Interpolate node is not compiled");
-        }
-        switch (mode) {
-            case InterpolateMode::nearest: {
-                if (configured_for_layout == InterpolateLayoutType::planar) {
-                    NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
-                } else {
-                    NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
-                }
-                break;
-            }
-            case InterpolateMode::linear_onnx: {
-                if (configured_for_layout == InterpolateLayoutType::planar) {
-                    linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
-                } else {
-                    linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
-                }
-                break;
-            }
-            case InterpolateMode::cubic: {
-                if (configured_for_layout == InterpolateLayoutType::planar) {
-                    cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
-                } else {
-                    cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
-                }
-                break;
-            }
-            case InterpolateMode::bilinear_pillow:
-            case InterpolateMode::bicubic_pillow: {
-                if (configured_for_layout == InterpolateLayoutType::by_channel) {
-                    pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
-                } else {
-                    OPENVINO_THROW("Only channel_first jit kernel is supported for pillow mode", mode);
-                }
-                break;
-            }
-            default: {
-                OPENVINO_THROW("InterpolateJitExecutor has unsupported interpolate mode: ", mode);
-            }
-        }
+    if (!interpolateKernel) {
+        OPENVINO_THROW("Can't execute, kernel for Interpolate node is not compiled");
     }
-
+    switch (mode) {
+    case InterpolateMode::nearest: {
+        if (configured_for_layout == InterpolateLayoutType::planar) {
+            NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+        } else {
+            NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+        }
+        break;
+    }
+    case InterpolateMode::linear_onnx: {
+        if (configured_for_layout == InterpolateLayoutType::planar) {
+            linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+        } else {
+            linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+        }
+        break;
+    }
+    case InterpolateMode::cubic: {
+        if (configured_for_layout == InterpolateLayoutType::planar) {
+            cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+        } else {
+            cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+        }
+        break;
+    }
+    case InterpolateMode::bilinear_pillow:
+    case InterpolateMode::bicubic_pillow: {
+        if (configured_for_layout == InterpolateLayoutType::by_channel) {
+            pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+        } else {
+            OPENVINO_THROW("Only channel_first jit kernel is supported for pillow mode", mode);
+        }
+        break;
+    }
+    default: {
+        OPENVINO_THROW("InterpolateJitExecutor has unsupported interpolate mode: ", mode);
+    }
+    }
+}
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
@@ -1760,7 +1757,7 @@ void InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
             parallel_for2d(CB, OD, [&](size_t cb, size_t d) {
                 uint8_t* out_ptr_cbd = out_ptr + (blk_size * OW * OH * OD * cb + blk_size * OW * OH * d) * dstDataSize;
                 const uint8_t* in_ptr_cbd =
-                        in_ptr + (blk_size * IW * IH * ID * cb + blk_size * IW * IH * index_d[d]) * srcDataSize;
+                    in_ptr + (blk_size * IW * IH * ID * cb + blk_size * IW * IH * index_d[d]) * srcDataSize;
                 auto arg = jit_interpolate_call_args();
                 for (int h = 0; h < OH; h++) {  // kernel for blk_size * OW
                     arg.dst = out_ptr_cbd + blk_size * OW * h * dstDataSize;
@@ -1803,14 +1800,14 @@ void InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
 
     parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
         const uint8_t* in_ptr =
-                in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c + IW * IH * index_d[od]) * srcDataSize;
+            in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c + IW * IH * index_d[od]) * srcDataSize;
         uint8_t* out_ptr = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c + OW * OH * od) * dstDataSize;
 
         auto arg = jit_interpolate_call_args();
         arg.src_ptr[0] = in_ptr;
         arg.dst = out_ptr;
         arg.index = static_cast<int*>(
-                &index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
+            &index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
         arg.post_op_data = post_ops_data_;
@@ -1957,7 +1954,9 @@ void InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
         uint8_t* out_ptr_nhw = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h + CGatherLen * w) * dstDataSize;
         const uint8_t* in_ptr_n = in_ptr_ + (IH * IW * CSize * b) * srcDataSize;
 
-        std::vector<int> kernelIndex(baseInterpolateAttrs.CUBIC_GRID_LEN * baseInterpolateAttrs.CUBIC_GRID_LEN);  // 16 address offset to src(batch) or src(CB)
+        std::vector<int> kernelIndex(
+            baseInterpolateAttrs.CUBIC_GRID_LEN *
+            baseInterpolateAttrs.CUBIC_GRID_LEN);  // 16 address offset to src(batch) or src(CB)
         int iy = yOrigin[h];
         int ix = xOrigin[w];
         for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
