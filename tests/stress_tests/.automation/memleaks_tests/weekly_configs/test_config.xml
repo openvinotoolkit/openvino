@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='us-ascii'?>
+<attributes>
+    <processes>
+        <value>1</value>
+    </processes>
+    <threads>
+        <value>1</value>
+    </threads>
+    <iterations>
+        <value>100</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+    </devices>
+    <models>
+	</models>
+</attributes>
