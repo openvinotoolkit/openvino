@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Union
-from collections.abc Callable
+from collections.abc import Callable
 import logging
 
 from openvino import Model

@@ -38,7 +38,7 @@ class FunctionsPatcher:
             setattr(builtins, name, new_fn)
 
     def __exit__(self,
-                 exc_type: Optional[Type[BaseException]],
+                 exc_type: Optional[type[BaseException]],
                  exc_val: Optional[BaseException],
                  exc_tb: Optional[Any]
                  ) -> None:

@@ -15,7 +15,7 @@ class ModuleExtension:
     """
 
     def __init__(self,
-                 module: Union[str, torch.nn.Module, Type[torch.nn.Module]],
+                 module: Union[str, torch.nn.Module, type[torch.nn.Module]],
                  target_op: str,
                  evaluate: Optional[Callable] = None,
                  convert: Optional[Callable] = None,
