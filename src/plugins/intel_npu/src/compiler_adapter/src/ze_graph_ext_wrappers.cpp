@@ -39,6 +39,62 @@
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
 
+
+namespace {
+
+ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
+    switch (zeElementType) {
+    case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
+        return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3:
+        return ov::element::Type_t::f8e4m3;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2:
+        return ov::element::Type_t::f8e5m2;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E8M0:
+        return ov::element::Type_t::f8e8m0;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return ov::element::Type_t::bf16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return ov::element::Type_t::f16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+        return ov::element::Type_t::f32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
+        return ov::element::Type_t::f64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
+        return ov::element::Type_t::i4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return ov::element::Type_t::i8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return ov::element::Type_t::i16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return ov::element::Type_t::i32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
+        return ov::element::Type_t::u1;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
+        return ov::element::Type_t::u4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return ov::element::Type_t::u8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return ov::element::Type_t::u16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return ov::element::Type_t::u32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return ov::element::Type_t::u64;
+    default:
+        return ov::element::Type_t::dynamic;
+    }
+}
+}  // namespace
+
+
 namespace intel_npu {
 
 ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
@@ -327,8 +383,10 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
                                   serializedIR.second.get(),
                                   buildFlags.c_str(),
                                   flags};
-        
         _logger.debug("getGraphHandle - perform pfnCreate3");
+
+        ze_graph_properties_3_t graphProperties = {};
+
         // Create querynetwork handle
         ze_graph_build_log_handle_t graphBuildLogHandle = nullptr;
         auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate3(_zeroInitStruct->getContext(),
@@ -337,11 +395,6 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
                                                                 &graphHandle,
                                                                 &graphBuildLogHandle);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate3", result, _zeroInitStruct->getGraphDdiTable());
-        std::string log1 = zeroUtils::getLatestBuildError2(_zeroInitStruct->getGraphDdiTable(), graphBuildLogHandle);//pfnBuildLogGetString2
-        _logger.warning("  1) getLatestBuildError2's log: %s", log1.c_str());
-        _logger.warning("------------------------------------------------------");
-        std::string log2 = zeroUtils::getLatestBuildError(_zeroInitStruct->getGraphDdiTable());//pfnBuildLogGetString
-        _logger.warning("  2) getLatestBuildError's log: %s", log2.c_str());
     }
     return graphHandle;
 }

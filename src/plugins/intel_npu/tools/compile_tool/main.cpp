@@ -18,6 +18,10 @@
 
 #include "tools_helpers.hpp"
 
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/opsets/opset1.hpp"
+
 static constexpr char help_message[] = "Optional. Print the usage message.";
 
 static constexpr char model_message[] = "Required. Path to the XML model.";
@@ -101,6 +105,25 @@ DEFINE_string(shape, "", shape_message);
 DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size_message);
 
 namespace {
+
+// using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
+// using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
+//  std::shared_ptr<ov::Model> getConstantGraph() {
+//     ResultVector results;
+//     ParameterVector params;
+//     auto op = std::make_shared<ov::op::v1::Add>(opset8::Constant::create(ov::element::i64, {1}, {1}),
+//                                                 opset8::Constant::create(ov::element::i64, {1}, {1}));
+//     op->set_friendly_name("Add");
+
+//     auto res = std::make_shared<ov::op::v0::Result>(op);
+//     auto now = std::chrono::system_clock::now();
+//     auto timeStamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+//     res->set_friendly_name("Result" + std::to_string(timeStamp));
+//     res->get_output_tensor(0).set_names({"tensor_output"});
+//     results.push_back(res);
+//     return std::make_shared<ov::Model>(results, params);
+// }
+
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
         return {};

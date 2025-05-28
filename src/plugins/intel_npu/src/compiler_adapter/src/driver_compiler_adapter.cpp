@@ -326,6 +326,7 @@ SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::
 
 std::string DriverCompilerAdapter::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
                                                    const bool useIndices) const {
+
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
