@@ -335,7 +335,7 @@ TEST(quantize_gpu, quantize_levels_3) {
     }
 }
 
-TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
+TEST(quantize_gpu, quantize_levels_256_2d_unsigned_const_input) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
     auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
@@ -376,7 +376,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     set_values(output_high, { 255.0f });
 
     std::vector<uint8_t> ref_data = {
-            0, 54, 77, 102,
+            0, 54, 76, 102,
             51, 13, 13, 26,
             17, 34, 8, 8,
             0, 13, 0, 0,
@@ -399,16 +399,16 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        data("input", input),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
