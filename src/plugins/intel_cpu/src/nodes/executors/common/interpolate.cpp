@@ -3,14 +3,13 @@
 //
 
 #include "interpolate.hpp"
-#include <cpu_memory.h>
-#include <memory_desc/cpu_memory_desc_utils.h>
 #include <nodes/common/cpu_memcpy.h>
-#include "utils/cpu_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include <utility>
-#include "dnnl_extension_utils.h"
+#include <algorithm>
+#include <cmath>
 #include "common/primitive_hashing_utils.hpp"
 
 namespace ov::intel_cpu {

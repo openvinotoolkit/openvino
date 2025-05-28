@@ -5,6 +5,7 @@
 #include "interpolate_config.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "openvino/core/parallel.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

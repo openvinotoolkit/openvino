@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+#include "cpu_types.h"
 #include "nodes/executors/interpolate_config.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

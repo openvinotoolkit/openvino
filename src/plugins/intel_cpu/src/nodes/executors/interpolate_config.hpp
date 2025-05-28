@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include "executor_config.hpp"
-#include "post_ops.hpp"
+#include <cstdint>
+#include <cstdlib>
+#include <oneapi/dnnl/dnnl.hpp>
+#include "openvino/core/except.hpp"
+#include <algorithm>
+#include "cpu_types.h"
+#include <cstddef>
+#include "openvino/core/type/element_type.hpp"
+#include <vector>
 
-#include "common/primitive_hashing.hpp"
+#include "utils/general_utils.h"
 
 
 namespace ov::intel_cpu {
