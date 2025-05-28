@@ -197,7 +197,7 @@ describe('ov.Model tests', () => {
 
     it('should have ctor (PartialShape, variablesShapes)', () => {
       const partialShape = new ov.PartialShape(pShape);
-      const reshapedModel = model.reshape(partialShape, {});
+      const reshapedModel = model.reshape(partialShape);
       assert.ok( reshapedModel instanceof ov.Model );
 
       const newShape = reshapedModel.input().getPartialShape();
@@ -208,7 +208,7 @@ describe('ov.Model tests', () => {
     });
 
     it('should have ctor (string, variablesShapes)', () => {
-      const reshapedModel = model.reshape(pShape, {});
+      const reshapedModel = model.reshape(pShape);
       assert.ok(reshapedModel instanceof ov.Model);
       const newShape = reshapedModel.input().getPartialShape();
       assert.deepStrictEqual( newShape.toString(), pShape);
@@ -220,6 +220,8 @@ describe('ov.Model tests', () => {
         /'reshape' method called with incorrect parameters./,
       );
     });
+
+    // TODO: Test reshape of model with multiple inputs
 
   });
 });

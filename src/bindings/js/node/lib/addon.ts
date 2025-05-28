@@ -300,21 +300,36 @@ interface Model {
    */
   setFriendlyName(name: string): void;
   /** Reshapes model input.
-   * @param partial_shape The {@link PartialShape} object
+   * @param partialShape The {@link PartialShape} object
    * to reshape the model input.
    * @param variablesShapes New shapes for variables.
    */
   reshape(
-    partial_shape: PartialShape,
+    partialShape: PartialShape,
     variablesShapes: Record<string, PartialShape | string>
   ): Model;
   /** Reshapes model input.
-   * @param partial_shape A string representation of {@link PartialShape}
+   * @param partialShape A string representation of {@link PartialShape}
    * to reshape the model input.
    * @param variablesShapes New shapes for variables.
    */
   reshape(
-    partial_shape: string,
+    partialShape: string,
+    variablesShapes: Record<string, PartialShape | string>
+  ): Model;
+  /** Reshapes model inputs.
+   * @param partialShapes A dictionary with partial shapes.
+   * @param key The key is a model input index, tensor name
+   * or {@link Output} object.
+   * @param value The value is a {@link PartialShape} or
+   * a string representation of {@link PartialShape}.
+   * @param variablesShapes New shapes for variables.
+   */
+  reshape(
+    partialShapes: {
+      key: number | string | Output,
+      value: PartialShape | string
+    },
     variablesShapes: Record<string, PartialShape | string>
   ): Model;
   /**

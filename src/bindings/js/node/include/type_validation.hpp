@@ -6,6 +6,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/model_wrap.hpp"
+#include "node/include/node_output.hpp"
 #include "node/include/partial_shape_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
@@ -46,6 +47,9 @@ template <>
 const char* get_attr_type<TensorWrap>();
 
 template <>
+const char* get_attr_type<Output<ov::Node>>();
+
+template <>
 const char* get_attr_type<PartialShapeWrap>();
 
 template <typename T>
@@ -74,6 +78,9 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<Output<ov::Node>>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value);

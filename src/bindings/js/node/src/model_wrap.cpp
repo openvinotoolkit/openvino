@@ -206,14 +206,57 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
     }
 }
 
+ov::Output<ov::Node> ModelWrap::output_from_handle(const Napi::Env& env, const Napi::Value& value) {
+    if (ov::js::validate_value<int>(env, value)) {
+        return _model->input(value.As<Napi::Number>().Int32Value());
+    } else if (ov::js::validate_value<std::string>(env, value)) {
+        return _model->input(value.As<Napi::String>().Utf8Value());
+    } else if (ov::js::validate_value<Output<ov::Node>>(env, value)) {
+        const auto output_wrap = Napi::ObjectWrap<Output<ov::Node>>::Unwrap(value.ToObject());
+        return output_wrap->get_output();
+    } else {
+        OPENVINO_THROW("Incorrect key type to reshape a model, expected keys as openvino.Output, int or str.");
+    }
+}
+
 Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
-        if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures) || ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures) ) {
-            const auto shape = js_to_cpp<ov::PartialShape>(info.Env(), info[0]);
-            const auto variable_shapes = js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
-            _model->reshape(shape, variable_shapes);
-            std::cout << "overload ps and object" << shape << std::endl;
+        if (ov::js::validate<PartialShapeWrap>(info, allowed_signatures) ||
+            ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), {});
+            return info.This();
+        } else if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures) ||
+                   ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const auto variable_shapes =
+                js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
+            _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), variable_shapes);
+            return info.This();
+        } else if (ov::js::validate<Napi::Object>(info, allowed_signatures)) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            const auto& items = info[0].As<Napi::Object>();
+            const auto& keys = items.GetPropertyNames();
+            for (uint32_t i = 0; i < keys.Length(); ++i) {
+                const Napi::Value& key = keys[i];
+                new_shapes.emplace_hint(new_shapes.end(),
+                                        output_from_handle(info.Env(), key),
+                                        js_to_cpp<ov::PartialShape>(info.Env(), items.Get(key)));
+            }
+            _model->reshape(new_shapes, {});
+            return info.This();
+        } else if (ov::js::validate<Napi::Object, Napi::Object>(info, allowed_signatures)) {
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            const auto& items = info[0].As<Napi::Object>();
+            const auto& keys = items.GetPropertyNames();
+            for (uint32_t i = 0; i < keys.Length(); ++i) {
+                const Napi::Value& key = static_cast<Napi::Value>(keys[i]);
+                new_shapes.emplace_hint(new_shapes.end(),
+                                        output_from_handle(info.Env(), key),
+                                        js_to_cpp<ov::PartialShape>(info.Env(), items.Get(key)));
+            }
+            const auto variable_shapes =
+                js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
+            _model->reshape(new_shapes, variable_shapes);
             return info.This();
         } else {
             OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
