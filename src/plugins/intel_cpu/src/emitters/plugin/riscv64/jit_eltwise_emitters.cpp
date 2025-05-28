@@ -618,6 +618,68 @@ std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precis
 void jit_not_equal_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
+/// MAXIMUM ///
+jit_maximum_emitter::jit_maximum_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
+    jit_emitter(host, host_isa, exec_prc) {}
+
+jit_maximum_emitter::jit_maximum_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node) :
+    jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+size_t jit_maximum_emitter::get_inputs_num() const {
+    return 2;
+}
+
+void jit_maximum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel for MAXIMUM");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    h->vfmax_vv(dst, src0, src1);
+}
+
+std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+/// MINIMUM ///
+jit_minimum_emitter::jit_minimum_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc):
+    jit_emitter(host, host_isa, exec_prc) {}
+
+jit_minimum_emitter::jit_minimum_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node) :
+    jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+size_t jit_minimum_emitter::get_inputs_num() const {
+    return 2;
+}
+
+void jit_minimum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel for MINIMUM");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    h->vfmin_vv(dst, src0, src1);  // Use vfmin for floating point minimum
+}
+
+std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
 
 /// PReLU ///
 jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
