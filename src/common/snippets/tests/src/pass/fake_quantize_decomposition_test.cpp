@@ -37,11 +37,12 @@ public:
 };
 
 TEST_F(FakeQuantizeDecompositionTest, smoke_Snippets_PerTensorFakeQuantizeDecomposition) {
+    auto onesShape = ov::Shape{1, 1, 1, 1};
     model = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
-        {1, 3, 16, 16}, element::f32, {{}, {}, {}, {}}, 1.f);
+        {1, 3, 16, 16}, element::f32, {onesShape, onesShape, onesShape, onesShape}, 1.f);
 
     model_ref = FakeQuantizeFunction::getSubgraphWithDecomposedFakeQuantize(
-        {1, 3, 16, 16}, element::f32, {{}, {}, {}, {}}, 1.f);
+        {1, 3, 16, 16}, element::f32, {onesShape, onesShape, onesShape, onesShape}, 1.f);
 
     register_passes();
 }
