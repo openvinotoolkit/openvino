@@ -39,9 +39,9 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
 set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL "")
 
+set(PRECOMP_HEADER_PATH "${CMAKE_CURRENT_SOURCE_DIR}/precomp.hpp")
+
 macro(ov_gpu_add_backend_target)
-    set(options
-    )
     set(oneValueRequiredArgs
         NAME
     )
@@ -130,6 +130,10 @@ ov_add_target(
     DEPENDENCIES
         run_codegen_test
     ADD_CPPLINT
+)
+
+ov_build_target_faster(${TARGET_NAME}
+    PCH "${PRECOMP_HEADER_PATH}"
 )
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})

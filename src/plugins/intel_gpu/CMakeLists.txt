@@ -86,6 +86,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
                                                   LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
 
+ov_build_target_faster(${TARGET_NAME}
+    PCH "src/plugin/precomp.hpp"
+)
+
 if(ENABLE_TESTS)
   add_subdirectory(tests)
 endif()

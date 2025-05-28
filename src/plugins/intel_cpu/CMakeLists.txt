@@ -250,6 +250,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
+file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
+
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -351,6 +353,13 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
+
+file(GLOB_RECURSE FILES_FOR_CROSS_COMPILATION ${CMAKE_CURRENT_BINARY_DIR}/cross-compiled/*.cpp)
+
+ov_build_target_faster(${TARGET_NAME}
+    PCH "src/precomp.hpp"
+)
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -367,6 +376,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+
+    ov_build_target_faster(${TARGET_NAME}_obj
+        PCH "src/precomp.hpp"
+    )
 
     set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
     if(RISCV64)

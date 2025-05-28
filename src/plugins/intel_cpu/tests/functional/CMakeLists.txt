@@ -109,6 +109,10 @@ ov_add_test_target(
         LABELS OV CPU
 )
 
+ov_build_target_faster(${TARGET_NAME}
+    PCH "precomp.hpp"
+)
+
 ov_set_threading_interface_for(${TARGET_NAME})
 
 include(cmake/specific_tests.cmake)

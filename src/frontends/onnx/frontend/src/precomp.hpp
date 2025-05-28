@@ -6,4 +6,10 @@
 
 #include "openvino/pch/precomp_core.hpp"
 
-#include <onnx/onnx_pb.h>
+#include "core/operator_set.hpp"
+#include "core/node.hpp"
+#include "core/null_node.hpp"
+#include "utils/tensor_external_data.hpp"
+#include "onnx/onnx_pb.h"
+#include "exceptions.hpp"
+#include "openvino/op/constant.hpp"

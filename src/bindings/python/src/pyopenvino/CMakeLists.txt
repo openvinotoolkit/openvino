@@ -70,6 +70,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 ov_add_version_defines(pyopenvino.cpp ${PROJECT_NAME})
 
+ov_build_target_faster(${PROJECT_NAME}
+    PCH "precomp.hpp"
+)
+
 if(OV_GENERATOR_MULTI_CONFIG)
     string(APPEND _cmd_echo
         "$<$<CONFIG:Debug>:"

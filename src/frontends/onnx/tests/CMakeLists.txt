@@ -173,5 +173,9 @@ add_dependencies(ov_onnx_frontend_tests test_model_zoo)
 # Working with ModelProto
 ov_link_system_libraries(ov_onnx_frontend_tests PUBLIC onnx_proto onnx)
 
+ov_build_target_faster(ov_onnx_frontend_tests
+    PCH "precomp.hpp"
+)
+
 add_subdirectory(standalone_build)
 add_dependencies(ov_onnx_frontend_tests onnx_fe_standalone_build_test)
