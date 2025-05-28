@@ -362,15 +362,12 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
     }
 
-    if (prev.is_dynamic()) {
-        if (prev.is_type<permute>())
-            return true;
-        if (prev.is_type<group_normalization>() && fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
-            return true;
+    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic())) {
+        if (!prev.is_type<permute>() &&
+            !prev.is_type<group_normalization>()) {
+            return false;
+        }
     }
-
-    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
-        return false;
 
     // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
@@ -386,6 +383,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     auto use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && contains_onednn_impls_optimization_attribute(&prev);
 
     if (prev.is_type<reorder>())
+        return true;
+
+    if (prev.is_type<group_normalization>() &&
+        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
         return true;
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
@@ -426,6 +427,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
 
         // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
         if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
+            return false;
+
+        if (dt_prev != node.get_output_layout().data_type)
             return false;
 
         return true;
