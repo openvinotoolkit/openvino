@@ -106,10 +106,11 @@ size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-bool BrgemmCPUBlocking::is_kn_blocking_supported(const std::shared_ptr<BrgemmCPU>& brgemm) {
-    return stand_alone(brgemm->get_type()) ||
+bool BrgemmCPUBlocking::is_kn_blocking_supported(const BrgemmCPU::BRGEMM_TYPE type,
+                                                 const ov::element::Type& input_type) {
+    return stand_alone(type) ||
            // Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
-           (with_repacking(brgemm->get_type()) && brgemm->get_input_element_type(1) == element::f32);
+           (with_repacking(type) && input_type == element::f32);
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
@@ -123,7 +124,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)
-    if (is_kn_blocking_supported(brgemm)) {
+    if (is_kn_blocking_supported(brgemm->get_type(), brgemm->get_input_element_type(1))) {
         OPENVINO_ASSERT(brgemm->get_postops_config().post_ops.len() == 0,
                         "Blocking for Brgemm with postops is not supported");
     } else {

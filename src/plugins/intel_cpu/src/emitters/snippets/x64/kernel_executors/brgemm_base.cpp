@@ -5,12 +5,15 @@
 #include "brgemm_base.hpp"
 
 #include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/primitive_attr.hpp>
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <dnnl.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -172,7 +175,7 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                nullptr) == dnnl_success,
                               "Cannot initialize brgemm descriptor due to invalid params");
 
-    primitive_attr_t attr;
+    dnnl_primitive_attr attr;
     attr.set_post_ops(post_ops);
     dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::ab);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC) == dnnl_success,

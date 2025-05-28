@@ -24,6 +24,7 @@
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"

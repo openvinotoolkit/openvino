@@ -8,6 +8,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <type_traits>

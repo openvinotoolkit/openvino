@@ -27,6 +27,9 @@ inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
 }
 
 size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
+    if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
+        return ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
+    }
     size_t count = 0;
     for (size_t i = 1; i < op->get_input_size(); ++i) {
         const auto input = op->input_value(i);
@@ -34,13 +37,9 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
         const auto is_scalar = constant && (ov::shape_size(input.get_shape()) == 1);
         const auto should_be_inside_body = constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
-        const auto is_fq_weight = constant && ov::is_type<ov::op::v0::FakeQuantize>(op);
-        if (!(is_scalar || should_be_inside_body || is_fq_weight)) {
+        if (!(is_scalar || should_be_inside_body)) {
             count++;
         }
-    }
-    if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
-        count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
     }
     return count;
 }
@@ -150,14 +149,26 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         auto interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         auto available_regs = config.get_data_ptr_gpr_count();
 
+        bool postops_fusion_possible = true;
+        std::shared_ptr<ov::op::v0::MatMul> cur_matmul = matmul0;
         while (has_one_consumer(prev_op)) {
             auto current_potential_body_params_count = potential_body_params_count;
 
             if (is_matmul_supported(interm_op) && !transformation_callback(interm_op)) {
                 // +1 for weights
                 current_potential_body_params_count++;
+                // If MatMul is the first in the sequence, postops fusion status is reset
+                postops_fusion_possible = true;
+                cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
+                OPENVINO_ASSERT(cur_matmul, "MatMul is expected");
             } else if (is_supported_intermediate_op(interm_op)) {
-                current_potential_body_params_count += get_potential_body_params(interm_op);
+                // Intermediate op contributes to the body params count only if can't be fused as post-op
+                // or if a previous node between MatMul and this op is not supported by post-op fusion
+                if (!postops_fusion_possible || config.get_can_be_fused_as_postop() == nullptr ||
+                    !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
+                    postops_fusion_possible = false;
+                    current_potential_body_params_count += get_potential_body_params(interm_op);
+                }
             } else {
                 // Unsupported op
                 break;

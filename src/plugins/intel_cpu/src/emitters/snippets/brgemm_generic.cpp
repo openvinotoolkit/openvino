@@ -4,7 +4,6 @@
 
 #include "brgemm_generic.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

@@ -6,6 +6,7 @@
 
 #include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <common/primitive_attr.hpp>
 #include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -22,6 +23,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
