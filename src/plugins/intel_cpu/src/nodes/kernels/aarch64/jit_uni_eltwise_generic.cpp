@@ -22,6 +22,7 @@
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace aarch64 {
