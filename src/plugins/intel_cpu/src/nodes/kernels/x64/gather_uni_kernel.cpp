@@ -4,7 +4,18 @@
 
 #include "gather_uni_kernel.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+
+#include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 

@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+
+#include "config.h"
 #include "executor_config.hpp"
 #include "post_ops.hpp"
 

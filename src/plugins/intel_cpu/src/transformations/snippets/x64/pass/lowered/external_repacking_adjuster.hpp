@@ -4,10 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
-#include "snippets/runtime_configurator.hpp"
 
 namespace ov::intel_cpu::pass {
 

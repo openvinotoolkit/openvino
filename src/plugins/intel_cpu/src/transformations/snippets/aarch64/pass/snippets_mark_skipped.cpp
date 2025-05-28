@@ -3,11 +3,41 @@
 //
 #include "snippets_mark_skipped.hpp"
 
-#include "itt.hpp"
-#include "snippets/op/subgraph.hpp"
+#include <cstddef>
+#include <memory>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/util/convolution_backprop_base.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/utils/utils.hpp"
-#include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
@@ -225,8 +255,8 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 }
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::opset1::MatMul>(node) &&
-           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+    return ov::is_type<ov::op::v0::MatMul>(node) &&
+           !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_constant_path(node->input_value(1));
 }
 

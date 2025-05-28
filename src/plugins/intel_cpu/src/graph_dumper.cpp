@@ -4,14 +4,31 @@
 
 #include "graph_dumper.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <iomanip>
+#include <ios>
+#include <iostream>
 #include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "dnnl_debug.h"
+#include "cpu_types.h"
+#include "node.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"

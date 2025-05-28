@@ -4,6 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
