@@ -114,7 +114,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
             version = parse_ov_version(version_file)
-        elif repo.name in ('openvino_tokenizers', 'openvino-genai'):
+        elif repo.name in ('openvino_tokenizers', 'openvino.genai'):
             version_file = Path(repo_dir) / 'pyproject.toml'
             version = parse_version_from_toml(version_file)
             
