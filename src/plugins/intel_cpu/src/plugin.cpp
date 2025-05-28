@@ -20,6 +20,7 @@
 #include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
+#include "internal_properties.hpp"
 #include "itt.h"
 #include "node.h"
 #include "openvino/core/except.hpp"
@@ -52,7 +53,6 @@
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
 #include "weights_cache.hpp"
-#include "internal_properties.hpp"
 
 using namespace ov::threading;
 

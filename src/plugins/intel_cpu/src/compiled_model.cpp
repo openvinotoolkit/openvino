@@ -18,6 +18,7 @@
 #include "graph.h"
 #include "graph_context.h"
 #include "infer_request.h"
+#include "internal_properties.hpp"
 #include "low_precision/low_precision.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -36,7 +37,6 @@
 #include "utils/debug_capabilities.h"
 #include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
-#include "internal_properties.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
