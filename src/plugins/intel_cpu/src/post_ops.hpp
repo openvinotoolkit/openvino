@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <any>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -19,12 +20,7 @@
 
 namespace ov::intel_cpu {
 
-struct PostOp;
-using PostOps = std::vector<std::shared_ptr<PostOp>>;
-
-struct PostOp {
-    virtual ~PostOp() = default;
-};
+using PostOps = std::vector<std::any>;
 
 struct ActivationPostOp;
 using eltwiseExecutorCreatingStrategy = std::function<ExecutorPtr(const ActivationPostOp&,
@@ -33,7 +29,7 @@ using eltwiseExecutorCreatingStrategy = std::function<ExecutorPtr(const Activati
                                                                   std::vector<MemoryDescPtr>,
                                                                   const PostOps&)>;
 
-struct ActivationPostOp : PostOp {
+struct ActivationPostOp {
     enum class Type : uint8_t {
         relu,
         tanh,
@@ -90,7 +86,7 @@ private:
     const float m_gamma;
 };
 
-struct ScaleShiftPostOp : PostOp {
+struct ScaleShiftPostOp {
     enum class Type : uint8_t {
         add,
         subtract,
@@ -123,7 +119,7 @@ private:
     const std::vector<float> m_shifts;
 };
 
-struct FakeQuantizePostOp : PostOp {
+struct FakeQuantizePostOp {
     enum class Type : uint8_t { binarization, quantization_only, quantization_dequantization };
 
     FakeQuantizePostOp(const Type type,
@@ -201,7 +197,7 @@ private:
     bool m_isOutputHighBroadcasted;
 };
 
-struct DepthwiseConvolutionPostOp : PostOp {
+struct DepthwiseConvolutionPostOp {
     DepthwiseConvolutionPostOp(size_t ih, size_t iw, std::vector<size_t> kernel, std::vector<size_t> strides)
         : m_ih(ih),
           m_iw(iw),
@@ -231,7 +227,7 @@ private:
     std::vector<size_t> m_strides;
 };
 
-struct SumPostOp : PostOp {
+struct SumPostOp {
     SumPostOp(float scale, int32_t zero_point, ov::element::Type_t dataType)
         : m_scale(scale),
           m_zero_point(zero_point),
@@ -260,8 +256,6 @@ enum class EltwiseKind : uint8_t {
     ScaleShift,
     // @todo Binary?
 };
-
-using PostOps = std::vector<std::shared_ptr<PostOp>>;
 
 EltwiseKind getEltwiseKind(const Algorithm alg);
 
