@@ -12,8 +12,56 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
+
+using op::v0::Parameter, op::v0::Constant, op::v1::Add;
+
+class SerializePassTest : public testing::Test {
+protected:
+    std::filesystem::path m_out_xml_path;
+    std::filesystem::path m_out_bin_path;
+    std::shared_ptr<Model> m_model;
+
+    void SetUp() override {
+        const auto filePrefix = ov::test::utils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+    }
+
+    void TearDown() override {
+        if (std::filesystem::exists(m_out_xml_path)) {
+            std::filesystem::remove(m_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_out_bin_path)) {
+            std::filesystem::remove(m_out_bin_path);
+        }
+    }
+
+    static FunctionsComparator model_comparator() {
+        return FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    }
+};
+
+TEST_F(SerializePassTest, serialize_u2_const) {
+    const auto p1 = std::make_shared<Parameter>(element::u2, PartialShape{5});
+    const auto c1 = std::make_shared<Constant>(element::u2, Shape{5}, std::vector{1, 2, 3, 0, 1});
+    const auto add = std::make_shared<Add>(p1, c1);
+    m_model = std::make_shared<Model>(OutputVector{add}, ParameterVector{p1}, "serialize_u2_const");
+
+    OV_ASSERT_NO_THROW(pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model));
+
+    const auto serialized_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+    const auto& [is_valid, error_msg] = model_comparator().compare(serialized_model, m_model);
+    EXPECT_TRUE(is_valid) << error_msg;
+}
+}  // namespace ov::test
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
