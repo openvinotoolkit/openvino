@@ -41,7 +41,6 @@ void GroupQueryAttention::validate_and_infer_types() {
     auto kv_shape = PartialShape{batch_size, m_kv_num_heads, get_input_partial_shape(3)[2], head_size};
     auto& output_kv_len = kv_shape[2];
 
-    // auto output_kv_len = past_sequence_len;
     if (output_kv_len.is_dynamic() || sequence_len.is_dynamic()) {
         // For dynamic shapes, concatenate the past and current sequence lengths.
         output_kv_len += sequence_len;
