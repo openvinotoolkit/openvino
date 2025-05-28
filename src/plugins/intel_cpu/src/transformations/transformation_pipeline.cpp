@@ -209,11 +209,9 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
-#endif
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 
@@ -236,7 +234,6 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
-#    include "transformations/snippets/arm/pass/snippets_mark_skipped.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -1179,7 +1176,7 @@ void Transformations::MainSnippets() {
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
     if (!ignoreCallback) {
-        CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
+        CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
         // TODO: enable MLP SEQ tokenization as a part of 163370

@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
-#include <transformations/snippets/arm/pass/snippets_mark_skipped.hpp>
+#include <transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp>
 #include "openvino/core/visibility.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
