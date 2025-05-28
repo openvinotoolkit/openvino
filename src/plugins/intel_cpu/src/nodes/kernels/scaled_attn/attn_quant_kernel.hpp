@@ -3,7 +3,8 @@
 //
 #pragma once
 
-#include "nodes/kernels/scaled_attn/common.hpp"
+#include <type_traits>
+
 #include "openvino/core/type/element_type.hpp"
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -14,6 +15,8 @@
 #if defined(HAVE_SVE)
 #    include "arm_sve.h"
 #endif
+
+#include "nodes/kernels/scaled_attn/common.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -127,10 +130,6 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, floa
         mm256_uni_storeu_ps(dst + i + vec_len_f32_avx2, second_half);
     }
 #endif
-    auto extract_half_byte = [&](uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-        return static_cast<uint8_t>((val >> shift) & 0x000F);
-    };
     for (; i < n; ++i) {
         float tmp = extract_half_byte(src_nc[i / 2], static_cast<uint8_t>(i % 2));
         tmp = (tmp - zp) * scale;

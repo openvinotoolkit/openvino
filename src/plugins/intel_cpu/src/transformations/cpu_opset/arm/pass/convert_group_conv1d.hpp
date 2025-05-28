@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 /*
  * Description:

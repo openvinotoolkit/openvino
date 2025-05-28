@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <unordered_set>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 

@@ -4,7 +4,22 @@
 
 #include "utils.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <type_traits>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 

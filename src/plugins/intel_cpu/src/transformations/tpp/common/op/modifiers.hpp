@@ -3,6 +3,9 @@
 //
 
 #pragma once
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
 #include "snippets/op/memory_access.hpp"
 
 namespace ov::intel_cpu::tpp::modifier {
