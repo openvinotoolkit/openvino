@@ -172,7 +172,16 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const 
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
 
-    h->vfdiv_vv(dst, src0, src1);
+    switch (exec_prc_) {
+    case ov::element::f32:
+        h->vfdiv_vv(dst, src0, src1);
+        break;
+    case ov::element::i32:
+        h->vdiv_vv(dst, src0, src1);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
 }
 
 std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -844,22 +853,11 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
 
-    switch (exec_prc_) {
-    case ov::element::f32:
-        h->vfsqrt_v(dst, src);
-        break;
-    case ov::element::i32:
-        h->vfcvt_f_x_v(dst, src);
-        h->vfsqrt_v(dst, dst);
-        h->vfcvt_x_f_v(dst, dst);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
-    }
+    h->vfsqrt_v(dst, src);
 }
 
 std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}, {element::i32}};
+    return {{element::f32}};
 }
 
 /// SUB ///
