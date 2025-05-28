@@ -4,6 +4,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
+#include "emitters/utils.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
