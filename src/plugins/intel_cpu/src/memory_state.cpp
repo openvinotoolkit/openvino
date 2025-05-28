@@ -6,16 +6,31 @@
 
 #include <nodes/common/cpu_convert.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;

@@ -5,11 +5,26 @@
 
 #include "brgemm_kernel.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
+#include <cpu/aarch64/brgemm/brgemm.hpp>
+#include <cpu/aarch64/brgemm/brgemm_types.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/aarch64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <openvino/core/except.hpp>
 
 #include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace dnnl::impl;

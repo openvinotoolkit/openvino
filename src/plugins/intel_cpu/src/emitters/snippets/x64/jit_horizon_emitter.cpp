@@ -4,6 +4,22 @@
 
 #include "jit_horizon_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

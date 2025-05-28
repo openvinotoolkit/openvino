@@ -5,22 +5,34 @@
 #include "experimental_detectron_topkrois.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                          std::string& errorMessage) noexcept {
     try {
-        const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
+        const auto topKROI = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
-            errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
+            errorMessage = "Only v6 ExperimentalDetectronTopKROIs operation is supported";
             return false;
         }
     } catch (...) {
@@ -37,7 +49,7 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
+    const auto topKROI = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronTopKROIs>(op);
     if (topKROI == nullptr) {
         THROW_CPU_NODE_ERR("is not an instance of ExperimentalDetectronTopKROIs from opset6.");
     }

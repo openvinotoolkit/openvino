@@ -4,17 +4,35 @@
 
 #include "roll.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <openvino/op/roll.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/op/roll.hpp"
-#include "openvino/opsets/opset7_decl.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 using namespace dnnl;
 
@@ -22,9 +40,9 @@ namespace ov::intel_cpu::node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interp = ov::as_type_ptr<const ov::opset7::Roll>(op);
+        const auto interp = ov::as_type_ptr<const ov::op::v7::Roll>(op);
         if (!interp) {
-            errorMessage = "Only opset7 Roll operation is supported";
+            errorMessage = "Only v7 Roll operation is supported";
             return false;
         }
     } catch (...) {

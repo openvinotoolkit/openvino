@@ -4,19 +4,43 @@
 
 #include "tensoriterator.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cache/multi_cache.h"
 #include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 

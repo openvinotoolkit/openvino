@@ -4,11 +4,30 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <set>
+#include <unordered_set>
+#include <vector>
 
 #include "common/utils.hpp"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/relu.hpp"
+#include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 

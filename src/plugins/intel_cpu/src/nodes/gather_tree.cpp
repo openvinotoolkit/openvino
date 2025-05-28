@@ -4,12 +4,31 @@
 
 #include "openvino/op/gather_tree.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "gather_tree.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
