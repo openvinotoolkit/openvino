@@ -205,13 +205,16 @@
 
 #if defined(OPENVINO_ARCH_X86)
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
-#    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)

@@ -211,6 +211,7 @@ endif()
 
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
@@ -219,8 +220,7 @@ if(NOT (AARCH64 OR ARM))
 endif()
 
 if(NOT AARCH64)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
 endif()
 
 if (NOT RISCV64)
