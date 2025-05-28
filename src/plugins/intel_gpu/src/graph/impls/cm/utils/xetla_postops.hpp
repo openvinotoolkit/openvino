@@ -16,11 +16,11 @@ namespace ov::intel_gpu::cm {
 
 class XeTLAPostOP {
 protected:
-    const uint32_t index;
+    const size_t index;
     const std::string dtype;
 
 public:
-    XeTLAPostOP(uint32_t index, std::string dtype) : index{index}, dtype{dtype} {};
+    XeTLAPostOP(size_t index, std::string dtype) : index{index}, dtype{dtype} {};
     virtual ~XeTLAPostOP() = default;
     virtual std::string get_arg_name() const = 0;
     virtual std::string get_arg_definition() const {
@@ -42,7 +42,7 @@ public:
 
 class ScaleChannels : public XeTLAPostOP {
 public:
-    ScaleChannels(uint32_t index, std::string dtype) : XeTLAPostOP(index, dtype) {}
+    ScaleChannels(size_t index, std::string dtype) : XeTLAPostOP(index, dtype) {}
     virtual std::string get_arg_name() const {
         return "scale_input" + std::to_string(index);
     }
@@ -59,7 +59,7 @@ public:
 
 class ShiftChannels : public XeTLAPostOP {
 public:
-    ShiftChannels(uint32_t index, std::string dtype) : XeTLAPostOP(index, dtype) {}
+    ShiftChannels(size_t index, std::string dtype) : XeTLAPostOP(index, dtype) {}
     virtual std::string get_arg_name() const {
         return "shift_input" + std::to_string(index);
     }
@@ -82,7 +82,7 @@ private:
     EltwiseOp op;
 
 public:
-    Eltwise(uint32_t index, std::string dtype, EltwiseOp op) : XeTLAPostOP(index, dtype), op{op} {}
+    Eltwise(size_t index, std::string dtype, EltwiseOp op) : XeTLAPostOP(index, dtype), op{op} {}
     virtual std::string get_arg_name() const {
         return "eltwise_input" + std::to_string(index);
     }
@@ -115,7 +115,7 @@ private:
     ActivationOp op;
 
 public:
-    Activation(uint32_t index, std::string dtype, ActivationOp op) : XeTLAPostOP(index, dtype), op{op} {}
+    Activation(size_t index, std::string dtype, ActivationOp op) : XeTLAPostOP(index, dtype), op{op} {}
     virtual std::string get_arg_name() const {
         return "";
     }
