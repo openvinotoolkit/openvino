@@ -299,6 +299,24 @@ interface Model {
    * @param name The string to set as the friendly name.
    */
   setFriendlyName(name: string): void;
+  /** Reshapes model input.
+   * @param partial_shape The {@link PartialShape} object
+   * to reshape the model input.
+   * @param variablesShapes New shapes for variables.
+   */
+  reshape(
+    partial_shape: PartialShape,
+    variablesShapes: Record<string, PartialShape | string>
+  ): Model;
+  /** Reshapes model input.
+   * @param partial_shape A string representation of {@link PartialShape}
+   * to reshape the model input.
+   * @param variablesShapes New shapes for variables.
+   */
+  reshape(
+    partial_shape: string,
+    variablesShapes: Record<string, PartialShape | string>
+  ): Model;
   /**
    * It gets all the model inputs as an array.
    */
