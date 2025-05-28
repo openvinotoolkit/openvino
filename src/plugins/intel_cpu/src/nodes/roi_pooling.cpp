@@ -499,7 +499,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIPooling::createPrimitive() {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }

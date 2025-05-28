@@ -2050,7 +2050,7 @@ bool TopK::needPrepareParams() const {
 }
 
 void TopK::preset_params() {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     auto data_type = DnnlExtensionUtils::ElementTypeToDataType(
         selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
@@ -2196,7 +2196,7 @@ void TopK::createPrimitive() {
         // Such params are useless for dynamic shapes, instead their jit_topk_call_args counterparts
         // will be used. These params are: top_k, axis_dim, sort_stride, work_amount
         auto jcp = jit_topk_config_params();
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
         jcp.data_size = data_size;
         jcp.blk_size = blk_size;
@@ -2257,9 +2257,9 @@ void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
         topk_process(src_data, dst_data, dst_idx);
     } else {
         if (layout == TopKLayoutType::topk_ncsp) {
-            auto in_ptr = reinterpret_cast<const float*>(src_data);
-            auto out_ptr = reinterpret_cast<float*>(dst_data);
-            auto out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
+            const auto* in_ptr = reinterpret_cast<const float*>(src_data);
+            auto* out_ptr = reinterpret_cast<float*>(dst_data);
+            auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
             topk_ref(in_ptr, out_ptr, out_idx_ptr);
         } else {
             THROW_CPU_NODE_ERR("only support plain layout on machine w/o sse42.");

@@ -480,8 +480,8 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
-        auto src = getSrcDataAtPort(0);
-        auto dst = getDstDataAtPort(0);
+        auto* src = getSrcDataAtPort(0);
+        auto* dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);

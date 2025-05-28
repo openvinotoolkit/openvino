@@ -34,7 +34,7 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
 
         const auto& parent_convert_consumers = parent_convert->get_output_target_inputs(0);
         for (const auto& input : parent_convert_consumers) {
-            const auto node = input.get_node();
+            auto* const node = input.get_node();
             if (ov::is_type<snippets::op::ConvertSaturation>(node) &&
                 node->get_output_element_type(0) == child_convert->get_output_element_type(0)) {
                 replace_output_update_name(node->output(0), parent_convert->input_value(0));

@@ -50,9 +50,9 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
-    auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
-    auto endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
-    auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
+    auto* beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
+    auto* endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
+    auto* stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     const auto begin_size = shapeBegin[0];
 

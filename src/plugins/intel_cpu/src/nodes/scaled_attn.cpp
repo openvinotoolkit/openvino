@@ -445,7 +445,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                auto score = weight_score.ptr<float>(ithr, 0, m - m_start);
+                auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
@@ -946,7 +946,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
     void prepare_attn_mask(const MemoryPtr& attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
-        auto p = attn_input->getDataAs<uint8_t>();
+        auto* p = attn_input->getDataAs<uint8_t>();
         for (size_t i = 0; i < attn_input->getSize(); i++) {
             attn_buf.ptr<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
         }
@@ -1157,7 +1157,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
 
     NodeConfig config;
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     config.inConfs.resize(getOriginalInputsNumber());
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[0].setMemDesc(
@@ -1224,7 +1224,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
 
 void ScaledDotProductAttention::createPrimitive() {
     if (m_config.config.fuse_concat) {
-        auto desc = getSelectedPrimitiveDescriptor();
+        auto* desc = getSelectedPrimitiveDescriptor();
         if (desc == nullptr) {
             THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
         }
@@ -1615,7 +1615,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                 ov::element::f32,
                 ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
             auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-            auto temp_buffer = scratchMem->getDataAs<float>();
+            auto* temp_buffer = scratchMem->getDataAs<float>();
             attn_quantkv(cur_k,
                          cur_v,
                          temp_buffer,
@@ -2035,7 +2035,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                     ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()),
                                          m_key_quant_param.groupSize * S});
                 auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-                auto temp_buffer = scratchMem->getDataAs<float>();
+                auto* temp_buffer = scratchMem->getDataAs<float>();
                 // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
                 attn_quantkv(init_k,
                              init_v,
@@ -2061,7 +2061,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             ov::element::f32,
             ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
         auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-        auto temp_buffer = scratchMem->getDataAs<float>();
+        auto* temp_buffer = scratchMem->getDataAs<float>();
         attn_quantkv(cur_k,
                      cur_v,
                      temp_buffer,

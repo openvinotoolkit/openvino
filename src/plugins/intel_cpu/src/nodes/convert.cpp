@@ -181,10 +181,10 @@ void Convert::initSupportedPrimitiveDescriptors() {
 }
 
 void Convert::prepareParams() {
-    auto& parentMem = getParentEdgeAt(0)->getMemory();
+    const auto& parentMem = getParentEdgeAt(0)->getMemory();
     convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
     MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
     execPtr =
@@ -197,8 +197,8 @@ void Convert::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto& parentMem = getParentEdgeAt(0)->getMemory();
-    auto& childMem = getChildEdgeAt(0)->getMemory();
+    const auto& parentMem = getParentEdgeAt(0)->getMemory();
+    const auto& childMem = getChildEdgeAt(0)->getMemory();
 
     const auto parentPaddElemCount = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     const auto childPaddElemCount = childMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();

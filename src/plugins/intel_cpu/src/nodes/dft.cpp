@@ -257,8 +257,8 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         axes = getAxes();
     }
 
-    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
-    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
+    const auto* const src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto* dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -478,7 +478,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
             float sumReal = 0.0f;
             float sumImag = 0.0f;
             for (size_t n = 0; n < nComplex; ++n) {
-                auto complexRef = &twiddles[2 * (k * nComplex + n)];
+                const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
                 float complexReal = *complexRef;
                 float complexImag = *(complexRef + 1);
 

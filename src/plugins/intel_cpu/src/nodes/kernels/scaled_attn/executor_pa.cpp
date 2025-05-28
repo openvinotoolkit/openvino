@@ -373,7 +373,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v + src_offset);
             for (size_t i = 0; i < group_size; i++) {
                 out[dst_offset + i] += weight[j] * (v[i + src_offset + params_offset] - v0[1]) * v0[0];
             }
@@ -400,7 +400,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
@@ -483,9 +483,9 @@ static void attn_acc_value_block_by_channel(float* out,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S;
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -575,9 +575,9 @@ static void attn_acc_value_block_by_channel(float* out,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -881,8 +881,8 @@ static void dot_product_block_quantized_by_channel(TA* a,
                                                    const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0.0f;
         size_t i = 0;
@@ -1099,8 +1099,8 @@ static void dot_product_block_quantized_by_channel(TA* a,
     const size_t params_offset = sizeof(float) * 2 * n;
     // src_stride must / 2 because of u4
     const size_t src_stride = n / sub_byte_multiplier;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0.0f;
         size_t i = 0;
@@ -1429,7 +1429,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
             float group_sum = 0.0f;
             for (size_t i = 0; i < group_size; i++) {
                 group_sum += a[dst_offset + i] * (b[src_offset + params_offset + i] - b0[1]);
@@ -1671,7 +1671,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
             float group_sum = 0.0f;
             for (size_t i = 0; i < group_size; i += 2) {
                 uint8_t data = b[i / 2 + src_offset + params_offset];
@@ -1827,13 +1827,13 @@ void transpose_16NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     if (quant_key_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST,
                                        SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
@@ -1842,7 +1842,7 @@ void transpose_16NxK(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * 2,
                                                     t + dst_offset,
                                                     group_size,
@@ -1911,12 +1911,12 @@ void dequant(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
     } else {
@@ -1924,7 +1924,7 @@ void dequant(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
                                                     dst + dst_offset,
                                                     group_size,
@@ -2498,7 +2498,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -2542,7 +2542,7 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
-                    auto score_block_ptr =
+                    auto* score_block_ptr =
                         score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
                     cvt_add(score_block_ptr,
                             score_block_ptr,

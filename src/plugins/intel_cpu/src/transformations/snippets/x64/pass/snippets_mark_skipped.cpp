@@ -67,7 +67,7 @@ namespace ov::intel_cpu {
 namespace {
 static const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
-    auto& rt = node->get_rt_info();
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end()) {
         return NodeFusingType::NotSet;
@@ -211,7 +211,7 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) 
 int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     int channelAxis = DEFAULT_AXIS;
     if (!keep_dims) {
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis == 1) {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;

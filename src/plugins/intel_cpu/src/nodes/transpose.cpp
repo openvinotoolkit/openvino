@@ -87,7 +87,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 
     prec = getOriginalInputPrecisionAtPort(0);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     NodeConfig config;
     config.inConfs.resize(2);
@@ -188,7 +188,7 @@ void Transpose::prepareParams() {
         primArgs = {{DNNL_ARG_SRC, srcMemPtr->getPrimitive()}, {DNNL_ARG_DST, dstMemPtr->getPrimitive()}};
 #ifdef CPU_DEBUG_CAPS
         if (prim) {
-            auto pd = prim.get_primitive_desc();
+            const auto* pd = prim.get_primitive_desc();
             DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
@@ -201,7 +201,7 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = getSrcDataAtPortAs<const int32_t>(0);
+        const auto* orderPtr = getSrcDataAtPortAs<const int32_t>(0);
         auto orderLen = getSrcMemoryAtPort(0)->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
@@ -210,7 +210,7 @@ void Transpose::prepareParams() {
     auto builder =
         [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
                                                                                                    {srcDesc},
                                                                                                    {dstDesc},

@@ -81,7 +81,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }
@@ -192,7 +192,7 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }

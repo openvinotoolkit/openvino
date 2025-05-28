@@ -105,8 +105,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         m_kernel = createJitKernel(jcp);
     }
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
-        auto src = inputs[0]->getDataAs<uint8_t>();
-        auto dst = output->getDataAs<uint8_t>();
+        auto* src = inputs[0]->getDataAs<uint8_t>();
+        auto* dst = output->getDataAs<uint8_t>();
         auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();

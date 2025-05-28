@@ -43,7 +43,7 @@ static void dumpStatistics(std::ostream& os,
             }
         }
 
-        auto& scratchpads = ctx->getScratchPads();
+        const auto& scratchpads = ctx->getScratchPads();
         for (size_t i = 0; i < scratchpads.size(); ++i) {
             os << "Scratchpad " << i << " size: " << scratchpads[i]->size() << " bytes\n\n";
         }
@@ -82,7 +82,7 @@ static void dumpStatisticsCSV(std::ofstream& os,
 
         os << "Scratchpad ID;Size [bytes];;;;;\n";
 
-        auto& scratchpads = ctx->getScratchPads();
+        const auto& scratchpads = ctx->getScratchPads();
         for (size_t i = 0; i < scratchpads.size(); ++i) {
             os << i << ";" << scratchpads[i]->size() << ";;;;;\n";
         }

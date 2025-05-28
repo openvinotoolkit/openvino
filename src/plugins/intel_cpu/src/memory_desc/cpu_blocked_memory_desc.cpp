@@ -117,10 +117,10 @@ bool CpuBlockedMemoryDesc::isDefinedImp() const {
 
 bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     const MemoryDesc* pRhs = &rhs;
-    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc);
     }
-    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*dnnlBlkDesc);
     }
     return false;
@@ -136,10 +136,10 @@ bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMas
 
 bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     const BlockedMemoryDesc* pRhs = &rhs;
-    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc, cmpMask);
     }
-    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*dnnlBlkDesc, cmpMask);
     }
     return false;
@@ -218,7 +218,7 @@ size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
 
 size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
-    auto& dims = shape.getStaticDims();
+    const auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
     VectorDims pos(n_dims);
     for (size_t rd = 1; rd <= n_dims; ++rd) {

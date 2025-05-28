@@ -83,7 +83,7 @@ void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
 }
 
 void ProxyMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
+    for (const auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }

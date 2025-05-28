@@ -337,7 +337,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
-    auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
+    const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     auto* output_rois_features = getDstDataAtPortAs<float>(OUTPUT_ROI_FEATURES);
     float* output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
@@ -359,7 +359,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
         const int level_rois_offset = rois_per_level[i];
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
-            auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
+            const auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
             const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
             const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,

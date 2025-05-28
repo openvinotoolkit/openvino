@@ -124,9 +124,9 @@ brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(
 }
 
 void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {
-    auto A = reinterpret_cast<const float*>(args->ptr_A);
-    auto B = reinterpret_cast<const float*>(args->ptr_B);
-    auto C = reinterpret_cast<float*>(args->ptr_C);
+    const auto* A = reinterpret_cast<const float*>(args->ptr_A);
+    const auto* B = reinterpret_cast<const float*>(args->ptr_B);
+    auto* C = reinterpret_cast<float*>(args->ptr_C);
     for (dnnl_dim_t m = 0; m < m_config.get_M(); m++) {
         for (dnnl_dim_t n = 0; n < m_config.get_N(); n++, B++) {
             C[n] = 0;

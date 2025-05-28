@@ -1070,7 +1070,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
                 for (size_t j = i + 1; j < postOps.size(); j++) {
-                    auto& nextNode = postOps[j];
+                    const auto& nextNode = postOps[j];
 
                     if (auto nextEltwiseNode = std::dynamic_pointer_cast<SumPostOp>(nextNode)) {
                         hasSubsequentSum = true;

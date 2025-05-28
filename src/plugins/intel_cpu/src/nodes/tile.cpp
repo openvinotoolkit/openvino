@@ -189,7 +189,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
-    auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
+    const auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
     const auto* src_ptr = srcMemory.getDataAs<const uint8_t>();
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(0);

@@ -398,12 +398,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
         });
     } else {
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             for (int i = 0; i < count; i++) {
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }

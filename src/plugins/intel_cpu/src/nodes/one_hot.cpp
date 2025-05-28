@@ -90,7 +90,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
+    auto* const depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;

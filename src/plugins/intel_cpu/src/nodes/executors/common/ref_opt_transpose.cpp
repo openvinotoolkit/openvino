@@ -29,7 +29,7 @@ struct TransposeContext {
 
 template <typename T>
 void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -48,7 +48,7 @@ void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dst
 
 template <typename T>
 void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -70,7 +70,7 @@ void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& ds
 
 template <typename T>
 void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];

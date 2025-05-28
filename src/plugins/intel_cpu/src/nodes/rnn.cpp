@@ -194,17 +194,17 @@ size_t RNNKey::hash() const {
 
     size_t seed = 0lu;
 
-    for (auto& desc : inDataDescs) {
+    for (const auto& desc : inDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : outDataDescs) {
+    for (const auto& desc : outDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : wDescs) {
+    for (const auto& desc : wDescs) {
         seed = hash_combine(seed, get_md_hash(*desc.get()));
     }
     seed = hash_combine(seed, cellType);
@@ -1421,7 +1421,7 @@ void RNN::prepareParams() {
     }
 
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 
