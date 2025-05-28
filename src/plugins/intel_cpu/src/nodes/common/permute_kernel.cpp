@@ -220,6 +220,15 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     }
 
     switch (jcp.n) {
+    case 0:
+    // This case will trigger regression if the transpose connect from Parameter to Result
+    //  Parameter
+    //     |
+    //  Transpose
+    //     |
+    //  Result
+    // The elimination of the Transpose node will not be performed
+    // So copy from input buffer to output buffer without any permutation
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
