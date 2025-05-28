@@ -200,7 +200,7 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
-if (NOT X86_64 AND NOT RISCV64)
+if (NOT (X86 OR X86_64 OR RISCV64))
     # this directory is reused on RISCV64
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()
