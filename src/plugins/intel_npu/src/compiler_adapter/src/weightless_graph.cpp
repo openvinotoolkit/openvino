@@ -209,9 +209,10 @@ std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ost
     // Then the init schedules
     std::vector<uint64_t> initSizes;
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
-        uint64_t initBlobSize =
-            writeToStream(_initsHandles.at(initIndex),
-                          _initBlobs.has_value() ? std::make_optional(_initBlobs->at(initIndex)) : std::nullopt);
+        uint64_t initBlobSize = writeToStream(_initsHandles.at(initIndex),
+                                              _initBlobs.has_value() && _initBlobs->at(initIndex)
+                                                  ? std::make_optional(_initBlobs->at(initIndex))
+                                                  : std::nullopt);
         totalBlobSize += initBlobSize;
         initSizes.push_back(initBlobSize);
     }
