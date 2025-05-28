@@ -16,9 +16,9 @@ bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::el
     if (type == ov::element::dynamic) {
         return true;
     } else {
-        return type.bitwidth() != tensor_type.bitwidth() || type.is_real() != tensor_type.is_real() ||
-               (type == ov::element::string && tensor_type != ov::element::string) ||
-               (type != ov::element::string && tensor_type == ov::element::string);
+        return (type.bitwidth() == tensor_type.bitwidth() && type.is_real() == tensor_type.is_real() &&
+                type != ov::element::string && tensor_type != ov::element::string) ||
+               (type == ov::element::string && tensor_type == ov::element::string);
     }
 }
 }  // namespace
