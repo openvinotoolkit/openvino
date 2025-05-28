@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cassert>
-#include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -16,27 +15,14 @@
 
 #include "cpu_types.h"
 #include "executors/interpolate.hpp"
+#include "executors/interpolate_config.hpp"
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_type.hpp"
-
-#define MAX_INPUT_INTERPOLATE 8
 
 namespace ov::intel_cpu::node {
 
 class Interpolate : public Node {
-public:
-    static constexpr size_t DATA_ID = 0;
-    static constexpr size_t TARGET_SHAPE_ID = 1;
-    static constexpr size_t SCALES_ID = 2;
-    static constexpr size_t AXES_ID = 3;
-    static constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
-    static constexpr size_t AXES_ID_V11 = 2;
-    static constexpr int CUBIC_GRID_LEN = 4;
-    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
-    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
-
 public:
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
@@ -72,7 +58,6 @@ private:
                                           const std::vector<int>& padBegin,
                                           const std::vector<int>& padEnd);
     std::vector<float> getScales(const VectorDims& srcDimPad, const VectorDims& dstDim);
-    static size_t getSpatialDimsNum(const Dim rank);
 
     bool hasPad = false;
 

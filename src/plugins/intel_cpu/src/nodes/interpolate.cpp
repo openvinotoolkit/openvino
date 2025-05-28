@@ -7,44 +7,25 @@
 #include "executors/x64/interpolate.hpp"
 #include "executors/common/interpolate.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <common/c_types_map.hpp>
-#include <common/primitive_attr.hpp>
-#include <common/primitive_hashing_utils.hpp>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
-#include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/interpolate.hpp"
 #include "nodes/executors/interpolate_list.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
@@ -58,7 +39,6 @@
 #include "openvino/op/interpolate.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/precision_support.h"
@@ -115,9 +95,15 @@ using ngInterpShapeCalcMode = ov::op::v4::Interpolate::ShapeCalcMode;
 
 bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
+        constexpr size_t DATA_ID = 0;
+        constexpr size_t SCALES_ID = 2;
+        constexpr size_t AXES_ID = 3;
+        constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
+        constexpr size_t AXES_ID_V11 = 2;
+
         if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
-            const auto& interpAttr = interp->get_attrs();
-            const auto& interpMode = interpAttr.mode;
+            const auto& tmpInterpAttr = interp->get_attrs();
+            const auto& interpMode = tmpInterpAttr.mode;
             if (!one_of(interpMode,
                         ngInterpMode::NEAREST,
                         ngInterpMode::LINEAR,
@@ -127,7 +113,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 return false;
             }
 
-            const auto& interpCoordTransMode = interpAttr.coordinate_transformation_mode;
+            const auto& interpCoordTransMode = tmpInterpAttr.coordinate_transformation_mode;
             if (!one_of(interpCoordTransMode,
                         ngInterpCoordTransf::HALF_PIXEL,
                         ngInterpCoordTransf::PYTORCH_HALF_PIXEL,
@@ -140,7 +126,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
 
             if (interpMode == ngInterpMode::NEAREST) {
-                const auto& interpNearestMode = interpAttr.nearest_mode;
+                const auto& interpNearestMode = tmpInterpAttr.nearest_mode;
                 if (!one_of(interpNearestMode,
                             ngInterpNearMode::ROUND_PREFER_FLOOR,
                             ngInterpNearMode::ROUND_PREFER_CEIL,
@@ -153,7 +139,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 }
             }
 
-            const auto& interpShapeCalcMode = interpAttr.shape_calculation_mode;
+            const auto& interpShapeCalcMode = tmpInterpAttr.shape_calculation_mode;
             if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
                 errorMessage =
                     "Interpolate-4 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
@@ -183,20 +169,20 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 errorMessage = "Only const 'axes' input is supported in Interpolate-4";
                 return false;
             }
-        } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
-            const auto& interpAttr = interp->get_attrs();
-            const auto& interpMode = interpAttr.mode;
+        } else if (const auto interp_v11 = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
+            const auto& tmpInterpAttr = interp_v11->get_attrs();
+            const auto& interpMode = tmpInterpAttr.mode;
             if (!one_of(interpMode, ngInterpMode::BILINEAR_PILLOW, ngInterpMode::BICUBIC_PILLOW)) {
                 errorMessage = "Interpolate-11 does not support interpolate mode: " + ov::as_string(interpMode);
                 return false;
             }
-            const auto& interpShapeCalcMode = interpAttr.shape_calculation_mode;
+            const auto& interpShapeCalcMode = tmpInterpAttr.shape_calculation_mode;
             if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
                 errorMessage =
                     "Interpolate-11 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
                 return false;
             }
-            const size_t dataRank = interp->get_input_partial_shape(DATA_ID).rank().get_length();
+            const size_t dataRank = interp_v11->get_input_partial_shape(DATA_ID).rank().get_length();
             if (dataRank < 2 || dataRank > 4) {
                 // pillow only resize on H and W. resize on D(depth) is not defined.
                 errorMessage = "Interpolate-11 does not support input tensor of rank : " + std::to_string(dataRank);
@@ -207,8 +193,8 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 errorMessage = "Only const 'scales_or_sizes' input is supported for static shapes in Interpolate-11";
                 return false;
             }
-            if (interp->get_input_size() > 2 && ov::as_type_ptr<const ov::op::v0::Constant>(
-                                                    interp->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
+            if (interp_v11->get_input_size() > 2 && ov::as_type_ptr<const ov::op::v0::Constant>(
+                    interp_v11->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-11";
                 return false;
             }
@@ -257,8 +243,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        dataRank = getInputShapeAtPort(DATA_ID).getRank();
-        if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
+        dataRank = getInputShapeAtPort(interpAttrs.DATA_ID).getRank();
+        if (const auto interp_v4 = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
             if (numInputs != 3 && numInputs != 4) {
@@ -269,7 +255,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
             isAxesSpecified = numInputs != 3;
 
-            const auto& interpAttr = interp->get_attrs();
+            const auto& interpAttr = interp_v4->get_attrs();
 
             const auto& interpMode = interpAttr.mode;
             if (interpMode == ngInterpMode::NEAREST) {
@@ -351,14 +337,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             const auto scalesNode =
-                ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(SCALES_ID));
+                ov::as_type_ptr<const ov::op::v0::Constant>(interp_v4->get_input_node_shared_ptr(interpAttrs.SCALES_ID));
             if (scalesNode) {
                 scales = scalesNode->cast_vector<float>();
                 isScaleConstant = true;
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp_v4->get_input_node_shared_ptr(interpAttrs.AXES_ID))
                            ->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
@@ -396,7 +382,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
                 const auto scalesNode = ov::as_type_ptr<const ov::op::v0::Constant>(
-                    interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
+                    interp->get_input_node_shared_ptr(interpAttrs.SIZE_OR_SCALE_ID_V11));
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
@@ -426,7 +412,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(interpAttrs.AXES_ID_V11))
                            ->cast_vector<int>();
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
                     interpAttrs.NCHWAsNHWC = true;
@@ -496,7 +482,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(interpAttrs.DATA_ID);
 
 #if defined(OV_CPU_WITH_ACL)
     bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
@@ -519,7 +505,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     ov::element::Type outputPrecision = inputPrecision;
 
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(interpAttrs.DATA_ID);
     }
 
 #if !defined(OV_CPU_WITH_ACL)
@@ -550,29 +536,29 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType dataFormat,
                         impl_desc_type implDetail,
-                        bool is_version11,
+                        bool is_version11_desc,
                         bool useAclExecutor = false) {
-        config.inConfs[DATA_ID].setMemDesc(
-            creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
-        if (is_version11) {
+        config.inConfs[interpAttrs.DATA_ID].setMemDesc(
+            creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(interpAttrs.DATA_ID)));
+        if (is_version11_desc) {
             if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
-                config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
+                config.inConfs[interpAttrs.SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)
-                        ->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
+                        ->createSharedDesc(targetShapeType, getInputShapeAtPort(interpAttrs.SIZE_OR_SCALE_ID_V11)));
             } else {
-                config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
+                config.inConfs[interpAttrs.SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)
-                        ->createSharedDesc(scalesType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
+                        ->createSharedDesc(scalesType, getInputShapeAtPort(interpAttrs.SIZE_OR_SCALE_ID_V11)));
             }
 
             if (isAxesSpecified) {
-                config.inConfs[AXES_ID_V11].setMemDesc(
-                    creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
+                config.inConfs[interpAttrs.AXES_ID_V11].setMemDesc(
+                    creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(interpAttrs.AXES_ID_V11)));
             }
         } else {
-            config.inConfs[TARGET_SHAPE_ID].setMemDesc(
+            config.inConfs[interpAttrs.TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)
-                    ->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID)));
+                    ->createSharedDesc(targetShapeType, getInputShapeAtPort(interpAttrs.TARGET_SHAPE_ID)));
             config.inConfs[get_scale_id()].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(get_scale_id())));
 
@@ -615,8 +601,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::nspc, undef, true, true);
         pushDesc(LayoutType::ncsp, undef, true, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
+        if (canUseAclExecutor) {
             return;
+        }
         // fallback to f32 if ref is used
         inputPrecision = outputPrecision = ov::element::f32;
 #endif
@@ -644,7 +631,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         }
         pushDesc(LayoutType::ncsp, ref, true);
     } else {
-        const auto& dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
+        const auto& dataMinDims = getInputShapeAtPort(interpAttrs.DATA_ID).getMinDims();
         bool isBlkApplied = dataRank > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
 #if defined(OV_CPU_WITH_ACL)
@@ -652,8 +639,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::nspc, undef, false, true);
         pushDesc(LayoutType::ncsp, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
+        if (canUseAclExecutor) {
             return;
+        }
         // fallback to f32 if ref is used
         inputPrecision = outputPrecision = ov::element::f32;
 #endif
@@ -703,9 +691,9 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const auto* scales = getSrcDataAtPortAs<const float>(get_scale_id());
+        const auto* scales_inf = getSrcDataAtPortAs<const float>(get_scale_id());
         for (size_t i = 0; i < lastScales.size(); i++) {
-            if (lastScales[i] != scales[i]) {
+            if (lastScales[i] != scales_inf[i]) {
                 return true;
             }
         }
@@ -713,7 +701,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const auto* sizes = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_ID);
+        const auto* sizes = getSrcDataAtPortAs<const int32_t>(interpAttrs.TARGET_SHAPE_ID);
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;
@@ -726,11 +714,11 @@ bool Interpolate::needShapeInfer() const {
 void Interpolate::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
-    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
+    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? interpAttrs.TARGET_SHAPE_ID : get_scale_id();
     const auto& memory = getParentEdgeAt(port)->getMemory();
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const auto* scales = memory.getDataAs<const float>();
-        lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
+        const auto* scales_dyn = memory.getDataAs<const float>();
+        lastScales.assign(scales_dyn, scales_dyn + memory.getDesc().getShape().getElementsCount());
     } else {
         const auto* sizes = memory.getDataAs<const int32_t>();
         lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
@@ -743,15 +731,15 @@ bool Interpolate::needPrepareParams() const {
 
 inline int Interpolate::get_scale_id() const {
     if (is_version11) {
-        return SIZE_OR_SCALE_ID_V11;
+        return interpAttrs.SIZE_OR_SCALE_ID_V11;
     }
-    return SCALES_ID;
+    return interpAttrs.SCALES_ID;
 }
 inline int Interpolate::get_axis_id() const {
     if (is_version11) {
-        return AXES_ID_V11;
+        return interpAttrs.AXES_ID_V11;
     }
-    return AXES_ID;
+    return interpAttrs.AXES_ID;
 }
 
 void Interpolate::prepareParams() {
@@ -764,13 +752,13 @@ void Interpolate::prepareParams() {
         THROW_CPU_NODE_ERR("has undefined destination memory");
     }
 
-    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory");
     }
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
-        auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
+        auto tsMemPtr = getSrcMemoryAtPort(interpAttrs.TARGET_SHAPE_ID);
         if (!tsMemPtr || !tsMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined target shape memory");
         }
@@ -884,7 +872,7 @@ void Interpolate::prepareParams() {
 }
 
 void Interpolate::createPrimitive() {
-    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr) {
         THROW_CPU_NODE_ERR("has null input memory");
@@ -978,7 +966,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
 
 void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
-    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
 
     if (execPtr) {
         auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
@@ -1078,22 +1066,6 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive wasn't created");
-    }
-}
-
-
-size_t Interpolate::getSpatialDimsNum(const Dim rank) {
-    switch (rank) {
-    case 1:
-    case 3:
-        return 1;
-    case 2:
-    case 4:
-        return 2;
-    case 5:
-        return 3;
-    default:
-        OPENVINO_THROW("Can't define number spatial");
     }
 }
 
