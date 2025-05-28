@@ -206,6 +206,9 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
+            auto count_limit = params.engineInfo.maxLocalMemSize;
+            auto count_length = dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2];
+            auto min_count_length = count_limit / 64;
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
             cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize()));
