@@ -83,13 +83,13 @@ public:
                 } else if (strncmp(ait->name(), "device", strlen(ait->name())) == 0) {
                     device_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "vmsize", strlen(ait->name())) == 0) {
-                    vmsize_v.push_back(std::atoi(ait->value()));
+                    vmsize_v.push_back(std::stoul(ait->value()));
                 } else if (strncmp(ait->name(), "vmpeak", strlen(ait->name())) == 0) {
-                    vmpeak_v.push_back(std::atoi(ait->value()));
+                    vmpeak_v.push_back(std::stoul(ait->value()));
                 } else if (strncmp(ait->name(), "vmrss", strlen(ait->name())) == 0) {
-                    vmrss_v.push_back(std::atoi(ait->value()));
+                    vmrss_v.push_back(std::stoul(ait->value()));
                 } else if (strncmp(ait->name(), "vmhwm", strlen(ait->name())) == 0) {
-                    vmhwm_v.push_back(std::atoi(ait->value()));
+                    vmhwm_v.push_back(std::stoul(ait->value()));
                 }
             }
         }
