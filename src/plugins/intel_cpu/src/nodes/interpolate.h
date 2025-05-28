@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "executors/interpolate.hpp"
-#include "executors/interpolate_list.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #define MAX_INPUT_INTERPOLATE 8
 

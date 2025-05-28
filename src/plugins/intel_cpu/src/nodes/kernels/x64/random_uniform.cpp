@@ -4,7 +4,18 @@
 
 #include "random_uniform.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
 #include <immintrin.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 

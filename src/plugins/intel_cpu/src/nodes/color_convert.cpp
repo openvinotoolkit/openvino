@@ -4,16 +4,38 @@
 
 #include "color_convert.h"
 
-#include <memory_desc/dnnl_blocked_memory_desc.h>
+#include <cpu/x64/xbyak/xbyak.h>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type.hpp>
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/op/i420_to_rgb.hpp>
 #include <openvino/op/nv12_to_bgr.hpp>
 #include <openvino/op/nv12_to_rgb.hpp>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/jit_kernel.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
 using namespace dnnl::impl;

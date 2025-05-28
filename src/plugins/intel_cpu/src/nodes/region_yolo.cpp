@@ -4,20 +4,40 @@
 
 #include "region_yolo.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_convert.h"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
+#include "cpu_types.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
-#include "nodes/common/blocked_desc_creator.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/softmax.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/region_yolo.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
@@ -244,9 +264,9 @@ private:
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
+        const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
         if (!regionYolo) {
-            errorMessage = "Only opset1 RegionYolo operation is supported";
+            errorMessage = "Only v0 RegionYolo operation is supported";
             return false;
         }
     } catch (...) {
@@ -259,7 +279,7 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)  //
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -270,7 +290,7 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
-    const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
+    const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
@@ -378,12 +398,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
         });
     } else {
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             for (int i = 0; i < count; i++) {
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }

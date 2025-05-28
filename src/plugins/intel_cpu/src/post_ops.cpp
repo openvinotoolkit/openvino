@@ -5,12 +5,15 @@
 #include "post_ops.hpp"
 
 #include <cstddef>
+#include <memory>
+#include <vector>
 
 #include "cpu_types.h"
 #include "node.h"
 #include "nodes/conv.h"
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -174,21 +177,21 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
     PostOps ops;
 
     auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
-        return std::make_shared<ActivationPostOp>(convertToActivationPostOpt(eltwise->getAlgorithm()),
-                                                  eltwise->getAlpha(),
-                                                  eltwise->getBeta(),
-                                                  eltwise->getGamma());
+        return std::make_any<ActivationPostOp>(convertToActivationPostOpt(eltwise->getAlgorithm()),
+                                               eltwise->getAlpha(),
+                                               eltwise->getBeta(),
+                                               eltwise->getGamma());
     };
 
     auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
-        return std::make_shared<ScaleShiftPostOp>(convertToScaleShiftOpt(eltwise->getAlgorithm()),
-                                                  eltwise->getScales(),
-                                                  eltwise->getShifts());
+        return std::make_any<ScaleShiftPostOp>(convertToScaleShiftOpt(eltwise->getAlgorithm()),
+                                               eltwise->getScales(),
+                                               eltwise->getShifts());
     };
 
     auto makeSumPostOp = [&](const std::shared_ptr<node::Eltwise>& eltwise) {
         OPENVINO_ASSERT(sumDataType != ov::element::dynamic, "Sum data type is not defined ", eltwise->getName());
-        return std::make_shared<SumPostOp>(1.0, 0, sumDataType);
+        return std::make_any<SumPostOp>(1.0, 0, sumDataType);
     };
 
     for (const auto& node : fused) {
@@ -209,16 +212,16 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
         }
 
         if (const auto fq = std::dynamic_pointer_cast<node::FakeQuantize>(node)) {
-            ops.push_back(std::make_shared<FakeQuantizePostOp>(convertToFqPostOp(fq->getAlgorithm()),
-                                                               fq->getCropLow(),
-                                                               fq->getCropHigh(),
-                                                               fq->getInputScale(),
-                                                               fq->getInputShift(),
-                                                               fq->getOutputScale(),
-                                                               fq->getOutputShift(),
-                                                               fq->getLevels(),
-                                                               fq->isInputLowBroadcast(),
-                                                               fq->isOutputHighBroadcast()));
+            ops.push_back(std::make_any<FakeQuantizePostOp>(convertToFqPostOp(fq->getAlgorithm()),
+                                                            fq->getCropLow(),
+                                                            fq->getCropHigh(),
+                                                            fq->getInputScale(),
+                                                            fq->getInputShift(),
+                                                            fq->getOutputScale(),
+                                                            fq->getOutputShift(),
+                                                            fq->getLevels(),
+                                                            fq->isInputLowBroadcast(),
+                                                            fq->isOutputHighBroadcast()));
         }
 
         if (const auto conv = std::dynamic_pointer_cast<node::Convolution>(node)) {
@@ -233,7 +236,7 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
                                              dwWeightsDims[dwWeightsDims.size() - 2]};
             const auto& strides = conv->getStride();
 
-            ops.push_back(std::make_shared<DepthwiseConvolutionPostOp>(ih, iw, kernel, strides));
+            ops.push_back(std::make_any<DepthwiseConvolutionPostOp>(ih, iw, kernel, strides));
         }
     }
 

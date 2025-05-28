@@ -6,24 +6,36 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/executors/common/common_utils.hpp"
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -1017,8 +1029,8 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
     for (size_t i = 0; i < postOps.size(); ++i) {
         const auto& postOp = postOps[i];
         bool isLastPostOp = (i == (postOps.size() - 1));
-        // @todo replace dynamic cast with an interface for appending to DNNL postops
-        if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOp)) {
+
+        if (const auto activation = std::any_cast<ActivationPostOp>(&postOp)) {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
@@ -1035,7 +1047,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto ss = std::dynamic_pointer_cast<ScaleShiftPostOp>(postOp)) {
+        if (const auto ss = std::any_cast<ScaleShiftPostOp>(&postOp)) {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
@@ -1051,20 +1063,20 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto fq = std::dynamic_pointer_cast<FakeQuantizePostOp>(postOp)) {
+        if (const auto fq = std::any_cast<FakeQuantizePostOp>(&postOp)) {
             // drop rounding one special residual pattern
             // TODO: validate this unsafe optimization
             auto doRounding = [&]() {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
                 for (size_t j = i + 1; j < postOps.size(); j++) {
-                    auto& nextNode = postOps[j];
+                    const auto& nextNode = postOps[j];
 
-                    if (auto nextEltwiseNode = std::dynamic_pointer_cast<SumPostOp>(nextNode)) {
+                    if (typeid(SumPostOp) == nextNode.type()) {
                         hasSubsequentSum = true;
                     }
 
-                    if (auto nextQuantizeNode = std::dynamic_pointer_cast<FakeQuantizePostOp>(nextNode)) {
+                    if (typeid(FakeQuantizePostOp) == nextNode.type()) {
                         hasSubsequentFQ = true;
                     }
                 }
@@ -1093,12 +1105,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto sum = std::dynamic_pointer_cast<SumPostOp>(postOp)) {
+        if (const auto sum = std::any_cast<SumPostOp>(&postOp)) {
             appendSum(sum->scale(), sum->zeroPoint(), sum->dataType());
             continue;
         }
 
-        if (const auto conv = std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(postOp)) {
+        if (const auto conv = std::any_cast<DepthwiseConvolutionPostOp>(&postOp)) {
             appendDepthwiseConvolution(conv->ih(),
                                        conv->iw(),
                                        conv->kernel()[1],

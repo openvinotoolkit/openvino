@@ -4,8 +4,19 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
 #include "nodes/common/softmax.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

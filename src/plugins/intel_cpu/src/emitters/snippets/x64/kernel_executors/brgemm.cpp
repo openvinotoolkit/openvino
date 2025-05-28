@@ -4,12 +4,24 @@
 
 #include "brgemm.hpp"
 
-#include <memory>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "cache/multi_cache.h"
 #include "common/utils.hpp"
-#include "dnnl_extension_utils.h"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -112,9 +124,9 @@ brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(
 }
 
 void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {
-    auto A = reinterpret_cast<const float*>(args->ptr_A);
-    auto B = reinterpret_cast<const float*>(args->ptr_B);
-    auto C = reinterpret_cast<float*>(args->ptr_C);
+    const auto* A = reinterpret_cast<const float*>(args->ptr_A);
+    const auto* B = reinterpret_cast<const float*>(args->ptr_B);
+    auto* C = reinterpret_cast<float*>(args->ptr_C);
     for (dnnl_dim_t m = 0; m < m_config.get_M(); m++) {
         for (dnnl_dim_t n = 0; n < m_config.get_N(); n++, B++) {
             C[n] = 0;

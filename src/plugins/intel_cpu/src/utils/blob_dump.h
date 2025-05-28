@@ -6,8 +6,14 @@
 
 #include <cpu_memory.h>
 
+#include <cstdint>
+#include <istream>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
