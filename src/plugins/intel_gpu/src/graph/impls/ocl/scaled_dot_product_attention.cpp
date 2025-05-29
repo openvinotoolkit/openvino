@@ -12,6 +12,23 @@
 namespace cldnn {
 namespace ocl {
 
+namespace {
+
+// Overload << operator for vectors
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+    os << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        os << vec[i];
+        if (i != vec.size() - 1) {
+            os << ", ";
+        }
+    }
+    os << "]";
+    return os;
+}
+}  // namespace
+
 // SDPA impl may create 2 versions of the kernel internally
 // 1. Default SDPA kernels
 // 2. SDPA kernels with indirect access to one of the inputs
@@ -257,6 +274,14 @@ protected:
         const auto query_shape = transpose_pshape(impl_param.get_input_layout(0).get_partial_shape(), input_q_transpose_order);
         const auto key_shape = transpose_pshape(impl_param.get_input_layout(1).get_partial_shape(), input_k_transpose_order);
         const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), input_v_transpose_order);
+        
+        std::cout << "----------------- get_sdpa_configuration -----------------" << std::endl;
+        std::cout << "----------------- input_q_transpose_order: " << input_q_transpose_order <<
+        "," << impl_param.get_input_layout(0).get_partial_shape() << "->" << query_shape << std::endl;
+        std::cout << "----------------- input_k_transpose_order: " << input_k_transpose_order <<
+        "," << impl_param.get_input_layout(1).get_partial_shape() << "->" << key_shape<< std::endl;
+        std::cout << "----------------- input_v_transpose_order: " << input_v_transpose_order <<
+        "," << impl_param.get_input_layout(2).get_partial_shape()  << "->" << value_shape<< std::endl;
 
         const auto num_heads_dim = 1;
         if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
