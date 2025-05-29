@@ -154,11 +154,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             break;
         }
 
-        ov::Output<ov::Node> casted_zp;
         ov::Output<ov::Node> converted_zero_points;
         if (!zero_points.get_node_shared_ptr()) {
-            casted_zp = default_zp;
-            converted_zero_points = std::make_shared<v0::Convert>(casted_zp, a.get_element_type());
+            converted_zero_points = std::make_shared<v0::Convert>(default_zp, a.get_element_type());
         } else {
             // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits
             // according to the link, zero point are:
@@ -168,38 +166,33 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             // If zero_points is stored as uint8_t.
             //   It has the same packing method as input B. [N * CeilDiv(n_blocks_per_col * bits, 8)]
             //
-            // no matter which package method, the outputs of casted_zp will be
-            //   {A type or uint2/4/8, [N, n_blocks_per_col, 1]}
+            // no matter which package method, the outputs of this section will be
+            //   {A type, [N, n_blocks_per_col, 1]}
             const auto zero_points_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
-            ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
-
             if (zero_points.get_element_type() == a.get_element_type()) {
-                casted_zp = std::make_shared<v0::Constant>(a.get_element_type(),
-                                                           casted_zp_shape,
-                                                           zero_points_const->get_data_ptr());
-                converted_zero_points = casted_zp;
+                ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
+                converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
+                                                                       casted_zp_shape,
+                                                                       zero_points_const->get_data_ptr());
             } else if (zero_points.get_element_type() == ov::element::u8) {
-                if (n_blocks_per_col * bits % 8) {
-                    // for example, n_blocks_per_col is 13, bits is 2, it will packed into 4 bytes
+                // for alignment, n_blocks_per_col might not aligned to num_per_byte
+                int64_t num_per_byte = 8 / bits;
+                int64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
+                int64_t num_elements_aligned = num_byte * num_per_byte;
+                ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
+                auto casted_zp_org = std::make_shared<v0::Constant>(zp_element_type,
+                                                                    casted_zp_shape,
+                                                                    zero_points_const->get_data_ptr());
+                converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
+                if (n_blocks_per_col != num_elements_aligned) {
+                    // if not align
+                    // for example, n_blocks_per_col is 13, bits is 2, num_per_byte is 4, it will packed into 4 bytes
                     // need to make a constant: uint2, {N, 16}
                     // then slice to: uint2, {N, 13}
-                    ov::Shape casted_zp_shape_org =
-                        ov::Shape{static_cast<size_t>(N),
-                                  static_cast<size_t>(std::ceil(n_blocks_per_col * bits / 8.0f) * (8 / bits)),
-                                  1};
-                    auto casted_zp_org = std::make_shared<v0::Constant>(zp_element_type,
-                                                                        casted_zp_shape_org,
-                                                                        zero_points_const->get_data_ptr());
-                    casted_zp = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
-                    const auto element_nums = std::make_shared<v0::Constant>(ov::element::i32,
+                    const auto num_elements = std::make_shared<v0::Constant>(ov::element::i32,
                                                                              Shape{1},
                                                                              static_cast<int32_t>(n_blocks_per_col));
-                    converted_zero_points = std::make_shared<v8::Slice>(casted_zp, zero, element_nums, one, axis);
-                } else {
-                    casted_zp = std::make_shared<v0::Constant>(zp_element_type,
-                                                               casted_zp_shape,
-                                                               zero_points_const->get_data_ptr());
-                    converted_zero_points = std::make_shared<v0::Convert>(casted_zp, a.get_element_type());
+                    converted_zero_points = std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
                 }
             }
         }
