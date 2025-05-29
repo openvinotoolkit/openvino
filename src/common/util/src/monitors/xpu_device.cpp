@@ -151,7 +151,7 @@ private:
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> m_core_time_counters;
     std::chrono::time_point<std::chrono::system_clock> m_last_time_stamp = std::chrono::system_clock::now();
     std::string m_luid;
-    int m_monitor_duration = 1000;
+    int m_monitor_duration = 500;
 };
 
 #elif defined(__linux__)
