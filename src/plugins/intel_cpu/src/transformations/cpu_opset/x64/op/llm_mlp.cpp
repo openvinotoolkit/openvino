@@ -4,6 +4,14 @@
 
 #include "llm_mlp.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <ostream>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "transformations/itt.hpp"
 namespace ov {
 

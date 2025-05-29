@@ -4,12 +4,27 @@
 
 #include "strided_slice.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "slice_shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "slice_shape_inference_utils.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -35,9 +50,9 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
-    auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
-    auto endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
-    auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
+    auto* beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
+    auto* endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
+    auto* stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     const auto begin_size = shapeBegin[0];
 

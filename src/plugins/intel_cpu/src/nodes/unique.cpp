@@ -4,12 +4,34 @@
 
 #include "unique.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/unique.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
@@ -191,7 +213,7 @@ void Unique::flattenTensorExec() {
     if (sorted) {
         cpu_parallel_memcpy(uniDataTmpPtr, srcDataPtr, inputLen * sizeof(T));
         std::sort(uniDataTmpPtr, uniDataTmpPtr + inputLen);
-        auto last = std::unique(uniDataTmpPtr, uniDataTmpPtr + inputLen);
+        auto* last = std::unique(uniDataTmpPtr, uniDataTmpPtr + inputLen);
         uniqueLen = last - uniDataTmpPtr;
 
         if (definedOutputs[FIRST_UNIQUE_IDX]) {
@@ -270,11 +292,11 @@ void Unique::flattenTensorExec() {
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
+        auto* inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
         cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
+        auto* occurPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
         cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
     }
 }
@@ -282,7 +304,7 @@ void Unique::flattenTensorExec() {
 template <typename T>
 void Unique::slicedTensorExec() {
     auto inDataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    auto srcDataPtr = inDataMemPtr->getDataAs<const T>();
+    const auto* srcDataPtr = inDataMemPtr->getDataAs<const T>();
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
@@ -323,13 +345,13 @@ void Unique::slicedTensorExec() {
     std::vector<size_t> uniqIdx(axisDim, 0lu);
     // Search for unique slices.
     for (size_t a = 1lu; a < axisDim; a++) {
-        auto first1 = srcDataPtr + a * innerLen;
-        auto last1 = srcDataPtr + (a + 1lu) * innerLen;
+        const auto* first1 = srcDataPtr + a * innerLen;
+        const auto* last1 = srcDataPtr + (a + 1lu) * innerLen;
         bool equal = true;
         size_t uIdx = 0lu;
         // Compare with unique blocks.
         for (; uIdx < uniqueLen; uIdx++) {
-            auto first2 = srcDataPtr + uniqIdx[uIdx] * innerLen;
+            const auto* first2 = srcDataPtr + uniqIdx[uIdx] * innerLen;
             equal = true;
             for (int64_t o = 0lu; o < outerLen; o++) {
                 equal = std::equal(first1, last1, first2);
@@ -381,7 +403,7 @@ void Unique::slicedTensorExec() {
     // Filling of the first output if needed.
     if (sorted || definedOutputs[UNIQUE_DATA]) {
         parallel_for(uniqueLen, [&](size_t u) {
-            auto first1 = srcDataPtr + uniqIdx[u] * innerLen;
+            const auto* first1 = srcDataPtr + uniqIdx[u] * innerLen;
             auto first2 = dstDataPtr + u * innerLen;
             for (int64_t p = 0lu; p < outerLen; p++) {
                 cpu_memcpy(first2, first1, innerSizeB);

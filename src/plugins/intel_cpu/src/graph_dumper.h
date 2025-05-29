@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "graph.h"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -4,9 +4,40 @@
 
 #include "random_uniform.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <random>
+#include <string>
+#include <utility>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "kernels/x64/random_uniform.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -162,7 +193,7 @@ void RandomUniform::execute([[maybe_unused]] const dnnl::stream& strm) {
         evalRange();
     }
 
-    auto data = getDstDataAtPort(0);
+    auto* data = getDstDataAtPort(0);
 
     if (m_algo == PHILOX) {
         m_state = computePhilox(data, m_output_elements_count, m_state);
@@ -180,7 +211,7 @@ void RandomUniform::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 std::string RandomUniform::getPrimitiveDescriptorType() const {
-    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
+    const auto* selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
     if (selectedPrimitiveDesc) {
@@ -409,7 +440,7 @@ void RandomUniform::prepareGeneratorKernel() {
     }
 
     if (m_jit_kernel) {
-        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+        if (auto* selected_pd = getSelectedPrimitiveDescriptor()) {
             using namespace dnnl::impl::cpu;
             if (m_jit_kernel->getIsa() == x64::avx512_core) {
                 selected_pd->setImplementationType(jit_avx512);
@@ -532,7 +563,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
     uint64_t counter_state = prev_state.second;
     uint64_t counter = counter_state > 0 ? counter_state : m_op_seed;
 
-    auto out_u8 = reinterpret_cast<uint8_t*>(out);
+    auto* out_u8 = reinterpret_cast<uint8_t*>(out);
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -563,7 +594,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                 return;
             }
             auto n = n_state + params.n_shift;
-            auto out_cur = out_u8 + params.dst_shift;
+            auto* out_cur = out_u8 + params.dst_shift;
             auto work_rest = static_cast<int64_t>(params.work_amount);
             uint32_t res[4];
 
@@ -739,7 +770,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
     const auto byte_offset = MERSENNE_STATE_N * m_output_prc.size();
 
     uint32_t mersenne_state_ptr[MERSENNE_STATE_N];
-    auto output_byte_ptr = reinterpret_cast<uint8_t*>(out);
+    auto* output_byte_ptr = reinterpret_cast<uint8_t*>(out);
     initial_mersenne_state(mersenne_state_ptr, m_global_seed);
 
     if (m_jit_kernel) {
@@ -789,8 +820,8 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
             next_mersenne_state(mersenne_state_ptr);
             parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
                 auto& params = m_mersenne_twister_thread_params[ithr];
-                auto state_ptr = mersenne_state_ptr + params.src_start_idx;
-                auto dst_ptr = output_byte_ptr + params.dst_start_idx + i * byte_offset;
+                auto* state_ptr = mersenne_state_ptr + params.src_start_idx;
+                auto* dst_ptr = output_byte_ptr + params.dst_start_idx + i * byte_offset;
                 auto output_idx = params.src_start_idx + i * MERSENNE_STATE_N;
                 auto max_output_idx = output_elements_count;
                 auto state_accesses_count = params.state_accesses_count;

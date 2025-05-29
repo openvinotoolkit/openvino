@@ -4,14 +4,43 @@
 
 #include "pad.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/pad.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -24,7 +53,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
-        auto pad = ov::as_type<const op::util::PadBase>(op.get());
+        const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (!one_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
@@ -55,7 +84,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
     }
 
-    auto pad = ov::as_type<const op::util::PadBase>(op.get());
+    const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
         THROW_CPU_NODE_ERR("couldn't be casted to op of opset1");
     }
@@ -128,7 +157,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
         config.inConfs[0].setMemDesc(
             creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
@@ -233,8 +262,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
                                             const std::vector<MemoryCPtr>& srcMemory,
                                             const std::vector<MemoryCPtr>& dstMemory) {
     params.attrs = attrs;
-    auto& srcMemPtr = srcMemory[DATA_ID];
-    auto& dstMemPtr = dstMemory[DATA_ID];
+    const auto& srcMemPtr = srcMemory[DATA_ID];
+    const auto& dstMemPtr = dstMemory[DATA_ID];
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
         OPENVINO_THROW("Pad executor has undefined source memory.");
     }

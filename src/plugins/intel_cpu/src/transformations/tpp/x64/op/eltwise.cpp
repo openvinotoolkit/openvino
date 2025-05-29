@@ -4,6 +4,33 @@
 
 #include "eltwise.hpp"
 
+#include <libxsmm_typedefs.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 #define GENERAL_AUX_METHODS(OP, OP_TYPE, ...)                                             \

@@ -4,11 +4,23 @@
 
 #include "serialize.hpp"
 
+#include <cstddef>
+#include <cstring>
+#include <istream>
+#include <memory>
+#include <ostream>
+#include <string>
 #include <utility>
 
-#include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/core/parallel.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "utils/codec_xor.hpp"
 
 namespace ov::intel_cpu {
 
@@ -63,7 +75,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Note: Don't use seekg with mmaped stream. This may affect the performance of some models.
     // Get file size before seek content.
     // Blob from cache may have other header, so need to skip this.
-    auto buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
+    auto* buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
     const auto file_size = mmemory->size();
     const size_t hdr_pos = m_istream.tellg();
 

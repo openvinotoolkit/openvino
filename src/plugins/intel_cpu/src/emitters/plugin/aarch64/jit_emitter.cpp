@@ -4,10 +4,19 @@
 
 #include "jit_emitter.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <unordered_set>
 #include <vector>
 
 #include "emitters/utils.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;

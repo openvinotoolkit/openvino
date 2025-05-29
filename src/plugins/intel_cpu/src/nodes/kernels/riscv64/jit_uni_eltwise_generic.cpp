@@ -3,6 +3,7 @@
 //
 
 #include "jit_uni_eltwise_generic.hpp"
+#include "selective_build.h"
 
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 
@@ -413,8 +414,11 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
+        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
+        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
@@ -540,8 +544,11 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
+              OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
               OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
               OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
+              OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
+              OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),

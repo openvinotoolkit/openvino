@@ -191,6 +191,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_no_zero_point) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_one_dim_scale) {
+    auto model = convert_model("quantize_linear_one_dim_scale.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<float>{18, 100, 20, 10});  // x
+    test_case.add_input(std::vector<float>{2.0f});             // scale
+    test_case.add_input(std::vector<std::uint8_t>{1});         // zero_point
+
+    test_case.add_expected_output<std::uint8_t>(std::vector<std::uint8_t>{10, 51, 11, 6});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     auto model = convert_model("dequantize_linear_21_no_zero_point.onnx");
 
@@ -221,6 +233,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_ui
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
 
     test_case.add_expected_output<float>({4}, std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_fp16_zero_scale_uint8) {
+    auto model = convert_model("dequantize_linear_0_fp16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
+    test_case.add_input(std::vector<ov::float16>{2.0f});        // scale
+    test_case.add_input(std::vector<uint8_t>{128});             // zero_point
+
+    test_case.add_expected_output<ov::float16>({4}, std::vector<ov::float16>{-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_bf16_zero_scale_uint8) {
+    auto model = convert_model("dequantize_linear_0_bf16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
+    test_case.add_input(std::vector<ov::bfloat16>{2.0f});       // scale
+    test_case.add_input(std::vector<uint8_t>{128});             // zero_point
+
+    test_case.add_expected_output<ov::bfloat16>({4}, std::vector<ov::bfloat16>{-256.0f, -250.0f, 0.0f, 254.0f});
     test_case.run();
 }
 

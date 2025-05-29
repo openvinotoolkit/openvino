@@ -4,13 +4,17 @@
 
 #pragma once
 
-#include <onednn/dnnl.h>
-
 #include <cpu/aarch64/cpu_isa_traits.hpp>
-#include <utility>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
 #include <vector>
 
+#include "cpu_types.h"
 #include "nodes/executors/eltwise.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 // TODO: handle x64 headers more accurate and remove undef later
 // symbols are defined as global macros as result we should disable them
@@ -26,11 +30,8 @@
 
 #include <cpu/aarch64/jit_generator.hpp>
 
-#include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::aarch64 {
 

@@ -15,6 +15,8 @@
         fclose(input);                                  \
     return x;
 
+#define OPENVINO_SAMPLE_BMP_DIM_LIMIT (32 * 1024)
+
 int readBmpImage(const char* fileName, BitMap* image) {
     size_t cnt;
     FILE* input = 0;
@@ -67,7 +69,19 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(2);
     }
 
-    image->width = abs(image->infoHeader.width);
+    // Limit BMP image size
+    if ((image->infoHeader.width < 0) || (image->infoHeader.width > OPENVINO_SAMPLE_BMP_DIM_LIMIT)) {
+        printf("[BMP] wrong width \n");
+        CLEANUP_AND_RETURN(2);
+    }
+
+    if ((image->infoHeader.height < -OPENVINO_SAMPLE_BMP_DIM_LIMIT) ||
+        (image->infoHeader.height > OPENVINO_SAMPLE_BMP_DIM_LIMIT)) {
+        printf("[BMP] wrong height \n");
+        CLEANUP_AND_RETURN(2);
+    }
+
+    image->width = image->infoHeader.width;
     image->height = abs(image->infoHeader.height);
 
     if (image->infoHeader.bits != 24) {
@@ -80,14 +94,13 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(4);
     }
 
-    size_t padSize = ((size_t)image->width) & 3U;
-    int row_size = image->width * 3;
+    const size_t pad_size = ((size_t)image->width) & 3U;
     char pad[3];
-    int size = row_size * image->height;
-    size *= sizeof(char);
+    const int row_size = image->width * 3;
+    const int size = sizeof(char) * row_size * image->height;
 
-    if (size < 0) {
-        printf("[BMP] image size is too large\n");
+    if (size <= 0) {
+        printf("[BMP] Cannot allocate memory for image (can be too big)\n");
         CLEANUP_AND_RETURN(3);
     }
 
@@ -104,15 +117,15 @@ int readBmpImage(const char* fileName, BitMap* image) {
 
     // reading by rows in invert vertically
     int i;
-    for (i = 0; i < image->height; i++) {
+    for (i = 0; i < image->height; ++i) {
         int storeAt = image->infoHeader.height < 0 ? i : image->height - 1 - i;
         cnt = fread(image->data + row_size * storeAt, row_size, sizeof(unsigned char), input);
         if (cnt != sizeof(unsigned char)) {
             printf("[BMP] file read error\n");
             CLEANUP_AND_RETURN(2);
         }
-        cnt = fread(pad, padSize, sizeof(unsigned char), input);
-        if ((padSize != 0 && cnt != 0) && (cnt != sizeof(unsigned char))) {
+        cnt = fread(pad, pad_size, sizeof(unsigned char), input);
+        if ((pad_size != 0 && cnt != 0) && (cnt != sizeof(unsigned char))) {
             printf("[BMP] file read error\n");
             CLEANUP_AND_RETURN(2);
         }

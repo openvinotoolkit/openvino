@@ -4,24 +4,62 @@
 
 #include "rnn.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/dnnl_executor.h"
 #include "nodes/input.h"
+#include "nodes/node_config.h"
 #include "nodes/reorder.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -156,17 +194,17 @@ size_t RNNKey::hash() const {
 
     size_t seed = 0lu;
 
-    for (auto& desc : inDataDescs) {
+    for (const auto& desc : inDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : outDataDescs) {
+    for (const auto& desc : outDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : wDescs) {
+    for (const auto& desc : wDescs) {
         seed = hash_combine(seed, get_md_hash(*desc.get()));
     }
     seed = hash_combine(seed, cellType);
@@ -1383,7 +1421,7 @@ void RNN::prepareParams() {
     }
 
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 

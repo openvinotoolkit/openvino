@@ -106,7 +106,8 @@ public:
 class TRANSFORMATIONS_API KeepDequantizationPrecision : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("KeepDequantizationPrecision");
-    explicit KeepDequantizationPrecision(const element::TypeVector& precisions);
+    explicit KeepDequantizationPrecision(const element::TypeVector& precisions,
+                                         bool add_precision_sensitive_convert = false);
 };
 
 }  // namespace pass

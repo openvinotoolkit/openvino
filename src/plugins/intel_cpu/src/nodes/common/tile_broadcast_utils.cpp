@@ -6,10 +6,27 @@
 
 #include <memory_desc/cpu_memory_desc_utils.h>
 
+#include <cstddef>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -248,7 +265,7 @@ void TileBroadcastCommon::broadcastScalar(const char* srcData, char* dstData, si
 
     size_t min_cnt = 1;
     size_t max_cnt = 1;
-    auto curDstData = dstData;
+    auto* curDstData = dstData;
     for (auto b : binary_digits) {
         if (b) {
             if (curDstData == dstData) {
@@ -268,8 +285,8 @@ void TileBroadcastCommon::broadcastScalar(const char* srcData, char* dstData, si
 }
 
 void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
-    auto srcData = srcMemory->getDataAs<const char>();
-    auto dstData = dstMemory->getDataAs<char>();
+    const auto* srcData = srcMemory->getDataAs<const char>();
+    auto* dstData = dstMemory->getDataAs<char>();
 
     if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
         const auto prc = dstMemory->getDesc().getPrecision();
@@ -281,7 +298,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];
-            auto srcData_i32 = srcMemory->getDataAs<const int>();
+            const auto* srcData_i32 = srcMemory->getDataAs<const int>();
             if (data_size == 1) {
                 memset(dstData, srcData[0], elt_cnt);
             } else if (data_size == 4 && srcData_i32[0] == 0) {
@@ -290,42 +307,44 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
                 broadcastScalar(srcData, dstData, elt_cnt, data_size);
             }
         } else {
-            parallel_for5d(
-                optimizedParams.dims[0],
-                optimizedParams.dims[1],
-                optimizedParams.dims[2],
-                optimizedParams.dims[3],
-                optimizedParams.dims[4],
-                [&](int i0, int i1, int i2, int i3, int i4) {
-                    auto srcData2 = srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
-                                               i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
-                                               i4 * optimizedParams.srcStrides[4]);
-                    auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
-                                               i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
-                                               i4 * optimizedParams.dstStrides[4]);
-                    for (size_t i = 0; i < optimizedParams.dims[5]; i++) {
-                        cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5],
-                                   srcData2,
-                                   optimizedParams.dstStrides[5]);
-                    }
-                });
+            parallel_for5d(optimizedParams.dims[0],
+                           optimizedParams.dims[1],
+                           optimizedParams.dims[2],
+                           optimizedParams.dims[3],
+                           optimizedParams.dims[4],
+                           [&](int i0, int i1, int i2, int i3, int i4) {
+                               const auto* srcData2 =
+                                   srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
+                                              i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
+                                              i4 * optimizedParams.srcStrides[4]);
+                               auto* dstData2 =
+                                   dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
+                                              i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
+                                              i4 * optimizedParams.dstStrides[4]);
+                               for (size_t i = 0; i < optimizedParams.dims[5]; i++) {
+                                   cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5],
+                                              srcData2,
+                                              optimizedParams.dstStrides[5]);
+                               }
+                           });
         }
     } else {
-        parallel_for5d(
-            optimizedParams.dims[0],
-            optimizedParams.dims[1],
-            optimizedParams.dims[2],
-            optimizedParams.dims[3],
-            optimizedParams.dims[4],
-            [&](int i0, int i1, int i2, int i3, int i4) {
-                auto srcData2 = srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
-                                           i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
-                                           i4 * optimizedParams.srcStrides[4]);
-                auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
-                                           i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
-                                           i4 * optimizedParams.dstStrides[4]);
-                cpu_memcpy(dstData2, srcData2, optimizedParams.copySize);
-            });
+        parallel_for5d(optimizedParams.dims[0],
+                       optimizedParams.dims[1],
+                       optimizedParams.dims[2],
+                       optimizedParams.dims[3],
+                       optimizedParams.dims[4],
+                       [&](int i0, int i1, int i2, int i3, int i4) {
+                           const auto* srcData2 =
+                               srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
+                                          i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
+                                          i4 * optimizedParams.srcStrides[4]);
+                           auto* dstData2 =
+                               dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
+                                          i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
+                                          i4 * optimizedParams.dstStrides[4]);
+                           cpu_memcpy(dstData2, srcData2, optimizedParams.copySize);
+                       });
     }
 }
 

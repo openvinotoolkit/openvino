@@ -4,8 +4,15 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "infer_request.h"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
 namespace intel_cpu {

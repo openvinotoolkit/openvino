@@ -4,8 +4,22 @@
 
 #include "shapeof.h"
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "shape_inference/custom/shapeof.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -58,14 +72,14 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
-    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    auto* parentPd = parent->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(parentPd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 

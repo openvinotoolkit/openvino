@@ -1,12 +1,19 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <limits>
 #include <type_traits>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -14,7 +21,7 @@
 
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
-#include "common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
@@ -388,7 +395,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     float max = -FLT_MAX;
     float min = FLT_MAX;
     find_minmax(src, n, min, max);
-    auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+    auto* dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
     if (scale == 0) {
         scale = 0.0001f;
@@ -474,7 +481,7 @@ static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
          src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
         auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, block_offset, 0);
         base += dst_offset;
-        auto p = reinterpret_cast<float*>(base);
+        auto* p = reinterpret_cast<float*>(base);
         uint8_t* ptr = base + sizeof(float) * 2;
         quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, groupe_size, p);
     }
@@ -512,8 +519,8 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                        : block_size;
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
-            auto p_scales = reinterpret_cast<float*>(base);
-            auto p_zps = p_scales + S;
+            auto* p_scales = reinterpret_cast<float*>(base);
+            auto* p_zps = p_scales + S;
             auto p_data = base + params_offset;
             quantize_by_channel<T, DST_PREC>(src.ptr<T>(b_in_tokens, h, m),
                                              p_data,
@@ -541,8 +548,8 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id - offset;
             const auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
-            auto p_scales = reinterpret_cast<float*>(base);
-            auto p_zps = p_scales + S;
+            auto* p_scales = reinterpret_cast<float*>(base);
+            auto* p_zps = p_scales + S;
             auto p_data = base + params_offset;
             size_t valid_length = 0;
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
@@ -667,7 +674,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         }
     } else {
         parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-            auto p_k = k_scale_zp.ptr<float>(L0 + m, b, h);
+            auto* p_k = k_scale_zp.ptr<float>(L0 + m, b, h);
             for (size_t group_id = 0; group_id < S / key_group_size; group_id++) {
                 quant_u8(k_src.ptr<T>(b, h, m, group_id * key_group_size),
                          k_dst.ptr<T2>(b, h, L0 + m, group_id * key_group_size),
@@ -678,7 +685,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         });
     }
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-        auto p_v = v_scale_zp.ptr<float>(L0 + m, b, h);
+        auto* p_v = v_scale_zp.ptr<float>(L0 + m, b, h);
         for (size_t group_id = 0; group_id < SV / value_group_size; group_id++) {
             quant_u8(v_src.ptr<T>(b, h, m, group_id * value_group_size),
                      v_dst.ptr<T2>(b, h, L0 + m, group_id * value_group_size),

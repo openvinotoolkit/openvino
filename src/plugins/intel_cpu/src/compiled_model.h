@@ -4,17 +4,27 @@
 
 #pragma once
 
+#include <atomic>
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "config.h"
 #include "graph.h"
-#include "graph_context.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "weights_cache.hpp"
 
 namespace ov {
 namespace intel_cpu {

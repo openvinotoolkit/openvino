@@ -3,7 +3,19 @@
 //
 #include "read_value_with_subgraph.hpp"
 
-#include "itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,

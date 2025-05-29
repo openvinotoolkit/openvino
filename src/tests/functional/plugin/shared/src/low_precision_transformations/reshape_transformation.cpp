@@ -56,8 +56,8 @@ void ReshapeTransformation::run() {
 
     auto actualPrecision = get_runtime_precision_by_type(params.layerType);
     const auto expectedPrecision = params.expectedKernelType;
-    if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
-        actualPrecision = "FP32";
+    if ((expectedPrecision == "f32") && (actualPrecision == "f16")) {
+        actualPrecision = "f32";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }

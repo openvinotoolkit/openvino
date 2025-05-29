@@ -4,8 +4,23 @@
 
 #include "init_repacked_constant_inputs.hpp"
 
+#include <algorithm>
+#include <memory>
+
+#include "cpu_shape.h"
 #include "external_repacking_adjuster.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 namespace ov::intel_cpu::pass {

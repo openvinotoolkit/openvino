@@ -4,12 +4,19 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <functional>
 #include <utility>
+#include <vector>
 
 #include "executor.hpp"
 #include "executor_config.hpp"
 #include "executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <memory>
-
 namespace ov::intel_cpu {
 
 /**

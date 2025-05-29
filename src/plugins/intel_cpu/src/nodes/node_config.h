@@ -6,9 +6,11 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace intel_cpu {

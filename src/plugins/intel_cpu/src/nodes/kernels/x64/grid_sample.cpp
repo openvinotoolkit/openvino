@@ -4,6 +4,21 @@
 
 #include "grid_sample.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
+
 using namespace dnnl::impl::cpu;
 
 namespace ov::intel_cpu::kernel {

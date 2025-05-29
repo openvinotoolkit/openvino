@@ -3,13 +3,14 @@
 //
 #pragma once
 
-#include <array>
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <openvino/core/type/element_type.hpp>
+#include <utility>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 

@@ -4,11 +4,24 @@
 
 #include "openvino/op/proposal.hpp"
 
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "proposal.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -18,13 +31,13 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto round_ratios = conf.round_ratios;
 
     auto num_ratios = conf.ratios.size();
-    auto ratios = conf.ratios.data();
+    auto* ratios = conf.ratios.data();
 
     auto num_scales = conf.scales.size();
-    auto scales = conf.scales.data();
+    auto* scales = conf.scales.data();
 
     std::vector<float> anchors(num_scales * num_ratios * 4);
-    auto anchors_ptr = anchors.data();
+    auto* anchors_ptr = anchors.data();
 
     // base box's width & height & center location
     const auto base_area = static_cast<float>(base_size * base_size);

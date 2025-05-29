@@ -4,9 +4,31 @@
 
 #include "openvino/op/detection_output.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+#include <memory>
+#include <mutex>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
 #include "detection_output.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/caseless.hpp"
 
 using namespace dnnl;
 

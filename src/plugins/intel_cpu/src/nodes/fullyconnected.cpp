@@ -4,12 +4,22 @@
 
 #include "fullyconnected.h"
 
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <openvino/op/constant.hpp>
+#include <mutex>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
+#include "config.h"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
@@ -19,8 +29,16 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -33,7 +51,9 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "utils/precision_support.h"
+#endif
 
 using namespace dnnl;
 using namespace ov::element;
@@ -303,9 +323,9 @@ void FullyConnected::execTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         // dst
         auto dst = getDstMemoryAtPort(0);
-        auto dst_ptr = static_cast<uint8_t*>(dst->getData());
+        auto* dst_ptr = static_cast<uint8_t*>(dst->getData());
 
-        auto& shape = dst->getShape();
+        const auto& shape = dst->getShape();
         auto dims = shape.getDims();
         auto prec = dst->getPrecision();
 
@@ -338,7 +358,7 @@ void FullyConnected::execTensorParallelSync() {
             int wait_size = 0;
             for (int idx = 0; idx < tp_cfg.w_size; idx++) {
                 if (wait_list[idx] > 0 && tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
+                    auto* new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
@@ -510,7 +530,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    const auto weightsData = weiMemory->getDataAs<const int8_t>();
+    const auto* const weightsData = weiMemory->getDataAs<const int8_t>();
     auto elementsCount = weiMemory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCount = 0;
     for (size_t i = 0; i < elementsCount; i++) {
@@ -633,25 +653,21 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
-            memory[ARG_DST | ARG_ATTR_SCALES] =
-                split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            it->second = split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
             auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
-            memory[ARG_WEI | ARG_ATTR_SCALES] =
-                attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            it->second = attrs.weightsNonTransposed
+                             ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                             : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
             auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
             auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-            if (element_num == 1) {
-                tp_cfg.cached_zeropoint = zeropoint_mem;
-            } else {
-                tp_cfg.cached_zeropoint =
+            if (element_num != 1) {
+                it->second =
                     attrs.weightsNonTransposed
                         ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
                         : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);

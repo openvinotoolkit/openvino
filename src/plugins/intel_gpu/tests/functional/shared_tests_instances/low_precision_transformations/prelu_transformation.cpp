@@ -23,8 +23,7 @@ std::vector<PReluTestValues> testValues = {
     { { 256ul, ov::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }, true }
 };
 
-// PRelu in low precision is not supported in GPU
-INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, PReluTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),

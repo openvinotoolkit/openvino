@@ -6,8 +6,11 @@
 
 #include <node.h>
 
-#include <memory>
+#include <cstddef>
 #include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {

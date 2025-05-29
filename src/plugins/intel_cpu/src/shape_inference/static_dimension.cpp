@@ -4,6 +4,10 @@
 
 #include "static_dimension.hpp"
 
+#include <ostream>
+
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu {
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {

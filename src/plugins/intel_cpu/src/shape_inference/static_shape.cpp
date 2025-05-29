@@ -4,6 +4,21 @@
 
 #include "static_shape.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rank.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_infer_type_utils.hpp"
+#include "shape_inference/static_dimension.hpp"
 #include "shape_validation.hpp"
 
 namespace ov {
