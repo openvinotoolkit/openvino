@@ -193,8 +193,10 @@ void scatter_elem_update_with_reduction(const int64_t* indices,
     if (reduction_type == ov::op::v12::ScatterElementsUpdate::Reduction::MEAN) {
         // this object will change the rounding mode only for integer types which is required to match torch
         // upon destruction the previously used rounding mode will be restored
-        const auto r_guard =
-            std::is_integral_v<DataType> ? std::make_optional<RoundingGuard>(FE_DOWNWARD) : std::nullopt;
+        std::optional<RoundingGuard> r_guard;
+        if constexpr (std::is_integral_v<DataType>) {
+            r_guard.emplace(FE_DOWNWARD);
+        }
         for (const auto& [idx, count] : mean_reduction_counters) {
             // include the initial value in the arithmetic mean divisor (if needed)
             const auto N = count + static_cast<int32_t>(use_init_val);
