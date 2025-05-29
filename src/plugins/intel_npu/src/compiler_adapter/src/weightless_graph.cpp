@@ -20,6 +20,8 @@ namespace intel_npu {
 
 namespace {
 
+constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
+
 std::vector<std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
     std::chrono::steady_clock::time_point begin;
@@ -175,6 +177,8 @@ std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ost
                        "its lifetime.");
     }
 
+    size_t blobIndex = 0;
+
     const auto writeToStream = [&](ze_graph_handle_t handle, const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
         uint64_t blobSize;
         const uint8_t* blobRawPtr = nullptr;
@@ -199,12 +203,28 @@ std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ost
             return 0;
         }
 
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::uint32_t result = 1171117u;
+            for (const uint8_t* it = blobRawPtr; it != blobRawPtr + blobSize; ++it) {
+                result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+            }
+
+            std::stringstream str;
+            if (blobIndex == MAIN_SCHEDULE_INDEX) {
+                str << "Main blob size: " << blobSize << ", hash: " << std::hex << result;
+            } else {
+                str << "Init part " << blobIndex << " blob size: " << blobSize << ", hash: " << std::hex << result;
+            }
+            _logger.info(str.str().c_str());
+        }
+
         return blobSize;
     };
 
     // By convention, first write the main part
     uint64_t mainBlobSize = writeToStream(_handle, _blob);
     uint64_t totalBlobSize = mainBlobSize;
+    ++blobIndex;
 
     // Then the init schedules
     std::vector<uint64_t> initSizes;
@@ -215,19 +235,9 @@ std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ost
                                                   : std::nullopt);
         totalBlobSize += initBlobSize;
         initSizes.push_back(initBlobSize);
+        ++blobIndex;
     }
 
-    if (_logger.level() >= ov::log::Level::INFO) {
-        std::uint32_t result = 1171117u;
-        const uint8_t* blobRawPtr = static_cast<const uint8_t*>(_blob->data());
-        for (const uint8_t* it = blobRawPtr; it != blobRawPtr + mainBlobSize; ++it) {
-            result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-        }
-
-        std::stringstream str;
-        str << "Main blob size: " << mainBlobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
-    }
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
 }
