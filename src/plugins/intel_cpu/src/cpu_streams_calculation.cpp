@@ -50,23 +50,28 @@ std::vector<int> model_workload_estimation(const std::shared_ptr<ov::Model> mode
         const auto node_name = node->get_type_info().name;
 
         if (!std::strcmp("Convolution", node_name)) { 
-            const auto input = node->input(0);
             const auto output = node->output(0);
             const auto kernels = node->input(1);
 
-            if (input.get_partial_shape().is_static() && kernels.get_partial_shape().is_static()) {
+            if (output.get_partial_shape().is_static() && kernels.get_partial_shape().is_static()) {
                 const auto& shape = kernels.get_shape();
-                const auto& shapeInput = input.get_shape();
+                const auto& shapeOutput = output.get_shape();
                 int count = 1;
-                for (auto& dim : shapeInput) {
+                for (auto& dim : shapeOutput) {
                     count = dim * count;
                 }
-                count = shape[0] * count;
+                if (shape.size() >= 2) {
+                    count = shape[1] * count;
+                }
+                if (shape.size() >= 3) {
+                    count = shape[2] * count;
+                }
                 if (count >= 30 * 1000000) {
                     result[30]++;
                 } else {
                     result[count/1000000]++;
                 }
+                std::cout << "count = " << count << std::endl;
                 total++;
             }
         }
