@@ -46,7 +46,7 @@ std::shared_ptr<ov::Node> make_gather_nd(const ov::Output<Node>& data_node,
 std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
                                           const ov::Shape& indices_shape,
                                           const ov::element::Type& indices_type,
-                                          const std::size_t batch_dims, 
+                                          const std::size_t batch_dims,
                                           const std::string& targetDevice) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
