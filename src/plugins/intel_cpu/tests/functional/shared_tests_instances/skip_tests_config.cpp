@@ -306,6 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
+        // This transformation is disabled on CPU
+        R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
