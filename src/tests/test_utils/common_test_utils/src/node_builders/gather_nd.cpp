@@ -57,17 +57,8 @@ std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
         const auto max_dim = *std::max_element(begin(data_shape), end(data_shape));
 
         std::vector<int> indices_values(indices_count * slice_rank);
-        double startFrom = 0.0;
-        auto range = max_dim;
-
-        if (targetDevice == "CPU") {
-            // Only CPU plugin supports negative indices.
-            startFrom = -static_cast<double>(max_dim);
-            range = 2 * max_dim;
-        }
-
-        ov::test::utils::fill_data_random<int>(indices_values.data(), indices_count * slice_rank, range, startFrom);
-
+        const double startFrom = -static_cast<double>(max_dim);
+        ov::test::utils::fill_data_random<int>(indices_values.data(), indices_count * slice_rank, 2*max_dim, startFrom);
         auto indices_data = indices_values.data();
         for (int i = 0; i < indices_count; i++) {
             for (int dim = 0; dim < slice_rank; dim++) {
