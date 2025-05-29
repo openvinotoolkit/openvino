@@ -362,7 +362,7 @@ void SyncInferRequest::wait() {
 
         if (is_remote_tensor_impl || is_generic_remote) {
             GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
-                                   << remote_tensor_impl_ptr->get_original_memory()->buffer_ptr() << std::endl;
+                                   << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
         } else {
             GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (host) with index: " << port_idx << ": "
                                    << output_tensor->data() << std::endl;
@@ -426,7 +426,7 @@ void SyncInferRequest::wait() {
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
                 if (!same_mem && output_memory->size()) {
                     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
-                        << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory()->buffer_ptr()) << std::endl;
+                        << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory_buf_ptr()) << std::endl;
                     if (auto ev = copy_output_data(output_memory, *output_tensor)) {
                         copy_events.push_back(ev);
                     }

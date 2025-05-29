@@ -155,7 +155,7 @@ the following setup options:
 | ``ov::execution_devices``                    | Lists the runtime target devices on which the inferences are being |
 |                                              | executed.                                                          |
 |                                              |                                                                    |
-|                                              | Examples of returning results could be ``(CPU)``(``CPU`` is a      |
+|                                              | Examples of returning results could be ``(CPU)`` (``CPU`` is a     |
 |                                              | temporary device, indicating that CPU is used for acceleration at  |
 |                                              | the model compilation stage), ``CPU``, ``GPU``, ``CPU GPU``,       |
 |                                              | ``GPU.0``, etc.                                                    |
