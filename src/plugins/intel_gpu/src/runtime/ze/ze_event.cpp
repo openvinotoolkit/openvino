@@ -187,7 +187,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = downcast<ze_event>(_events[i].get());
-        if (!be->is_event_profiled()) {
+        if (!be->is_profiled()) {
             continue;
         }
         ze_kernel_timestamp_result_t timestamp{};
@@ -210,5 +210,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
 }
 
 ze_event::~ze_event() {
-    zeEventDestroy(m_event);
+    if (m_event != nullptr) {
+        zeEventDestroy(m_event);
+    }
 }

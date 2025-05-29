@@ -214,7 +214,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     }
     bool set_output_event = m_sync_method == SyncMethods::events || is_output;
 
-    auto ev = set_output_event ? create_base_event() : create_user_event(true);
+    auto ev = set_output_event ? create_base_event() : std::make_shared<ze_event>(nullptr, nullptr, ++m_queue_counter);
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
