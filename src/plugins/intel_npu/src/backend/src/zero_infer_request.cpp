@@ -622,7 +622,7 @@ void ZeroInferRequest::infer_async() {
         }
 
         if (inputDescriptor.isMainInputWeights) {
-            // These values were set while constructing the "CompiledModel" object
+            // These values were set while running the "WeightlessGraph::init" method
             continue;
         }
 

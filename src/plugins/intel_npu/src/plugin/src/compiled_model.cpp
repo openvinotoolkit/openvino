@@ -29,9 +29,6 @@ namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
-std::chrono::steady_clock::time_point begin;
-std::chrono::steady_clock::time_point end;
-
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,

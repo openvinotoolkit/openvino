@@ -215,11 +215,6 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-struct ImportDataWs {
-    std::vector<uint8_t> mainBlob;
-    std::vector<std::vector<uint8_t>> initBlobs;
-};
-
 void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -692,8 +687,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<intel_npu::IGraph> graph;
-    std::vector<std::shared_ptr<intel_npu::IGraph>> initGraphs;
-    std::shared_ptr<ov::Model> initModel;
 
     try {
         _logger.debug("performing compile");
@@ -701,10 +694,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
             graph = compiler->compile(model->clone(), localConfig);
         } else {
-            initModel = model->clone();
-
             auto begin = std::chrono::steady_clock::now();
-            graph = compiler->compileWS(initModel, localConfig);
+            graph = compiler->compileWS(model->clone(), localConfig);
             auto end = std::chrono::steady_clock::now();
             std::cout << "compiler->compileWS() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
@@ -858,8 +849,6 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
                                       const ov::AnyMap& properties) const {
     uint64_t mainSize;
     std::vector<uint64_t> initSizes;
-    ov::Tensor tensorMain;
-    std::vector<ov::Tensor> tensorsInits;
 
     const bool skipCompatibility = config.get<DISABLE_VERSION_CHECK>();
     if (!skipCompatibility) {
@@ -876,6 +865,7 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
         mainSize = MetadataBase::getFileSize(stream);
     }
 
+    ov::Tensor tensorMain;
     if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
         tensorMain = ov::Tensor(ov::element::u8, ov::Shape{mainSize});
         stream.read(tensorMain.data<char>(), mainSize);
@@ -886,10 +876,11 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
     }
 
     std::shared_ptr<ov::Model> originalModel;
+    std::vector<ov::Tensor> tensorsInits;
+
     if (!initSizes.empty()) {
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
-        std::vector<std::shared_ptr<IGraph>> initGraphs;
         ov::Tensor tensorInit;
         for (uint64_t initSize : initSizes) {
             if (tensorFromProperty == false) {

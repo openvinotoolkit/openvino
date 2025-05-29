@@ -300,6 +300,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
                                                                const ov::Allocator& allocator,
                                                                const std::optional<std::size_t> batchSize) const {
     if (descriptor.isMainInputWeights) {
+        // These values were set while running the "WeightlessGraph::init" method
         return nullptr;
     }
 

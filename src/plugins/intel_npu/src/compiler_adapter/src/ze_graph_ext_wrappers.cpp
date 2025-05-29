@@ -430,7 +430,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
     // Flags will be used instead of indices for informing the type of the current entry
     std::string nameFromCompiler = arg.name;
-    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) ? true : false;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;

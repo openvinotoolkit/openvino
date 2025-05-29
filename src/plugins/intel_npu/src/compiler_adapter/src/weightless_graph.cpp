@@ -377,7 +377,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
         OPENVINO_ASSERT(id < constants.size(), "Mismatch between weights IDs and parsed inputs");
-        const auto& constant = constants[id];
+        const auto& constant = constants.at(id);
         OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
                         "Byte size mismatch for ",
                         descriptor.nameFromCompiler,

@@ -82,6 +82,7 @@ Pipeline::Pipeline(const Config& config,
         size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (isMainInputWeightsName(desc.info.name)) {
+                // These values were set while running the "WeightlessGraph::init" method
                 continue;
             }
 

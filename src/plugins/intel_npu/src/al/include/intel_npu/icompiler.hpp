@@ -59,10 +59,8 @@ public:
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
      * the same scope.
-     *
-     * @param model
-     * @param config
-     * @return NetworkDescription
+     * @return A "NetworkDescription" object for each init schedule, followed by another one corresponding to the main
+     * part.
      */
     virtual std::vector<std::shared_ptr<NetworkDescription>> compileWS_v1(const std::shared_ptr<ov::Model>& model,
                                                                           const Config& config) const = 0;

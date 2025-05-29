@@ -198,7 +198,7 @@ public:
 
     std::vector<uint64_t> get_init_sizes() const override;
 
-protected:
+private:
     std::vector<uint64_t> _initSizes;
 };
 

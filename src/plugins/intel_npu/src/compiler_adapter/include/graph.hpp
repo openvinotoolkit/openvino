@@ -27,16 +27,16 @@ public:
           const Config& config,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    virtual std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
-    virtual void initialize(const Config& config) override;
+    void initialize(const Config& config) override;
 
-    virtual void set_workload_type(const ov::WorkloadType workloadType) const override;
+    void set_workload_type(const ov::WorkloadType workloadType) const override;
 
     ~Graph() override;
 

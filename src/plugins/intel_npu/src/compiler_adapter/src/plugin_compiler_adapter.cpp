@@ -266,7 +266,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
     auto networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
-    _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
@@ -274,6 +273,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
         graphHandle =
             _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
     }
+
+    _logger.debug("main schedule parse end");
 
     if (initBlobs.empty()) {
         return std::make_shared<Graph>(_zeGraphExt,
@@ -297,7 +298,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
         initMetadata.push_back(_compiler->parse(network, config));
         network.clear();
         network.shrink_to_fit();
-        _logger.debug("parse end");
 
         if (_zeGraphExt) {
             initGraphHandles.push_back(_zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlob.data()),
@@ -305,6 +305,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
         }
     }
 
+    _logger.debug("init schedules parse end");
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              blobAllocatedByPlugin,
