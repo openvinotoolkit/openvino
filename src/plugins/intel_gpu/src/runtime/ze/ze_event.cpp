@@ -34,8 +34,9 @@ void ze_event::wait_impl() {
 }
 
 void ze_event::set_impl() {
-    ZE_CHECK(zeEventHostSignal(m_event));
-    wait_impl();
+    if (m_event != nullptr) {
+        ZE_CHECK(zeEventHostSignal(m_event));
+    }
 }
 
 bool ze_event::is_set_impl() {
@@ -45,7 +46,21 @@ bool ze_event::is_set_impl() {
     return true;
 }
 
+bool ze_event::is_profiled() const {
+    if (m_event != nullptr) {
+        ze_event_pool_flags_t event_pool_flags;
+        auto ev_pool = m_event_pool.get()->m_handle;
+        ZE_CHECK(zeEventPoolGetFlags(ev_pool, &event_pool_flags));
+        return (event_pool_flags & ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP) != 0;
+    }
+    return false;
+}
+
 bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+    if (!is_profiled()) {
+        return true;
+    }
+
     const auto& engine = m_event_pool->m_engine;
     auto device_info = engine.get_device_info();
 
@@ -172,6 +187,9 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = downcast<ze_event>(_events[i].get());
+        if (!be->is_event_profiled()) {
+            continue;
+        }
         ze_kernel_timestamp_result_t timestamp{};
         ZE_CHECK(zeEventQueryKernelTimestamp(be->get(), &timestamp));
 

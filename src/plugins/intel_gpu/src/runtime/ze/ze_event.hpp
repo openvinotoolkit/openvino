@@ -21,6 +21,7 @@ public:
         , m_event(ev) {}
 
     ze_event_handle_t get() override { return m_event; }
+    bool is_profiled() const;
 
     ~ze_event();
 
