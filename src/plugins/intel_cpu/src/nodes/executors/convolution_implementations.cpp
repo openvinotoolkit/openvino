@@ -3,7 +3,6 @@
 //
 
 #include <cstddef>
-#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <optional>
 #include <vector>
