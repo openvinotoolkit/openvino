@@ -12,6 +12,7 @@ namespace util {
 
 AvgPoolBase::AvgPoolBase(const Output<Node>& arg,
                          const Strides& strides,
+                         const Strides& dilations,
                          const Shape& pads_begin,
                          const Shape& pads_end,
                          const Shape& kernel,
@@ -21,6 +22,7 @@ AvgPoolBase::AvgPoolBase(const Output<Node>& arg,
     : Op{{arg}},
       m_kernel{kernel},
       m_strides{strides},
+      m_dilations{dilations},
       m_pads_begin{pads_begin},
       m_pads_end{pads_end},
       m_exclude_pad{exclude_pad},
@@ -71,6 +73,14 @@ const Strides& AvgPoolBase::get_strides() const {
 
 void AvgPoolBase::set_strides(const Strides& strides) {
     m_strides = strides;
+}
+
+const Strides& AvgPoolBase::get_dilations() const {
+    return m_dilations;
+}
+
+void AvgPoolBase::set_dilations(const Strides& dilations) {
+    m_dilations = dilations;
 }
 
 const Shape& AvgPoolBase::get_pads_begin() const {
