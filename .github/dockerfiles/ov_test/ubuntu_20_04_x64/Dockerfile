@@ -24,6 +24,8 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
+        # Samples
+        clang \
         # Python
         python3.9-dev \
         python3.9-venv \
