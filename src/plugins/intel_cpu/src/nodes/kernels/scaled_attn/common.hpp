@@ -3,15 +3,16 @@
 //
 #pragma once
 
-#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    include "openvino/core/type/bfloat16.hpp"
+#endif
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>

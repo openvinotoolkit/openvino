@@ -4,6 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
 #include "edge.h"
 
 namespace ov::intel_cpu {

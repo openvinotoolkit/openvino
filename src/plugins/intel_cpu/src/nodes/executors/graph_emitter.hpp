@@ -5,13 +5,16 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <utility>
 
 #include "graph.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
-#include "post_ops.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
