@@ -77,6 +77,7 @@ from tests import (
     xfail_issue_139936,
     xfail_issue_139937,
     xfail_issue_139938,
+    skip_issue_166517,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -677,6 +678,14 @@ tests_expected_to_fail = [
         xfail_issue_139938,
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float32_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_uint8_float16_cpu",
+    ),
+    (
+        skip_issue_166517,
+        "OnnxBackendNodeModelTest.test_nllloss_NCd1d2d3_none_no_weight_negative_ii_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1_mean_weight_negative_ii_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1_mean_weight_negative_ii_log_prob_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
     ),
 ]
 
