@@ -11,7 +11,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 class TestScalarTensor(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(),)
+        return (np.array(np.random.randn(), dtype=np.float32),)
 
     def create_model(self):
         class aten_scalar_tensor(torch.nn.Module):
@@ -20,7 +20,7 @@ class TestScalarTensor(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, lhs):
-                return torch.scalar_tensor(lhs)
+                return torch.scalar_tensor(lhs.item())
 
         ref_net = None
 
