@@ -580,9 +580,10 @@ size_t jit_logical_and_emitter::get_inputs_num() const {
     return 2;
 }
 
-size_t jit_logical_and_emitter::aux_fp_gprs_count() const {
-    return 2;
+size_t jit_logical_and_emitter::aux_gprs_count() const {
+    return 1;
 }
+
 size_t jit_logical_and_emitter::aux_vecs_count() const {
     return 1;
 }
@@ -600,18 +601,14 @@ void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, c
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
-    VReg mask0 = VReg(aux_vec_idxs[0]);         
-    FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
-    load_table_val("zero", fp0);
-    FReg fp1 = FReg(aux_fp_gpr_idxs[1]);
-    load_table_val("one", fp1);
+    VReg mask0 = VReg(aux_vec_idxs[0]);  
+    Reg mask1 = Reg(aux_gpr_idxs[0]);
+    load_table_val("one", mask1);
 
     switch (exec_prc_) {
     case ov::element::f32:
-        h->vfmv_v_f(dst, fp0);
         h->vand_vv(mask0, src0, src1);
-        h->vmfne_vf(mask_vreg(), mask0, fp0);
-        h->vfadd_vf(dst,dst,fp1,VM::masked);
+        h->vand_vx(dst, mask0, mask1);
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
@@ -622,7 +619,6 @@ std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_prec
     return {{element::f32, element::f32}};
 }
 void jit_logical_and_emitter::register_table_entries() {
-    push_arg_entry_of("zero", 0x00000000);
     push_arg_entry_of("one", CONST_1_F);
 }
 
