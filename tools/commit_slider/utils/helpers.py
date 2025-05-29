@@ -932,6 +932,20 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
         )
         cfg = deepMapUpdate(cfg, pathToDst, dstPos)
 
+def simpleSubstitute(cfg: map, placeholder: str,
+                     fromPath: str, toPath: str):
+    rules = [
+            {
+                "name": "simple rule",
+                "enabled": True,
+                "type": "static",
+                "placeholder": placeholder,
+                "from": fromPath,
+                "to": toPath
+            }
+        ]
+    applySubstitutionRules(cfg, rules)
+
 def getMapValueByShortHash(map: dict, commit: str):
     for k in map:
         if getMeaningfullCommitTail(k) ==\

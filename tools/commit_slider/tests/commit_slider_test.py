@@ -18,7 +18,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
     AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData, \
     BrokenCompilationData, TemplateData, CrossCheckBadAppl, CrossCheckBadModel, CrossCheckPerformance, \
-    CrossCheckPerformanceSeparateMode, CrossCheckPerformanceSeparateTemplate, CrossCheckPerformanceSeparateTemplateBadApp
+    CrossCheckPerformanceSeparateMode, CrossCheckPerformanceSeparateTemplate, CrossCheckPerformanceSeparateTemplateBadModel
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -78,7 +78,7 @@ class CommitSliderTest(TestCase):
     def testCrossCheckPerformanceSeparateMode(self):
         updatedData = createRepoAndUpdateData(
             CrossCheckPerformanceSeparateMode())
-        res = runCSAndCheckPattern(updatedData, ["500.0 FPS", "500.0 FPS", "1000.0 FPS", "1000.0 FPS"])
+        res = runCSAndCheckPattern(updatedData, ["500.0", "500.0", "1000.0", "1000.0"])
 
         self.assertEqual(True, res)
 
@@ -91,9 +91,9 @@ class CommitSliderTest(TestCase):
         self.assertTrue(res)
 
     @skip_commit_slider_devtest
-    def testCrossCheckPerformanceSeparateTemplateBadApp(self):
+    def testCrossCheckPerformanceSeparateTemplateBadModel(self):
         updatedData = createRepoAndUpdateData(
-            CrossCheckPerformanceSeparateTemplateBadApp())
+            CrossCheckPerformanceSeparateTemplateBadModel())
         res = runCSAndCheckPattern(updatedData, ["rootcause", "Model"])
 
         self.assertTrue(res)
