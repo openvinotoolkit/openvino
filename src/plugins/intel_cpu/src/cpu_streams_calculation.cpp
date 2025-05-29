@@ -42,6 +42,40 @@ void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::ve
     return;
 };
 
+std::vector<int> model_workload_estimation(const std::shared_ptr<ov::Model> model) {
+    std::vector<int> result(31, 0);
+    int total = 0;
+
+    for (auto& node : model->get_ordered_ops()) {
+        const auto node_name = node->get_type_info().name;
+
+        if (!std::strcmp("Convolution", node_name)) { 
+            const auto input = node->input(0);
+            const auto output = node->output(0);
+            const auto kernels = node->input(1);
+
+            if (input.get_partial_shape().is_static() && kernels.get_partial_shape().is_static()) {
+                const auto& shape = kernels.get_shape();
+                const auto& shapeInput = input.get_shape();
+                int count = 1;
+                for (auto& dim : shapeInput) {
+                    count = dim * count;
+                }
+                count = shape[0] * count;
+                if (count >= 30 * 1000000) {
+                    result[30]++;
+                } else {
+                    result[count/1000000]++;
+                }
+                total++;
+            }
+        }
+    }
+
+    std::cout << "total = " << total << std::endl;
+    return result;
+};
+
 std::vector<std::vector<int>> get_streams_info_table(
     const int input_streams,
     const bool input_streams_changed,
@@ -728,6 +762,12 @@ int get_model_prefer_threads(const int num_streams,
         }
 #    endif
 #endif
+    }
+
+    auto result = model_workload_estimation(model);
+
+    for(auto row : result) {
+        std::cout << "conv " << row << std::endl;
     }
 
     return config.modelPreferThreads;
