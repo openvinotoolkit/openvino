@@ -71,7 +71,14 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
         } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
             auto op_type = std::string(fw_node->get_type_name());
             if (!unconverted_ops_types.count(op_type)) {
-                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type.");
+                std::stringstream consumer;
+                if (fw_node->get_output_size() > 0) {
+                    auto inputs = fw_node->output(0).get_target_inputs();
+                    if (inputs.size() > 0) {
+                        consumer << " Consumer: " << *(inputs.begin()->get_node());
+                    }
+                }
+                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type." + consumer.str());
             }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {

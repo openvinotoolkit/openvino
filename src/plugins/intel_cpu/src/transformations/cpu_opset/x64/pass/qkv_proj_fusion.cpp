@@ -4,44 +4,48 @@
 
 #include "qkv_proj_fusion.hpp"
 
+#include <cstddef>
 #include <cstdint>
-#include <iostream>
-#include <limits>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
 
     auto input = makePattern("[?,?,?]");
 
-    auto q_proj_weight_const = makePattern<opset1::Constant>({});
+    auto q_proj_weight_const = makePattern<op::v0::Constant>({});
 
     auto q_proj_weight_const_i8 =
         makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto q_proj_weight_f32 = makePattern<opset1::Convert>({q_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto q_proj_weight_f32 = makePattern<op::v0::Convert>({q_proj_weight_const_i8}, {{"destination_type", "f32"}});
     auto q_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto q_proj_weight_deq =
-        makePattern<opset1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto q_proj_weight_deq = makePattern<ov::op::v1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC},
+                                                               {{"auto_broadcast", "numpy"}});
 
     auto q_proj_weight_cvt =
-        makePattern<opset1::Convert>({q_proj_weight_const}, {{"destination_type", "f32"}});  //  [4096,4096]
-    auto q_proj = makePattern<opset1::MatMul>({input, q_proj_weight_cvt | q_proj_weight_const | q_proj_weight_deq},
+        makePattern<op::v0::Convert>({q_proj_weight_const}, {{"destination_type", "f32"}});  //  [4096,4096]
+    auto q_proj = makePattern<op::v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_const | q_proj_weight_deq},
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
@@ -73,8 +77,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         OutputVector outputs;
         size_t hidden_size = 0;
         std::vector<int> proj_size;
-        for (auto& child : children) {
-            auto mm = ov::as_type<opset1::MatMul>(child.get_node());
+        for (const auto& child : children) {
+            auto* mm = ov::as_type<op::v0::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;
@@ -85,11 +89,11 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
             auto mm_input1 = mm->input_value(1).get_node_shared_ptr();
 
-            std::shared_ptr<opset1::Constant> constw;
-            std::shared_ptr<opset1::Constant> deq_scale;
+            std::shared_ptr<op::v0::Constant> constw;
+            std::shared_ptr<op::v0::Constant> deq_scale;
 
             if (is_quantized_int8) {
-                auto deq_mul = ov::as_type_ptr<opset1::Multiply>(mm_input1);
+                auto deq_mul = ov::as_type_ptr<ov::op::v1::Multiply>(mm_input1);
                 if (!deq_mul) {
                     return false;
                 }
@@ -97,25 +101,25 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 auto deq_mul_in0 = deq_mul->input_value(0).get_node_shared_ptr();
                 auto deq_mul_in1 = deq_mul->input_value(1).get_node_shared_ptr();
 
-                auto cvt = ov::as_type_ptr<opset1::Convert>(deq_mul_in0);
+                auto cvt = ov::as_type_ptr<op::v0::Convert>(deq_mul_in0);
                 if (!cvt) {
                     return false;
                 }
 
-                constw = ov::as_type_ptr<opset1::Constant>(cvt->input_value(0).get_node_shared_ptr());
+                constw = ov::as_type_ptr<op::v0::Constant>(cvt->input_value(0).get_node_shared_ptr());
                 if (!constw || constw->get_element_type() != ov::element::i8) {
                     return false;
                 }
 
-                deq_scale = ov::as_type_ptr<opset1::Constant>(deq_mul_in1);
+                deq_scale = ov::as_type_ptr<op::v0::Constant>(deq_mul_in1);
                 if (!deq_scale || deq_scale->get_element_type() != ov::element::f32) {
                     return false;
                 }
             } else {
-                constw = ov::as_type_ptr<opset1::Constant>(mm_input1);
+                constw = ov::as_type_ptr<op::v0::Constant>(mm_input1);
                 if (!constw) {
-                    if (auto cvt = ov::as_type_ptr<opset1::Convert>(mm_input1)) {
-                        constw = ov::as_type_ptr<opset1::Constant>(cvt->input_value(0).get_node_shared_ptr());
+                    if (auto cvt = ov::as_type_ptr<op::v0::Convert>(mm_input1)) {
+                        constw = ov::as_type_ptr<op::v0::Constant>(cvt->input_value(0).get_node_shared_ptr());
                     } else {
                         return false;
                     }
@@ -190,20 +194,20 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto input = makePattern("[?,?,?]");
 
-    auto qkv_proj_weight_const = makePattern<opset1::Constant>({});
-    auto qkv_proj_cvt = makePattern<opset1::Convert>({qkv_proj_weight_const}, {{"destination_type", "f32"}});
+    auto qkv_proj_weight_const = makePattern<op::v0::Constant>({});
+    auto qkv_proj_cvt = makePattern<op::v0::Convert>({qkv_proj_weight_const}, {{"destination_type", "f32"}});
 
     auto qkv_proj_weight_const_i8 =
         makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto qkv_proj_weight_f32 = makePattern<opset1::Convert>({qkv_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto qkv_proj_weight_f32 = makePattern<op::v0::Convert>({qkv_proj_weight_const_i8}, {{"destination_type", "f32"}});
     auto qkv_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto qkv_proj_weight_deq = makePattern<opset1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
-                                                             {{"auto_broadcast", "numpy"}});
+    auto qkv_proj_weight_deq = makePattern<ov::op::v1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
+                                                                 {{"auto_broadcast", "numpy"}});
 
-    auto qkv_proj = makePattern<opset1::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
+    auto qkv_proj = makePattern<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
                                                 {{"transpose_a", false}, {"transpose_b", true}});
-    auto qkv_split_lengths = makePattern<opset1::Constant>({}, {}, "i32[3]");
-    auto qkv_split = makePattern<opset1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
+    auto qkv_split_lengths = makePattern<op::v0::Constant>({}, {}, "i32[3]");
+    auto qkv_split = makePattern<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
 
     auto result = qkv_split->output(0);
 
@@ -217,7 +221,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         auto root = m.get_match_root();
 
         auto node_split_lengths =
-            ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
+            ov::as_type_ptr<op::v0::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
         if (!node_split_lengths) {
             return false;
         }
@@ -236,13 +240,13 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
         bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
 
-        std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
+        std::shared_ptr<op::v0::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
             qkv_proj_weight_node =
-                ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const_i8).get_node_shared_ptr());
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(qkv_proj_weight_const_i8).get_node_shared_ptr());
         } else {
             qkv_proj_weight_node =
-                ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
         }
         if (!qkv_proj_weight_node) {
             return false;

@@ -4,17 +4,23 @@
 
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
 #include <cassert>
 #include <common/c_types_map.hpp>
-#include <common/primitive_desc_iface.hpp>
+#include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -27,15 +33,20 @@
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/graph_emitter.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -815,7 +826,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
         const bool fusedDWconv = std::any_of(attrs.postOps.begin(), attrs.postOps.end(), [](const auto& p) {
-            return std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(p) != nullptr;
+            return p.type() == typeid(DepthwiseConvolutionPostOp);
         });
 
         if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled

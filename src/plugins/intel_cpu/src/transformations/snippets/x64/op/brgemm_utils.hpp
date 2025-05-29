@@ -4,12 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "openvino/core/dimension.hpp"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {

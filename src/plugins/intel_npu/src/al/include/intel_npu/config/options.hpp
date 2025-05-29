@@ -615,7 +615,7 @@ struct DEFER_WEIGHTS_LOAD final : OptionBase<DEFER_WEIGHTS_LOAD, bool> {
     }
 #endif
     static bool isPublic() {
-        return false;
+        return true;
     }
     static OptionMode mode() {
         return OptionMode::RunTime;

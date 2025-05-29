@@ -13,6 +13,7 @@
 // the includes in the block below are necessary in order for the common.hpp header to be
 // instantiated correctly
 #include <cstring>
+#include "openvino/runtime/system_conf.hpp"
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif

@@ -4,7 +4,22 @@
 
 #include "jit_dnnl_emitters.hpp"
 
-#include <nodes/eltwise.h>
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
