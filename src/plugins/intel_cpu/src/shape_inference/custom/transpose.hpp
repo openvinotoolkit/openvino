@@ -2,10 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
-
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once

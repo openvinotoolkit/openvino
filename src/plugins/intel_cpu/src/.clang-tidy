@@ -50,7 +50,6 @@
 # -google-readability-casting,
 # -modernize-avoid-c-arrays,
 # -misc-header-include-cycle,
-# -misc-include-cleaner,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
@@ -70,6 +69,7 @@ Checks: >
   readability-container-size-empty,
   readability-else-after-return,
   readability-implicit-bool-conversion,
+  readability-qualified-auto,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
@@ -108,7 +108,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -misc-header-include-cycle,
   -misc-const-correctness,
-  -misc-include-cleaner,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
@@ -121,7 +120,7 @@ Checks: >
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
 FormatStyle: file
-HeaderFilterRegex: ''
+# HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*'
 CheckOptions:
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true
@@ -143,9 +142,17 @@ CheckOptions:
     value: true
   - key: readability-implicit-bool-conversion.AllowPointerConditions
     value: true
- # Unifies the usage of the statements
+  # Unifies the usage of the statements
   - key: readability-braces-around-statements.ShortStatementLines
     value: "1"
+  # itt and conditional compilation are implemented via tricky macro combinations
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: >
+      .*/itt.h;
+      .*/itt.hpp;
+      .*/selective_build.h;
+      src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp;
+      src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.cpp;
 ### To be considered to enable:
 #  Reasonable way to enforce splitting complex code into simple functions
 #  - key: google-readability-function-size.StatementThreshold

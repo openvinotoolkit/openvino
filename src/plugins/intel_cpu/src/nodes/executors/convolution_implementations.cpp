@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <vector>
 
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -17,6 +22,8 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
+#include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -58,8 +65,8 @@ struct RequiresFallbackDefault {
 template <typename PostOpType>
 [[maybe_unused]] static inline bool hasPostOp(const ConvConfig& config) {
     const auto& postOps = config.attrs.postOps;
-    return any_of(postOps.begin(), postOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-        return std::dynamic_pointer_cast<PostOpType>(postOp);
+    return any_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        return postOp.type() == typeid(PostOpType);
     });
 }
 
