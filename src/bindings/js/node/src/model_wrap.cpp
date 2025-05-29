@@ -209,7 +209,7 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
 ov::Output<ov::Node> ModelWrap::input_from_handle(const Napi::Env& env, const Napi::Value& value) {
     if (ov::js::validate_value<int>(env, value)) {
         return _model->input(value.As<Napi::Number>().Int32Value());
-    } else if (ov::js::validate_value<std::string>(env, value)) {
+    } else if (ov::js::validate_value<Napi::String>(env, value)) {
         return _model->input(value.As<Napi::String>().Utf8Value());
     } else if (ov::js::validate_value<Output<ov::Node>>(env, value)) {
         const auto output_wrap = Napi::ObjectWrap<Output<ov::Node>>::Unwrap(value.ToObject());
