@@ -380,13 +380,25 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         const auto& constant = constants[id];
         OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
                         "Byte size mismatch for ",
-                        descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constant->get_element_type() == descriptor.precision,
+                        descriptor.nameFromCompiler,
+                        ": ",
+                        constant->get_byte_size(),
+                        " vs. ",
+                        currentInputSize);
+        OPENVINO_ASSERT(constant->get_element_type().size() == descriptor.precision.size(),
                         "Precision mismatch for ",
-                        descriptor.nameFromCompiler);
+                        descriptor.nameFromCompiler,
+                        ": ",
+                        constant->get_element_type().size(),
+                        " vs. ",
+                        descriptor.precision.size());
         OPENVINO_ASSERT(constant->get_shape() == descriptor.shapeFromCompiler.to_shape(),
                         "Shape mismatch for ",
-                        descriptor.nameFromCompiler);
+                        descriptor.nameFromCompiler,
+                        ": ",
+                        constant->get_shape(),
+                        " vs. ",
+                        descriptor.shapeFromCompiler.to_shape());
 
         begin_memcpy = std::chrono::steady_clock::now();
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
