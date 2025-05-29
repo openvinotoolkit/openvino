@@ -6,7 +6,7 @@ Stub files (`.pyi`) are used to provide type hints for Python code. They describ
 
 ## Automation of stub file generation in OpenVINO
 
-In OpenVINO, the generation of stub files is automated as part of the development workflow. This is now handled by a GitHub Actions workflow that runs on a schedule (weekdays at 2:00 AM UTC) and can be triggered manually when needed. The workflow is defined in `.github/workflows/update_pyapi_stubs.yml`. The related Python dependency is `pybind11-stubgen` for stub generation.
+In OpenVINO, the generation of stub files is automated as part of the development workflow. This is now handled by a GitHub Actions workflow that runs on a schedule (weekdays at 2:00 AM UTC) and can be triggered manually when needed. The workflow is defined in [.github/workflows/update_pyapi_stubs.yml](../../../../.github/workflows/update_pyapi_stubs.yml). The related Python dependency is `pybind11-stubgen` for stub generation.
 
 ### Running stub generation manually
 
