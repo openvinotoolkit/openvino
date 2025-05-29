@@ -4,9 +4,19 @@
 
 #include "cpu_tensor.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <mutex>
 #include <utility>
 
+#include "cpu_memory.h"
 #include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -47,7 +57,7 @@ const ov::element::Type& Tensor::get_element_type() const {
 }
 
 const ov::Shape& Tensor::get_shape() const {
-    auto& shape = m_memptr->getDescPtr()->getShape();
+    const auto& shape = m_memptr->getDescPtr()->getShape();
     OPENVINO_ASSERT(shape.isStatic(), "intel_cpu::Tensor has dynamic shape.");
 
     std::lock_guard<std::mutex> guard(m_lock);
@@ -56,12 +66,12 @@ const ov::Shape& Tensor::get_shape() const {
 }
 
 size_t Tensor::get_size() const {
-    auto& desc = m_memptr->getDesc();
+    const auto& desc = m_memptr->getDesc();
     return desc.getShape().getElementsCount();
 }
 
 size_t Tensor::get_byte_size() const {
-    auto& desc = m_memptr->getDesc();
+    const auto& desc = m_memptr->getDesc();
     return desc.getCurrentMemSize();
 }
 
@@ -76,7 +86,7 @@ const ov::Strides& Tensor::get_strides() const {
 void Tensor::update_strides() const {
     auto blocked_desc = m_memptr->getDescWithType<BlockedMemoryDesc>();
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
-    auto& strides = blocked_desc->getStrides();
+    const auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
     std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
         return stride * m_element_type.size();

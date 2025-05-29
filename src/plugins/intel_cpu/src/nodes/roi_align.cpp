@@ -4,20 +4,48 @@
 
 #include "roi_align.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
 #include <cmath>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <openvino/op/roi_align.hpp>
 #include <string>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 #include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset9_decl.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -28,8 +56,8 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu::node {
 
-using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
-using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
+using ngPoolingMode = ov::op::v9::ROIAlign::PoolingMode;
+using ngAlignedMode = ov::op::v9::ROIAlign::AlignedMode;
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -673,9 +701,9 @@ private:
 #endif
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::op::v9::ROIAlign>(op);
         if (!roiAlign) {
-            errorMessage = "Only opset9 ROIAlign operation is supported";
+            errorMessage = "Only v9 ROIAlign operation is supported";
             return false;
         }
 
@@ -701,7 +729,7 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::op::v9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -892,9 +920,9 @@ void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 template <typename inputType, typename outputType>
 void ROIAlign::executeSpecified() {
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
