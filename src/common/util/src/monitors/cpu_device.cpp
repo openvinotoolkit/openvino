@@ -30,13 +30,14 @@ public:
         int n_cores = query_number_of_cores();
         if (n_cores == 0) {
             core_time_counters.resize(1);
-            std::wstring full_counter_path{L"\\Processor(_Total)\\% Processor Time"};
+            std::wstring full_counter_path{L"\\Processor Information(_Total)\\% Processor Utility"};
             m_query.pdh_add_counterW(full_counter_path.c_str(), 0, &core_time_counters[0]);
             m_query.pdh_set_counter_scale_factor(core_time_counters[0], -2);  // scale counter to [0, 1]
         } else {
             core_time_counters.resize(n_cores);
             for (std::size_t i = 0; i < n_cores; ++i) {
-                std::wstring full_counter_path{L"\\Processor(" + std::to_wstring(i) + L")\\% Processor Time"};
+                std::wstring full_counter_path{L"\\Processor Information(0," + std::to_wstring(i) +
+                                               L")\\% Processor Utility"};
                 m_query.pdh_add_counterW(full_counter_path.c_str(), 0, &core_time_counters[i]);
                 m_query.pdh_set_counter_scale_factor(core_time_counters[i], -2);  // scale counter to [0, 1]
             }
@@ -92,7 +93,7 @@ private:
     QueryWrapper m_query;
     std::vector<PDH_HCOUNTER> core_time_counters;
     std::chrono::time_point<std::chrono::system_clock> last_time_stamp = std::chrono::system_clock::now();
-    int monitor_duration = 500;
+    int monitor_duration = 10;
 };
 
 #elif defined(__linux__)
