@@ -131,7 +131,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             size_t squeeze_axis = 0;
             std::shared_ptr<ov::Node> squeeze_output;
             // If output data is scalar && new_out_shape is [1 1 .. 1], squeeze all the axis to produce a scalar
-            auto& new_output_partial_shape = matmul_new->get_output_partial_shape(0);
+            const auto& new_output_partial_shape = matmul_new->get_output_partial_shape(0);
             const bool can_squeeze_scalar =
                 new_output_partial_shape.is_static() ? ov::shape_size(new_output_partial_shape.to_shape()) == 1 : false;
             if (ov::is_scalar(output_shape) && can_squeeze_scalar) {

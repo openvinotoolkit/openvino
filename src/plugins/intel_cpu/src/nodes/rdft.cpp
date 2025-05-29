@@ -106,7 +106,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
-    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
+    auto* axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
     if (axesNode) {
         axes = axesNode->cast_vector<int>();
         isAxesConstant = true;
@@ -119,7 +119,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         if (signalSizeRank != 1) {
             THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
         }
-        auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
+        auto* signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode) {
             return;
         }
@@ -170,8 +170,8 @@ void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inputShape = inputMem.getStaticDims();
     const auto& outputShape = outputMem.getStaticDims();
 
-    auto inputPtr = inputMem.getDataAs<float>();
-    auto outputPtr = outputMem.getDataAs<float>();
+    auto* inputPtr = inputMem.getDataAs<float>();
+    auto* outputPtr = outputMem.getDataAs<float>();
 
     auto rank = inputShape.size() - static_cast<size_t>(inverse);
 
@@ -205,7 +205,7 @@ void RDFT::prepareParams() {
         if (axes.size() != newAxesSize) {
             axes.resize(newAxesSize);
         }
-        auto axesPtr = axesMem->getDataAs<const int>();
+        const auto* axesPtr = axesMem->getDataAs<const int>();
         auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -250,7 +250,7 @@ bool RDFT::axesChanged() const {
     if (axes.size() != axesMem->getStaticDims()[0]) {
         return true;
     }
-    auto axesPtr = axesMem->getDataAs<const int>();
+    const auto* axesPtr = axesMem->getDataAs<const int>();
     auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -334,7 +334,7 @@ void RDFTExecutor::execute(float* inputPtr,
     adjustInputSize(inputShape, signalSizes, axes, isInverse);
 
     if (rank == 1) {
-        auto twiddlesPtr = twiddles[0].data();
+        const auto* twiddlesPtr = twiddles[0].data();
         dftCommon(inputPtr,
                   twiddlesPtr,
                   outputPtr,

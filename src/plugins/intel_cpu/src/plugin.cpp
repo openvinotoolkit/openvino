@@ -96,7 +96,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
@@ -336,7 +336,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             res = false;
         } else {
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_runtime_properties) {
+            for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
                 if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;

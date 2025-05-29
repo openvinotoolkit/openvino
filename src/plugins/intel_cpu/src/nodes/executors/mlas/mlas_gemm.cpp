@@ -120,10 +120,10 @@ bool MlasGemmExecutor::update(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::execute(const MemoryArgs& memory) {
-    const auto srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
-    const auto weiRawMemPtr = packedWeights->getDataAs<float>();
-    const auto dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
-    const auto biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
+    auto* const srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
+    auto* const weiRawMemPtr = packedWeights->getDataAs<float>();
+    auto* const dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
+    auto* const biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
 
     const auto lda = K;
     const auto ldb = K;

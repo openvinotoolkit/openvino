@@ -236,7 +236,7 @@ void istft_impl(const float* in_data,
                        window_sum.begin() + batch * signal_length,
                        result,
                        postprocess_func);
-        const auto result_start = result + margin;
+        auto* const result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result + batch * final_signal_length);
     });
 }

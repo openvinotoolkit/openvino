@@ -118,7 +118,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     unsigned rank,
     const std::vector<LayoutType>& supportedTypes) {
     unsigned bitMask = 0ul;
-    for (auto& item : supportedTypes) {
+    for (const auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
     }
 

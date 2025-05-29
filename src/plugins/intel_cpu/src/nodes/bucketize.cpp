@@ -258,10 +258,10 @@ void Bucketize::bucketize() {
     parallel_for(num_values, [&](size_t ind) {
         T value = input_data[ind];
         if (with_right) {
-            auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(low - boundaries_data);
         } else {
-            auto up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(up - boundaries_data);
         }
     });

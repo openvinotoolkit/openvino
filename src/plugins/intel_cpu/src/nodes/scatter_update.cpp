@@ -837,7 +837,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
             // average
             for (const auto& counter : mean_reduction_counters) {
-                auto dst = counter.first;
+                auto* dst = counter.first;
                 const auto N = counter.second + static_cast<int32_t>(use_init_val);
                 *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
             }

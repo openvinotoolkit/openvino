@@ -47,8 +47,8 @@ void attn_softmax(void* a,
         return;
     }
 #endif
-    auto _a = reinterpret_cast<float*>(a);
-    auto _alibi = reinterpret_cast<float*>(alibi);
+    auto* _a = reinterpret_cast<float*>(a);
+    auto* _alibi = reinterpret_cast<float*>(alibi);
     attn_softmax_kernel<float>(_a,
                                a_dst,
                                scale,

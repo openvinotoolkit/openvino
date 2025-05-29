@@ -806,12 +806,12 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
-    auto& strides = defConvNodeBase->get_strides();
+    const auto& strides = defConvNodeBase->get_strides();
     for (uint64_t stride : strides) {
         defConvAttr.stride.push_back(stride);
     }
 
-    auto& dilations = defConvNodeBase->get_dilations();
+    const auto& dilations = defConvNodeBase->get_dilations();
     for (uint64_t dilation : dilations) {
         defConvAttr.dilation.push_back(dilation - 1);
     }
@@ -878,7 +878,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type = impl_desc_type::ref;
     const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
-    auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
+    const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
         // 1. strict fallback, until devising of multigroup handling in common case
         defConvAttr.group != 1 ||
@@ -1074,8 +1074,8 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     }
     bool withModulation = descVector.size() == 5;
 
-    auto& srcDesc = descVector[DATA_ID];
-    auto& dstDesc = descVector[descVector.size() - 1];
+    const auto& srcDesc = descVector[DATA_ID];
+    const auto& dstDesc = descVector[descVector.size() - 1];
     srcStrides = std::vector<size_t>(srcDesc->getStrides().size());
     offStrides = descVector[OFF_ID]->getStrides();
     weiStrides = descVector[WEI_ID]->getStrides();
@@ -1271,7 +1271,7 @@ void DeformableConvolution::prepareParams() {
         }
     }
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1366,10 +1366,10 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
 void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     const auto* src = srcMemory0.getDataAs<const float>();
     const auto* offsets = srcMemory1.getDataAs<const float>();
@@ -1381,7 +1381,7 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* dst = dstMemory.getDataAs<float>();
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
