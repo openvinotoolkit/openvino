@@ -116,7 +116,7 @@ public:
             return m_mha_supported_transpose_ranks;
         }
 
-        CanBeFusedAsPostOpPred get_can_be_fused_as_postop() const {
+        const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
             return m_can_be_fused_as_postop;
         }
 

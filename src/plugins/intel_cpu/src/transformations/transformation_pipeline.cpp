@@ -1165,7 +1165,7 @@ void Transformations::MainSnippets() {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
             return false;
         }
-        // Ticket 168474: BF16/FP16 MatMul with CopyB is not efficient enogh to be tokenized
+        // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
         // Need to support precision conversion in BrgemmCopyB kernel.
         if (matmul->get_input_element_type(1) == element::f32 &&
             one_of(config.inferencePrecision, element::f16, element::bf16)) {
@@ -1444,7 +1444,7 @@ void Transformations::MainSnippets() {
                     return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
-                // Ticket 168474: BF16/FP16 MatMul with CopyB is not efficient enogh to be tokenized
+                // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
                 // Need to support precision conversion in BrgemmCopyB kernel.
                 if (n->get_input_element_type(1) == element::f32 &&
                     one_of(config.inferencePrecision, element::f16, element::bf16)) {
