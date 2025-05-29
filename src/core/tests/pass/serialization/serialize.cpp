@@ -57,7 +57,7 @@ TEST_F(SerializePassTest, serialize_u2_const) {
 
     OV_ASSERT_NO_THROW(pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model));
 
-    const auto serialized_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+    const auto serialized_model = ov::test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
     const auto& [is_valid, error_msg] = model_comparator().compare(serialized_model, m_model);
     EXPECT_TRUE(is_valid) << error_msg;
 }
