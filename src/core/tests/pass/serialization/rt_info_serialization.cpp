@@ -403,6 +403,7 @@ TEST(RTInfoSerialization, custom_info) {
     add_info(one, "B");
     add_info(add, "C");
     add_info(result, "D");
+    result->get_rt_info()["__do not serialize"] = "double underscores in front";
 
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     model->set_friendly_name("CustomRTI");

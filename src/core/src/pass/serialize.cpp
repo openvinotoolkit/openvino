@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <fstream>
 #include <openvino/cc/pass/itt.hpp>
+#include <regex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -1002,6 +1003,9 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
 }
 
 bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
+    if (std::regex_search(name, std::regex{"^__"}))
+        return false;
+
     auto custom_node = node.append_child("custom");
     custom_node.append_attribute("name").set_value(name.c_str());
     bool appended = false;
