@@ -141,7 +141,7 @@ Properties will get registered and advertised based on the following logic:
 
 ![Properties registration logic](./docs/img/properties_init_sequence.png)
 
-Note: this logic does not affect OptionMode::Runtime type of options/properties. Those will get registered w/o any criteria, with the exception of some special-cases, like NPU_TURBO or WORKLOAD_TYPE (which are tied to driver grap extension version)
+Note: this logic does not affect OptionMode::Runtime type of options/properties. Those will get registered w/o any criteria, with the exception of some special cases, like NPU_TURBO or WORKLOAD_TYPE (which are tied to driver graph extension version).
 
 The following methods are made available to return the value of a given property (at core level or model specific):
 ```
