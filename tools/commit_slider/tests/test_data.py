@@ -83,7 +83,7 @@ class TestData():
         CrossCheckPerformance = 27,
         CrossCheckPerformanceSeparateMode = 28,
         CrossCheckPerformanceSeparateTemplate = 29,
-        CrossCheckPerformanceSeparateTemplateBadApp = 30
+        CrossCheckPerformanceSeparateTemplateBadModel = 30
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -165,12 +165,12 @@ class CrossCheckPerformanceSeparateTemplate(TestData):
         )
 
 
-class CrossCheckPerformanceSeparateTemplateBadApp(TestData):
+class CrossCheckPerformanceSeparateTemplateBadModel(TestData):
     def getTestCase():
-        return TestData.TestCase.CrossCheckPerformanceSeparateTemplateBadApp
+        return TestData.TestCase.CrossCheckPerformanceSeparateTemplateBadModel
 
     def getTestName(self):
-        return "CfgCrossCheckPerformanceSeparateTemplateBadApp"
+        return "CrossCheckPerformanceSeparateTemplateBadModel"
 
     def __init__(self):
         from test_util import requireBinarySearchData
