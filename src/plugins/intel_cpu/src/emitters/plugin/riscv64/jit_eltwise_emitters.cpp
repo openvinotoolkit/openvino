@@ -185,7 +185,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const 
 }
 
 std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// Exp ///
