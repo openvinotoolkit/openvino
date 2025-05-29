@@ -122,7 +122,7 @@ struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_n
     }
 
     static bool isPublic() {
-        return true;
+        return false;
     }
 };
 
@@ -174,7 +174,71 @@ struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel
     }
 
     static bool isPublic() {
-        return true;
+        return false;
+    }
+};
+
+struct NPUW_LLM_PREFILL_CONFIG final : OptionBase<NPUW_LLM_PREFILL_CONFIG, ov::AnyMap> {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_config.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::prefill_config";
+    }
+
+    static ov::AnyMap defaultValue() {
+        return {};
+    }
+
+    static ov::AnyMap parse(std::string_view val) {
+        // FIXME: implement
+        return {};
+    }
+
+    static std::string toString(const ov::AnyMap& val) {
+        // FIXME: implement
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_GENERATE_CONFIG final : OptionBase<NPUW_LLM_GENERATE_CONFIG, ov::AnyMap> {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_config.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::generate_config";
+    }
+
+    static ov::AnyMap defaultValue() {
+        return {};
+    }
+
+    static ov::AnyMap parse(std::string_view val) {
+        // FIXME: implement
+        return {};
+    }
+
+    static std::string toString(const ov::AnyMap& val) {
+        // FIXME: implement
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+
+    static bool isPublic() {
+        return false;
     }
 };
 }  // namespace intel_npu
