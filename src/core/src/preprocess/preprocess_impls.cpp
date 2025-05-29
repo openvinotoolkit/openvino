@@ -371,9 +371,12 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
     if (get_tensor_data()->get_names_compatibility_mode()) {
-        // Move result tensor names from previous input to new
-        node.get_tensor().set_names(result->get_input_tensor(0).get_names());
-        result->get_input_tensor(0).set_names({});
+        if (auto& res_tensor = result->get_input_tensor(0); &res_tensor != &node.get_tensor()) {
+            // If result input tensor is not the same as node tensor, then we need to move names
+            // from result input tensor to node tensor
+            node.get_tensor().set_names(res_tensor.get_names());
+            res_tensor.set_names({});
+        }
 
         if (!post_processing_applied) {
             return;
