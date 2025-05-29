@@ -11,6 +11,18 @@
 
 namespace intel_npu {
 
+namespace {
+bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
+    if (type == ov::element::dynamic) {
+        return true;
+    } else {
+        return (type.bitwidth() == tensor_type.bitwidth() && type.is_real() == tensor_type.is_real() &&
+                type != ov::element::string && tensor_type != ov::element::string) ||
+               (type == ov::element::string && tensor_type == ov::element::string);
+    }
+}
+}  // namespace
+
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                        const Config& config,
                        const ov::element::Type element_type,
@@ -33,18 +45,31 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _ptr = data;
 }
 
-const void* ZeroTensor::data(const ov::element::Type& element_type) const {
-    if (element_type != ov::element::dynamic &&
-        (element_type.bitwidth() != get_element_type().bitwidth() ||
-         element_type.is_real() != get_element_type().is_real() ||
-         (element_type == ov::element::string && get_element_type() != ov::element::string) ||
-         (element_type != ov::element::string && get_element_type() == ov::element::string))) {
-        OPENVINO_THROW("Tensor data with element type ",
-                       get_element_type(),
-                       ", is not representable as pointer to ",
-                       element_type);
-    }
+// Note: Override data() members to not used OpenVINO library code to improve performance
+void* ZeroTensor::data() {
     return _ptr;
+}
+
+void* ZeroTensor::data(const ov::element::Type& type) {
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    type);
+    return data();
+}
+
+const void* ZeroTensor::data() const {
+    return _ptr;
+}
+
+const void* ZeroTensor::data(const ov::element::Type& type) const {
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    type);
+    return data();
 }
 
 const ov::element::Type& ZeroTensor::get_element_type() const {

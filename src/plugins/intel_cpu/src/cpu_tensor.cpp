@@ -16,11 +16,17 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
+namespace {
+constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
+    return type == ov::element::dynamic || tensor_type == type;
+}
+}  // namespace
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
     OPENVINO_ASSERT(m_memptr != nullptr);
@@ -93,14 +99,29 @@ void Tensor::update_strides() const {
     });
 }
 
+void* Tensor::data() {
+    return m_memptr->getData();
+}
+
+void* Tensor::data(const element::Type& element_type) {
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), element_type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    element_type);
+    return m_memptr->getData();
+}
+
+const void* Tensor::data() const {
+    return m_memptr->getData();
+}
+
 const void* Tensor::data(const element::Type& element_type) const {
-    if (element_type.is_static()) {
-        OPENVINO_ASSERT(element_type == get_element_type(),
-                        "Tensor data with element type ",
-                        get_element_type(),
-                        ", is not representable as pointer to ",
-                        element_type);
-    }
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), element_type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    element_type);
     return m_memptr->getData();
 }
 

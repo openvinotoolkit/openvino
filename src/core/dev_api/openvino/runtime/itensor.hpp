@@ -52,14 +52,23 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
+     * @return A host pointer to tensor memory
+     * @{
+     */
+    virtual void* data() = 0;
+    virtual const void* data() const = 0;
+    /// @}
+
+    /**
+     * @brief Provides an access to the underlying host memory
      * @param type Optional type parameter.
-     * @note If type parameter is specified, the method throws an exception
+     * @note The method throws an exception
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      * @{
      */
-    virtual void* data(const element::Type& type = {});
-    virtual const void* data(const element::Type& type = {}) const = 0;
+    virtual void* data(const element::Type& type) = 0;
+    virtual const void* data(const element::Type& type) const = 0;
     /// @}
 
     /**

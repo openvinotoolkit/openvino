@@ -17,7 +17,18 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteTensor : public ITensor {
 public:
-    const void* data(const element::Type& type = {}) const override final {
+    void* data() override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data(const element::Type&) override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    const void* data() const override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const void* data(const element::Type&) const override final {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
