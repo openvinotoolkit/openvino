@@ -206,7 +206,7 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
     }
 }
 
-ov::Output<ov::Node> ModelWrap::output_from_handle(const Napi::Env& env, const Napi::Value& value) {
+ov::Output<ov::Node> ModelWrap::input_from_handle(const Napi::Env& env, const Napi::Value& value) {
     if (ov::js::validate_value<int>(env, value)) {
         return _model->input(value.As<Napi::Number>().Int32Value());
     } else if (ov::js::validate_value<std::string>(env, value)) {
@@ -219,48 +219,44 @@ ov::Output<ov::Node> ModelWrap::output_from_handle(const Napi::Env& env, const N
     }
 }
 
+std::map<ov::Output<ov::Node>, ov::PartialShape> ModelWrap::get_new_shapes(const Napi::Env& env,
+                                                                           const Napi::Value& value) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+
+    const auto& items = value.As<Napi::Object>();
+    const auto& keys = items.GetPropertyNames();
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        const Napi::Value& key = keys[i];
+        new_shapes.emplace_hint(new_shapes.end(),
+                                input_from_handle(env, key),
+                                js_to_cpp<ov::PartialShape>(env, items.Get(key)));
+    }
+    return new_shapes;
+}
+
 Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
+        // models with one input
         if (ov::js::validate<PartialShapeWrap>(info, allowed_signatures) ||
             ov::js::validate<Napi::String>(info, allowed_signatures)) {
             _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), {});
-            return info.This();
         } else if (ov::js::validate<PartialShapeWrap, Napi::Object>(info, allowed_signatures) ||
                    ov::js::validate<Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto variable_shapes =
                 js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
             _model->reshape(js_to_cpp<ov::PartialShape>(info.Env(), info[0]), variable_shapes);
-            return info.This();
+            // model with multiple inputs
         } else if (ov::js::validate<Napi::Object>(info, allowed_signatures)) {
-            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-            const auto& items = info[0].As<Napi::Object>();
-            const auto& keys = items.GetPropertyNames();
-            for (uint32_t i = 0; i < keys.Length(); ++i) {
-                const Napi::Value& key = keys[i];
-                new_shapes.emplace_hint(new_shapes.end(),
-                                        output_from_handle(info.Env(), key),
-                                        js_to_cpp<ov::PartialShape>(info.Env(), items.Get(key)));
-            }
-            _model->reshape(new_shapes, {});
-            return info.This();
+            _model->reshape(get_new_shapes(info.Env(), info[0]), {});
         } else if (ov::js::validate<Napi::Object, Napi::Object>(info, allowed_signatures)) {
-            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-            const auto& items = info[0].As<Napi::Object>();
-            const auto& keys = items.GetPropertyNames();
-            for (uint32_t i = 0; i < keys.Length(); ++i) {
-                const Napi::Value& key = static_cast<Napi::Value>(keys[i]);
-                new_shapes.emplace_hint(new_shapes.end(),
-                                        output_from_handle(info.Env(), key),
-                                        js_to_cpp<ov::PartialShape>(info.Env(), items.Get(key)));
-            }
             const auto variable_shapes =
                 js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(info.Env(), info[1]);
-            _model->reshape(new_shapes, variable_shapes);
-            return info.This();
+            _model->reshape(get_new_shapes(info.Env(), info[0]), variable_shapes);
         } else {
             OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
+        return info.This();
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();

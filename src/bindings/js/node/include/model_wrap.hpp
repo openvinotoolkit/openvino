@@ -127,7 +127,8 @@ public:
     Napi::Value reshape(const Napi::CallbackInfo& info);
 
 private:
-    ov::Output<ov::Node> output_from_handle(const Napi::Env& env, const Napi::Value& value);
+    ov::Output<ov::Node> input_from_handle(const Napi::Env& env, const Napi::Value& value);
+    std::map<ov::Output<ov::Node>, ov::PartialShape> get_new_shapes(const Napi::Env& env, const Napi::Value& value);
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;
     ov::CompiledModel _compiled_model;
