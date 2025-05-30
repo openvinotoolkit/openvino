@@ -8,9 +8,16 @@ namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                         ov::element::Type exec_prc, emitter_in_out_map in_out_type)
-    : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table(new Xbyak_riscv::Label()), in_out_type_(in_out_type) {
+jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                         ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         ov::element::Type exec_prc,
+                         emitter_in_out_map in_out_type)
+    : Emitter(),
+      h(host),
+      host_isa_(host_isa),
+      exec_prc_(exec_prc),
+      l_table(new Xbyak_riscv::Label()),
+      in_out_type_(in_out_type) {
     OPENVINO_ASSERT(h, "JIT Generator is missed");
 }
 
@@ -137,16 +144,19 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         aux_fp_gpr_idxs.push_back(idx);
         preserved_fp_gpr_idxs.push_back(idx);
     }
-    OPENVINO_ASSERT(aux_fp_gprs_count() <= aux_fp_gpr_idxs.size(), "Failed to allocate required number of FP registers");
+    OPENVINO_ASSERT(aux_fp_gprs_count() <= aux_fp_gpr_idxs.size(),
+                    "Failed to allocate required number of FP registers");
 
     // INT REGISTERS //
     for (auto idx : pool_gpr_idxs) {
         aux_gpr_idxs.push_back(idx);
     }
 
-    const std::unordered_set<size_t> blacklist_gpr = {
-        Xbyak_riscv::zero.getIdx(), Xbyak_riscv::ra.getIdx(), Xbyak_riscv::sp.getIdx(), Xbyak_riscv::gp.getIdx(), Xbyak_riscv::tp.getIdx()
-    };
+    const std::unordered_set<size_t> blacklist_gpr = {Xbyak_riscv::zero.getIdx(),
+                                                      Xbyak_riscv::ra.getIdx(),
+                                                      Xbyak_riscv::sp.getIdx(),
+                                                      Xbyak_riscv::gp.getIdx(),
+                                                      Xbyak_riscv::tp.getIdx()};
 
     const size_t last_gpr_idx = x31.getIdx();
     for (size_t gpr_idx = 0; gpr_idx <= last_gpr_idx; ++gpr_idx) {
@@ -178,7 +188,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
     }
-    OPENVINO_ASSERT(aux_gprs_count() <= aux_gpr_idxs.size(), "Failed to allocate required number of general-purpose registers");
+    OPENVINO_ASSERT(aux_gprs_count() <= aux_gpr_idxs.size(),
+                    "Failed to allocate required number of general-purpose registers");
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
@@ -206,7 +217,9 @@ void jit_emitter::emitter_postamble() const {
 }
 
 namespace {
-std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vector<size_t>& exclude_gpr_regs, size_t count) {
+std::vector<size_t> get_caller_saved_gprs(const jit_generator* h,
+                                          const std::vector<size_t>& exclude_gpr_regs,
+                                          size_t count) {
     std::vector<size_t> gprs;
     gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
@@ -226,7 +239,9 @@ std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vec
     }
     return gprs;
 }
-std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::vector<size_t>& exclude_fp_gpr_regs, size_t count) {
+std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h,
+                                             const std::vector<size_t>& exclude_fp_gpr_regs,
+                                             size_t count) {
     std::vector<size_t> fp_gprs;
     fp_gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
@@ -243,7 +258,9 @@ std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::
     }
     return fp_gprs;
 }
-std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h, const std::vector<size_t>& exclude_vec_regs, size_t count) {
+std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h,
+                                              const std::vector<size_t>& exclude_vec_regs,
+                                              size_t count) {
     std::vector<size_t> vecs;
     vecs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
@@ -255,7 +272,7 @@ std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h, const std:
     }
     return vecs;
 }
-} // namespace
+}  // namespace
 
 void jit_emitter::call_preamble(const std::vector<size_t>& exclude_gpr_regs,
                                 const std::vector<size_t>& exclude_fp_gpr_regs,
@@ -362,5 +379,4 @@ void jit_emitter::prepare_table() {
     }
 }
 
-}  // ov::intel_cpu::riscv64
-
+}  // namespace ov::intel_cpu::riscv64

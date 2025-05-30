@@ -3,10 +3,11 @@
 //
 #pragma once
 
-#include "shl.hpp"
+#include <functional>
+
 #include "cpu_memory.h"
 #include "nodes/executors/eltwise.hpp"
-#include <functional>
+#include "shl.hpp"
 
 namespace ov::intel_cpu {
 
@@ -22,7 +23,7 @@ public:
 
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void* post_ops_data_) override;
 
     [[nodiscard]] impl_desc_type getImplType() const override {
         return impl_desc_type::shl;
