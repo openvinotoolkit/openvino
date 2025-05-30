@@ -3,11 +3,12 @@
 //
 #pragma once
 
-#include <cpu/x64/amx_tile_configure.hpp>
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <memory>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
@@ -36,9 +37,9 @@ public:
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
-    [[nodiscard]] const size_t get_scratch_a_size() const;
+    [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
-    [[nodiscard]] const size_t get_scratch_b_size() const;
+    [[nodiscard]] size_t get_scratch_b_size() const;
     [[nodiscard]] const size_t get_mblk_size() const {
         return matmulOptimalM;
     }
@@ -82,7 +83,9 @@ private:
     size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
-    void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
+    void init_brgemm(brgemmCtx& ctx,
+                     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                     bool use_amx) const;
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
                             size_t K,
@@ -105,11 +108,11 @@ private:
                             bool transpose = false,
                             size_t copy_B_wei_stride = 0);
 
-    void callBrgemm(brgemmCtx& ctx,
-                    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0,
-                    const void* pin1,
-                    void* pout,
-                    void* wsp);
+    static void callBrgemm(brgemmCtx& ctx,
+                           std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                           const void* pin0,
+                           const void* pin1,
+                           void* pout,
+                           void* wsp);
 };
 }  // namespace ov::intel_cpu

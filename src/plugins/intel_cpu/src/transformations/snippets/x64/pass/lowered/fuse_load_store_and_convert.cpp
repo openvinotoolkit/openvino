@@ -4,9 +4,21 @@
 
 #include "fuse_load_store_and_convert.hpp"
 
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/convert.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/store.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
 
