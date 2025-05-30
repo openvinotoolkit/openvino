@@ -102,8 +102,7 @@ size_t BrgemmBlockingBase::get_default_k_blk(size_t k) const {
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ExpressionPtr& brgemm_expr) const {
-    size_t m, n, k;
-    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
+    const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
     // Ticket: 113745
     // TODO: extend block size selection heuristics

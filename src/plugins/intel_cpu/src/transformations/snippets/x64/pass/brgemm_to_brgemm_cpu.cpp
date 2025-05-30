@@ -62,9 +62,6 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
-        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0));
-        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1));
-
         auto layout_a = brgemm_in0_desc->get_layout();
         auto layout_b = brgemm_in1_desc->get_layout();
         auto layout_c = brgemm_out_desc->get_layout();
@@ -82,7 +79,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         if (const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(brgemm_parent_1)) {
             const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
             OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
-                            "Parameter index is invalid in EliminateBrgemmCopyB transformation");
+                            "Parameter index is invalid in BrgemmToBrgemmCPU transformation");
             are_wei_constant = m_constant_inputs_idxs.count(param_idx) > 0;
         }
 
@@ -130,7 +127,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
             set_full_port_desc(scratch->output(0));
             set_full_port_desc(brgemm_cpu->input(2));
         } else if (brgemm_config.with_compensations()) {
-            OPENVINO_ASSERT(brgemm_copy_b, "Needs to BrgemmCopyB");
+            OPENVINO_ASSERT(brgemm_copy_b, "BrgemmCopyB is required");
             brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm_in0,
                                                      brgemm_in1,
                                                      brgemm_copy_b->output(1),
@@ -167,6 +164,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
 
         brgemm_cpu->validate_and_infer_types();
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
+        ov::copy_runtime_info(brgemm, brgemm_cpu);
         ov::replace_node(brgemm, brgemm_cpu);
 
         status = true;

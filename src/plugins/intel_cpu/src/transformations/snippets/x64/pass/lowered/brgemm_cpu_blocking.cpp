@@ -51,8 +51,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     assert(brgemm && "BrgemmCPU is expected!");
     const auto& brgemm_config = brgemm->get_config();
 
-    size_t m, n, k;
-    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
+    const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
     const auto default_n_blk =
         dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
