@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+
 #include <math.h>
+
 #include <algorithm>
 #include <functional>
 
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
-
+#include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/common_utils.hpp"
+#include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/rms.hpp"
-
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/data_utils.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/single_op/roi_align.hpp"
-
-#include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/common_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -66,9 +65,10 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
             set_real_number_generation_data(inGenData);
         }
 
+        const auto& input_ranges = get_input_ranges();
         const size_t inNodeCnt = node->get_input_size();
-        auto it = inputRanges.find(node->get_type_info());
-        if (it != inputRanges.end()) {
+        auto it = input_ranges.find(node->get_type_info());
+        if (it != input_ranges.end()) {
             auto ranges = it->second;
             inGenData = ranges.get_data(port, elemType);
         }

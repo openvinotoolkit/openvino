@@ -3,8 +3,11 @@
 //
 
 #include "shared_test_classes/single_op/rdft.hpp"
+
 #include "common_test_utils/node_builders/rdft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/op/rdft.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
@@ -36,20 +39,24 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     const auto node = funcInput->get_node_shared_ptr();
     const size_t inNodeCnt = node->get_input_size();
 
-    auto it = ov::test::utils::inputRanges.find(ov::op::v9::RDFT::get_type_info_static());
+    const auto& input_ranges = ov::test::utils::get_input_ranges();
+    auto it = input_ranges.find(ov::op::v9::RDFT::get_type_info_static());
     if (op_type == ov::test::utils::DFTOpType::INVERSE) {
-        it = ov::test::utils::inputRanges.find(ov::op::v9::IRDFT::get_type_info_static());
+        it = input_ranges.find(ov::op::v9::IRDFT::get_type_info_static());
     }
 
-    if (it != ov::test::utils::inputRanges.end()) {
+    if (it != input_ranges.end()) {
         ov::test::utils::Range ranges = it->second;
         inGenData = ranges.get_data(0, elemType);
     }
 
     inputs.clear();
     Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
-                                            targetInputStaticShapes[0],
-                                            inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                                         targetInputStaticShapes[0],
+                                                                         inGenData.range,
+                                                                         inGenData.start_from,
+                                                                         inGenData.resolution,
+                                                                         inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 
