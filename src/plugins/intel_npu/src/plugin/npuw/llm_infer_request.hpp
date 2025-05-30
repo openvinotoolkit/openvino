@@ -44,6 +44,8 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    // This infer request is optional, so can be null.
+    std::shared_ptr<ov::IAsyncInferRequest> m_tail_mm_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
@@ -52,6 +54,8 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    ov::Output<const ov::Node> m_tail_embed_port;
+    ov::Output<const ov::Node> m_tail_logits_port;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
