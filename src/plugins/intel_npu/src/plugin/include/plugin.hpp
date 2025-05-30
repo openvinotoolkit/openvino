@@ -57,10 +57,19 @@ public:
 
 private:
     void init_options();
+
     void filter_config_by_compiler_support(FilteredConfig& cfg) const;
+
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
+
+    std::shared_ptr<IGraph> parse(std::istream& stream,
+                                  const ov::Tensor& tensorBig,
+                                  const std::unique_ptr<ICompilerAdapter>& compiler,
+                                  const bool tensorFromProperty,
+                                  const Config& localConfig,
+                                  const ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

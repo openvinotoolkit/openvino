@@ -108,6 +108,7 @@ void ZeroRemoteTensor::update_strides() {
 }
 
 const std::string& ZeroRemoteTensor::get_device_name() const {
+    OPENVINO_ASSERT(_context != nullptr);
     return _context->get_device_name();
 }
 
