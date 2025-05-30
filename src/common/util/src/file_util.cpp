@@ -37,7 +37,7 @@
 #    endif
 // Copied from linux libc sys/stat.h:
 #    if !defined(__MINGW32__) && !defined(__MINGW64__)
-#        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#        define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #    endif
 #else
 #    include <dirent.h>

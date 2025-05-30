@@ -28,7 +28,7 @@ class NonMaxSuppression : public Node {
 public:
     NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
 
     void initSupportedPrimitiveDescriptors() override;
 
