@@ -160,25 +160,6 @@ void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t
     _logger.debug("initialize_graph_through_command_list - hostSynchronize completed");
 }
 
-// Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
-static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
-    std::string dataString(data.begin(), data.end());
-    std::unordered_set<std::string> result;
-    size_t i = 0, start = 0;
-    while (i < dataString.length()) {
-        if (dataString[i] == '<') {
-            start = ++i;
-        } else if (dataString[i] == '>') {
-            std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(std::move(temp));
-            i++;
-        } else {
-            i++;
-        }
-    }
-    return result;
-}
-
 std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedLayers(
     ze_result_t result,
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
@@ -539,6 +520,25 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
     return false;
+}
+
+// Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
+    std::string dataString(data.begin(), data.end());
+    std::unordered_set<std::string> result;
+    size_t i = 0, start = 0;
+    while (i < dataString.length()) {
+        if (dataString[i] == '<') {
+            start = ++i;
+        } else if (dataString[i] == '>') {
+            std::string temp(dataString.begin() + start, dataString.begin() + i);
+            result.insert(std::move(temp));
+            i++;
+        } else {
+            i++;
+        }
+    }
+    return result;
 }
 
 }  // namespace intel_npu
