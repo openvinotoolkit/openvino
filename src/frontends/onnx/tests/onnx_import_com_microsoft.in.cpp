@@ -1331,6 +1331,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17_solid_b) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x17_solid_b.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6,
+                                7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1});
+
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {-322.52954f,
+                                          -312.34253f,
+                                          345.20667f,
+                                          -381.87994f,
+                                          -343.7008f,
+                                          472.23425f,
+                                          -509.08466f,
+                                          -420.32483f,
+                                          532.11615f});
+
+    test_case.run_with_tolerance_as_fp(1.f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
