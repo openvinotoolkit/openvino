@@ -33,7 +33,11 @@ public:
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
+
 class InferRequest;
+class IInferRequestListener;
+
+
 class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
@@ -66,6 +70,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -108,6 +113,11 @@ private:
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
+
+    //
+    using SyncReqListener = std::function<void(std::shared_ptr<ov::ISyncInferRequest>)>;
+    void on_sync_infer_request_created(SyncReqListener listener);
+    SyncReqListener m_sync_r_listener;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
