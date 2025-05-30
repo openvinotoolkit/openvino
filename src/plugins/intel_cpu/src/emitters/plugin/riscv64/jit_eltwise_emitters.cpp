@@ -478,11 +478,11 @@ jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator* host, cpu_is
 }
 
 size_t jit_greater_equal_emitter::get_inputs_num() const {
-    return 2;  // Binary operation
+    return 2;  
 }
 
 size_t jit_greater_equal_emitter::aux_fp_gprs_count() const {
-    return 1;  // Need one FP register for constant 1.0f
+    return 1;  
 }
 
 void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -502,11 +502,9 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     FReg one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
-    // Clear destination
+    
     h->vmv_v_x(dst, zero);
-    // Compare and set mask
     h->vmfge_vv(mask_vreg(), src0, src1);
-    // Write 1.0f where mask is set
     h->vfadd_vf(dst, dst, one, VM::masked);
 }
 
