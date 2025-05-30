@@ -115,8 +115,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
     bool is_upsample = scale_h > 1 && scale_w > 1;
 
-    auto& coord_mode = interpolateAttrs.coordTransMode;
-    auto& nearest_mode = interpolateAttrs.nearestMode;
+    const auto& coord_mode = interpolateAttrs.coordTransMode;
+    const auto& nearest_mode = interpolateAttrs.nearestMode;
 
     if (coord_mode == InterpolateCoordTransMode::align_corners &&
         nearest_mode == InterpolateNearestMode::round_prefer_ceil) {

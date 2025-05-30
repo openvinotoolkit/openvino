@@ -4,18 +4,22 @@
 
 #include "permute_kernel.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <vector>
+#include <string>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu_memcpy.h"
-#include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
-#include "utils/bfloat16.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;

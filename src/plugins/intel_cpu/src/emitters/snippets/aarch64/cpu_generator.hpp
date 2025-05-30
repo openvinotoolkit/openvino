@@ -4,8 +4,17 @@
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "cpu/aarch64/jit_generator.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
 

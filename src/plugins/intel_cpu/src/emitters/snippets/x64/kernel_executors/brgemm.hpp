@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <memory>
+#include <string>
 
 #include "brgemm_base.hpp"
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu::x64 {
 

@@ -4,20 +4,31 @@
 
 #include "experimental_detectron_priorgridgenerator.h"
 
+#include <cassert>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                    std::string& errorMessage) noexcept {
     try {
-        const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+        const auto priorGridGen = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
-            errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
+            errorMessage = "Only v6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
         }
     } catch (...) {
@@ -34,7 +45,7 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+    const auto priorGridGen = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }

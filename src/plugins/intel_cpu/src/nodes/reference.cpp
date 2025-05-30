@@ -4,10 +4,27 @@
 
 #include "reference.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "shape_inference/shape_inference.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -106,8 +123,8 @@ void Reference::executeDynamicImpl(const dnnl::stream& strm) {
                     i);
             }
             if (tensor.get_element_type() == element::string) {
-                auto srcPtr = tensor.data<StringMemory::OvString>();
-                auto dstPtr = memory->getDataAs<StringMemory::OvString>();
+                auto* srcPtr = tensor.data<StringMemory::OvString>();
+                auto* dstPtr = memory->getDataAs<StringMemory::OvString>();
                 std::copy(srcPtr, srcPtr + tensor.get_size(), dstPtr);
             } else {
                 cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());

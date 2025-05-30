@@ -4,9 +4,23 @@
 
 #include "mlas_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mlas.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
