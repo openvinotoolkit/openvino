@@ -54,6 +54,7 @@ public:
 
 private:
     std::shared_ptr<void> lib;
+    Logger _logger;
 };
 
 #define vcl_symbol_statement(vcl_symbol)                                                                            \

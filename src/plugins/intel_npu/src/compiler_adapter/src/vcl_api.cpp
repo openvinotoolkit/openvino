@@ -11,10 +11,11 @@
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
-VCLApi::VCLApi() {
+VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
     const std::string baseName = "npu_driver_compiler";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
+        _logger.debug("Try to load npu_driver_compiler");
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
@@ -22,7 +23,21 @@ VCLApi::VCLApi() {
         this->lib = ov::util::load_shared_object(libpath.c_str());
 #endif
     } catch (const std::runtime_error& error) {
-        OPENVINO_THROW(error.what());
+        // OPENVINO_THROW(error.what());
+        try {
+            _logger.error("Failed to load npu_driver_compiler: %s", error.what());
+            _logger.debug("Try to load npu_mlir_compiler with VCL interface");
+            const std::string rollBackName = "npu_mlir_compiler";
+            auto libpath = ov::util::make_plugin_library_name({}, rollBackName);
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
+#else
+            this->lib = ov::util::load_shared_object(libpath.c_str());
+#endif
+        } catch (const std::runtime_error& error) {
+            OPENVINO_THROW("Failed to load npu_mlir_compiler with VCL interface: ", error.what());
+        }
     }
 
     try {
