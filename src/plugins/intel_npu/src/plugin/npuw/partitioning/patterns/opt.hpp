@@ -59,6 +59,16 @@ struct Context {
     std::optional<Gather> params_to_gather;
     PPtr host_gather(PPtr w, PPtr ids);
 
+    struct QuantizedGather {
+        // New param -> pair <orig params, tmp params to gather into>
+        std::map<PPtr, std::pair<DQUnpack, DQUnpack>> params_to_runtime_unpack_gather;
+        PPtr pids;
+    };
+    std::optional<QuantizedGather> params_to_quant_gather_unpack;
+    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
+    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr s, ov::element::Type type);
+    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, ov::element::Type type);
+
     using Ref = std::reference_wrapper<Context>;
 };
 
@@ -144,6 +154,24 @@ class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictGatherGQi");
     DQUnpackDictGatherGQi(Context::Ref ctx);
+};
+
+class HostGatherQuantAsymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
+    HostGatherQuantAsymm(Context::Ref ctx);
+};
+
+class HostGatherQuantSymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
+    HostGatherQuantSymm(Context::Ref ctx);
+};
+
+class HostGatherQuant : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
+    HostGatherQuant(Context::Ref ctx);
 };
 
 class HostGather : public ov::pass::MatcherPass {
