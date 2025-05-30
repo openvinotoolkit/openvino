@@ -90,8 +90,7 @@ protected:
     std::shared_ptr<T> push_pass(Args&&... args) {
         static_assert(std::is_base_of<pass::PassBase, T>::value, "pass not derived from pass base");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
-        auto pass_base = std::static_pointer_cast<PassBase>(pass);
-        m_pass_list.push_back(pass_base);
+        m_pass_list.push_back(pass);
         return pass;
     }
 

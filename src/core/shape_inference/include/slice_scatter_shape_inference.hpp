@@ -99,8 +99,8 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     auto axis_it = axes_map.m.cbegin();
 
     if (output_shape.rank().is_static()) {
-        std::vector<DimType> expected_updates_shape_vector;
-        expected_updates_shape_vector.reserve(output_shape.size());
+        TRShape expected_updates_shape;
+        expected_updates_shape.reserve(output_shape.size());
         for (size_t dim_idx = 0; dim_idx < output_shape.size(); ++dim_idx) {
             const DimType& input_dim = output_shape[dim_idx];
 
@@ -108,20 +108,19 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
                 const auto& i = axis_it->second;
                 if (start && stop && steps) {
                     const auto& step = (*steps)[i];
-                    expected_updates_shape_vector.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
+                    expected_updates_shape.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
                 } else {
-                    expected_updates_shape_vector.push_back(DimType{0, input_dim.get_max_length()});
+                    expected_updates_shape.push_back(DimType{0, input_dim.get_max_length()});
                 }
                 ++axis_it;
             } else if (axes_map.is_valid) {
                 // dimension not on axes list, no change
-                expected_updates_shape_vector.push_back(input_dim);
+                expected_updates_shape.push_back(input_dim);
             } else {
                 // axes are unknow so any dimension can be sliced
-                expected_updates_shape_vector.push_back(DimType{0, input_dim.get_max_length()});
+                expected_updates_shape.push_back(DimType{0, input_dim.get_max_length()});
             }
         }
-        TRShape expected_updates_shape{expected_updates_shape_vector};
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                input_shapes[1].compatible(expected_updates_shape),

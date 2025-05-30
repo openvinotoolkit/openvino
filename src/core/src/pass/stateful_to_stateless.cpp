@@ -146,8 +146,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
 
         model->remove_sink(assign);  // Don't do replace_node(assign, result)! It will lead to silently incorrect model.
         model->remove_variable(model->get_variable_by_id(variable_id.variable_name));
-        new_parameters.push_back(parameter);
-        new_results.push_back(result);
+        new_parameters.push_back(std::move(parameter));
+        new_results.push_back(std::move(result));
     }
 
     model->add_parameters(new_parameters);

@@ -156,8 +156,8 @@ bool evaluate_bound(const Node* const node, TensorVector& output_values, const T
         }
 
         // constants for dynamic values translation
-        const auto input_max = ov::util::make_tensor_of_max_value(input_et);
-        const auto output_max = ov::util::make_tensor_of_max_value(output_et);
+        auto input_max = ov::util::make_tensor_of_max_value(input_et);
+        auto output_max = ov::util::make_tensor_of_max_value(output_et);
         if (!input_max || !output_max)
             return false;
 
@@ -165,8 +165,8 @@ bool evaluate_bound(const Node* const node, TensorVector& output_values, const T
         auto outputs = TensorVector{{element::boolean, in_bound_shape}};
         const auto& input_dynamic_mask = outputs[0];
 
-        return v1::Equal().evaluate(outputs, {input_bound, input_max}) &&
-               v1::Select().evaluate(output_values, {input_dynamic_mask, output_max, output_values[0]});
+        return v1::Equal().evaluate(outputs, {input_bound, std::move(input_max)}) &&
+               v1::Select().evaluate(output_values, {input_dynamic_mask, std::move(output_max), output_values[0]});
     } else {
         return false;
     }
@@ -280,11 +280,10 @@ bool Convert::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool Convert::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    const auto input_symbols = get_input_tensor(0).get_value_symbol();
-    if (input_symbols.empty()) {
+    if (auto input_symbols = get_input_tensor(0).get_value_symbol(); input_symbols.empty()) {
         return false;
     } else {
-        output_symbols[0] = input_symbols;
+        output_symbols[0] = std::move(input_symbols);
         return true;
     }
 }

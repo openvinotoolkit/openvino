@@ -111,9 +111,9 @@ class HashBase : public Generator {
 protected:
     void (*ker_fn)(const ComputeHashCallArgs*);
 
-public:
-    HashBase(cpu_isa_t isa) : Generator(isa) {}
+    HashBase(cpu_isa_t isa) : Generator(isa), ker_fn{} {}
 
+public:
     virtual void generate() = 0;
 
     void operator()(const ComputeHashCallArgs* args) {

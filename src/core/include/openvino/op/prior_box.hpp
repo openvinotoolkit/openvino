@@ -56,7 +56,8 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
-    void set_attrs(Attributes attrs);
+    void set_attrs(Attributes&& attrs);
+    void set_attrs(const Attributes& attrs);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
@@ -117,7 +118,8 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
-    void set_attrs(Attributes attrs);
+    void set_attrs(Attributes&& attrs);
+    void set_attrs(const Attributes& attrs);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;

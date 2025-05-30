@@ -161,8 +161,12 @@ bool op::v0::PriorBox::has_evaluate() const {
     }
 }
 
-void PriorBox::set_attrs(Attributes attrs) {
+void PriorBox::set_attrs(Attributes&& attrs) {
     m_attrs = std::move(attrs);
+}
+
+void PriorBox::set_attrs(const Attributes& attrs) {
+    m_attrs = attrs;
 }
 }  // namespace v0
 }  // namespace op
@@ -305,8 +309,12 @@ bool PriorBox::has_evaluate() const {
     return false;
 }
 
-void PriorBox::set_attrs(Attributes attrs) {
+void PriorBox::set_attrs(Attributes&& attrs) {
     m_attrs = std::move(attrs);
+}
+
+void PriorBox::set_attrs(const Attributes& attrs) {
+    m_attrs = attrs;
 }
 }  // namespace v8
 }  // namespace op

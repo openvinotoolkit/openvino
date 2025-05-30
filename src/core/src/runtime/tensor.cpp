@@ -149,7 +149,7 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
     auto rank = partial_shape_copy.rank();
     OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
     std::vector<size_t> dynamic_dimension_numbers;
-    size_t slice_size = 1;
+    typename Dimension::value_type slice_size = 1;
     for (size_t id = 0; id < partial_shape_copy.size(); ++id) {
         if (partial_shape_copy[id].is_dynamic()) {
             dynamic_dimension_numbers.push_back(id);
