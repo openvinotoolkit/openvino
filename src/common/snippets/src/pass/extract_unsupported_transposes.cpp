@@ -5,16 +5,16 @@
 #include "snippets/pass/extract_unsupported_transposes.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/itt.hpp"
-
+#include "snippets/pass/mha_tokenization.hpp"
 
 bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractUnsupportedTransposes");
     const auto& body = subgraph->body_ptr();
     const auto parameters = body->get_parameters();
     // [107806]: If count of Parameters isn't equal to Subgraph inputs,
-    //           we cannot guarantee correct extraction since we don't have correct connections between body I/O and Subgraph I/O.
+    //           we cannot guarantee correct extraction since we don't have correct connections between body I/O and
+    //           Subgraph I/O.
     OPENVINO_ASSERT(parameters.size() == subgraph->input_values().size(),
                     "Failed to extract unsupported transposes: the count of Parameters isn't equal to Subgraph inputs");
 

@@ -10,8 +10,9 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-template<>
-std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) {
+template <>
+std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>& n,
+                                                     const std::vector<PortConnectorPtr>& inputs) {
     if (const auto par = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
         return create(par, inputs, m_shape_infer_factory);
     } else if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
@@ -53,10 +54,9 @@ void ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const 
     for (size_t i = 0; i < inputs.size(); ++i) {
         const auto& input = inputs[i];
         const auto consumers = input->get_consumers();
-        const auto found = std::find_if(consumers.begin(), consumers.end(),
-                                        [&](const ExpressionPort& desc) {
-                                            return desc.get_index() == i && desc.get_expr() == expr;
-                                        });
+        const auto found = std::find_if(consumers.begin(), consumers.end(), [&](const ExpressionPort& desc) {
+            return desc.get_index() == i && desc.get_expr() == expr;
+        });
         if (found == consumers.end()) {
             input->add_consumer(expr->get_input_port(i));
         }
@@ -64,29 +64,34 @@ void ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const 
     expr->m_input_port_connectors = inputs;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parameter>& par, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parameter>& par,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     OPENVINO_ASSERT(inputs.empty(), "Parameter cannot have inputs");
-    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
+    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
+    // make_shared<Expression>(args)
     auto expr = std::shared_ptr<Expression>(new Expression(par, shape_infer_factory, false));
     create_expression_outputs(expr);
     expr->validate();
     return expr;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
-    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
+    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
+    // make_shared<Expression>(args)
     auto expr = std::shared_ptr<Expression>(new Expression(res, shape_infer_factory));
     init_expression_inputs(expr, inputs);
-    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
-    // The port descriptors are automatically created in constructor. We manually clean output ports.
+    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one
+    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopBegin>& n,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     OPENVINO_ASSERT(inputs.empty(), "LoopBegin cannot have inputs");
     auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
@@ -96,7 +101,8 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopBegin>& n,
     return expr;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
     expr->m_input_port_descriptors.resize(inputs.size(), nullptr);
@@ -104,17 +110,19 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, c
         expr->m_input_port_descriptors[i] = std::make_shared<PortDescriptor>();
     }
     const auto& last_input = inputs.back()->get_source();
-    OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()), "LoopEnd expression expects LoopBegin on last input");
+    OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()),
+                    "LoopEnd expression expects LoopBegin on last input");
     expr->m_input_port_descriptors[inputs.size() - 1] = last_input.get_descriptor_ptr()->clone();
     init_expression_inputs(expr, inputs);
-    // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
-    // The port descriptors are automatically created in constructor. We manually clean output ports.
+    // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one
+    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillBegin>& n, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillBegin>& n,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
     OPENVINO_ASSERT(inputs.empty(), "RegSpillBegin expression expects no inputs");
@@ -131,7 +139,8 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillBegin>
     return expr;
 }
 
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillEnd>& n, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillEnd>& n,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
     const auto spill_begin_node = n->get_reg_spill_begin();
@@ -145,7 +154,8 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillEnd>& 
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::PerfCountBeginBase>& n, const std::vector<PortConnectorPtr>& inputs,
+ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::PerfCountBeginBase>& n,
+                                        const std::vector<PortConnectorPtr>& inputs,
                                         const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     OPENVINO_ASSERT(inputs.empty(), "PerfCountBegin shape_infer_factory do not accept any input connectors");
     return create_without_connections(n, shape_infer_factory);
@@ -158,8 +168,9 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::PerfCountEndBa
     return create_without_connections(n, shape_infer_factory);
 }
 
-ExpressionPtr ExpressionFactory::create_without_connections(const std::shared_ptr<ov::Node>& n,
-                                                            const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+ExpressionPtr ExpressionFactory::create_without_connections(
+    const std::shared_ptr<ov::Node>& n,
+    const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     auto expr = std::shared_ptr<Expression>(new Expression(n, shape_infer_factory, false));
     expr->m_input_port_descriptors.clear();
     expr->m_output_port_descriptors.clear();
@@ -168,6 +179,6 @@ ExpressionPtr ExpressionFactory::create_without_connections(const std::shared_pt
 }
 #endif
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

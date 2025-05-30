@@ -5,7 +5,6 @@
 #pragma once
 
 #include "pass.hpp"
-
 #include "snippets/lowered/loop_manager.hpp"
 
 namespace ov {
@@ -18,7 +17,8 @@ namespace pass {
  * @brief The pass inserts Buffer between output ports of one loop (or Brgemm) and
  *        input ports of another loop (or Brgemm) to store intermediate data.
  *        The pass should be called after FuseLoops.
- * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
+ * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank -
+ * normalize(m_allocation_rank) : shape_rank]
  * @ingroup snippets
  */
 class InsertBuffers : public RangedPass {
@@ -41,7 +41,7 @@ private:
                                                     const ExpressionPtr& down_expr);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

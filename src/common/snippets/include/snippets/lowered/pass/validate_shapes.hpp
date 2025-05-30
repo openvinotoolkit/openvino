@@ -20,10 +20,12 @@ class ValidateShapes : public RangedPass {
 public:
     OPENVINO_RTTI("ValidateShapes", "", RangedPass)
     ValidateShapes() = default;
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

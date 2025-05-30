@@ -4,14 +4,14 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "snippets/itt.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/specific_loop_iter_handlers.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "snippets/utils/utils.hpp"
+#    include "snippets/itt.hpp"
+#    include "snippets/lowered/loop_manager.hpp"
+#    include "snippets/lowered/pass/iter_handler.hpp"
+#    include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#    include "snippets/op/brgemm.hpp"
+#    include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -39,9 +39,9 @@ private:
     std::string m_subgraph_name;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

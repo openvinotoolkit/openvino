@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "snippets/op/horizon_sum.hpp"
+
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -28,6 +29,6 @@ void HorizonSum::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), new_shape);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
