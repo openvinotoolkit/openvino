@@ -154,7 +154,7 @@ private:
                             InterpolateLayoutType layout);
 
         float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-        int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+        static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
         void linearOnnxCF(int outCoord,
                           float scale,
                           int inShape,
@@ -163,7 +163,7 @@ private:
                           int& index1,
                           float& weight0,
                           float& weight1);
-        std::vector<float> getCubicCoeffs(float mantissa, float a);
+        static std::vector<float> getCubicCoeffs(float mantissa, float a);
         static float getPillowBilinearCoeffs(float m);
         static float getPillowBicubicCoeffs(float m);
         inline void create_pillow_working_buf(InterpolateLayoutType layout);

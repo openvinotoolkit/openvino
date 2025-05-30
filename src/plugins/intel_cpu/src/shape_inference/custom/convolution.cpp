@@ -89,7 +89,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
 }
 
 Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                    const std::unordered_map<size_t, MemoryPtr>&) {
+                                    const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
     assert(input_shapes.size() >= 2);
     const auto& data_shape = input_shapes[0].get();
     const auto& filters_shape = input_shapes[1].get();

@@ -95,7 +95,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         THROW_CPU_NODE_ERR("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
     }
 
-    for (size_t i = 0lu; i < op->get_input_size(); i++) {
+    for (size_t i = 0LU; i < op->get_input_size(); i++) {
         if (is_type<op::v0::Constant>(op->get_input_node_ptr(i))) {
             m_const_inputs[i] = true;
         }
@@ -163,15 +163,12 @@ void RandomUniform::createPrimitive() {
 }
 
 bool RandomUniform::needPrepareParams() const {
-    if (m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims()) {
-        return true;
-    }
-    return false;
+    return m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims();
 }
 
 void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<>());
+    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1LU, std::multiplies<>());
 
     if (m_algo == PHILOX) {
         m_skip_count = m_output_elements_count * SKIP_CONST;
@@ -329,7 +326,8 @@ void RandomUniform::preparePhiloxParams() {
 
     parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
         auto& params = m_philox_thread_params[ithr];
-        uint64_t start = 0lu, end = 0lu;
+        uint64_t start = 0LU;
+        uint64_t end = 0LU;
 
         if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -381,8 +379,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled =
-        !(m_output_prc == element::i64 && (m_max_val.i64 > std::numeric_limits<uint32_t>::max() ||
-                                           m_min_val.i64 > std::numeric_limits<uint32_t>::max()));
+        m_output_prc != element::i64 || (m_max_val.i64 <= std::numeric_limits<uint32_t>::max() &&
+                                         m_min_val.i64 <= std::numeric_limits<uint32_t>::max());
 
     const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) / static_cast<float>(m_threads_num) /
                                static_cast<float>(m_uint_storage_capacity_per_thread);
@@ -507,18 +505,18 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
-    for (size_t i = 0lu; i < el_to_copy; i++) {
-        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffu);
-        out[i] = (out_val.f32 - 1.f) * range + min;
+    for (size_t i = 0LU; i < el_to_copy; i++) {
+        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffU);
+        out[i] = (out_val.f32 - 1.F) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffu);
+        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffU);
         out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
     }
 }
@@ -530,21 +528,21 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fu);
+        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fU);
         out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, int32_t min, int32_t range, int32_t* out, size_t el_to_copy) {
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         out[i] = static_cast<int32_t>(in[i] % range + min);
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, int64_t min, int64_t range, int64_t* out, size_t el_to_copy) {
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
     }
 }
@@ -555,7 +553,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                                                            [[maybe_unused]] size_t output_elements_count,
                                                            const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0lu && m_op_seed == 0lu) {
+    if (m_global_seed == 0LU && m_op_seed == 0LU) {
         m_global_seed = std::random_device{}();
     }
 
@@ -569,7 +567,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
 #if defined(OPENVINO_ARCH_X86_64)
         parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& params = m_philox_thread_params[ithr];
-            if (params.work_amount == 0lu) {
+            if (params.work_amount == 0LU) {
                 return;
             }
             auto n = n_state + params.n_shift;
@@ -590,7 +588,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
     } else {
         auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& params = m_philox_thread_params[ithr];
-            if (params.work_amount == 0lu) {
+            if (params.work_amount == 0LU) {
                 return;
             }
             auto n = n_state + params.n_shift;
@@ -689,7 +687,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -705,7 +703,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -721,7 +719,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -734,7 +732,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         int64_t elements_remaining,
                                         [[maybe_unused]] bool optimization_enabled) {
     out[0] = static_cast<int32_t>(in1 % range + min);
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<int32_t>(in2 % range + min);
     }
 }
@@ -747,9 +745,9 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
     if (optimization_enabled) {
-        out[0] = static_cast<int64_t>(in1 % range + min);
-        if (elements_remaining >= 2l) {
-            out[1] = static_cast<int64_t>(in2 % range + min);
+        out[0] = (in1 % range + min);
+        if (elements_remaining >= 2L) {
+            out[1] = (in2 % range + min);
         }
     } else {
         out[0] = static_cast<int64_t>(((static_cast<uint64_t>(in1) << 32) + in2) % range + min);
@@ -759,7 +757,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
 
 void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0lu && m_op_seed == 0lu) {
+    if (m_global_seed == 0LU && m_op_seed == 0LU) {
         m_global_seed = std::random_device{}();
     }
 

@@ -11,19 +11,17 @@
 namespace ov::intel_cpu {
 
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
-    if (one_of(algorithm, Algorithm::EltwiseAdd,
-                          Algorithm::EltwiseSubtract,
-                          Algorithm::EltwiseMultiply,
-                          Algorithm::EltwiseDivide,
-                          Algorithm::EltwiseMaximum,
-                          Algorithm::EltwiseMinimum,
-                          Algorithm::EltwiseExp,
-                          Algorithm::EltwiseClamp,
-                          Algorithm::EltwiseRelu,
-                          Algorithm::EltwisePrelu)) {
-        return true;
-    }
-    return false;
+    return one_of(algorithm,
+                  Algorithm::EltwiseAdd,
+                  Algorithm::EltwiseSubtract,
+                  Algorithm::EltwiseMultiply,
+                  Algorithm::EltwiseDivide,
+                  Algorithm::EltwiseMaximum,
+                  Algorithm::EltwiseMinimum,
+                  Algorithm::EltwiseExp,
+                  Algorithm::EltwiseClamp,
+                  Algorithm::EltwiseRelu,
+                  Algorithm::EltwisePrelu);
 }
 
 bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
@@ -222,8 +220,8 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
 }
 
 void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                              const std::vector<MemoryPtr>& dst,
-                              [[maybe_unused]] const void* post_ops_data_) {
+                                     const std::vector<MemoryPtr>& dst,
+                                     [[maybe_unused]] const void* post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].setData(src[i]->getData());
     }
@@ -233,8 +231,6 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
 
     OPENVINO_ASSERT(shlExecFunc != nullptr && shlExecFunc() == CSINN_TRUE,
                     "ShlEltwiseExecutor: failed to execute");
-
-    return;
 }
 
 }  // namespace ov::intel_cpu
