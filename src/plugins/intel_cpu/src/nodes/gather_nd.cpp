@@ -149,7 +149,9 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
                                      static_cast<size_t>(1),
                                      std::multiplies<>())),
       idxBatchStride(cycles * sliceRank),
-      dstBatchStride(cycles * dataLength) {
+      dstBatchStride(cycles * dataLength),
+      batchDims(attrs.batchDims),
+      srcDims(attrs.srcDims) {
     srcShifts.resize(attrs.sliceRank, 0);
     for (size_t i = 0; i < attrs.sliceRank; i++) {
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
@@ -217,7 +219,8 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0lu;
                 for (size_t i = 0; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                    const int32_t index = HandleNegativeIndicies(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
                 shiftedDstData += dataLength;
@@ -258,7 +261,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0lu;
                 for (size_t i = 0lu; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                    const int32_t index = HandleNegativeIndicies(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
                 shiftedDstData++;
@@ -271,6 +275,14 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             shiftedSrcData += srcBatchStride;
         }
     });
+}
+
+int32_t GatherND::GatherNDExecutor::HandleNegativeIndicies(const int32_t* indicies, size_t idx) const {
+    int32_t index = indicies[idx];
+    if (index < 0) {
+        index += srcDims[idx + batchDims];
+    }
+    return index;
 }
 
 void GatherND::executeDynamicImpl(const dnnl::stream& strm) {
