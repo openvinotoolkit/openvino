@@ -29,10 +29,8 @@ namespace {
 // 13: reference_tests::Tensor           -- rotated_block_indices (shape: [num_rotated_blocks])
 // 14: reference_tests::Tensor           -- rotation_deltas (shape: as specified, e.g. [num_rotated_blocks, 1])
 // 15: reference_tests::Tensor           -- rotation_trig_lut (shape: [lut_rows, head_size])
-// 16: reference_tests::Tensor           -- free_block_indices (shape: [num_blocks])
-// 17: reference_tests::Tensor           -- max_blocks (shape: [batch_size_in_sequences])
-// 18: reference_tests::Tensor           -- output data to compare reference output with
-// 19: std::string                       -- targetDevice
+// 16: reference_tests::Tensor           -- output data to compare reference output with
+// 17: std::string                       -- targetDevice
 using PagedAttentionParams = std::tuple<reference_tests::Tensor,  // 0: query
                                         reference_tests::Tensor,  // 1: key
                                         reference_tests::Tensor,  // 2: value
@@ -49,10 +47,8 @@ using PagedAttentionParams = std::tuple<reference_tests::Tensor,  // 0: query
                                         reference_tests::Tensor,  // 13: rotated_block_indices
                                         reference_tests::Tensor,  // 14: rotation_deltas
                                         reference_tests::Tensor,  // 15: rotation_trig_lut
-                                        reference_tests::Tensor,  // 16: free_block_indices
-                                        reference_tests::Tensor,  // 17: max_blocks
-                                        reference_tests::Tensor,  // 18: output data
-                                        std::string>;             // 19: targetDevice
+                                        reference_tests::Tensor,  // 16: output data
+                                        std::string>;             // 17: targetDevice
 class ReferencePagedAttentionLayerTest : public testing::TestWithParam<PagedAttentionParams>,
                                          public reference_tests::CommonReferenceTest {
 public:
@@ -74,8 +70,6 @@ public:
                      rotated_block_indices,
                      rotation_deltas,
                      rotation_trig_lut,
-                     free_block_indices,
-                     max_blocks,
                      ref_out_data,
                      target_device] = params;
 
@@ -95,9 +89,7 @@ public:
                      max_context_len.data,
                      rotated_block_indices.data,
                      rotation_deltas.data,
-                     rotation_trig_lut.data,
-                     free_block_indices.data,
-                     max_blocks.data};
+                     rotation_trig_lut.data};
 
         refOutData = {ref_out_data.data};
     }
@@ -146,9 +138,7 @@ public:
         name << "rotated_block_indices=" << tensor2str(std::get<13>(obj.param)) << "_";
         name << "rotation_deltas=" << tensor2str(std::get<14>(obj.param)) << "_";
         name << "rotation_trig_lut=" << tensor2str(std::get<15>(obj.param)) << "_";
-        name << "free_block_indices=" << tensor2str(std::get<16>(obj.param)) << "_";
-        name << "max_blocks=" << tensor2str(std::get<17>(obj.param)) << "_";
-        name << "trgDev=" << std::get<19>(obj.param) << "_";
+        name << "trgDev=" << std::get<17>(obj.param) << "_";
 
         return name.str();
     }
@@ -171,8 +161,6 @@ private:
                      rotated_block_indices,
                      rotation_deltas,
                      rotation_trig_lut,
-                     free_block_indices,
-                     max_blocks,
                      ref_out_data,
                      target_device] = params;
 
@@ -191,9 +179,7 @@ private:
                                                     max_context_len.data,
                                                     rotated_block_indices.data,
                                                     rotation_deltas.data,
-                                                    rotation_trig_lut.data,
-                                                    free_block_indices.data,
-                                                    max_blocks.data};
+                                                    rotation_trig_lut.data};
         ov::ParameterVector inputParams;
         for (auto& input : funcInputs) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_shape()));
@@ -214,9 +200,7 @@ private:
                                                                             inputParams[12],
                                                                             inputParams[13],
                                                                             inputParams[14],
-                                                                            inputParams[15],
-                                                                            inputParams[16],
-                                                                            inputParams[17]);
+                                                                            inputParams[15]);
 
         // TODO add reference tests for second output.
         return std::make_shared<ov::Model>(ov::OutputVector{paged_attn->output(0)}, inputParams);
@@ -232,74 +216,71 @@ INSTANTIATE_TEST_SUITE_P(
     ReferencePagedAttentionLayerTest,
     ::testing::Values(
         // ----- BASIC TESTS, ensure proper execution for different param sets -----
-        // Test case 1: No past tokens (all new); no rotation.
-        PagedAttentionParams(
-            // query
-            reference_tests::Tensor({2, 8},
-                                    ov::element::f32,
-                                    std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
-            // key
-            reference_tests::Tensor({2, 8},
-                                    ov::element::f32,
-                                    std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
-            // value
-            reference_tests::Tensor({2, 8},
-                                    ov::element::f32,
-                                    std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
-            // key_cache (empty)
-            reference_tests::Tensor({0, 2, 1, 4}, ov::element::f32, std::vector<float>{}),
-            // value_cache (empty)
-            reference_tests::Tensor({0, 2, 1, 4}, ov::element::f32, std::vector<float>{}),
-            // past_lens
-            reference_tests::Tensor({1}, ov::element::i32, std::vector<int32_t>{0}),
-            // subsequence_begins
-            reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{0, 2}),
-            // block_indices (empty)
-            reference_tests::Tensor({0}, ov::element::i32, std::vector<int32_t>{}),
-            // block_indices_begins
-            reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{0, 0}),
-            // scale
-            reference_tests::Tensor({}, ov::element::f32, std::vector<float>{1.0f}),
-            // sliding_window
-            reference_tests::Tensor({}, ov::element::i32, std::vector<int32_t>{0}),
-            // alibi_slopes
-            reference_tests::Tensor({2}, ov::element::f32, std::vector<float>{0.0f, 0.0f}),
-            // max_context_len
-            reference_tests::Tensor({}, ov::element::i32, std::vector<int32_t>{10}),
-            // rotated_block_indices (none)
-            reference_tests::Tensor({0}, ov::element::i32, std::vector<int32_t>{}),
-            // rotation_deltas (none)
-            reference_tests::Tensor({2, 1}, ov::element::i32, std::vector<int32_t>{0, 1}),
-            // rotation_trig_lut
-            reference_tests::Tensor({2, 4},
-                                    ov::element::f32,
-                                    std::vector<float>{1.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f}),
-            // free_block_indices
-            reference_tests::Tensor({0}, ov::element::i32, std::vector<int32_t>{}),
-            // max_blocks
-            reference_tests::Tensor({1}, ov::element::i32, std::vector<int32_t>{100}),
-            // expected output data
-            reference_tests::Tensor({2, 8},
-                                    ov::element::f32,
-                                    std::vector<float>{0.731f,
-                                                       0.269f,
-                                                       0.0f,
-                                                       0.0f,
-                                                       0.269f,
-                                                       0.731f,
-                                                       0.0f,
-                                                       0.0f,
-                                                       0.5f,
-                                                       0.5f,
-                                                       0.0f,
-                                                       0.0f,
-                                                       0.5f,
-                                                       0.5f,
-                                                       0.0f,
-                                                       0.0f}),
-            "Reference_0"),
 
         /*
+                // Test case 1: No past tokens (all new); no rotation.
+                PagedAttentionParams(
+                    // query
+                    reference_tests::Tensor({2, 8},
+                                            ov::element::f32,
+                                            std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
+                    // key
+                    reference_tests::Tensor({2, 8},
+                                            ov::element::f32,
+                                            std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+                    // value
+                    reference_tests::Tensor({2, 8},
+                                            ov::element::f32,
+                                            std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+                    // key_cache (empty)
+                    reference_tests::Tensor({0, 2, 1, 4}, ov::element::f32, std::vector<float>{}),
+                    // value_cache (empty)
+                    reference_tests::Tensor({0, 2, 1, 4}, ov::element::f32, std::vector<float>{}),
+                    // past_lens
+                    reference_tests::Tensor({1}, ov::element::i32, std::vector<int32_t>{0}),
+                    // subsequence_begins
+                    reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{0, 2}),
+                    // block_indices (empty)
+                    reference_tests::Tensor({0}, ov::element::i32, std::vector<int32_t>{}),
+                    // block_indices_begins
+                    reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{0, 0}),
+                    // scale
+                    reference_tests::Tensor({}, ov::element::f32, std::vector<float>{1.0f}),
+                    // sliding_window
+                    reference_tests::Tensor({}, ov::element::i32, std::vector<int32_t>{0}),
+                    // alibi_slopes
+                    reference_tests::Tensor({2}, ov::element::f32, std::vector<float>{0.0f, 0.0f}),
+                    // max_context_len
+                    reference_tests::Tensor({}, ov::element::i32, std::vector<int32_t>{10}),
+                    // rotated_block_indices (none)
+                    reference_tests::Tensor({0}, ov::element::i32, std::vector<int32_t>{}),
+                    // rotation_deltas (none)
+                    reference_tests::Tensor({2, 1}, ov::element::i32, std::vector<int32_t>{0, 1}),
+                    // rotation_trig_lut
+                    reference_tests::Tensor({2, 4},
+                                            ov::element::f32,
+                                            std::vector<float>{1.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 0.5f}),
+                    // expected output data
+                    reference_tests::Tensor({2, 8},
+                                            ov::element::f32,
+                                            std::vector<float>{0.731f,
+                                                            0.269f,
+                                                            0.0f,
+                                                            0.0f,
+                                                            0.269f,
+                                                            0.731f,
+                                                            0.0f,
+                                                            0.0f,
+                                                            0.5f,
+                                                            0.5f,
+                                                            0.0f,
+                                                            0.0f,
+                                                            0.5f,
+                                                            0.5f,
+                                                            0.0f,
+                                                            0.0f}),
+                    "Reference_0"),
+
                 // Test case 2: One new token with past tokens from cache.
                 PagedAttentionParams(
                     // query
@@ -1382,8 +1363,8 @@ INSTANTIATE_TEST_SUITE_P(
                 std::vector<float>{0.4f, 0.6f, 0.7f, 0.3f, 0.9f, 0.1f, 0.3f, 0.7f, 0.5f, 0.5f, 0.6f, 0.4f}),
             reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{2, 1}),
             reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{0, 2, 3}),
-            reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{0, 1, 2}),
-            reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{0, 2, 3}),
+            reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{-1, -1, -1}),  // bi - all blocks unused
+            reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{0, 0, 0}),     // bib
             reference_tests::Tensor({}, ov::element::f32, std::vector<float>{1.f}),
             reference_tests::Tensor({}, ov::element::i32, std::vector<int32_t>{1}),
             reference_tests::Tensor({2}, ov::element::f32, std::vector<float>{0.05f, -0.05f}),
@@ -1393,8 +1374,6 @@ INSTANTIATE_TEST_SUITE_P(
                                     std::vector<int32_t>{1, 2}),  // both block1 and block2 rotated
             reference_tests::Tensor({2, 1}, ov::element::i32, std::vector<int32_t>{1, 1}),
             reference_tests::Tensor({1, 2}, ov::element::f32, std::vector<float>{0.8f, 0.2f}),
-            reference_tests::Tensor({2}, ov::element::i32, std::vector<int32_t>{-1, -1}),
-            reference_tests::Tensor({3}, ov::element::i32, std::vector<int32_t>{10, 10}),
             reference_tests::Tensor({2, 4},
                                     ov::element::f32,
                                     std::vector<float>{0.65f, 0.35f, 0.60f, 0.40f, 0.85f, 0.15f, 0.88f, 0.12f}),

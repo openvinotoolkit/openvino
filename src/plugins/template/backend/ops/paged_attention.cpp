@@ -13,9 +13,6 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
 
     ov::reference::paged_attention<T>(outputs[0].data<T>(),
                                       outputs[1].data<T>(),
-                                      outputs[2].data<int32_t>(),
-                                      outputs[3].data<int32_t>(),
-                                      outputs[4].data<int32_t>(),
                                       inputs[0].data<T>(),         // q
                                       inputs[1].data<T>(),         // k
                                       inputs[2].data<T>(),         // v
@@ -32,8 +29,6 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[13].get_shape().size() != 0 ? inputs[13].data<int32_t>() : nullptr,  // rbi
                                       inputs[14].get_shape().size() != 0 ? inputs[14].data<int32_t>() : nullptr,  // rd
                                       inputs[15].get_shape().size() != 0 ? inputs[15].data<T>() : nullptr,        // trl
-                                      inputs[16].data<int32_t>(),                                                 // fbi
-                                      inputs[17].data<int32_t>(),                                                 // mb
                                       inputs[0].get_shape(),                                                      // qs
                                       inputs[1].get_shape(),                                                      // ks
                                       inputs[2].get_shape(),                                                      // vs

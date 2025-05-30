@@ -16,7 +16,7 @@ namespace testing {
 
 class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::PagedAttentionExtension> {};
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_15_inputs) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -30,8 +30,6 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_15_inputs) {
     const auto sliding_window = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto alibi_slopes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{9});
     const auto max_context_len = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
-    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
@@ -45,14 +43,12 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_15_inputs) {
                                                                   scale,
                                                                   sliding_window,
                                                                   alibi_slopes,
-                                                                  max_context_len,
-                                                                  free_block_indices,
-                                                                  max_blocks);
+                                                                  max_context_len);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_eviction_per_block) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_block) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -71,9 +67,6 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 1});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
-    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
-
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
                                                                   value,
@@ -89,14 +82,12 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
                                                                   max_context_len,
                                                                   rotated_block_indices,
                                                                   rotation_deltas,
-                                                                  rotation_trig_lut,
-                                                                  free_block_indices,
-                                                                  max_blocks);
+                                                                  rotation_trig_lut);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_eviction_per_token) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_token) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -115,9 +106,6 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 5});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
-    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
-
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
                                                                   value,
@@ -133,9 +121,7 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
                                                                   max_context_len,
                                                                   rotated_block_indices,
                                                                   rotation_deltas,
-                                                                  rotation_trig_lut,
-                                                                  free_block_indices,
-                                                                  max_blocks);
+                                                                  rotation_trig_lut);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
@@ -182,21 +168,8 @@ TEST(type_prop, paged_attention_invalid_rank_query) {
     auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
     auto scalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    ov::OutputVector args = {query,
-                             key,
-                             value,
-                             dummy,
-                             dummy,
-                             scalar,
-                             scalar,
-                             scalar,
-                             scalar,
-                             dummy,
-                             scalar,
-                             dummy,
-                             scalar,
-                             dummy1D,
-                             dummy1D};
+    ov::OutputVector args =
+        {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar};
 
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
@@ -219,9 +192,7 @@ TEST(type_prop, paged_attention_invalid_type_scale) {
                              scale,
                              dummyScalar,
                              dummy2D,
-                             dummyScalar,
-                             dummy1D,
-                             dummy1D};
+                             dummyScalar};
 
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
@@ -244,9 +215,7 @@ TEST(type_prop, paged_attention_invalid_rank_key_cache) {
                              dummyScalar,
                              dummyScalar,
                              dummy,
-                             dummyScalar,
-                             dummy1D,
-                             dummy1D};
+                             dummyScalar};
 
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }

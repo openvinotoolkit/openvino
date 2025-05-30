@@ -19,16 +19,9 @@ namespace ov::reference {
 namespace paged_attention_utils {
 
 //---------------------------------------------------------------------------
-// Context: holds all parameters and computed dimensions in one place.
+// Context: Holds all parameters and computed dimensions in one place.
 //---------------------------------------------------------------------------
 struct PagedAttentionContext {
-    // Outputs ptrs
-    void* out;
-    void* score;
-    int32_t* updated_block_indices;
-    int32_t* updated_block_indices_begins;
-    int32_t* updated_free_block_indices;
-
     // Attention with cache inputs ptrs
     const void* query;
     const void* key;
@@ -39,9 +32,8 @@ struct PagedAttentionContext {
     // Sequencing related input ptrs
     const int32_t* past_lens;
     const int32_t* subsequence_begins;
-    const int32_t* block_indices;
-    const int32_t* block_indices_begins;
-    const int32_t* max_blocks;
+    int32_t* block_indices;
+    int32_t* block_indices_begins;
     const void* alibi_slopes;
 
     // Per-sequence block counter
@@ -88,6 +80,16 @@ void softmax(std::vector<T>& values) {
     }
     for (auto& v : values)
         v /= sum;
+}
+
+int32_t find_first_negative(const int32_t* data, const size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+        if (data[i] < 0) {
+            return i;
+        }
+    }
+    // When not found returns negative idx
+    return -1;
 }
 
 //---------------------------------------------------------------------------
@@ -144,20 +146,27 @@ inline size_t get_sequence_index(size_t token_index, const PagedAttentionContext
 // Allocate or evict a block for a sequence
 //---------------------------------------------------------------------------
 inline int32_t allocate_block_for_sequence(size_t sequence_index, PagedAttentionContext& ctx) {
-    int32_t begin = ctx.updated_block_indices_begins[sequence_index];
+    int32_t begin = ctx.block_indices_begins[sequence_index];
     int32_t count = ctx.sequence_block_count[sequence_index];
-    int32_t maxb = ctx.max_blocks[sequence_index];
+    // Below should be the value of max_blocks[sequence_idx] when 5-output reference implementation is added
+    int32_t maxb = std::numeric_limits<int32_t>::max();
 
     // Use free blokc from the list if below the limit
+    // This comparison is used with max_blocks input
     if (count < maxb) {
-        int32_t free_block = ctx.updated_free_block_indices[begin + count];
-        ctx.sequence_block_count[sequence_index] = count + 1;
-        return free_block;
+        // Below should use the free_block_indices in the new version
+        // ctx.free_block_indices[begin + count]
+        int32_t free_block = find_first_negative(ctx.block_indices, ctx.num_blocks);
+        if (free_block != -1) {
+            ctx.sequence_block_count[sequence_index] = count + 1;
+            return free_block;
+        }
     }
-    // Otherwise evict oldest
-    int32_t oldest = ctx.updated_block_indices[begin];
-    for (int32_t i = 0; i + 1 < count; ++i)
-        ctx.updated_block_indices[begin + i] = ctx.updated_block_indices[begin + i + 1];
+    // Otherwise evict oldest (if above limit or none available)
+    int32_t oldest = ctx.block_indices[begin];
+    for (int32_t i = 0; i + 1 < count; ++i) {
+        ctx.block_indices[begin + i] = ctx.block_indices[begin + i + 1];
+    }
     return oldest;
 }
 
@@ -176,8 +185,8 @@ void insert_new_token_into_cache(PagedAttentionContext& ctx, size_t token_index,
     int32_t block_id = allocate_block_for_sequence(sequence_index, ctx);
 
     // Record new block in updated indices
-    int32_t begin = ctx.updated_block_indices_begins[sequence_index];
-    ctx.updated_block_indices[begin + ctx.sequence_block_count[sequence_index] - 1] = block_id;
+    int32_t begin = ctx.block_indices_begins[sequence_index];
+    ctx.block_indices[begin + ctx.sequence_block_count[sequence_index] - 1] = block_id;
 
     // Copy key and value vectors
     for (size_t head = 0; head < ctx.num_heads; ++head) {
@@ -201,11 +210,11 @@ inline bool find_cached_token(size_t sequence_index,
                               const PagedAttentionContext& ctx,
                               int32_t& block_id,
                               int32_t& offset) {
-    int32_t begin = ctx.updated_block_indices_begins[sequence_index];
-    int32_t end = ctx.updated_block_indices_begins[sequence_index + 1];
+    int32_t begin = ctx.block_indices_begins[sequence_index];
+    int32_t end = ctx.block_indices_begins[sequence_index + 1];
     int32_t count = end - begin;
     if (token_position < count) {
-        block_id = ctx.updated_block_indices[begin + token_position];
+        block_id = ctx.block_indices[begin + token_position];
         offset = token_position % ctx.block_size;
         return true;
     }
@@ -286,31 +295,26 @@ void accumulate_value_for_new_key(int32_t new_token_idx,
 //---------------------------------------------------------------------------
 
 template <typename T>
-void paged_attention(T* out,                                 // Output attention result
-                     T* score,                               // Output concatenated raw scores
-                     int32_t* updated_block_indices,         // [num_blocks]
-                     int32_t* updated_block_indices_begins,  // [batch_seq+1]
-                     int32_t* updated_free_block_indices,    // [num_blocks]
+void paged_attention(T* out,    // Output attention result
+                     T* score,  // Output concatenated raw scores
 
-                     const T* query,                       // [batch_tokens, num_heads * q_head_size]
-                     const T* key,                         // [batch_tokens, num_heads * k_head_size]
-                     const T* value,                       // [batch_tokens, num_heads * v_head_size]
-                     T* key_cache,                         // [num_blocks, num_heads, block_size, k_head_size]
-                     T* value_cache,                       // [num_blocks, num_heads, block_size, v_head_size]
-                     const int32_t* past_lens,             // [batch_seq]
-                     const int32_t* subsequence_begins,    // [batch_seq+1]
-                     const int32_t* block_indices,         // [num_blocks]
-                     const int32_t* block_indices_begins,  // [batch_seq+1]
-                     const T* scale_ptr,                   // (Optional) scale factor
-                     const int32_t* sliding_window_ptr,    // (Optional)
-                     const T* alibi_slopes,                // (Optional) [num_heads]
-                     const int32_t* max_context_len_ptr,   // (Optional)
+                     const T* query,                      // [batch_tokens, num_heads * q_head_size]
+                     const T* key,                        // [batch_tokens, num_heads * k_head_size]
+                     const T* value,                      // [batch_tokens, num_heads * v_head_size]
+                     T* key_cache,                        // [num_blocks, num_heads, block_size, k_head_size]
+                     T* value_cache,                      // [num_blocks, num_heads, block_size, v_head_size]
+                     const int32_t* past_lens,            // [batch_seq]
+                     const int32_t* subsequence_begins,   // [batch_seq+1]
+                     int32_t* block_indices,              // [num_blocks]
+                     int32_t* block_indices_begins,       // [batch_seq+1]
+                     const T* scale_ptr,                  // (Optional) scale factor
+                     const int32_t* sliding_window_ptr,   // (Optional)
+                     const T* alibi_slopes,               // (Optional) [num_heads]
+                     const int32_t* max_context_len_ptr,  // (Optional)
 
                      const int32_t* rotated_block_indices,  // (Optional) [num_rotated_blocks]
                      const int32_t* rotation_deltas,        // (Optional) [num_rotated_blocks × rotation_deltas_dim]
                      const T* rotation_trig_lut,            // (Optional) [rotation_lut_rows, head_size]
-                     const int32_t* free_block_indices,     // [num_blocks]
-                     const int32_t* max_blocks,             // [batch_seq]
 
                      const ov::Shape& query_shape,
                      const ov::Shape& key_shape,
@@ -325,8 +329,8 @@ void paged_attention(T* out,                                 // Output attention
 
     // Build context
     PagedAttentionContext ctx{};
-    ctx.out = out;
-    ctx.score = score;
+
+    // Inputs
     ctx.query = query;
     ctx.key = key;
     ctx.value = value;
@@ -340,12 +344,10 @@ void paged_attention(T* out,                                 // Output attention
     ctx.block_indices_begins = block_indices_begins;
     ctx.rotated_block_indices = rotated_block_indices;
     ctx.rotation_deltas = rotation_deltas;
-    ctx.updated_block_indices = updated_block_indices;
-    ctx.updated_block_indices_begins = updated_block_indices_begins;
-    ctx.updated_free_block_indices = updated_free_block_indices;
-    ctx.max_blocks = max_blocks;
+    ctx.max_context_length = max_context_len_ptr ? max_context_len_ptr[0] : 0;
+    ctx.sliding_window = sliding_window_ptr ? sliding_window_ptr[0] : 0;
 
-    // Populate dimensions
+    // Dimensions
     ctx.batch_tokens = query_shape[0];
     ctx.query_feature_size = query_shape[1];
     ctx.key_feature_size = key_shape[1];
@@ -358,26 +360,17 @@ void paged_attention(T* out,                                 // Output attention
     ctx.value_head_size = value_cache_shape[3];
 
     ctx.query_head_size = ctx.query_feature_size / ctx.num_heads;
-
     ctx.batch_sequence_count = past_lens_shape[0];
-
     ctx.num_rotated_blocks = rotated_block_indices_shape.empty() ? 0 : rotated_block_indices_shape[0];
     ctx.rotation_deltas_dim =
         rotation_deltas_shape.empty() || ctx.num_rotated_blocks == 0 ? 0 : rotation_deltas_shape[1];
     ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : rotation_trig_lut_shape[0];
-    ctx.max_context_length = max_context_len_ptr ? max_context_len_ptr[0] : 0;
-    ctx.sliding_window = sliding_window_ptr ? sliding_window_ptr[0] : 0;
-
-    // Initialize updated arrays
-    std::memcpy(updated_block_indices, block_indices, ctx.num_blocks * sizeof(int32_t));
-    std::memcpy(updated_block_indices_begins, block_indices_begins, (ctx.batch_sequence_count + 1) * sizeof(int32_t));
-    std::memcpy(updated_free_block_indices, free_block_indices, ctx.num_blocks * sizeof(int32_t));
 
     // Seed per-sequence counts
     ctx.sequence_block_count.resize(ctx.batch_sequence_count);
     for (size_t s = 0; s < ctx.batch_sequence_count; ++s) {
-        int32_t begin = updated_block_indices_begins[s];
-        int32_t end = updated_block_indices_begins[s + 1];
+        int32_t begin = block_indices_begins[s];
+        int32_t end = block_indices_begins[s + 1];
         ctx.sequence_block_count[s] = end - begin;
     }
 
@@ -449,6 +442,7 @@ void paged_attention(T* out,                                 // Output attention
                     accumulate_value_for_new_key<T>(new_idx, head, ctx, weight, output_vector);
                 }
                 size_t global_index = seq_idx * ctx.max_context_length + k;
+                // Update score
                 score[global_index] = scores[k];
             }
 

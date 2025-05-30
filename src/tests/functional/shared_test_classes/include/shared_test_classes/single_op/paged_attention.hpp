@@ -31,8 +31,6 @@ struct PagedAttentionIntVectorsStruct {
         std::vector<int> subsequence_begins;
         std::vector<int> block_indices;
         std::vector<int> block_indices_begins;
-        std::vector<int> free_block_indices;
-        std::vector<int> max_blocks;
         };
 
 using PagedAttentionParamsTuple = typename std::tuple<

@@ -590,7 +590,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              sliding_window,
                                                                              alibi_slopes,
                                                                              max_context_len});
-        pa->set_out_type(0, element::i64);
+        // pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
 

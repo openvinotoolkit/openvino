@@ -11,8 +11,11 @@
 
 namespace {
 using ov::test::PagedAttentionLayerTest;
-const std::vector<ov::element::Type> inputPrecisions = {
+
+const ov::element::TypeVector inputPrecisions = {
     ov::element::f32,
+    ov::element::f16,
+    ov::element::bf16
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttention_basic_static,
@@ -50,9 +53,7 @@ INSTANTIATE_TEST_SUITE_P(
                            {0, 1},
                            {0, 1, 2},
                            {0},
-                           {0, 0, 0},
-                           {-1, -1, -1},
-                           {10, 10}
+                           {0, 0, 0}
                        }),
                        ::testing::Values(ov::test::PagedAttentionMiscInpStruct{{1}, 0, {0, 0}, 10}),
                        ::testing::Values(ov::test::PagedAttentionRotationStruct{{0, 0, 0, 0}, {4, 32}, {4, 4}}),
@@ -73,9 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttention_scale,
                                                 {0, 1},
                                                 {0, 1, 2},
                                                 {0, 1, 2},
-                                                {0, 1, 2},
-                                                {-1, -1, -1},
-                                                {10, 10}
+                                                {0, 1, 2}
                                             }),
                                             ::testing::ValuesIn({
                                                 // Negative scale NaN?

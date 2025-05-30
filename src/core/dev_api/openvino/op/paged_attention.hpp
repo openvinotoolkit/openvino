@@ -38,8 +38,6 @@ public:
     ///             - (optional) rotated_block_indices
     ///             - (optional) rotation_deltas
     ///             - (optional) rotation_trig_lut
-    ///             - free_block_indices
-    ///             - max_blocks
     PagedAttentionExtension(const ov::OutputVector& args);
 
     /// \brief Constructs a PagedAttentionExtension operation. (13 parameter constructor)
@@ -57,8 +55,6 @@ public:
     /// \param sliding_window       (Optional) Sliding window size for local attention.
     /// \param alibi_slopes         (Optional) ALiBi slopes for biasing attention.
     /// \param max_context_len      Maximum context length.
-    /// \param free_block_indices   Free blocks in cache.
-    /// \param max_blocks           Per-sequence max occupied blocks.
     PagedAttentionExtension(const Output<Node>& query,
                             const Output<Node>& key,
                             const Output<Node>& value,
@@ -71,9 +67,7 @@ public:
                             const Output<Node>& scale,
                             const Output<Node>& sliding_window,
                             const Output<Node>& alibi_slopes,
-                            const Output<Node>& max_context_len,
-                            const Output<Node>& free_block_indices,
-                            const Output<Node>& max_blocks);
+                            const Output<Node>& max_context_len);
 
     /// \brief Constructs a PagedAttentionExtension operation with rotation support. (16 parameter constructor)
     ///
@@ -93,8 +87,6 @@ public:
     /// \param rotated_block_indices (Optional) Rotated block indices.
     /// \param rotation_deltas       (Optional) Rotation deltas.
     /// \param rotation_trig_lut     (Optional) Rotation trig lookup table.
-    /// \param free_block_indices   Free blocks in cache.
-    /// \param max_blocks           Per-sequence max occupied blocks.
     PagedAttentionExtension(const Output<Node>& query,
                             const Output<Node>& key,
                             const Output<Node>& value,
@@ -110,9 +102,7 @@ public:
                             const Output<Node>& max_context_len,
                             const Output<Node>& rotated_block_indices,
                             const Output<Node>& rotation_deltas,
-                            const Output<Node>& rotation_trig_lut,
-                            const Output<Node>& free_block_indices,
-                            const Output<Node>& max_blocks);
+                            const Output<Node>& rotation_trig_lut);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -124,11 +114,7 @@ public:
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic,
-                                                    ov::element::dynamic,
-                                                    ov::element::i32,
-                                                    ov::element::i32,
-                                                    ov::element::i32};
+    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
 };
 
 }  // namespace op
