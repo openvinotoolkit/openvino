@@ -91,6 +91,8 @@ bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> n
         return evaluate_data_type<f16>(ov::as_type_ptr<SparseFillEmptyRows>(node), outputs, inputs);
     case f32:
         return evaluate_data_type<f32>(ov::as_type_ptr<SparseFillEmptyRows>(node), outputs, inputs);
+    case string:
+        return evaluate_data_type<string>(ov::as_type_ptr<SparseFillEmptyRows>(node), outputs, inputs);
     default:
         OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node() for SparseFillEmptyRows");
     }

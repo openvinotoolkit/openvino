@@ -11,7 +11,8 @@ import pytest
 @pytest.mark.parametrize("values_dtype", [
     Type.f32,
     Type.f16,
-    Type.i32
+    Type.i32,
+    Type.string
 ])
 @pytest.mark.parametrize("indices_dtype", [
     Type.i32,

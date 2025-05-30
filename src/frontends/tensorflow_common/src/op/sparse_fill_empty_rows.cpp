@@ -16,9 +16,6 @@ NamedOutputVector translate_sparse_fill_empty_rows_op(const NodeContext& node) {
     auto values = node.get_input(1);
     auto dense_shape = node.get_input(2);
     auto default_value = node.get_input(3);
-    TENSORFLOW_OP_VALIDATION(node,
-                             values.get_element_type() != element::string,
-                             "TensorFlow Frontend does not support string inputs for SparseFillEmptyRows.");
 
     auto sparse_fill_empty_rows =
         std::make_shared<ov::op::v16::SparseFillEmptyRows>(values, dense_shape, indices, default_value);
