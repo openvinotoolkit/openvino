@@ -6,6 +6,9 @@
 #include "internal_properties.hpp"
 #include "common_test_utils/node_builders/extremum.hpp"
 #include "shared_test_classes/single_op/minimum_maximum.hpp"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 namespace ov {
 namespace test {
@@ -82,11 +85,17 @@ std::string ExtremumLayerCPUTest::getPrimitiveType() {
     return "jit";
 #endif
     return "acl";
-#elif defined(OV_CPU_WITH_SHL)
-    return "shl";
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        return "jit";
+    }
+#if defined(OV_CPU_WITH_SHL)
+    return "shl";
+#endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(ExtremumLayerCPUTest, CompareWithRefs) {
