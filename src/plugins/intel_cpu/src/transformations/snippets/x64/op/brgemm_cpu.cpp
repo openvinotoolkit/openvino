@@ -28,7 +28,7 @@ using namespace brgemm_utils;
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
-                     BRGEMM_TYPE type,
+                     BrgemmConfig config,
                      const size_t offset_a,
                      const size_t offset_b,
                      const size_t offset_c,
@@ -36,7 +36,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_type(type) {
+      m_config(config) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -50,7 +50,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
                      const Output<Node>& scratch,
-                     BRGEMM_TYPE type,
+                     BrgemmConfig config,
                      const size_t offset_a,
                      const size_t offset_b,
                      const size_t offset_scratch,
@@ -59,7 +59,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_type(type) {
+      m_config(config) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -72,7 +72,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
-                     BRGEMM_TYPE type,
+                     BrgemmConfig config,
                      const PortDescriptor& desc_a,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_c,
@@ -80,7 +80,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_type(type) {
+      m_config(config) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -91,7 +91,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
                      const Output<Node>& scratch,
-                     BRGEMM_TYPE type,
+                     BrgemmConfig config,
                      const PortDescriptor& desc_a,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_scratch,
@@ -100,7 +100,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
     : Brgemm(),
-      m_type(type) {
+      m_config(config) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
@@ -138,10 +138,10 @@ void BrgemmCPU::validate_and_infer_types() {
 
 void BrgemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
-    if (with_compensations(m_type)) {
+    if (m_config.with_compensations()) {
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32,
                         "BRGEMM Scratch with compensations must have FP32 element type");
-    } else if (with_amx(m_type)) {
+    } else if (m_config.is_amx()) {
         OPENVINO_ASSERT(get_input_partial_shape(2).is_static(), "BRGEMM Scratch must have static shape");
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::u8, "BRGEMM Scratch must have U8 element type");
     }
@@ -149,22 +149,20 @@ void BrgemmCPU::validate_with_scratchpad() const {
 
 void BrgemmCPU::validate_inputs() const {
     OPENVINO_ASSERT(
-        implication(one_of(m_type, BRGEMM_TYPE::STAND_ALONE, BRGEMM_TYPE::REPACKING_ONLY), get_input_size() == 2),
+        (m_config.with_scratchpad() ? get_input_size() == 3 : get_input_size() == 2),
+        "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system.",
         "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
-    OPENVINO_ASSERT(
-        implication(one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), get_input_size() == 3),
-        "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
 }
 
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     std::shared_ptr<BrgemmCPU> brgemm;
-    if (!with_scratchpad(m_type)) {
+    if (get_input_size() == 2) {
         return std::make_shared<BrgemmCPU>(
             new_args.at(0),
             new_args.at(1),
-            m_type,
+            m_config,
             get_input_port_descriptor(0),
             get_input_port_descriptor(1),
             get_output_port_descriptor(0),
@@ -176,7 +174,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
         new_args.at(0),
         new_args.at(1),
         new_args.at(2),
-        m_type,
+        m_config,
         get_input_port_descriptor(0),
         get_input_port_descriptor(1),
         get_input_port_descriptor(2),
@@ -187,14 +185,15 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    assert(with_scratchpad(m_type) && get_input_size() == 3 &&
+    assert(m_config.with_scratchpad() && get_input_size() == 3 &&
            "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
-    visitor.on_attribute("type", m_type);
+    auto config = m_config;
+    visitor.on_attribute("BrgemmConfig", config);
     return true;
 }
 }  // namespace ov::intel_cpu

@@ -26,12 +26,12 @@ namespace ov::intel_cpu {
  */
 class BrgemmCPU : public snippets::op::Brgemm {
 public:
-    using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
+    using BrgemmConfig = brgemm_utils::BrgemmConfig;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
-              BRGEMM_TYPE type,
+              BrgemmConfig config,
               const size_t offset_a = 0,
               const size_t offset_b = 0,
               const size_t offset_c = 0,
@@ -41,7 +41,7 @@ public:
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
-              BRGEMM_TYPE type,
+              BrgemmConfig config,
               const size_t offset_a = 0,
               const size_t offset_b = 0,
               const size_t offset_scratch = 0,
@@ -51,7 +51,7 @@ public:
               const std::vector<size_t>& layout_c = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
-              BRGEMM_TYPE type,
+              BrgemmConfig config,
               const PortDescriptor& desc_a,
               const PortDescriptor& desc_b,
               const PortDescriptor& desc_c,
@@ -61,7 +61,7 @@ public:
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
-              BRGEMM_TYPE type,
+              BrgemmConfig config,
               const PortDescriptor& desc_a,
               const PortDescriptor& desc_b,
               const PortDescriptor& desc_scratch,
@@ -74,8 +74,8 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    BRGEMM_TYPE get_type() const {
-        return m_type;
+    const BrgemmConfig& get_config() const {
+        return m_config;
     }
 
     size_t get_offset_scratch() const;
@@ -91,6 +91,6 @@ private:
     void validate_with_scratchpad() const;
     void validate_inputs() const;
 
-    BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
+    const BrgemmConfig m_config{};
 };
 }  // namespace ov::intel_cpu

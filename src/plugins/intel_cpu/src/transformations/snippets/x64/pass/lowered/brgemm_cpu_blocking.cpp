@@ -60,23 +60,29 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     return std::prev(brgemm_it);
 }
 
-size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
-}
-
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     assert(brgemm && "BrgemmCPU is expected!");
+    const auto& brgemm_config = brgemm->get_config();
 
-    size_t m_blk, n_blk, k_blk;
-    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+    const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
+
+    const auto default_n_blk =
+        dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    size_t m_blk = get_corrected_blk_size_by_dim(m, get_default_m_blk(m));
+    size_t n_blk =
+        get_corrected_blk_size_by_dim(n, brgemm_config.are_wei_blocked() ? brgemm_config.wei_n_blk() : default_n_blk);
+    size_t k_blk = get_corrected_blk_size_by_dim(k, get_default_k_blk(k));
+
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)
     //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
-    const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
-    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
-        n_blk = get_full_dim_value();
+    const auto& precision = brgemm_expr->get_node()->get_input_element_type(1);
+    if (brgemm->get_config().with_wei_repacking() && precision != element::f32) {
+        if (!brgemm_config.are_wei_blocked()) {
+            n_blk = get_full_dim_value();
+        }
         k_blk = get_full_dim_value();
     }
     return std::make_tuple(m_blk, n_blk, k_blk);
@@ -95,8 +101,8 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             size_t n_block,
                                             size_t k_block) {
     const auto& brgemm_expr = *brgemm_it;
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    const auto type = brgemm->get_type();
+    const auto& brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    const auto& brgemm_config = brgemm->get_config();
 
     auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
                                                                                     brgemm_it,
@@ -104,7 +110,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                                                                     n_block,
                                                                                     k_block);
 
-    if (stand_alone(type)) {
+    if (!brgemm_config.with_wei_repacking()) {
         return res;
     }
 
@@ -114,14 +120,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
         copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
     }
-    if (with_amx(type)) {
+    if (brgemm_config.is_amx()) {
         move_new_memory_buffer(linear_ir, brgemm_it);
         auto buffer_it = std::prev(brgemm_it);
         buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
     }
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    if (with_compensations(type)) {
+    if (brgemm_config.with_compensations()) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
         OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
         OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");

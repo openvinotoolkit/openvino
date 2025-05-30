@@ -34,7 +34,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-#define INNER_K_BLK(dtype) static_cast<dnnl_dim_t>((brgemm_utils::repacking::compute_inner_k_block(in0_dtype)))
 #define VNNI_FACTOR(dtype) static_cast<dnnl_dim_t>((brgemm_utils::compute_vnni_factor(in0_dtype)))
 #define EQ(X)              X == rhs.X
 #define HASH(X)            seed = hash_combine(seed, X)
@@ -47,29 +46,28 @@ namespace ov::intel_cpu::x64 {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
+                                             dnnl_dim_t wei_K_blk,
                                              dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, wei_K_blk, primitive_isa)) {
     m_hash = compute_hash();
 }
 
 BrgemmAMXKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                   const element::Type& in1_dtype,
+                                                  dnnl_dim_t wei_K_blk,
                                                   dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype,
-                       in1_dtype,
-                       primitive_isa,
-                       compute_hash(INNER_K_BLK(in0_dtype), VNNI_FACTOR(in0_dtype))),
-      inner_k_blk(INNER_K_BLK(in0_dtype)),
+    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa, compute_hash(wei_K_blk, VNNI_FACTOR(in0_dtype))),
+      wei_K_blk(wei_K_blk),
       vnni_factor(VNNI_FACTOR(in0_dtype)) {}
 
 bool BrgemmAMXKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
-    return StaticBaseParams::operator==(rhs) && EQ(inner_k_blk) && EQ(vnni_factor);
+    return StaticBaseParams::operator==(rhs) && EQ(wei_K_blk) && EQ(vnni_factor);
 }
 
-size_t BrgemmAMXKernelConfig::StaticParams::compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor) {
+size_t BrgemmAMXKernelConfig::StaticParams::compute_hash(dnnl_dim_t wei_K_blk, dnnl_dim_t vnni_factor) {
     size_t seed = 0;
-    HASH(inner_k_blk);
+    HASH(wei_K_blk);
     HASH(vnni_factor);
     return seed;
 }
@@ -82,7 +80,7 @@ bool BrgemmAMXKernelConfig::need_copy_a(dnnl_dim_t K) const {
 std::string BrgemmAMXKernelConfig::StaticParams::to_string() const {
     std::stringstream ss;
     ss << StaticBaseParams::to_string();
-    ss << "inner_k_blk = " << inner_k_blk << "\n";
+    ss << "wei_K_blk = " << wei_K_blk << "\n";
     ss << "vnni_factor = " << vnni_factor << "\n";
     return ss.str();
 }
