@@ -880,6 +880,78 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
 
+Inference of GGUF (GGML Unified Format) models
+###############################################################################################
+
+Some language models on Hugging Face are distributed in the GGUF (GGML Unified Format) and can
+be downloaded. You can browse all available
+`GGUF models on Hugging Face <https://huggingface.co/models?library=gguf>`__.
+A GGUF model is encapsulated in a single binary file that contains all necessary components, including metadata and model weights, to represent the entire LLM pipeline.
+Once downloaded, these GGUF models can be used directly with OpenVINO GenAI (for supported architectures) without additional conversion steps.
+
+Unlike standard Hugging Face models, GGUF models do not require conversion to OpenVINO Intermediate Representation (IR) using the `optimum-intel` tool.
+The `LLMPipeline` object can be instantiated directly from a GGUF file, enabling seamless inference without intermediate steps.
+
+This capability is currently available in preview mode and supports a limited set of topologies, including SmolLM, Qwen2.5.
+For other models and architectures, we still recommend converting the model to the IR format,
+using the `optimum-intel` tool.
+See :doc:`Generative Model Preparation Using Optimum-intel <./genai-model-preparation>` for more details.
+
+To perform inference with a GGUF model using OpenVINO GenAI, simply provide the path to the `.gguf` file when constructing the LLMPipeline object, as shown below:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai
+
+         pipe = openvino_genai.LLMPipeline("SmolLM2-135M.F16.gguf", "CPU")
+
+         config = openvino_genai.GenerationConfig()
+         config.max_new_tokens = 100
+
+         pipe.generate("The Sun is yellow because", config)
+
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <openvino/openvino.hpp>
+         #include "openvino/genai/llm_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+
+             std::string model_path = "SmolLM2-135M.F16.gguf";
+             std::string prompt = "The Sun is yellow because";
+
+             ov::genai::LLMPipeline pipe(model_path, "CPU");
+
+             auto result = pipe.generate("The Sun is yellow because", config);
+             std::cout << "result = " << result << std::endl;
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
+
+
+
+
+
+
 Comparing with Hugging Face Results
 #######################################
 
