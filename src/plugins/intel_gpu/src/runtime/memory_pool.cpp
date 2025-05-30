@@ -216,6 +216,10 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
+                if (ret_mem->is_memory_reset_needed(layout)) {
+                    auto& stream = ret_mem->get_engine()->get_service_stream();
+                    ret_mem->fill(stream);
+                }
                 rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
