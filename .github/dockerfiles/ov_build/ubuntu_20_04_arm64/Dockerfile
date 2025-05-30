@@ -45,6 +45,12 @@ RUN apt-get update && \
         # Compiler, required for multi-isa build
         gcc-10 \
         g++-10 \
+        # JS API
+        xvfb \
+        libgtk-3-0 \
+        libgbm1 \
+        # ONNX Runtime
+        language-pack-en \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -58,7 +64,7 @@ RUN chmod +x /install_build_dependencies.sh && \
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
-# Install sscache
+# Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
@@ -71,7 +77,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
+    python3 get-pip-3-8.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
@@ -85,6 +92,9 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
 ENV NODE_VERSION=21.7.3
