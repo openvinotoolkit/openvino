@@ -14,7 +14,7 @@ static FrontendLibraryExtensionTestParams getTestData() {
     FrontendLibraryExtensionTestParams params;
     params.m_frontEndName = ONNX_FE;
     params.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    params.m_modelName = "relu.onnx";
+    params.m_modelName = "relu_default.onnx";
     return params;
 }
 
