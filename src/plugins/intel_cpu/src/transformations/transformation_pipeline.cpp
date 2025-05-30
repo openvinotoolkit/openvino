@@ -1428,6 +1428,8 @@ void Transformations::MainSnippets() {
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (!is_supported_matmul(n))
                     return true;
+                std::cout << "[ INFO ] TokenizeMLPSeqSnippets: callback is called for node " << n->get_friendly_name()
+                          << std::endl;
                 if (is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0)))
                     return true;
 

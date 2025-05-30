@@ -21,6 +21,7 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"

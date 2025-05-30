@@ -13,8 +13,8 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <dnnl.hpp>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <sstream>
 #include <string>
 #include <tuple>

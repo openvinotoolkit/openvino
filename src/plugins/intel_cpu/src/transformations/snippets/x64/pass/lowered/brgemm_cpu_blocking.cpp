@@ -10,6 +10,8 @@
 #include <iterator>
 #include <memory>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"

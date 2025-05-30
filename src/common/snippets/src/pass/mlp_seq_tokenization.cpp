@@ -201,7 +201,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common Tokenization
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
-
+        std::cout << "[ INFO ] TokenizeMLPSeqSnippets is finished for node " << subgraph->get_friendly_name() << std::endl;
         return true;
     });
 }
