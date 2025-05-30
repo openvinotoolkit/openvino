@@ -500,8 +500,9 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 126738
     retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
     retVector.emplace_back(R"(smoke_Snippets_Eltwise.*\[1.1..10.1..8.1..4\].*)");
-    // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_).*)");
+    // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise,
+    // smoke_Snippets_Convert, smoke_Snippets_FQDecomposition and smoke_Snippets_MatMul
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/).*)");
     // arm snippets doesn't support sve_128 that required by dnnl injector jit_uni_eltwise_injector_f32 yet
     retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");
     retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
