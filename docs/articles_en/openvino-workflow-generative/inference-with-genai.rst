@@ -970,7 +970,8 @@ Unlike standard Hugging Face models, GGUF models do not require conversion to Op
 The `LLMPipeline` object can be instantiated directly from a GGUF file, enabling seamless inference without intermediate steps.
 
 This capability is currently available in preview mode and supports a limited set of topologies, including SmolLM, Qwen2.5.
-For other models and architectures, we recommend converting the model to IR format using the `optimum-intel` tool.
+For other models and architectures, we still recommend converting the model to the IR format,
+using the `optimum-intel` tool.
 See :doc:`Generative Model Preparation Using Optimum-intel <./genai-model-preparation>` for more details.
 
 To perform inference with a GGUF model using OpenVINO GenAI, simply provide the path to the `.gguf` file when constructing the LLMPipeline object, as shown below:
