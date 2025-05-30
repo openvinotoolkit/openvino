@@ -279,8 +279,8 @@ public:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        auto desc = params.typed_desc<group_normalization>();
-        const auto& shape = params.output_layouts[0].get_shape();
+        // Use get_max_shape() for upper bounded dynamic shape. This is not called for non upper bounded dynamic shape.
+        const auto& shape = params.output_layouts[0].get_partial_shape().get_max_shape();
         auto buf = BufferDescriptor{shape[0] * align_to(shape[1], fsv), ov::element::f32};
         return {buf, buf};
     }
