@@ -885,6 +885,8 @@ public:
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
+                    Algorithm::EltwiseMaximum,
+                    Algorithm::EltwiseMinimum,
                     Algorithm::EltwiseMod,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
@@ -894,6 +896,7 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
+                    Algorithm::EltwiseSqrt,
                     Algorithm::EltwiseSubtract)) {
             return false;
         }
@@ -1535,7 +1538,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
-        auto* eltwiseNode = dynamic_cast<const Eltwise*>(postOp.get());
+        const auto* eltwiseNode = dynamic_cast<const Eltwise*>(postOp.get());
         if (eltwiseNode != nullptr) {
             expectedInputsNum += eltwiseNode->getOpInputsNum() - 1;
         }
@@ -1959,7 +1962,7 @@ void Eltwise::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         eltwiseExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs,
                                                                                                   srcMemoryDescs,
                                                                                                   dstMemoryDescs,
@@ -2168,7 +2171,7 @@ bool Eltwise::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -2176,7 +2179,7 @@ bool Eltwise::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;

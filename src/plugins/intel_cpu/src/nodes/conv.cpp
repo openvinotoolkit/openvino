@@ -385,7 +385,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
         }
     }
 
-    auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
+    auto* blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
     return std::make_shared<CpuBlockedMemoryDesc>(sumPrecision,
                                                   Shape(minDims, maxDims),
@@ -659,10 +659,9 @@ ExecutorPtr Convolution::createFallbackExecutor() {
     ConvAttrs fallbackAttrs = m_attrs;
     PostOps& fallbackPostOps = fallbackAttrs.postOps;
     // remove sum post-op from fallback post-ops
-    auto sumPostOp =
-        std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-            return std::dynamic_pointer_cast<SumPostOp>(postOp);
-        });
+    auto sumPostOp = std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const auto& postOp) {
+        return typeid(SumPostOp) == postOp.type();
+    });
 
     fallbackPostOps.erase(sumPostOp, fallbackPostOps.end());
 
@@ -775,11 +774,11 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         auto convolutionNode = std::dynamic_pointer_cast<Convolution>(fusingNode);
         CPU_NODE_ASSERT(convolutionNode, "Unexpected dynamic node type");
         withDWConv = true;
-        auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
+        const auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
         dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
         dw_conv_iw = inActivationDims[convolutionNode->inputShapes[0].getRank() - 1];
 
-        auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
+        const auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
         dw_conv_oc = outDims[1];
 
         const auto& dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();

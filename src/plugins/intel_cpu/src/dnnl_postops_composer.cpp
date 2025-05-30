@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
+#include <any>
 #include <array>
 #include <cmath>
 #include <common/c_types_map.hpp>
@@ -1029,8 +1030,8 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
     for (size_t i = 0; i < postOps.size(); ++i) {
         const auto& postOp = postOps[i];
         bool isLastPostOp = (i == (postOps.size() - 1));
-        // @todo replace dynamic cast with an interface for appending to DNNL postops
-        if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOp)) {
+
+        if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
@@ -1047,7 +1048,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto ss = std::dynamic_pointer_cast<ScaleShiftPostOp>(postOp)) {
+        if (const auto* const ss = std::any_cast<ScaleShiftPostOp>(&postOp)) {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
@@ -1063,20 +1064,20 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto fq = std::dynamic_pointer_cast<FakeQuantizePostOp>(postOp)) {
+        if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(&postOp)) {
             // drop rounding one special residual pattern
             // TODO: validate this unsafe optimization
             auto doRounding = [&]() {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
                 for (size_t j = i + 1; j < postOps.size(); j++) {
-                    auto& nextNode = postOps[j];
+                    const auto& nextNode = postOps[j];
 
-                    if (auto nextEltwiseNode = std::dynamic_pointer_cast<SumPostOp>(nextNode)) {
+                    if (typeid(SumPostOp) == nextNode.type()) {
                         hasSubsequentSum = true;
                     }
 
-                    if (auto nextQuantizeNode = std::dynamic_pointer_cast<FakeQuantizePostOp>(nextNode)) {
+                    if (typeid(FakeQuantizePostOp) == nextNode.type()) {
                         hasSubsequentFQ = true;
                     }
                 }
@@ -1105,12 +1106,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             continue;
         }
 
-        if (const auto sum = std::dynamic_pointer_cast<SumPostOp>(postOp)) {
+        if (const auto* const sum = std::any_cast<SumPostOp>(&postOp)) {
             appendSum(sum->scale(), sum->zeroPoint(), sum->dataType());
             continue;
         }
 
-        if (const auto conv = std::dynamic_pointer_cast<DepthwiseConvolutionPostOp>(postOp)) {
+        if (const auto* const conv = std::any_cast<DepthwiseConvolutionPostOp>(&postOp)) {
             appendDepthwiseConvolution(conv->ih(),
                                        conv->iw(),
                                        conv->kernel()[1],

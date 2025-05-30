@@ -1560,7 +1560,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 
 bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
-        auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+        const auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor) {
             THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
         }
@@ -1637,7 +1637,7 @@ void FakeQuantize::prepareParams() {
 
 void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1701,7 +1701,7 @@ void FakeQuantize::executeReference() {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const float>();
+    const auto* src = srcMemory->getDataAs<const float>();
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1728,13 +1728,13 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = dstMemory->getDataAs<uint8_t>();
+        auto* dst = dstMemory->getDataAs<uint8_t>();
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
 
-        auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
-        auto output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
+        const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
+        const auto* output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
@@ -1762,7 +1762,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = dstMemory->getDataAs<float>();
+        auto* dst = dstMemory->getDataAs<float>();
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5
@@ -1807,11 +1807,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
-    auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
-    auto output_mask = internalBlobMemory[1]->getDataAs<const float>();
+    const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
+    const auto* output_mask = internalBlobMemory[1]->getDataAs<const float>();
 
     auto src_dims = srcMemory->getStaticDims();
 
@@ -1849,10 +1849,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
-    auto& srcDesc = srcMemory->getDesc();
+    const auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4u, 5u);

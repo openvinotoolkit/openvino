@@ -901,7 +901,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
         config.inConfs[0].setMemDesc(std::move(a));
@@ -1426,7 +1426,7 @@ public:
 
         const auto& p = (*kernel_attrs.get()).post_ops_;
         for (int i = 0; i < p.len(); i++) {
-            auto& post_op = p.entry_[i];
+            const auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(post_op.eltwise.alg,
                                                                                                 post_op.eltwise.alpha,
@@ -1528,14 +1528,16 @@ private:
         // reinterpret cast from (pointer to const void) to (pointer to const pointer to const float)
         const auto** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
         for (int i = 0; i < p.len(); i++) {
-            auto& post_op = p.entry_[i];
+            const auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
-                auto depthwise_base = *post_ops_data;
-                auto depthwise_weights = depthwise_base + post_op.depthwise.offset[post_op.depthwise.scales] + index_c;
-                auto depthwise_bias = depthwise_base + post_op.depthwise.offset[post_op.depthwise.shifts] + index_c;
+                const auto* depthwise_base = *post_ops_data;
+                const auto* depthwise_weights =
+                    depthwise_base + post_op.depthwise.offset[post_op.depthwise.scales] + index_c;
+                const auto* depthwise_bias =
+                    depthwise_base + post_op.depthwise.offset[post_op.depthwise.shifts] + index_c;
 
                 dst_value = depthwise_injectors_ref[depthwise_inj_idx]->compute_scalar(dst_value,
                                                                                        depthwise_weights,
@@ -1551,7 +1553,7 @@ private:
 
                 using quantization_fields = post_ops_t::entry_t::quantization_t::quantization_fields;
                 auto dataVal = [&](const quantization_fields& field) -> float {
-                    auto dataPtr = *post_ops_data + post_op.quantization.offset[field];
+                    const auto* dataPtr = *post_ops_data + post_op.quantization.offset[field];
                     const int channelIdx = quant.per_channel[field] ? index_c : 0;
                     return dataPtr[channelIdx];
                 };
