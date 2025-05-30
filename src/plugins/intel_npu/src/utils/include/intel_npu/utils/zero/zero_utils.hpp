@@ -217,5 +217,46 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
     return false;
 }
 
+static inline std::string getLatestBuildError2(ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext, ze_graph_build_log_handle_t graphBuildLogHandle) {
+    Logger _logger("LevelZeroUtils", Logger::global().level());
+    _logger.debug("getLatestBuildError2 start");
+
+    uint32_t graphDdiExtVersion = _graph_ddi_table_ext.version();
+    if (graphDdiExtVersion >= ZE_GRAPH_EXT_VERSION_1_4) {
+        // Get log size
+        uint32_t size = 0;
+        // Null graph handle to get error log
+        auto result = _graph_ddi_table_ext.pfnBuildLogGetString2(graphBuildLogHandle, &size, nullptr);
+        if (ZE_RESULT_SUCCESS != result) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError2 Failed to get size of latest error log!");
+            return "";
+        }
+
+        if (size <= 0) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError2 No error log stored in driver when error "
+                            "detected, may not be compiler issue!");
+            return "";
+        }
+        _logger.warning("  5) _graph_ddi_table_ext.pfnBuildLogGetString2 get size is %lld", size);
+
+        // Get log content
+        std::string logContent{};
+        logContent.resize(size);
+        result = _graph_ddi_table_ext.pfnBuildLogGetString2(graphBuildLogHandle, &size, const_cast<char*>(logContent.data()));
+        if (ZE_RESULT_SUCCESS != result) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError2 size of latest error log > 0, failed to get "
+                            "content of latest error log!");
+            return "";
+        }
+        _logger.debug("getLatestBuildError2 end");
+        return logContent;
+    } else {
+        return "";
+    }
+}
+
 }  // namespace zeroUtils
 }  // namespace intel_npu
