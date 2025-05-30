@@ -879,4 +879,15 @@ Example:
             <filter>.*OVCompiledModelBaseTest.*use_blob_hint_.*</filter>
         </filters>
     </skip_config>
+
+    <!-- EISW 167305 -->
+    <skip_config>
+        <message>Failing test on Ubuntu after NPU driver update</message>
+        <enable_rules>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*TestCompiledModelNPU.samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+        </filters>
+    </skip_config>
 </skip_configs>

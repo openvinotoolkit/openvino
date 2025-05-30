@@ -885,6 +885,8 @@ public:
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
+                    Algorithm::EltwiseMaximum,
+                    Algorithm::EltwiseMinimum,
                     Algorithm::EltwiseMod,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
@@ -894,6 +896,7 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
+                    Algorithm::EltwiseSqrt,
                     Algorithm::EltwiseSubtract)) {
             return false;
         }
