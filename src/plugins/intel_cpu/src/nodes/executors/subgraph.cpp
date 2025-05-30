@@ -11,6 +11,7 @@
 #include <memory>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <utility>
 #include <vector>
 

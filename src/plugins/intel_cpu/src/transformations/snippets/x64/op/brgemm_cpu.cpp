@@ -4,10 +4,18 @@
 
 #include "brgemm_cpu.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <cassert>
+#include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -15,14 +23,15 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
@@ -48,8 +57,7 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c,
                      PostopsConfig post_ops)
-    : Brgemm(),
-      m_type(type),
+    : m_type(type),
       m_post_ops_config(std::move(post_ops)),
       m_gemm_inputs_count(compute_gemm_inputs_count(type)) {
     set_arguments(inputs);
@@ -226,10 +234,7 @@ void BrgemmCPU::add_postop_input(const ov::Output<Node>& postop_input) {
     validate_postop_inputs();
 }
 
-BrgemmCPU::PostopsConfig::PostopsConfig()
-    : post_ops({}),
-      binary_postops_offset(std::nullopt),
-      forced_output_type(std::nullopt) {}
+BrgemmCPU::PostopsConfig::PostopsConfig() : binary_postops_offset(std::nullopt), forced_output_type(std::nullopt) {}
 
 bool BrgemmCPU::PostopsConfig::visit_attributes(AttributeVisitor& visitor) {
     auto postops_hash = dnnl::impl::primitive_hashing::get_post_op_hash(0, post_ops);

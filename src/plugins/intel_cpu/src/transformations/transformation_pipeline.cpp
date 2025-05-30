@@ -212,6 +212,7 @@
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
