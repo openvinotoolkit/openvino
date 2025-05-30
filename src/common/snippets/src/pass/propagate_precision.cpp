@@ -213,9 +213,12 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
 
         if (output.get_element_type() != op_output_types[i]) {
             was_updated = true;
-            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                output,
-                op_output_types[i]);
+            std::shared_ptr<ov::Node> convert;
+            if (ov::is_type<ov::op::v0::FakeQuantize>(output.get_node())) {
+                convert = std::make_shared<ov::snippets::op::ConvertSaturation>(output, op_output_types[i]);
+            } else {
+                convert = std::make_shared<ov::snippets::op::ConvertTruncation>(output, op_output_types[i]);
+            }
             copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (auto& input : output.get_target_inputs()) {
