@@ -677,7 +677,7 @@ TEST_P(scatter_elements_update_gpu_reduction_test_f32, cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-TEST(scatter_elements_update_gpu_fp32, multiple_indices_mean_big_1d_dynamic) {
+TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_mean_big_1d_dynamic) {
     auto& engine = get_test_engine();
     int num = 100;
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1 } }); // input
