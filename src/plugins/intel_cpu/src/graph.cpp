@@ -422,7 +422,7 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
 
     ResolveEdgeConflicts();
 
-    optimizer.ShareReorders(*this);
+    ov::intel_cpu::GraphOptimizer::ShareReorders(*this);
     RemoveDroppedNodes();
 
     SortTopologically();
@@ -1065,7 +1065,9 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
                             MemoryRegion::AllocType::UNKNOWN};
 
         int64_t boxSize = 0;
-        bool isConst = false, isOutput = false, isInput = false;
+        bool isConst = false;
+        bool isOutput = false;
+        bool isInput = false;
 
         for (const auto& edge : clusters[i]) {
             const auto& parent = edge->getParent();
@@ -1135,11 +1137,7 @@ static size_t SkipAllocatedClusters(EdgeClusters& clusters) {
     auto notAllocatedPartitionEnd = std::partition(clusters.begin(), clusters.end(), [](const EdgeCluster& cluster) {
         const auto& baseEdge = cluster.at(0);
 
-        if (baseEdge->getStatus() == Edge::Status::Allocated) {
-            return false;
-        }
-
-        return true;
+        return baseEdge->getStatus() != Edge::Status::Allocated;
     });
 
     return std::distance(clusters.begin(), notAllocatedPartitionEnd);
@@ -1457,12 +1455,12 @@ public:
           m_wait(wait),
           m_node_indx(node_indx),
           m_stop_indx(stop_indx) {}
-    task* execute(tbb::detail::d1::execution_data&) override {
+    task* execute(tbb::detail::d1::execution_data& /*unused*/) override {
         m_body(m_node_indx, m_stop_indx);
         m_wait.release();
         return nullptr;
     }
-    task* cancel(tbb::detail::d1::execution_data&) override {
+    task* cancel(tbb::detail::d1::execution_data& /*unused*/) override {
         m_wait.release();
         return nullptr;
     }

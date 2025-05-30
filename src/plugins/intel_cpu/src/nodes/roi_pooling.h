@@ -108,26 +108,26 @@ private:
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
 
     protected:
-        std::tuple<int, int, int, int> getBordersForMaxMode(const int roi_start_h,
-                                                            const int roi_end_h,
-                                                            const int roi_start_w,
-                                                            const int roi_end_w,
+        static std::tuple<int, int, int, int> getBordersForMaxMode(const int roi_start_h,
+                                                                   const int roi_end_h,
+                                                                   const int roi_start_w,
+                                                                   const int roi_end_w,
+                                                                   const int ih,
+                                                                   const int oh,
+                                                                   const int iw,
+                                                                   const int ow,
+                                                                   const int pooled_h,
+                                                                   const int pooled_w);
+        static std::pair<float, float> getXYForBilinearMode(const float roi_start_h,
+                                                            const float roi_end_h,
+                                                            const float roi_start_w,
+                                                            const float roi_end_w,
                                                             const int ih,
                                                             const int oh,
                                                             const int iw,
                                                             const int ow,
                                                             const int pooled_h,
                                                             const int pooled_w);
-        std::pair<float, float> getXYForBilinearMode(const float roi_start_h,
-                                                     const float roi_end_h,
-                                                     const float roi_start_w,
-                                                     const float roi_end_w,
-                                                     const int ih,
-                                                     const int oh,
-                                                     const int iw,
-                                                     const int ow,
-                                                     const int pooled_h,
-                                                     const int pooled_w);
 
     private:
         template <typename T>

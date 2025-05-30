@@ -34,8 +34,8 @@ public:
 private:
     static int64_t calcShapeSize(const Shape& shape, size_t start, size_t end);
     static bool IsTransposeMovingSingleAxis(VectorDims permutations, size_t& from, size_t& to);
-    void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
-    void TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    static void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    static void TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
 
     size_t from;
     size_t to;

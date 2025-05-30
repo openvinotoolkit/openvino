@@ -53,7 +53,7 @@ public:
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
-    bool canFuseConvert(const NodePtr& convertNode) const;
+    bool canFuseConvert(const NodePtr& convertNode);
     bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops,
@@ -170,7 +170,7 @@ private:
                            const int channelAxis = 1);
 
     void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
-    void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
+    static void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
 
     bool canUseEltwiseExecPtr = false;
     EltwiseAttrs eltwiseAttrs;

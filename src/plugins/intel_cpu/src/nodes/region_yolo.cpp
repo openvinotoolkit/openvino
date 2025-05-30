@@ -66,7 +66,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
     void generate() override {
         exp_injector.reset(
-            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
+            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.F, 0.F, 1.F, data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
@@ -204,7 +204,7 @@ private:
         int float_1 = 0x3f800000;    // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovups(vmm_src, op);
@@ -217,7 +217,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
         auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
@@ -233,7 +233,7 @@ private:
             assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovss(xmm_src, op);
@@ -246,7 +246,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
         switch (dst_dt) {
         case ov::element::f32:
             uni_vmovss(op, xmm_dst);
@@ -425,7 +425,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     int end_index = 0;
     int num_ = 0;
     size_t output_size = 0;
-    if (do_softmax != 0.0f) {
+    if (do_softmax != 0.0F) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
@@ -466,7 +466,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
     }
 
-    if (do_softmax != 0.0f) {
+    if (do_softmax != 0.0F) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
         for (size_t b = 0; b < B * num; b++) {
