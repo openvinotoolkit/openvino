@@ -15,7 +15,6 @@ typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
     std::string, // target device: CPU, GPU
-    ov::pass::low_precision::LayerTransformation::Params, // transformation parameters
     bool, // transparent intermediate
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;

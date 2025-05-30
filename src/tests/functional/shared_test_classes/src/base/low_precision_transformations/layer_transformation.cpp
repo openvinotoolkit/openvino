@@ -59,6 +59,15 @@ std::string LayerTransformation::get_test_case_name_by_params(
     return result.str();
 }
 
+std::string LayerTransformation::get_test_case_name_by_params(
+    ov::element::Type precision,
+    const ov::PartialShape& inputShapes,
+    const std::string& targetDevice) {
+    std::ostringstream result;
+    result << precision << "_" << inputShapes << "_" << targetDevice;
+    return result.str();
+}
+
 namespace {
 template <typename IsNodeF>
 std::string find_node_by_runtime_property(const ov::CompiledModel& execNet, IsNodeF is_node_f, const std::string& propertyName = "runtimePrecision") {

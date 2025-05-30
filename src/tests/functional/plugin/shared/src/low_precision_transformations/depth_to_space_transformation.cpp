@@ -25,26 +25,17 @@ std::string DepthToSpaceTransformation::getTestCaseName(const testing::TestParam
         {ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
     };
 
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
-    size_t blockSize;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    std::tie(precision, inputShape, targetDevice, mode, blockSize) = obj.param;
+    auto [precision, inputShape, device, mode, blockSize] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, inputShape, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, inputShape, device) <<
            "_" << names[mode] << "_" << blockSize;
     return result.str();
 }
 
 void DepthToSpaceTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
-    size_t blockSize;
-    std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
+    auto [precision, inputShape, device, mode, blockSize] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
