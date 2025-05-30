@@ -2695,7 +2695,7 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supp
             m_checkConfigCb(config);
         }
         EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
-        EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
+        EXPECT_EQ(config.count(ov::hint::model.name()), m_type == TestLoadType::EContext ? 1 : 0);
         EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
 
         std::string name;
