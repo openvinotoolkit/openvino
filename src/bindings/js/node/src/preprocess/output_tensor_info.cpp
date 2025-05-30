@@ -8,7 +8,7 @@
 
 OutputTensorInfo::OutputTensorInfo(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<OutputTensorInfo>(info),
-      _tensor_info(nullptr) {};
+      _tensor_info(nullptr){};
 
 Napi::Function OutputTensorInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
