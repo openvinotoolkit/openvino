@@ -277,7 +277,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx, const Xbyak_riscv
         vfcvt_f_x_v(src_vec(vec_idx), src_vec(vec_idx)); // int32 -> fp32
 
     if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32))
-        vfcvt_rtz_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32 (round-toward-zero)
+        vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -286,7 +286,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
     OPENVINO_ASSERT(one_of(src_prc, ov::element::f32, ov::element::i32), "Unsupported src prc");
 
     if (one_of(src_prc, ov::element::f32) && one_of(dst_prc, ov::element::i8, ov::element::u8, ov::element::i32))
-        vfcvt_rtz_x_f_v(dst_vec(), dst_vec()); // fp32 -> int32 (round-toward-zero)
+        vfcvt_x_f_v(dst_vec(), dst_vec()); // fp32 -> int32
 
     if (one_of(src_prc, ov::element::i32) && one_of(dst_prc, ov::element::f16, ov::element::f32))
         vfcvt_f_x_v(dst_vec(), dst_vec()); // int32 -> fp32
@@ -423,6 +423,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
 
     if (!ctx.emitter) {
@@ -553,6 +554,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
+              OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
 
     if (precisions.empty()) {
