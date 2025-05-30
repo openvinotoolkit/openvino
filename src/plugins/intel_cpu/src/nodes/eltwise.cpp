@@ -879,6 +879,7 @@ public:
 
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (!one_of(algorithm,
+                    Algorithm::EltwiseEqual,
                     Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
