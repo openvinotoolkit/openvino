@@ -21,18 +21,23 @@ public:
              const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
              const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
+    Pipeline(const Config& config,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             std::string logName);
+
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
     virtual ~Pipeline() = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    virtual void push();
+    virtual void pull();
+    virtual void reset() const;
 
-    void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
+    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
-    std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
