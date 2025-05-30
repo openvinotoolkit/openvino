@@ -19,7 +19,11 @@ class TestSparseFillEmptyRows(CommonTFLayerTest):
         values_shape = inputs_info['values:0']
 
         inputs_data = {}
-        if np.issubdtype(self.data_type, np.floating):
+        if self.data_type == tf.string:
+            strings_dictionary = ['str_1', 'str_2', 'str_3', 'str_4', 'str_5']
+            inputs_data['values:0'] = rng.choice(strings_dictionary, values_shape)
+            inputs_data['default_value:0'] = np.array("empty_row_string", dtype=np.str_)
+        elif np.issubdtype(self.data_type, np.floating):
             inputs_data['values:0'] = rng.uniform(-5.0, 5.0, values_shape).astype(self.data_type)
             inputs_data['default_value:0'] = np.array(42.0, dtype=self.data_type)
         elif np.issubdtype(self.data_type, np.signedinteger):
@@ -76,7 +80,7 @@ class TestSparseFillEmptyRows(CommonTFLayerTest):
             tf_net = sess.graph_def
         return tf_net, None
 
-    @pytest.mark.parametrize('data_type', [np.float32, np.int32])
+    @pytest.mark.parametrize('data_type', [np.float32, np.int32, tf.string])
     @pytest.mark.parametrize('dense_shape, values_count, empty_rows', [
         [[5, 6], 4, 2],     # Basic case with 2 empty rows
         [[10, 10], 8, 3],   # Larger case with 3 empty rows

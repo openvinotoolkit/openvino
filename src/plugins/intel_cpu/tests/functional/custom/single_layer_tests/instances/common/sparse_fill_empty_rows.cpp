@@ -75,4 +75,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRowsUI8I64, SparseFillEmptyRowsLay
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i8"})),
                 SparseFillEmptyRowsLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRowsStringI32, SparseFillEmptyRowsLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(SparseFillEmptyRowsParamsVector),
+                        ::testing::Values(ElementType::string),
+                        ::testing::Values(ElementType::i32),
+                        ::testing::ValuesIn(secondaryInputTypes),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_string"})),
+                SparseFillEmptyRowsLayerCPUTest::getTestCaseName);
+
 }  // namespace ov::test::SparseFillEmptyRows

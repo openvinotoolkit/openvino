@@ -155,6 +155,73 @@ std::vector<SparseFillEmptyRowsParams> generateSparseFillEmptyRowsParams() {
     return params;
 }
 
+// Template specialization for string type values with integer indices
+template <ov::element::Type_t T_idx>
+std::vector<SparseFillEmptyRowsParams> generateSparseFillEmptyRowsStringParams() {
+    using T_I = typename ov::element_type_traits<T_idx>::value_type;
+    using reference_tests::Tensor;
+
+    const auto string_type = ov::element::string;
+
+    std::vector<SparseFillEmptyRowsParams> params{
+        // No empty rows
+        SparseFillEmptyRowsParams(
+            Tensor({3}, string_type, std::vector<std::string>{"a", "b", "c"}),  // values
+            Tensor({2}, T_idx, std::vector<T_I>{3, 4}),                         // dense_shape
+            Tensor({3, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 2, 0}),          // indices
+            Tensor({}, string_type, std::vector<std::string>{"empty"}),         // default_value
+            Tensor({3, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 2, 0}),          // expected_indices
+            Tensor({3}, string_type, std::vector<std::string>{"a", "b", "c"}),  // expected_values
+            Tensor({3}, ov::element::boolean, std::vector<uint8_t>{0, 0, 0})    // expected_empty_row_indicator
+            ),
+
+        // One empty row in the middle
+        SparseFillEmptyRowsParams(
+            Tensor({3}, string_type, std::vector<std::string>{"a", "b", "c"}),           // values
+            Tensor({2}, T_idx, std::vector<T_I>{4, 4}),                                  // dense_shape
+            Tensor({3, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 3, 0}),                   // indices
+            Tensor({}, string_type, std::vector<std::string>{"empty"}),                  // default_value
+            Tensor({4, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 2, 0, 3, 0}),             // expected_indices
+            Tensor({4}, string_type, std::vector<std::string>{"a", "b", "empty", "c"}),  // expected_values
+            Tensor({4}, ov::element::boolean, std::vector<uint8_t>{0, 0, 1, 0})          // expected_empty_row_indicator
+            ),
+
+        // Multiple empty rows
+        SparseFillEmptyRowsParams(
+            Tensor({2}, string_type, std::vector<std::string>{"a", "b"}),           // values
+            Tensor({2}, T_idx, std::vector<T_I>{5, 3}),                             // dense_shape
+            Tensor({2, 2}, T_idx, std::vector<T_I>{0, 0, 4, 0}),                    // indices
+            Tensor({}, string_type, std::vector<std::string>{"empty"}),             // default_value
+            Tensor({5, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 2, 0, 3, 0, 4, 0}),  // expected_indices
+            Tensor({5}, string_type, std::vector<std::string>{"a", "empty", "empty", "empty", "b"}),  // expected_values
+            Tensor({5}, ov::element::boolean, std::vector<uint8_t>{0, 1, 1, 1, 0})  // expected_empty_row_indicator
+            ),
+
+        // All rows empty
+        SparseFillEmptyRowsParams(
+            Tensor({0}, string_type, std::vector<std::string>{}),                           // values
+            Tensor({2}, T_idx, std::vector<T_I>{3, 4}),                                     // dense_shape
+            Tensor({0, 2}, T_idx, std::vector<T_I>{}),                                      // indices
+            Tensor({}, string_type, std::vector<std::string>{"empty"}),                     // default_value
+            Tensor({3, 2}, T_idx, std::vector<T_I>{0, 0, 1, 0, 2, 0}),                      // expected_indices
+            Tensor({3}, string_type, std::vector<std::string>{"empty", "empty", "empty"}),  // expected_values
+            Tensor({3}, ov::element::boolean, std::vector<uint8_t>{1, 1, 1})  // expected_empty_row_indicator
+            ),
+
+        // Non-zero column indices for empty rows
+        SparseFillEmptyRowsParams(
+            Tensor({4}, string_type, std::vector<std::string>{"a", "b", "c", "d"}),           // values
+            Tensor({2}, T_idx, std::vector<T_I>{5, 6}),                                       // dense_shape
+            Tensor({4, 2}, T_idx, std::vector<T_I>{0, 1, 1, 2, 3, 3, 4, 4}),                  // indices
+            Tensor({}, string_type, std::vector<std::string>{"empty"}),                       // default_value
+            Tensor({5, 2}, T_idx, std::vector<T_I>{0, 1, 1, 2, 2, 0, 3, 3, 4, 4}),            // expected_indices
+            Tensor({5}, string_type, std::vector<std::string>{"a", "b", "empty", "c", "d"}),  // expected_values
+            Tensor({5}, ov::element::boolean, std::vector<uint8_t>{0, 0, 1, 0, 0})  // expected_empty_row_indicator
+            )};
+
+    return params;
+}
+
 std::vector<SparseFillEmptyRowsParams> generateSparseFillEmptyRowsV16CombinedParams() {
     using ov::element::Type_t;
     const std::vector<std::vector<SparseFillEmptyRowsParams>> SparseFillEmptyRowsTypeParams{
@@ -163,7 +230,9 @@ std::vector<SparseFillEmptyRowsParams> generateSparseFillEmptyRowsV16CombinedPar
         generateSparseFillEmptyRowsParams<Type_t::f32, Type_t::i32>(),
         generateSparseFillEmptyRowsParams<Type_t::i32, Type_t::i64>(),
         generateSparseFillEmptyRowsParams<Type_t::i64, Type_t::i64>(),
-        generateSparseFillEmptyRowsParams<Type_t::f32, Type_t::i64>()};
+        generateSparseFillEmptyRowsParams<Type_t::f32, Type_t::i64>(),
+        generateSparseFillEmptyRowsStringParams<Type_t::i32>(),
+        generateSparseFillEmptyRowsStringParams<Type_t::i64>()};
 
     std::vector<SparseFillEmptyRowsParams> combinedParams;
     for (const auto& params : SparseFillEmptyRowsTypeParams) {

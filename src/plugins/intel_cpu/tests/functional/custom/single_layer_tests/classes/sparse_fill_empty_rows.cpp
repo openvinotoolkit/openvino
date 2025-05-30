@@ -61,14 +61,24 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
     inputs.clear();
     const auto& funcInputs = function->inputs();
     const auto secondaryInputType = std::get<3>(std::get<0>(this->GetParam()));
+    const auto valuesPrecision = funcInputs[0].get_element_type();
 
     if (secondaryInputType == ov::test::utils::InputLayerType::CONSTANT) {
-        const auto valuesPrecision = funcInputs[0].get_element_type();
         const auto& valuesShape = targetInputStaticShapes[0];
-        ov::test::utils::InputGenerateData valuesData;
-        valuesData.start_from = 1;
-        valuesData.range = 10;
-        const auto valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
+        ov::Tensor valuesTensor;
+
+        if (valuesPrecision == ov::element::string) {
+            valuesTensor = ov::Tensor(valuesPrecision, valuesShape);
+            auto* data_ptr = valuesTensor.data<std::string>();
+            for (size_t i = 0; i < ov::shape_size(valuesShape); i++) {
+                data_ptr[i] = "str_" + std::to_string(i + 1);
+            }
+        } else {
+            ov::test::utils::InputGenerateData valuesData;
+            valuesData.start_from = 1;
+            valuesData.range = 10;
+            valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
+        }
         inputs.insert({funcInputs[0].get_node_shared_ptr(), valuesTensor});
 
         const auto indicesPrecision = funcInputs[1].get_element_type();
@@ -80,12 +90,21 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         inputs.insert({funcInputs[1].get_node_shared_ptr(), indicesTensor});
 
     } else {
-        const auto valuesPrecision = funcInputs[0].get_element_type();
         const auto& valuesShape = targetInputStaticShapes[0];
-        ov::test::utils::InputGenerateData valuesData;
-        valuesData.start_from = 1;
-        valuesData.range = 10;
-        const auto valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
+        ov::Tensor valuesTensor;
+
+        if (valuesPrecision == ov::element::string) {
+            valuesTensor = ov::Tensor(valuesPrecision, valuesShape);
+            auto* data_ptr = valuesTensor.data<std::string>();
+            for (size_t i = 0; i < ov::shape_size(valuesShape); i++) {
+                data_ptr[i] = "str_" + std::to_string(i + 1);
+            }
+        } else {
+            ov::test::utils::InputGenerateData valuesData;
+            valuesData.start_from = 1;
+            valuesData.range = 10;
+            valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
+        }
         inputs.insert({funcInputs[0].get_node_shared_ptr(), valuesTensor});
 
         const auto indicesPrecision = funcInputs[2].get_element_type();
@@ -114,7 +133,14 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         inputs.insert({funcInputs[2].get_node_shared_ptr(), indicesTensor});
 
         const auto defaultValue = std::get<3>(std::get<0>(std::get<0>(this->GetParam())));
-        const auto defaultValueTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, {}, defaultValue);
+        ov::Tensor defaultValueTensor;
+        if (valuesPrecision == ov::element::string) {
+            defaultValueTensor = ov::Tensor(valuesPrecision, {});
+            auto* data_ptr = defaultValueTensor.data<std::string>();
+            data_ptr[0] = "empty_str";
+        } else {
+            defaultValueTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, {}, defaultValue);
+        }
         inputs.insert({funcInputs[3].get_node_shared_ptr(), defaultValueTensor});
     }
 }
@@ -154,8 +180,17 @@ void SparseFillEmptyRowsLayerCPUTest::SetUp() {
         params.push_back(indicesParameter);
         auto denseShapeConst = std::make_shared<ov::op::v0::Constant>(
             indicesPrecision, ov::Shape{denseShapeValues.size()}, denseShapeValues);
-        auto defaultValueConst = std::make_shared<ov::op::v0::Constant>(
-            valuesPrecision, ov::Shape{}, defaultValue);
+
+        std::shared_ptr<ov::op::v0::Constant> defaultValueConst;
+        if (valuesPrecision == ov::element::string) {
+            std::vector<std::string> stringValue = {"empty_str"};
+            defaultValueConst = std::make_shared<ov::op::v0::Constant>(
+                valuesPrecision, ov::Shape{}, stringValue);
+        } else {
+            defaultValueConst = std::make_shared<ov::op::v0::Constant>(
+                valuesPrecision, ov::Shape{}, defaultValue);
+        }
+
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeConst, indicesParameter, defaultValueConst);
     } else {

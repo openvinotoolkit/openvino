@@ -152,6 +152,7 @@ void SparseFillEmptyRows::execute([[maybe_unused]] const dnnl::stream& strm) {
               OV_CASE(ov::element::i8, int8_t),
               OV_CASE(ov::element::u8, uint8_t),
               OV_CASE(ov::element::i32, int32_t),
-              OV_CASE(ov::element::i64, int64_t))
+              OV_CASE(ov::element::i64, int64_t),
+              OV_CASE(ov::element::string, std::string))
 }
 }  // namespace ov::intel_cpu::node
