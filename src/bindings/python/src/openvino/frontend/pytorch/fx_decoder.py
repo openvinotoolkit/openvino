@@ -88,9 +88,9 @@ class BaseFXDecoder(Decoder):
             return OVAny(DecoderType.PyScalar(OVAny(OVType.boolean)))
         elif isinstance(value, list):
             if len(value) > 0:
-                return OVAny(DecoderType.List(BaseFXDecoder.get_type_for_value(value[0])))
+                return OVAny(DecoderType.list(BaseFXDecoder.get_type_for_value(value[0])))
             else:
-                return OVAny(DecoderType.List(OVAny(OVType.i32)))
+                return OVAny(DecoderType.list(OVAny(OVType.i32)))
         return OVAny(OVType.dynamic)
 
     def inputs(self):

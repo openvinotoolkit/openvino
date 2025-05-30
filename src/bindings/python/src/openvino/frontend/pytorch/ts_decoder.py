@@ -220,7 +220,7 @@ class TorchScriptPythonDecoder(Decoder):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
 
-    def get_input_strides(self, index: int) -> typing.List[int]:
+    def get_input_strides(self, index: int) -> list[int]:
         raw_input = self._raw_input(index)
         if isinstance(raw_input, torch.Value):
             inp_type = raw_input.type()
@@ -269,7 +269,7 @@ class TorchScriptPythonDecoder(Decoder):
             return OVAny(DecoderType.Tensor(self._get_known_type_for_value(pt_type.dtype())))
         elif isinstance(pt_type, torch.ListType):
             element_type = pt_type.getElementType()
-            return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
+            return OVAny(DecoderType.list(self._get_known_type_for_value(element_type)))
         elif isinstance(pt_type, (torch.StringType, torch.DeviceObjType)):
             return OVAny(DecoderType.Str())
         elif isinstance(pt_type, torch.NoneType):
@@ -581,7 +581,7 @@ class TorchScriptPythonDecoder(Decoder):
 
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
-        # Function replaces prim::Constant containing List of Tensors with
+        # Function replaces prim::Constant containing list of Tensors with
         # prim::ListConstruct containing prim::Constant Tensors.
         assert isinstance(
             graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."

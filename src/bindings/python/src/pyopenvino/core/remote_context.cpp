@@ -159,7 +159,7 @@ void regclass_VAContext(py::module m) {
             :param nv12_surface: NV12 `VASurfaceID` to create NV12 from.
             :type nv12_surface: int
             :return: A pair of remote tensors for each plane.
-            :rtype: Tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
+            :rtype: tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
         )");
 
     cls.def(
