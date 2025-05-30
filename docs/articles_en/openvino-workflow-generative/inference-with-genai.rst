@@ -960,7 +960,9 @@ runs prediction of the next K tokens, thus repeating the cycle.
 Inference of GGUF (GGML Unified Format) models
 ###############################################################################################
 
-Some language models on Hugging Face are distributed in the GGUF (GGML Unified Format) and can be downloaded. You can browse all available GGUF models on Hugging Face [here](https://huggingface.co/models?library=gguf).
+Some language models on Hugging Face are distributed in the GGUF (GGML Unified Format) and can
+be downloaded. You can browse all available
+`GGUF models on Hugging Face <https://huggingface.co/models?library=gguf>`__.
 A GGUF model is encapsulated in a single binary file that contains all necessary components, including metadata and model weights, to represent the entire LLM pipeline.
 Once downloaded, these GGUF models can be used directly with OpenVINO GenAI (for supported architectures) without additional conversion steps.
 
