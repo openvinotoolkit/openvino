@@ -113,7 +113,7 @@ private:
                                     size_t work_amount);
     inline static int count(const VectorDims& dims, size_t start_ind, size_t end_ind);
     inline static int count(const VectorDims& dims, size_t start_ind = 0);
-    inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true);
+    inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true) const;
     void calc_bitonic_idx(size_t n, int& cnt, bool cmp_val);
     void calc_dims_size(const VectorDims& layout_dims);
     void topk_ref_process(const float* src_data,

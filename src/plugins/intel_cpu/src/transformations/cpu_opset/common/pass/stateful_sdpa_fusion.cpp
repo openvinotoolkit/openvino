@@ -77,10 +77,18 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = makePattern<ov::op::v0::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
     auto concat_v = makePattern<ov::op::v0::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
 
-    std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
-    std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
-    std::shared_ptr<Node> mq_reshape_k, mq_reshape_v;
-    std::shared_ptr<Node> computed_bcst3_k, computed_bcst3_v;
+    std::shared_ptr<Node> reshape_k;
+    std::shared_ptr<Node> reshape_v;
+    std::shared_ptr<Node> unsqueeze_k;
+    std::shared_ptr<Node> unsqueeze_v;
+    std::shared_ptr<Node> computed_bcst_k;
+    std::shared_ptr<Node> computed_bcst_v;
+    std::shared_ptr<Node> multiply_k;
+    std::shared_ptr<Node> multiply_v;
+    std::shared_ptr<Node> mq_reshape_k;
+    std::shared_ptr<Node> mq_reshape_v;
+    std::shared_ptr<Node> computed_bcst3_k;
+    std::shared_ptr<Node> computed_bcst3_v;
     auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
         auto reshape_kv = makePattern<ov::op::v1::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<ov::op::v0::Unsqueeze>({kv, any_input()});
@@ -89,7 +97,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0f;
+                return i == 1.0F;
             });
         };
         auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
@@ -209,8 +217,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        ov::op::v6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
-        ov::op::v0::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
+        ov::op::v6::Assign* assign_k_node = nullptr;
+        ov::op::v6::Assign* assign_v_node = nullptr;
+        ov::op::v0::Convert* assign_cvt_k_node = nullptr;
+        ov::op::v0::Convert* assign_cvt_v_node = nullptr;
         if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node)) {
             return false;
         }

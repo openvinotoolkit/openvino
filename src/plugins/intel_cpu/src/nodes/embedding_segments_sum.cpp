@@ -45,17 +45,17 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::
 
 EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 4lu, 1lu, 5lu, 4lu) {
+      EmbeddingBag(op, 4LU, 1LU, 5LU, 4LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     _reduction = Reduction::SUM;
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
     }
 
-    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("has invalid segmentID data rank: ", getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
     }
 }
@@ -143,7 +143,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
 
     // Empty bag
     if (size == 0) {
-        size = 1lu;
+        size = 1LU;
         withWeight = false;
         if (defaultIndices_) {
             indices = defaultIndices_;
