@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 
 namespace ov {

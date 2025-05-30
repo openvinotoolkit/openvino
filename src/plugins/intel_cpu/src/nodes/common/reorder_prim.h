@@ -4,7 +4,10 @@
 
 #pragma once
 
-#include "node.h"
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+
+#include "cache/multi_cache.h"
 
 namespace ov {
 namespace intel_cpu {

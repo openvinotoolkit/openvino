@@ -4,10 +4,23 @@
 
 #include "brgemm_cpu.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -22,8 +35,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type) {
+    : m_type(type) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -45,8 +57,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type) {
+    : m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -66,8 +77,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type) {
+    : m_type(type) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -86,8 +96,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type) {
+    : m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
