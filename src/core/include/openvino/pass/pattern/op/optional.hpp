@@ -54,7 +54,7 @@ public:
     /// \param patterns The pattern to match a graph.
     Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs = {})
         : Pattern(inputs),
-          optional_types(type_infos){};
+          optional_types(type_infos) {};
 
     template <typename TPredicate>
     Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs, const TPredicate& pred)
