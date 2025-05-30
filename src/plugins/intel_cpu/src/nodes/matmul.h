@@ -69,6 +69,9 @@ private:
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc);
     std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
+#ifdef OPENVINO_ARCH_X86_64
+    bool canOptimize(const VectorDims& src_shape, const VectorDims& wei_shape) const;
+#endif
 
     bool withBiases;
 
