@@ -561,7 +561,8 @@ std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_p
 using ShapeInferKey = ov::NodeTypeInfo;
 
 // Helper macros to make map entries
-#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...)                  {OP::get_type_info_static(), make_shape_infer<__VA_ARGS__>}
+#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \
+    { OP::get_type_info_static(), make_shape_infer<__VA_ARGS__> }
 #define OV_OP_SHAPE_INFER_MASK_REG(OP, SHAPE_INFER, MASK)   _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP, MASK)
 #define OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 
