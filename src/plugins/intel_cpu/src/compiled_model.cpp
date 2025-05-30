@@ -111,7 +111,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         set_callback_executor(m_callback_executor);
     }
 
-    m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
+    m_optimized_single_stream = (executor_config.get_streams() == 1);
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
