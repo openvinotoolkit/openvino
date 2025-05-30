@@ -10,7 +10,6 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
 #include "ir_serializer.hpp"
-#include "openvino/opsets/opset11.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config

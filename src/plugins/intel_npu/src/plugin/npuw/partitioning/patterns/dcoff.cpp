@@ -8,7 +8,13 @@
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "../partitioning.hpp"  // Subgraph
-#include "openvino/op/ops.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
