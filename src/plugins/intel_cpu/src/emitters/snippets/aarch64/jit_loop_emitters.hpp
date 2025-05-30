@@ -44,6 +44,8 @@ protected:
     size_t work_amount = 0;
     int64_t wa_increment = 0;
     bool evaluate_once = false;
+    size_t loop_id = -1;
+    bool is_work_amount_dynamic = false;
 };
 
 /* ============================================================== */
@@ -72,6 +74,7 @@ protected:
     static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
 
     std::shared_ptr<const Xbyak_aarch64::Label> loop_begin_label;
+    std::shared_ptr<Xbyak_aarch64::Label> loop_end_label;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     size_t work_amount = 0;
@@ -81,6 +84,8 @@ protected:
     std::vector<int64_t> finalization_offsets = {};
     std::vector<int64_t> data_sizes = {};
     bool evaluate_once = false;
+    size_t loop_id = -1;
+    bool is_work_amount_dynamic = false;
 };
 
 /* ============================================================== */

@@ -14,7 +14,9 @@
 #include <vector>
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/loop.hpp"
@@ -37,10 +39,12 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_gen
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
     const auto loop_end = loop_begin->get_loop_end();
-    OV_CPU_JIT_EMITTER_ASSERT(!loop_end->has_dynamic_params(), "supports only static loops!");
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
+    loop_id = loop_end->get_id();
+    is_work_amount_dynamic =
+        ov::snippets::utils::is_dynamic_value(work_amount) || ov::snippets::utils::is_dynamic_value(wa_increment);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -62,8 +66,19 @@ void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                        const std::vector<size_t>& out) const {
     auto reg_work_amount = XReg(out[0]);
-    if (!evaluate_once) {
-        h->mov(reg_work_amount, work_amount);
+    XReg reg_runtime_params = XReg(Operand::X0);
+    if (is_work_amount_dynamic) {
+        XReg reg_aux = h->X_TMP_1;
+        const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+        h->ldr(reg_aux, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
+        h->ldr(reg_work_amount, ptr(reg_aux, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_work_amount))));
+
+        h->cmp(reg_work_amount, wa_increment);
+        h->b(LT, *loop_begin_label);
+    } else {
+        if (!evaluate_once) {
+            h->mov(reg_work_amount, work_amount);
+        }
     }
     h->L(*loop_begin_label);
 }
@@ -76,11 +91,11 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generat
                                            dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),
-      loop_begin_label{nullptr} {
+      loop_begin_label{nullptr},
+      loop_end_label{std::make_shared<Xbyak_aarch64::Label>()} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
-    OV_CPU_JIT_EMITTER_ASSERT(!loop_end->has_dynamic_params(), "supports only static loops!");
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
     work_amount = loop_end->get_work_amount();
@@ -90,6 +105,9 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generat
     finalization_offsets = loop_end->get_finalization_offsets();
     data_sizes = loop_end->get_element_type_sizes();
     evaluate_once = loop_end->get_evaluate_once();
+    loop_id = loop_end->get_id();
+    is_work_amount_dynamic =
+        ov::snippets::utils::is_dynamic_value(work_amount) || ov::snippets::utils::is_dynamic_value(wa_increment);
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());
@@ -151,16 +169,29 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     auto reg_work_amount = XReg(in.back());
+    XReg reg_runtime_params = XReg(Operand::X0);
+    XReg reg_aux = h->X_TMP_1;
+    const auto loop_id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+
     if (!evaluate_once) {
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
             if (!is_incremented[idx] || ptr_increments[idx] == 0) {
                 continue;
             }
             auto data_reg = XReg(data_ptr_reg_idxs[idx]);
-            if (ptr_increments[idx] > 0) {
-                h->add_imm(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
-            } else if (ptr_increments[idx] < 0) {
-                h->sub_imm(data_reg, data_reg, -ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
+            if (is_work_amount_dynamic) {
+                XReg reg_increments = h->X_TMP_0;
+                fprintf(stderr, "is_dynamic_value(wa_increment) = true\n");
+                h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
+                h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments))));
+                h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
+                h->add(data_reg, data_reg, reg_aux);
+            } else {
+                if (ptr_increments[idx] > 0) {
+                    h->add_imm(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
+                } else if (ptr_increments[idx] < 0) {
+                    h->sub_imm(data_reg, data_reg, -ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
+                }
             }
         }
         h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
@@ -173,12 +204,24 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
             continue;
         }
         auto data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
-        if (finalization_offsets[idx] > 0) {
-            h->add_imm(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
-        } else if (finalization_offsets[idx] < 0) {
-            h->sub_imm(data_reg, data_reg, -finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
+        fprintf(stderr, "is_incremented[%d] = true\n", idx);
+        fprintf(stderr, "wa_increment = %ld\n", static_cast<long>(wa_increment));
+        if (is_work_amount_dynamic) {
+            XReg reg_increments = h->X_TMP_0;
+            fprintf(stderr, "is_dynamic_value(wa_increment) = true 2\n");
+            h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
+            h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(loop_id_offset + GET_OFF_LOOP_ARGS(m_finalization_offsets))));
+            h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
+            h->add(data_reg, data_reg, reg_aux);
+        } else {
+            if (finalization_offsets[idx] > 0) {
+                h->add_imm(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
+            } else if (finalization_offsets[idx] < 0) {
+                h->sub_imm(data_reg, data_reg, -finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
+            }
         }
     }
+    h->L(*loop_end_label);
 }
 
 /* ============================================================== */
