@@ -5,10 +5,9 @@
 #include "proposal_imp.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
-#include <string>
-#include <utility>
 #include <vector>
 #if defined(HAVE_AVX2)
 #    include <immintrin.h>

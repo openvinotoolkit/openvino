@@ -3,16 +3,42 @@
 //
 #include "subgraph.h"
 
+#include <climits>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
+
+#include "cache/cache_entry.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "edge.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/subgraph.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/subgraph.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
 #include "snippets/pass/canonicalization.hpp"
@@ -20,10 +46,10 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/pass/propagate_precision.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
-#include "transformations/defs.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
@@ -44,12 +70,9 @@
 #    include "transformations/snippets/x64/shape_inference.hpp"
 #endif
 
-#include <algorithm>
-#include <array>
 #include <utility>
 #include <vector>
 
-#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -626,7 +649,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 
 uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
     uint32_t mask = 0;
-    OPENVINO_ASSERT(broadcastable_inputs.size() <= sizeof(mask) * CHAR_BIT,
+    OPENVINO_ASSERT(broadcastable_inputs.size() < sizeof(mask) * CHAR_BIT,
                     "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
@@ -796,7 +819,7 @@ bool Subgraph::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -804,7 +827,7 @@ bool Subgraph::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;

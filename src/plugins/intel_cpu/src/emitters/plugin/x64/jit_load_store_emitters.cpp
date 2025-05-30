@@ -4,10 +4,24 @@
 
 #include "jit_load_store_emitters.hpp"
 
-#include <memory>
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "utils/bfloat16.hpp"
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

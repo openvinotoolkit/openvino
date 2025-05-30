@@ -6,12 +6,21 @@
 
 #include <node.h>
 
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <tuple>
 #include <vector>
 
-#include "executors/mvn_list.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "nodes/executors/mvn.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

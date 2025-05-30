@@ -6,15 +6,25 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <functional>
+#include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
+#include <unordered_map>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_postops_composer_legacy.h"
-#include "executors/eltwise_list.hpp"
+#include "graph_context.h"
 #include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

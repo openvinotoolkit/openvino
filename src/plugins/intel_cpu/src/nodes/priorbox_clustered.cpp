@@ -6,20 +6,31 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <vector>
 
-#include "dnnl_types.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
 namespace ov::intel_cpu::node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -37,8 +48,8 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
-    const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBoxClustered>(op);
+    const ov::op::v0::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;
     heights = attrs.heights;

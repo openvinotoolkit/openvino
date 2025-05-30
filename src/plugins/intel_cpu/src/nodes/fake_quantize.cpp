@@ -4,28 +4,54 @@
 
 #include "fake_quantize.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
+#include <array>
+#include <cassert>
 #include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/dnnl_thread.hpp>
+#include <common/nstl.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
-#include <set>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "dnnl_postops_composer_legacy.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/core/parallel.hpp"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -1002,9 +1028,9 @@ private:
 #endif
 bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(op);
         if (!fq) {
-            errorMessage = "Only opset1 FakeQuantize operation is supported";
+            errorMessage = "Only v0 FakeQuantize operation is supported";
             return false;
         }
         const auto dataRank = fq->get_input_partial_shape(0).rank().get_length();
@@ -1020,7 +1046,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(i))) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -1066,7 +1092,8 @@ namespace {
 struct FakeQuantKey {
     jit_quantize_params jqp;
     [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl::primitive_hashing;
+        using namespace dnnl::impl;
+        // using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
         seed = hash_combine(seed, jqp.src_prc.hash());
@@ -1102,7 +1129,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
-        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(op);
 
         levels = fq->get_levels();
         if (levels <= 1) {
@@ -1172,16 +1199,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             THROW_CPU_NODE_ERR("has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
@@ -1533,7 +1560,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 
 bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
-        auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+        const auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor) {
             THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
         }
@@ -1610,7 +1637,7 @@ void FakeQuantize::prepareParams() {
 
 void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1675,7 +1702,7 @@ void FakeQuantize::executeReference() {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const float>();
+    const auto* src = srcMemory->getDataAs<const float>();
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1702,13 +1729,13 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = dstMemory->getDataAs<uint8_t>();
+        auto* dst = dstMemory->getDataAs<uint8_t>();
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
 
-        auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
-        auto output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
+        const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
+        const auto* output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
 
         cpu_parallel->parallel_for5d(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
@@ -1736,7 +1763,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = dstMemory->getDataAs<float>();
+        auto* dst = dstMemory->getDataAs<float>();
 
         cpu_parallel->parallel_for5d(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5
@@ -1782,11 +1809,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
-    auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
-    auto output_mask = internalBlobMemory[1]->getDataAs<const float>();
+    const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
+    const auto* output_mask = internalBlobMemory[1]->getDataAs<const float>();
 
     auto src_dims = srcMemory->getStaticDims();
 
@@ -1825,10 +1852,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
-    auto& srcDesc = srcMemory->getDesc();
+    const auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4u, 5u);

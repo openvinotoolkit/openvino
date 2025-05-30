@@ -4,8 +4,28 @@
 
 #pragma once
 
-#include "executors/reduce_list.hpp"
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/reduce.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {

@@ -21,8 +21,7 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::enable_profiling.name(), ov::Any(true)},
-    {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
+    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
 };
 
@@ -47,7 +46,6 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
     {ov::intel_npu::dma_engines.name(), ov::Any(1)},
     {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::Platform::AUTO_DETECT)},
     {ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")},
-    {ov::intel_npu::dpu_groups.name(), ov::Any(2)},
     {ov::intel_npu::defer_weights_load.name(), ov::Any(true)},
 };
 

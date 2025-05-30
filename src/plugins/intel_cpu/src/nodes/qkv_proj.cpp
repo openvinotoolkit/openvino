@@ -4,21 +4,40 @@
 
 #include "qkv_proj.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "cpu_memory.h"
+#include "dnnl_scratch_pad.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/plain_tensor.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/mlp_utils.hpp"
+#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -442,7 +461,8 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
 
-            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
                 errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }

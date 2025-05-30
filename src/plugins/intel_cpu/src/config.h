@@ -4,15 +4,21 @@
 
 #pragma once
 
-#include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <map>
-#include <mutex>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "internal_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "openvino/util/common_util.hpp"
 #include "utils/debug_caps_config.h"
 
 namespace ov {

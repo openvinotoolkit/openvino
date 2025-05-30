@@ -4,20 +4,39 @@
 
 #include "dft.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/dft_uni_kernel.hpp"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
-#include "openvino/opsets/opset7_decl.hpp"
-#include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -27,7 +46,7 @@ namespace ov::intel_cpu::node {
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
-            errorMessage = "Only opset7 DFT/IDFT operation is supported";
+            errorMessage = "Only v7 DFT/IDFT operation is supported";
             return false;
         }
     } catch (...) {
@@ -238,8 +257,8 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         axes = getAxes();
     }
 
-    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
-    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
+    const auto* const src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto* dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -462,7 +481,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
             float sumReal = 0.0f;
             float sumImag = 0.0f;
             for (size_t n = 0; n < nComplex; ++n) {
-                auto complexRef = &twiddles[2 * (k * nComplex + n)];
+                const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
                 float complexReal = *complexRef;
                 float complexImag = *(complexRef + 1);
 

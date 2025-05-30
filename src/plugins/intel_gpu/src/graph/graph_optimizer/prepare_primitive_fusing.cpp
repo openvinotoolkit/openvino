@@ -42,6 +42,7 @@
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
+#include "lora_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -394,11 +395,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
                                                                      desc->input[0],
-                                                                     desc->weights,
+                                                                     desc->weights.pid,
                                                                      biases,
-                                                                     desc->weights_zero_points,
-                                                                     desc->activations_zero_points,
-                                                                     desc->compensation,
+                                                                     desc->weights_zero_points.pid,
+                                                                     desc->activations_zero_points.pid,
+                                                                     desc->compensation.pid,
                                                                      desc->groups,
                                                                      desc->stride,
                                                                      desc->dilation,
@@ -416,7 +417,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
             auto desc = deconv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (deconv.bias_term()) {
@@ -433,8 +433,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
                                                                          desc->input[0],
-                                                                         desc->weights,
-                                                                         biases,
+                                                                         desc->weights.pid,
+                                                                         bias_name,
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
@@ -464,7 +464,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto fc_with_bias_prim = desc->clone();
+            auto fc_with_bias_prim = desc->typed_clone();
             fc_with_bias_prim->id = desc->id + "_tmp";
             fc_with_bias_prim->bias = bias_name;
             fc_with_bias_prim->output_data_types = {optional_data_type{fc.get_output_layout().data_type}};
@@ -713,6 +713,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
+        auto lora_supports_fusings = [&](lora_node& node) -> bool {
+            const auto& lora_dep = node.get_dependency(0);
+            return lora_dep.get_users().size() == 1;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
@@ -733,7 +738,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 auto additional_params_input = activation_node.get_primitive()->additional_params_input;
-                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                if (activation_func == cldnn::activation_func::relu_negative_slope && additional_params_input.is_valid() &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
@@ -802,6 +807,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input.is_type<eltwise>() && eltwise_supports_fusings(input.as<eltwise>());
 
             should_fuse |= input.is_type<strided_slice>();
+
+            should_fuse |= input.is_type<lora>() && lora_supports_fusings(input.as<lora>());
 
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
@@ -996,7 +1003,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<lora>() &&
+                                       lora_supports_fusings(parents[i].first->as<lora>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1286,7 +1295,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
                 if (desc->compressed_weights) {
                     size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
                     valid_weights_indices.push_back(scale_idx);
-                    if (!desc->decompression_zero_point.empty()) {
+                    if (desc->decompression_zero_point.is_valid()) {
                         valid_weights_indices.push_back(scale_idx + 1);
                     }
                 }

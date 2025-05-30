@@ -5,18 +5,24 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_map_scheduling.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include "internal_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
@@ -150,7 +156,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }
@@ -454,6 +460,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
             }
+#    if defined(OPENVINO_ARCH_ARM64)
+            // enforce fp32 inference precision for dynamic quantization
+            // to preserve fp32 matmul output precision
+            if (fcDynamicQuantizationGroupSizeSetExplicitly &&
+                fcDynamicQuantizationGroupSize == std::numeric_limits<uint64_t>::max()) {
+                inferencePrecision = ov::element::f32;
+            }
+#    endif
 #endif
             if (mayiuse(avx512_core_bf16)) {
                 inferencePrecision = ov::element::bf16;
@@ -462,6 +476,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::dynamic;
         }
     }
+
     // enable ACL fast math in PERFORMANCE mode
 #if defined(OV_CPU_WITH_ACL)
     if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
