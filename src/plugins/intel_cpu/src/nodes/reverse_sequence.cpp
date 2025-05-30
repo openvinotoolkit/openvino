@@ -171,7 +171,10 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i, start = 0, end = 0, srcIdx = 0;
+        size_t i;
+        size_t start = 0;
+        size_t end = 0;
+        size_t srcIdx = 0;
         VectorDims counters(srcDims.size(), 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {

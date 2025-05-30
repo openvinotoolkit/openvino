@@ -96,7 +96,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER& header) {
     return DnnlBlockedMemoryDesc{prc, Shape(dims)};
 }
 
-void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) const {
+void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) {
     const auto& desc = memory->getDesc();
     size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
@@ -288,7 +288,7 @@ BlobDumper BlobDumper::read(std::istream& stream) {
     const auto desc = parse_header(header);
 
     BlobDumper res(desc);
-    stream.seekg(header.data_offset, stream.beg);
+    stream.seekg(header.data_offset, std::istream::beg);
     stream.read(reinterpret_cast<char*>(res.getDataPtr()), header.data_size);
 
     return res;

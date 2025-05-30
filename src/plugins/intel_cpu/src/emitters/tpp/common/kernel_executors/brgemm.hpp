@@ -78,7 +78,7 @@ private:
         [[nodiscard]] size_t hash() const {
             return m_hash;
         }
-        size_t compute_hash();
+        size_t compute_hash() const;
 
 #ifdef SNIPPETS_DEBUG_CAPS
         [[nodiscard]] std::string to_string() const;

@@ -231,7 +231,7 @@ void jit_emitter::emitter_postamble() const {
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
     static_assert(sizeof(table_entry_val_t) == 4);

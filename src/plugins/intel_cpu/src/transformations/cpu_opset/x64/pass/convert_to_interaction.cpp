@@ -118,7 +118,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
         OPENVINO_ASSERT(fq_node != nullptr, "FakeQuantize node is not found");
         std::vector<float> fq_scale;
-        fq_scale = simplifyToScale(fq_node, 0.001f);
+        fq_scale = simplifyToScale(fq_node, 0.001F);
         if (fq_scale.empty()) {
             return false;
         }

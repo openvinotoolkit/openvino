@@ -48,8 +48,7 @@ namespace ov::intel_cpu::x64 {
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
                                              dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+    : m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
     m_hash = compute_hash();
 }
 

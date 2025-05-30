@@ -193,7 +193,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
         const auto& childEdges = inputNodePtr->getChildEdges();
@@ -245,7 +245,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -609,7 +609,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
-    return;
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {

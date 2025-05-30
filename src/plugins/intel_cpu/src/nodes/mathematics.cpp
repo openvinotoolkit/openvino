@@ -162,10 +162,10 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         });
         break;
     case Algorithm::MathHardSigmoid:
-        alpha = (alpha == 0.0f) ? 0.2f : alpha;
-        beta = (beta == 0.0f) ? 0.5f : beta;
+        alpha = (alpha == 0.0F) ? 0.2F : alpha;
+        beta = (beta == 0.0F) ? 0.5F : beta;
         parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
+            dst_data[i] = (std::max)(0.F, (std::min)(1.F, alpha * src_data[i] + beta));
         });
         break;
     case Algorithm::MathNegative:
@@ -175,27 +175,27 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     case Algorithm::MathReciprocal:
         parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = 1.0f / src_data[i];
+            dst_data[i] = 1.0F / src_data[i];
         });
         break;
     case Algorithm::MathSelu:
-        alpha = (alpha == 0.0f) ? 1.67326f : alpha;
-        gamma = (gamma == 0.0f) ? 1.0507f : gamma;
+        alpha = (alpha == 0.0F) ? 1.67326F : alpha;
+        gamma = (gamma == 0.0F) ? 1.0507F : gamma;
         parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
-            dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0f));
+            dst_data[i] = (x > 0.0F) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0F));
         });
         break;
     case Algorithm::MathSign:
         parallel_for(dataSize, [&](size_t i) {
-            if (src_data[i] > 0.0f) {
-                dst_data[i] = 1.0f;
-            } else if (src_data[i] < 0.0f) {
-                dst_data[i] = -1.0f;
+            if (src_data[i] > 0.0F) {
+                dst_data[i] = 1.0F;
+            } else if (src_data[i] < 0.0F) {
+                dst_data[i] = -1.0F;
             } else if (std::isnan(src_data[i])) {
                 dst_data[i] = src_data[i];
             } else {
-                dst_data[i] = 0.0f;
+                dst_data[i] = 0.0F;
             }
         });
         break;
@@ -217,7 +217,7 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
     case Algorithm::MathSoftsign:
         parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
-            dst_data[i] = x / (1.f + (std::abs)(x));
+            dst_data[i] = x / (1.F + (std::abs)(x));
         });
         break;
     case Algorithm::MathTan:

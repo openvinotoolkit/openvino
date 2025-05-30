@@ -16,7 +16,7 @@
 
 namespace ov::intel_cpu {
 
-SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
+SubModel::SubModel(const std::shared_ptr<ov::Model>& body) {
     SubGraphOp::set_function(body);
 }
 

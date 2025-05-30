@@ -97,11 +97,11 @@ bool STFT::created() const {
 }
 
 namespace {
-static void transpose_out4d(const uint8_t* in,
-                            uint8_t* out,
-                            const VectorDims& in_shape,
-                            const VectorDims& out_shape,
-                            size_t elem_size) {
+void transpose_out4d(const uint8_t* in,
+                     uint8_t* out,
+                     const VectorDims& in_shape,
+                     const VectorDims& out_shape,
+                     size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for3d(out_shape[0],
                    out_shape[1],

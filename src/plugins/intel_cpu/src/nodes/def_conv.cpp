@@ -137,29 +137,29 @@ private:
 
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
 
-    inline Xbyak::Address table_val(int index) {
+    Xbyak::Address table_val(int index) {
         return ptr[reg_table + index * vlen];
     }
 
-    inline Vmm get_vmm_ker(int idx) {
+    Vmm get_vmm_ker(int idx) {
         return Vmm(idx + 0);
     }
-    inline Vmm get_vmm_src(int idx) {
+    Vmm get_vmm_src(int idx) {
         return Vmm(idx + 1);
     }
-    inline Vmm get_vmm_acc(int idx) {
+    Vmm get_vmm_acc(int idx) {
         return Vmm(idx + jcp_.ur_w + 1);
     }
-    inline Ymm get_ymm_acc(int idx) {
+    Ymm get_ymm_acc(int idx) {
         return Ymm(idx + jcp_.ur_w + 1);
     }
-    inline Xmm get_xmm_acc(int idx) {
+    Xmm get_xmm_acc(int idx) {
         return Xmm(idx + jcp_.ur_w + 1);
     }
 
     Xbyak::Label l_table;
 
-    inline void checkZeroWei(const Xbyak::Xmm& x1, Label& nullifyLabel) {
+    void checkZeroWei(const Xbyak::Xmm& x1, Label& nullifyLabel) {
         ptest(x1, x1);
         jz(nullifyLabel);
     }
@@ -995,14 +995,14 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
                 if (with_bi_pad) {
-                    skip_compute = !(static_cast<int>(map_w) > -1 && static_cast<int>(map_w) < IW &&
-                                     static_cast<int>(map_h) > -1 && static_cast<int>(map_h) < IH);
+                    skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
+                                   static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = !(map_w >= 0 && map_w < IW && map_h >= 0 && map_h < IH);
+                    skip_compute = map_w < 0 || map_w >= IW || map_h < 0 || map_h >= IH;
                 }
                 if (!skip_compute) {
                     // modulations precomp.
-                    float modulation_scalar = 1.0f;
+                    float modulation_scalar = 1.0F;
 
                     if (modulation_offset_ptr != nullptr) {
                         size_t modulation_index =
@@ -1021,7 +1021,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
 
                     float lh = map_h - h_low;
                     float lw = map_w - w_low;
-                    float hh = 1 - lh, hw = 1 - lw;
+                    float hh = 1 - lh;
+                    float hw = 1 - lw;
 
                     int h_ind_low = std::max(h_low, 0);
                     int h_ind_high = std::min(h_high, cur_h_end - 1);
@@ -1042,8 +1043,10 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
                     pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
-                    float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+                    float w22 = hh * hw * modulation_scalar;
+                    float w21 = hh * lw * modulation_scalar;
+                    float w12 = lh * hw * modulation_scalar;
+                    float w11 = lh * lw * modulation_scalar;
 
                     pInterpWeightsVector[sampledCoordIndex] = w11;
                     pInterpWeightsVector[sampledCoordIndex + 1] = w12;

@@ -142,7 +142,7 @@ private:
                           uint8_t* dst,
                           const std::vector<size_t>& s_str,
                           const std::vector<size_t>& w_str,
-                          const std::vector<size_t>& d_str);
+                          const std::vector<size_t>& d_str) const;
 };
 
 }  // namespace node

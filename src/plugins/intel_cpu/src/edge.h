@@ -71,8 +71,8 @@ public:
     void reuse(MemoryPtr ptr);
     void validate();
 
-    const std::shared_ptr<Node> getParent() const;
-    const std::shared_ptr<Node> getChild() const;
+    std::shared_ptr<Node> getParent() const;
+    std::shared_ptr<Node> getChild() const;
 
     const IMemory& getMemory();
     MemoryPtr getMemoryPtr() const;

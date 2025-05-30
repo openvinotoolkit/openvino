@@ -53,7 +53,7 @@ private:
     bool canOptimizeNspc = false;
     bool canOptimize1DCase = false;
     void execRef();
-    size_t inverseOrder(const VectorDims& order, size_t axis);
+    static size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     void exec1DCase();
     std::vector<VectorDims> inputStrides;

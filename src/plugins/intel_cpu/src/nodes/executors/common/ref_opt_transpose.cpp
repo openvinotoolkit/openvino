@@ -123,9 +123,9 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
               TransposeOptimizedEmitter,
               ctx,
               dataSize,
-              OV_CASE(1u, element_type_traits<ov::element::u8>::value_type),
-              OV_CASE(2u, element_type_traits<ov::element::u16>::value_type),
-              OV_CASE(4u, element_type_traits<ov::element::i32>::value_type));
+              OV_CASE(1U, element_type_traits<ov::element::u8>::value_type),
+              OV_CASE(2U, element_type_traits<ov::element::u16>::value_type),
+              OV_CASE(4U, element_type_traits<ov::element::i32>::value_type));
 }
 
 bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const TransposeParams& transposeParams,

@@ -31,7 +31,7 @@ namespace intel_cpu {
 class BlobDumper {
     MemoryPtr memory;
 
-    void prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) const;
+    static void prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data);
 
 public:
     BlobDumper() = default;

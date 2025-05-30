@@ -36,7 +36,11 @@ private:
     int spatialDimsCount;
     mutable std::vector<Dim> spatialDimsValue = {};
     ov::element::Type precision = ov::element::f32;
-    inline void setBinBorders(size_t* startPtr, size_t* endPtr, size_t idx, size_t inputLength, size_t outputLength);
+    static inline void setBinBorders(size_t* startPtr,
+                                     size_t* endPtr,
+                                     size_t idx,
+                                     size_t inputLength,
+                                     size_t outputLength);
 
 protected:
     bool needShapeInfer() const override;

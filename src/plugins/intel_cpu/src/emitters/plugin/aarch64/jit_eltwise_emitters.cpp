@@ -383,7 +383,7 @@ size_t jit_elu_emitter::get_inputs_count() const {
 }
 
 size_t jit_elu_emitter::get_aux_vecs_count() const {
-    return std::max(exp_emitter->get_aux_vecs_count() + 1ull, 2ull);
+    return std::max(exp_emitter->get_aux_vecs_count() + 1ULL, 2ULL);
 }
 
 size_t jit_elu_emitter::get_aux_gprs_count() const {
@@ -420,7 +420,7 @@ void jit_elu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->fmul(vmm_aux0.s, vmm_dst.s, vmm_aux0.s);
 
     // combine with mask
-    h->fcmgt(vmm_dst.s, vmm_aux1.s, 0.f);
+    h->fcmgt(vmm_dst.s, vmm_aux1.s, 0.F);
     h->bsl(vmm_dst.b16, vmm_aux1.b16, vmm_aux0.b16);
 }
 
@@ -1168,7 +1168,7 @@ void jit_hswish_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
     push_arg_entry_of("three", 0x40400000, true);
     push_arg_entry_of("six", 0x40c00000, true);
-    push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.f / 6.f), true);
+    push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.F / 6.F), true);
 }
 
 std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precisions(
@@ -1944,7 +1944,7 @@ void jit_mish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     exp_emitter->emit_code({vmm_aux2.getIdx()}, {vmm_aux2.getIdx()}, aux_vec_idxs, aux_gpr_idxs);
 
     // (e^x+1)^2
-    h->fmov(vmm_aux0.s, 1.f);
+    h->fmov(vmm_aux0.s, 1.F);
     h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux0.s);
     h->fmul(vmm_dst.s, vmm_aux2.s, vmm_aux2.s);
 
@@ -2142,8 +2142,8 @@ jit_power_static_emitter::jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit
     }
 
     power = powerStaticNode->get_power();
-    scale = 1.f;
-    shift = 0.f;
+    scale = 1.F;
+    shift = 0.F;
 
     prepare_table();
 }
@@ -2201,7 +2201,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out_vec_idxs[0]);
 
-    if (power == 0.f) {
+    if (power == 0.F) {
         h->fmov(dst.s, 1.);
         return;
     }
@@ -2212,21 +2212,21 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     };
 
     auto aux = TReg(aux_vec_idxs[0]);
-    if (scale != 1.f) {
+    if (scale != 1.F) {
         auto adr = table_val2("scale");
         h->ld1r(aux.s, adr);
         h->fmul(dst.s, src().s, aux.s);
         get_from_dst = true;
     }
 
-    if (shift != 0.f) {
+    if (shift != 0.F) {
         auto adr = table_val2("shift");
         h->ld1r(aux.s, adr);
         h->fadd(dst.s, src().s, aux.s);
         get_from_dst = true;
     }
 
-    if (power == 1.f) {
+    if (power == 1.F) {
         if (!get_from_dst && (in_vec_idxs[0] != dst.getIdx())) {
             h->mov(dst.b16, src().b16);
         }
@@ -2403,7 +2403,7 @@ jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host
     if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
         alpha = leaky_relu->get_slope();
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
-        alpha = 0.f;
+        alpha = 0.F;
     } else {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to LeakyReluNode or ReluNode");
     }
@@ -2411,7 +2411,7 @@ jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host
 }
 
 bool jit_relu_emitter::is_relu() const {
-    return alpha == 0.f;
+    return alpha == 0.F;
 }
 
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
@@ -2470,7 +2470,7 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 
         h->ld1r(vtemp1.s, table_val2("alpha"));    // load alpha
         h->fmul(vtemp2.s, vsrc.s, vtemp1.s);       // vtemp = alpha * x
-        h->fcmle(vtemp1.s, vsrc.s, 0.0f);          // vmask = (x > 0) ? 1 : 0
+        h->fcmle(vtemp1.s, vsrc.s, 0.0F);          // vmask = (x > 0) ? 1 : 0
         h->bif(vtemp2.b16, vsrc.b16, vtemp1.b16);  // vtemp2 = (x > 0) ? x : alpha * x
         h->mov(vdst.b16, vtemp2.b16);              // dst = (x > 0) ? x : alpha * x
     }
@@ -3101,7 +3101,7 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
     if (swish == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
     }
-    beta = static_cast<float>(swish->get_alpha());
+    beta = swish->get_alpha();
 
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(h, host_isa, node);

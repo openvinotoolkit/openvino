@@ -87,7 +87,8 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         const auto& order = BrgemmExternalRepackingAdjuster::get_blk_order(planar_shape.size());
         const auto& desc = std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), blk_shape, order);
 
-        ov::snippets::VectorDims src_offsets, dst_offsets;
+        ov::snippets::VectorDims src_offsets;
+        ov::snippets::VectorDims dst_offsets;
         ov::snippets::utils::init_strides(shape, shape.size(), prc.size(), 0, src_offsets);
         ov::snippets::utils::init_strides(blk_shape, blk_shape.size(), prc.size(), 0, dst_offsets);
         // Last three dimensions of blocked shapes are processed in the kernel. To align with src, we removed last

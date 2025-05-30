@@ -168,10 +168,10 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
         };
 
         supportedTypes.push_back(LayoutType::nspc);
-        if (canUseBlocked(8lu)) {
+        if (canUseBlocked(8LU)) {
             supportedTypes.push_back(LayoutType::nCsp8c);
         }
-        if (canUseBlocked(16lu)) {
+        if (canUseBlocked(16LU)) {
             supportedTypes.push_back(LayoutType::nCsp16c);
         }
     }
@@ -275,7 +275,8 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks, orderShiftForDims;
+        size_t orderShiftForBlocks;
+        size_t orderShiftForDims;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = attrs.nSpatialDims + 2;
             orderShiftForDims = 1;

@@ -177,7 +177,8 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
     size_t work_amount_dst =
         std::accumulate(iterationRange.begin(), iterationRange.end(), static_cast<size_t>(1), std::multiplies<>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims counters(numOfDims - 1, 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
 
@@ -255,8 +256,7 @@ inline void CumSum::parallelItStep(std::vector<size_t>& counters, const std::vec
     }
 }
 
-inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset,
-                                     const std::vector<size_t>& strides) const {
+inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) {
     size_t startOffset = 0;
     for (size_t idx = 0; idx < forStartOffset.size(); ++idx) {
         startOffset += forStartOffset[idx] * strides[idx];

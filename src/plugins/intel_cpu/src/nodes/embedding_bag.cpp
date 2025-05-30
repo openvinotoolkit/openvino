@@ -44,8 +44,8 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
 }
 
 void EmbeddingBag::prepareParams(const VectorDims& indexStaticShape) {
-    _embDepth = 1lu;
-    for (size_t i = 1lu; i < indexStaticShape.size(); i++) {
+    _embDepth = 1LU;
+    for (size_t i = 1LU; i < indexStaticShape.size(); i++) {
         _embDepth *= indexStaticShape[i];
     }
 }
@@ -63,15 +63,16 @@ void EmbeddingBag::processData(const T* srcData,
     auto* dstData = outMemory->getDataAs<T>();
 
     auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(outputBagsNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
 
-        size_t indicesSize = 0lu;
+        size_t indicesSize = 0LU;
         const int* indices = nullptr;
-        int weightsIdx = 0lu;
+        int weightsIdx = 0LU;
         bool withWeights = _withWeights;
 
         for (size_t obi = start; obi < end; obi++) {
@@ -81,24 +82,24 @@ void EmbeddingBag::processData(const T* srcData,
             if (indices != nullptr) {
                 withWeights = withWeights & _withWeights;
 
-                size_t inIdx = 0lu;
+                size_t inIdx = 0LU;
                 if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
                     OPENVINO_THROW(msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                 }
                 size_t srcIndex = indices[inIdx] * _embDepth;
 
                 if (withWeights) {
-                    for (size_t i = 0lu; i < _embDepth; i++) {
+                    for (size_t i = 0LU; i < _embDepth; i++) {
                         dstData[dstIndex + i] = srcData[srcIndex + i] * weightsData[weightsIdx];
                     }
                     weightsIdx++;
                 } else {
-                    for (size_t i = 0lu; i < _embDepth; i++) {
+                    for (size_t i = 0LU; i < _embDepth; i++) {
                         dstData[dstIndex + i] = srcData[srcIndex + i];
                     }
                 }
 
-                for (inIdx = 1lu; inIdx < indicesSize; inIdx++) {
+                for (inIdx = 1LU; inIdx < indicesSize; inIdx++) {
                     if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
                         OPENVINO_THROW(msgPrefix +
                                        "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
@@ -106,23 +107,23 @@ void EmbeddingBag::processData(const T* srcData,
                     size_t srcIndex = indices[inIdx] * _embDepth;
 
                     if (withWeights) {
-                        for (size_t i = 0lu; i < _embDepth; i++) {
+                        for (size_t i = 0LU; i < _embDepth; i++) {
                             dstData[dstIndex + i] += srcData[srcIndex + i] * weightsData[weightsIdx];
                         }
                         weightsIdx++;
                     } else {
-                        for (size_t i = 0lu; i < _embDepth; i++) {
+                        for (size_t i = 0LU; i < _embDepth; i++) {
                             dstData[dstIndex + i] += srcData[srcIndex + i];
                         }
                     }
                 }
                 if (_reduction == Reduction::MEAN) {
-                    for (size_t i = 0lu; i < _embDepth; i++) {
+                    for (size_t i = 0LU; i < _embDepth; i++) {
                         dstData[dstIndex + i] /= indicesSize;
                     }
                 }
             } else {
-                for (size_t i = 0lu; i < _embDepth; i++) {
+                for (size_t i = 0LU; i < _embDepth; i++) {
                     dstData[dstIndex + i] = 0;
                 }
             }

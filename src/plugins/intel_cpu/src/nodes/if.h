@@ -57,7 +57,7 @@ private:
     void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
     void prepareAfterMappers(const bool isThen, const dnnl::engine& eng);
 
-    std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port) const;
+    static std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port);
 
     struct PortMap {
         int from; /**< Index of external/internal out data */

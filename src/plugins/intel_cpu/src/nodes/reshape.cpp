@@ -89,10 +89,7 @@ bool Reshape::needShapeInfer() const {
             return true;
         }
     }
-    if (inputShapesModified()) {
-        return true;
-    }
-    return false;
+    return inputShapesModified();
 }
 
 void Reshape::getSupportedDescriptors() {

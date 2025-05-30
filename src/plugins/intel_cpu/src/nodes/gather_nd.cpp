@@ -200,7 +200,8 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -215,7 +216,7 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
 
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
-                size_t dataIdx = 0lu;
+                size_t dataIdx = 0LU;
                 for (size_t i = 0; i < sliceRank; i++) {
                     dataIdx += srcShifts[i] * shiftedIndices[i];
                 }
@@ -241,7 +242,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<dataType>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -256,8 +258,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
 
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
-                size_t dataIdx = 0lu;
-                for (size_t i = 0lu; i < sliceRank; i++) {
+                size_t dataIdx = 0LU;
+                for (size_t i = 0LU; i < sliceRank; i++) {
                     dataIdx += srcShifts[i] * shiftedIndices[i];
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
@@ -267,7 +269,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
                     return;
                 }
             }
-            cStart = 0lu;
+            cStart = 0LU;
             shiftedSrcData += srcBatchStride;
         }
     });

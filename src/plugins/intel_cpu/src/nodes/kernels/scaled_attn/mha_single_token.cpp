@@ -391,7 +391,7 @@ template <typename T>
 void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
     size_t group_id = 0;
     while (group_id < n / group_size) {
-        float group_sum = 0.0f;
+        float group_sum = 0.0F;
         size_t offset = group_id * group_size;
         size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -561,7 +561,7 @@ template <typename TA, typename TB>
 static float
 dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, [[maybe_unused]] size_t group_size) {
     size_t i = 0;
-    float sum = 0.0f;
+    float sum = 0.0F;
 #if defined(HAVE_AVX512F)
     auto vsum0 = _mm512_setzero_ps();
     auto vsum1 = _mm512_setzero_ps();
@@ -1262,7 +1262,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         float group_scale = *(scale + group_id * 2);
         float group_zp = *(zp + group_id * 2);
         size_t offset = group_id * group_size;
-        float group_sum = 0.0f;
+        float group_sum = 0.0F;
         for (; i < group_size; i++) {
             group_sum += a[i + offset] * (b[i + offset] - group_zp);
         }
@@ -1336,7 +1336,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 #endif
     for (; i < S; i++) {
         auto* src = temp + i;
-        float sum = 0.0f;
+        float sum = 0.0F;
         // sum result from all threads partition
         for (size_t m = 0; m < M; m++) {
             sum += src[0];
@@ -1423,8 +1423,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
-    if (d_scale == 0.0f) {
-        d_scale = 1.0f / sqrt(S);
+    if (d_scale == 0.0F) {
+        d_scale = 1.0F / sqrt(S);
     }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
@@ -1444,10 +1444,13 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #endif
 
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        size_t b, h_group, pk;
+        size_t b;
+        size_t h_group;
+        size_t pk;
         if (start < end) {
             parallel_it_init(start, pk, kv_len, b, B, h_group, h_group_num);
             if (q_len == 1 && h_each_group_len == 1) {
@@ -1639,12 +1642,15 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     buf_attn_score.resize<T3>({static_cast<size_t>(nthr), B, q_len, H, SV});
     // buf_attn_w {B, H, q_len, kv_len}
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
         memset(buf_attn_score.ptr<T3>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(T3));
 
-        size_t b, h_group, pv;
+        size_t b;
+        size_t h_group;
+        size_t pv;
         if (start < end) {
             parallel_it_init(start, pv, kv_len, b, B, h_group, h_group_num);
             if (q_len == 1 && h_each_group_len == 1) {

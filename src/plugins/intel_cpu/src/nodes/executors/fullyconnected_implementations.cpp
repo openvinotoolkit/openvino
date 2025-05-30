@@ -221,7 +221,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 //   M = 1, K = (IC*H*W), when M = 1 it should not be efficient since acts as a vector multiply
                 // if layout is nchw/nChw16c: brg1x1 not support. Although jit supports, it should have similar
                 //   problems with the above.
-                VERIFY(one_of(srcRank(config), 2u, 3u), UNSUPPORTED_SRC_RANK);
+                VERIFY(one_of(srcRank(config), 2U, 3U), UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2, UNSUPPORTED_WEI_RANK);
                 // brg convolution does not support stride
                 VERIFY(getOffset0(config.descs.at(ARG_DST)) == 0, UNSUPPORTED_DST_STRIDES);

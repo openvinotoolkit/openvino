@@ -42,11 +42,11 @@ bool merge_into(StaticShape& dst, const T& src) {
 }
 
 //-- Shape as container
-StaticShape::StaticShapeAdapter() : m_dims{} {}
+StaticShape::StaticShapeAdapter() = default;
 StaticShape::StaticShapeAdapter(const TDims& dims) : m_dims{dims} {}
 StaticShape::StaticShapeAdapter(TDims&& dims) noexcept : m_dims{std::move(dims)} {}
 StaticShape::StaticShapeAdapter(const StaticShape& other) : StaticShapeAdapter(*other) {}
-StaticShape::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+StaticShape::StaticShapeAdapter(const ov::PartialShape& /*unused*/) {
     partial_shape_convert_throw();
 }
 
@@ -76,7 +76,7 @@ ov::PartialShape StaticShape::to_partial_shape() const {
     return shape;
 }
 
-bool StaticShape::merge_rank(const ov::Rank& r) {
+bool StaticShape::merge_rank(const ov::Rank& r) const {
     return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
 }
 
@@ -143,7 +143,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 
 //-- Shape as reference
 StaticShapeRef::StaticShapeAdapter(const StaticShape& shape) : m_dims{&(*shape)} {}
-StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) {
+StaticShapeRef::StaticShapeAdapter(const ov::PartialShape& /*unused*/) {
     partial_shape_convert_throw();
 }
 
@@ -151,7 +151,7 @@ ov::Rank StaticShapeRef::rank() const {
     return {static_cast<typename ov::Rank::value_type>(size())};
 }
 
-bool StaticShapeRef::merge_rank(const ov::Rank& r) {
+bool StaticShapeRef::merge_rank(const ov::Rank& r) const {
     return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
 }
 

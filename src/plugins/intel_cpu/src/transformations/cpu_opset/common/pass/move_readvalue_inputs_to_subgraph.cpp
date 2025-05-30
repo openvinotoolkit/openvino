@@ -35,7 +35,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto readvalue = as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(readvalue_pattern).get_node_shared_ptr());
-        if (!readvalue || readvalue->get_input_size() != 1u) {
+        if (!readvalue || readvalue->get_input_size() != 1U) {
             return false;
         }
 

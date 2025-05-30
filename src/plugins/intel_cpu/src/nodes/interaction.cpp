@@ -140,12 +140,12 @@ private:
     }
 #    undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     ov::element::Type dst_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              ov::element::Type dst_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed] =
@@ -157,11 +157,11 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst,
-                      const Vmm& vmm_src,
-                      ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst,
+               const Vmm& vmm_src,
+               ov::element::Type src_prc,
+               ov::element::Type dst_prc,
+               const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);

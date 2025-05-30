@@ -69,7 +69,9 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     assert(brgemm && "BrgemmCPU is expected!");
 
-    size_t m_blk, n_blk, k_blk;
+    size_t m_blk;
+    size_t n_blk;
+    size_t k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)

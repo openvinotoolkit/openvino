@@ -17,7 +17,7 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 /////////////////////////PerfCountRdtscBegin//////////////////////
-PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {
+PerfCountRdtscBegin::PerfCountRdtscBegin() {
     validate_and_infer_types_except_PerfCountEnd();
 }
 

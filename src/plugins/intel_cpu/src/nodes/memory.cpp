@@ -79,7 +79,6 @@ public:
         }
     };
 
-public:
     MemoryStub(dnnl::engine eng, MemoryDescPtr pMemDesc)
         : m_eng(std::move(eng)),
           m_pMemDesc(std::move(pMemDesc)),
@@ -608,7 +607,6 @@ void MemoryInputBase::assignState() {
 
 void MemoryInputBase::bypassAssignState() {
     // nothing to do
-    return;
 }
 
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx)

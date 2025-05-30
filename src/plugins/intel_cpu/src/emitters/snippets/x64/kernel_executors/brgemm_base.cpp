@@ -106,7 +106,10 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
                                              const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                              BrgemmBaseKernelConfig& config) {
     // update M/N/K/beta
-    int64_t M, N, K, beta;
+    int64_t M;
+    int64_t N;
+    int64_t K;
+    int64_t beta;
     std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
@@ -145,7 +148,7 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                false,
                                                false,
                                                cpu::x64::brgemm_row_major,
-                                               1.f,
+                                               1.F,
                                                beta,
                                                LDA,
                                                LDB,

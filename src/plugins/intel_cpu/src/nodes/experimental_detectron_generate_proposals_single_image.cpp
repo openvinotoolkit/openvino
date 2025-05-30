@@ -84,8 +84,8 @@ void refine_anchors(const float* deltas,
             const float ww = x1 - x0 + coordinates_offset;
             const float hh = y1 - y0 + coordinates_offset;
             // center location of box
-            const float ctr_x = x0 + 0.5f * ww;
-            const float ctr_y = y0 + 0.5f * hh;
+            const float ctr_x = x0 + 0.5F * ww;
+            const float ctr_y = y0 + 0.5F * hh;
 
             // new center location according to deltas (dx, dy)
             const float pred_ctr_x = dx * ww + ctr_x;
@@ -95,17 +95,17 @@ void refine_anchors(const float* deltas,
             const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
 
             // update upper-left corner location
-            x0 = pred_ctr_x - 0.5f * pred_w;
-            y0 = pred_ctr_y - 0.5f * pred_h;
+            x0 = pred_ctr_x - 0.5F * pred_w;
+            y0 = pred_ctr_y - 0.5F * pred_h;
             // update lower-right corner location
-            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+            x1 = pred_ctr_x + 0.5F * pred_w - coordinates_offset;
+            y1 = pred_ctr_y + 0.5F * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-            y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
-            x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-            y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+            x0 = std::max<float>(0.0F, std::min<float>(x0, img_W - coordinates_offset));
+            y0 = std::max<float>(0.0F, std::min<float>(y0, img_H - coordinates_offset));
+            x1 = std::max<float>(0.0F, std::min<float>(x1, img_W - coordinates_offset));
+            y1 = std::max<float>(0.0F, std::min<float>(y1, img_H - coordinates_offset));
 
             // recompute new width & height
             const float box_w = x1 - x0 + coordinates_offset;
@@ -221,7 +221,7 @@ void nms_cpu(const int num_boxes,
 #endif
 
         for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
+            float res = 0.0F;
 
             const float x0i = x0[box];
             const float y0i = y0[box];
@@ -241,8 +241,8 @@ void nms_cpu(const int num_boxes,
                 const float y1 = std::min<float>(y1i, y1j);
 
                 // intersection area
-                const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
+                const float width = std::max<float>(0.0F, x1 - x0 + coordinates_offset);
+                const float height = std::max<float>(0.0F, y1 - y0 + coordinates_offset);
                 const float area = width * height;
 
                 // area of A, B
@@ -286,10 +286,10 @@ void fill_output_blobs(const float* proposals,
 
     if (num_rois < post_nms_topn) {
         for (int i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
-            rois[i] = 0.f;
+            rois[i] = 0.F;
         }
         for (int i = num_rois; i < post_nms_topn; i++) {
-            scores[i] = 0.f;
+            scores[i] = 0.F;
         }
     }
 }
@@ -328,7 +328,7 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
     pre_nms_topn_ = proposalAttrs.pre_nms_count;
     post_nms_topn_ = proposalAttrs.post_nms_count;
 
-    coordinates_offset = 0.0f;
+    coordinates_offset = 0.0F;
 
     roi_indices_.resize(post_nms_topn_);
 }
@@ -431,7 +431,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
             refine_anchors(p_deltas_item,
                            p_scores_item,
                            p_anchors_item,
-                           reinterpret_cast<float*>(&proposals_[0]),
+                           reinterpret_cast<float*>(proposals_.data()),
                            anchors_num,
                            bottom_H,
                            bottom_W,
@@ -440,7 +440,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                            min_box_H,
                            min_box_W,
                            static_cast<const float>(std::log(1000. / 16.)),
-                           1.0f);
+                           1.0F);
             std::partial_sort(proposals_.begin(),
                               proposals_.begin() + pre_nms_topn,
                               proposals_.end(),
@@ -448,18 +448,18 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn);
             nms_cpu(pre_nms_topn,
-                    &is_dead[0],
-                    &unpacked_boxes[0],
-                    &roi_indices_[0],
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    roi_indices_.data(),
                     &num_rois,
                     0,
                     nms_thresh_,
                     post_nms_topn_,
                     coordinates_offset);
-            fill_output_blobs(&unpacked_boxes[0],
-                              &roi_indices_[0],
+            fill_output_blobs(unpacked_boxes.data(),
+                              roi_indices_.data(),
                               p_roi_item,
                               p_roi_score_item,
                               pre_nms_topn,

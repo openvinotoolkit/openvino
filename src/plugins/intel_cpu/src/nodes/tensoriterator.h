@@ -87,7 +87,7 @@ private:
     void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    bool check_buffer();
+    bool check_buffer() const;
     MemoryPtr create_buffer(const dnnl::engine& eng);
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
