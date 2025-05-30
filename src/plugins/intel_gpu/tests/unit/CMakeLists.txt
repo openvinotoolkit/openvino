@@ -59,6 +59,7 @@ add_executable(${TARGET_NAME} ${SOURCES_ALL})
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

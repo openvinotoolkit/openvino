@@ -12,6 +12,7 @@
 #include "activation_inst.h"
 #include "batch_to_space_inst.h"
 #include "crop_inst.h"
+#include "reorder_inst.h"
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
 #include "lrn_inst.h"
