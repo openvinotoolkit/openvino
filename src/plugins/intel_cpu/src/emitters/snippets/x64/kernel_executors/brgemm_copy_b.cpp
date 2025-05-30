@@ -29,7 +29,6 @@
 #include "dnnl_extension_utils.h"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include "emitters/snippets/repacked_input.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -177,11 +176,10 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : RepackedInputKernel(), jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : RepackedInputKernel(),
-      jit_generator(jit_name()),
+    : jit_generator(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       wei_data_size(dnnl_data_type_size(conf.get_wei_dt())),
@@ -211,7 +209,7 @@ void BrgemmCopyBKernel::operator()(const void* args) const {
 
 void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
-    const BrgemmCopyBKernelConfig& conf) const {
+    const BrgemmCopyBKernelConfig& conf) {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = conf.get_src_dt();
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
@@ -410,7 +408,10 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         }
     };
 
-    size_t K_dim, K_blk, N_dim, N_blk;
+    size_t K_dim;
+    size_t K_blk;
+    size_t N_dim;
+    size_t N_blk;
     //  Dimension K
     init(K_dim, K_blk, 1);
     //  Dimension N

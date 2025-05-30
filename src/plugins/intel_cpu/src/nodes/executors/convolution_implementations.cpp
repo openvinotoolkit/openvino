@@ -103,11 +103,7 @@ bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
     const auto desc = DnnlBlockedMemoryDesc(config.descs.at(ARG_DST)->getShape(),
                                             dnnl::memory::data_type::f32,
                                             filter.output.front());
-    if (!desc.hasLayoutType(layoutConfig.back())) {
-        return false;
-    }
-
-    return true;
+    return desc.hasLayoutType(layoutConfig.back());
 }
 
 // to keep OV_CPU_INSTANCE macros aligned

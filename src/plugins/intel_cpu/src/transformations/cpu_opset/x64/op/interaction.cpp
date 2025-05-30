@@ -59,7 +59,6 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     output_shape[0] = batch;
     output_shape[1] = output_feature_size;
     set_output_type(0, output_type, output_shape);
-    return;
 }
 
 bool ov::intel_cpu::InteractionNode::visit_attributes(ov::AttributeVisitor& visitor) {
