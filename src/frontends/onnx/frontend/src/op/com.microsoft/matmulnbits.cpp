@@ -176,9 +176,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                                                        zero_points_const->get_data_ptr());
             } else if (zero_points.get_element_type() == ov::element::u8) {
                 // for alignment, n_blocks_per_col might not aligned to num_per_byte
-                int64_t num_per_byte = 8 / bits;
-                int64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
-                int64_t num_elements_aligned = num_byte * num_per_byte;
+                uint64_t num_per_byte = 8 / bits;
+                uint64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
+                uint64_t num_elements_aligned = num_byte * num_per_byte;
                 ov::Shape casted_zp_shape =
                     ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
                 auto casted_zp_org =
