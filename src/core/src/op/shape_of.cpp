@@ -75,7 +75,6 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
             const auto get_val = is_upper ? &Interval::get_max_val : &Interval::get_min_val;
             auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
 
-            // auto dynamic_mask = std::vector<char>(in_shape_rank);
             const TensorVector inputs{
                 {element::boolean, Shape{in_shape_rank}},  // mask
                 {out_et, Shape{}, &limit_val},             // limit
