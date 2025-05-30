@@ -4,8 +4,23 @@
 
 #include "init_repacked_constant_inputs.hpp"
 
+#include <algorithm>
+#include <memory>
+
+#include "cpu_shape.h"
 #include "external_repacking_adjuster.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 namespace ov::intel_cpu::pass {
@@ -72,7 +87,8 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         const auto& order = BrgemmExternalRepackingAdjuster::get_blk_order(planar_shape.size());
         const auto& desc = std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), blk_shape, order);
 
-        ov::snippets::VectorDims src_offsets, dst_offsets;
+        ov::snippets::VectorDims src_offsets;
+        ov::snippets::VectorDims dst_offsets;
         ov::snippets::utils::init_strides(shape, shape.size(), prc.size(), 0, src_offsets);
         ov::snippets::utils::init_strides(blk_shape, blk_shape.size(), prc.size(), 0, dst_offsets);
         // Last three dimensions of blocked shapes are processed in the kernel. To align with src, we removed last

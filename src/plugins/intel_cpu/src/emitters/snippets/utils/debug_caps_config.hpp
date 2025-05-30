@@ -6,7 +6,6 @@
 #    pragma once
 
 #    include <cstdlib>
-#    include <string>
 
 namespace ov::intel_cpu {
 
