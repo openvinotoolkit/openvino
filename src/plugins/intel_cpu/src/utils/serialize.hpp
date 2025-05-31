@@ -37,7 +37,7 @@ public:
     ModelDeserializer(std::istream& model,
                       std::shared_ptr<ov::AlignedBuffer> model_buffer,
                       ModelBuilder fn,
-                      const CacheDecrypt& encrypt_fn,
+                      const CacheDecrypt& decrypt_fn,
                       bool decript_from_string);
 
     virtual ~ModelDeserializer() = default;

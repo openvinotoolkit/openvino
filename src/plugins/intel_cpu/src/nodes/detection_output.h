@@ -103,18 +103,18 @@ private:
                                                int* indicesBufData,
                                                int* detectionsData);
 
-    inline void decodeBBoxes(const float* prior_data,
-                             const float* loc_data,
-                             const float* variance_data,
-                             float* decoded_bboxes,
-                             float* decoded_bbox_sizes,
-                             const int* num_priors_actual,
+    inline void decodeBBoxes(const float* priorData,
+                             const float* locData,
+                             const float* varianceData,
+                             float* decodedBboxes,
+                             float* decodedBboxSizes,
+                             const int* numPriorsActual,
                              int n,
                              const int& offs,
-                             const int& pr_size,
+                             const int& priorSize,
                              bool decodeType = true,
-                             const int* conf_info_h = nullptr,
-                             const int* conf_info_v = nullptr) const;  // decodeType is false after ARM
+                             const int* confInfoH = nullptr,
+                             const int* confInfoV = nullptr) const;  // decodeType is false after ARM
 
     inline void NMSCF(const int* indicesIn,
                       int& detections,

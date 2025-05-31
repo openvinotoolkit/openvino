@@ -698,7 +698,8 @@ void Convolution::prepareParams() {
 
 void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) {
     if (!withSum) {  // fast path
-        return Node::redefineOutputMemory(newOutputShapes);
+        Node::redefineOutputMemory(newOutputShapes);
+        return;
     }
 
     const size_t sumPortNum = getParentEdges().size() - 1;
