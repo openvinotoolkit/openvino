@@ -34,7 +34,6 @@
 #include "utils/general_utils.h"
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-#    include <csignal>
 
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 std::mutex err_print_lock;
@@ -62,10 +61,11 @@ inline void parallelNd_repacking(const BrgemmCopyBKernel* ker,
                                  const VectorDims& out_str,
                                  const uint8_t* src,
                                  uint8_t* dst) {
-    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1lu, std::multiplies<>());
+    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1LU, std::multiplies<>());
     parallel_nt_static(0, [&](const int ithr, const int nthr) {
         BrgemmCopyBKernel::call_args args;
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(batch, nthr, ithr, start, end);
         for (size_t iwork = start; iwork < end; ++iwork) {
             const uint8_t* src_u8 = src;
@@ -163,7 +163,7 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
     VectorDims dom;
     const auto& shape = dst_mem_ptr->getShape().getDims();
     OPENVINO_ASSERT(shape.size() <= tensor_rank, "Unsupported shape rank of repacking data");
-    init_parallel_domain(shape, tensor_rank, 2lu, dom);
+    init_parallel_domain(shape, tensor_rank, 2LU, dom);
 
     const auto& in_strides = repacked_input.in_offsets();
     const auto& out_strides = repacked_input.out_offsets();
@@ -212,11 +212,11 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
-void SubgraphExecutor::segfault_detector() {
+void SubgraphExecutor::segfault_detector() const {
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
+            if (auto* segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
                 std::cout << segfault_detector_emitter->info() << '\n';
             }
             auto tid = parallel_get_thread_num();

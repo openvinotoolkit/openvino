@@ -75,7 +75,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Note: Don't use seekg with mmaped stream. This may affect the performance of some models.
     // Get file size before seek content.
     // Blob from cache may have other header, so need to skip this.
-    auto buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
+    auto* buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
     const auto file_size = mmemory->size();
     const size_t hdr_pos = m_istream.tellg();
 
@@ -86,14 +86,14 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0U);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
 
     // Read model input/output precisions.
     pugi::xml_document xml_in_out_doc;
-    if (hdr.custom_data_size > 0lu) {
+    if (hdr.custom_data_size > 0LU) {
         auto res = xml_in_out_doc.load_buffer(buffer_base + hdr.custom_data_offset,
                                               hdr.custom_data_size,
                                               pugi::parse_default,
@@ -120,13 +120,13 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
             *xml_buff = m_cache_decrypt.m_decrypt_str(*xml_buff);
         } else {
             xml_buff->reserve(hdr.model_size + 1);
-            m_cache_decrypt.m_decrypt_char(&((*xml_buff)[0]), buffer_base + hdr.model_offset, hdr.model_size);
+            m_cache_decrypt.m_decrypt_char((*xml_buff).data(), buffer_base + hdr.model_offset, hdr.model_size);
         }
     } else {
         xml_buff->assign(buffer_base + hdr.model_offset, hdr.model_size);
     }
     std::shared_ptr<ov::AlignedBuffer> model_buf =
-        std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(&((*xml_buff)[0]), hdr.model_size, xml_buff);
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>((*xml_buff).data(), hdr.model_size, xml_buff);
 
     model = m_model_builder(model_buf, weights_buf);
 
@@ -137,9 +137,9 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 
 void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     const size_t hdr_pos = m_istream.tellg();
-    m_istream.seekg(0, m_istream.end);
+    m_istream.seekg(0, std::istream::end);
     const size_t file_size = m_istream.tellg();
-    m_istream.seekg(hdr_pos, m_istream.beg);
+    m_istream.seekg(hdr_pos, std::istream::beg);
 
     pass::StreamSerialize::DataHeader hdr = {};
     m_istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
@@ -148,7 +148,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0U);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }

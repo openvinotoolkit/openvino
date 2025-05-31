@@ -102,36 +102,36 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     if (std::is_same_v<BaseOp, ov::op::v1::Power>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 value,
-                                                                1.0f,
-                                                                0.0f,
+                                                                1.0F,
+                                                                0.0F,
                                                                 node->output(0).get_element_type());
     }
     if (std::is_same_v<BaseOp, ov::op::v1::Add>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
-                                                                1.0f,
-                                                                1.0f,
+                                                                1.0F,
+                                                                1.0F,
                                                                 value,
                                                                 node->output(0).get_element_type());
     }
     if (std::is_same_v<BaseOp, ov::op::v1::Subtract>) {
-        float scale = 1.0f;
+        float scale = 1.0F;
         float shift = value;
         if (constPort == 0) {
-            scale *= -1.0f;
+            scale *= -1.0F;
         } else {
-            shift *= -1.0f;
+            shift *= -1.0F;
         }
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
-                                                                1.0f,
+                                                                1.0F,
                                                                 scale,
                                                                 shift,
                                                                 node->output(0).get_element_type());
     }
     if (std::is_same_v<BaseOp, ov::op::v1::Multiply>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
-                                                                1.f,
+                                                                1.F,
                                                                 value,
-                                                                0.0f,
+                                                                0.0F,
                                                                 node->output(0).get_element_type());
     }
     OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");

@@ -193,19 +193,19 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
-        auto& childEdges = inputNodePtr->getChildEdges();
+        const auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
         bool canBeInPlace = true;
-        for (auto& childEdge : childEdges) {
+        for (const auto& childEdge : childEdges) {
             auto ce = childEdge.lock();
             if (!ce) {
                 OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
             }
 
-            auto& child = ce->getChild();
+            const auto& child = ce->getChild();
 
             if (child->isConstant()) {
                 canBeInPlace = false;
@@ -230,7 +230,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
             }
         }
         if (canBeInPlace) {
-            for (auto& edge : childEdges) {
+            for (const auto& edge : childEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
@@ -245,7 +245,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -265,8 +265,8 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 break;
             }
 
-            auto& parentEdges = parent->getParentEdges();
-            for (auto& edge : parentEdges) {
+            const auto& parentEdges = parent->getParentEdges();
+            for (const auto& edge : parentEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
@@ -609,7 +609,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
-    return;
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {

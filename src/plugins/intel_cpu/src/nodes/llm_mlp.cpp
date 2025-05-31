@@ -415,7 +415,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             });
 
             m_threads_num = parallel_get_max_threads();
-            for (size_t ithr = 0lu; ithr < m_threads_num; ithr++) {
+            for (size_t ithr = 0LU; ithr < m_threads_num; ithr++) {
                 auto C1_size = gate_up.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto C2_size = down.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto max_C_size = std::max(C1_size, C2_size);
@@ -511,7 +511,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     }
 
 private:
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 };
 #else
 template <typename T>
@@ -636,7 +636,7 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
 
-            auto& config = node_mlp->get_config();
+            const auto& config = node_mlp->get_config();
             if (config.gate_up_quantized &&
                 (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.hidden_size))) {
                 errorMessage = "LLMMLPNode gate-up-proj only support per-token dynamic quantization";

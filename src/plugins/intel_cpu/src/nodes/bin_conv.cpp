@@ -485,7 +485,10 @@ private:
         int nbits = 8;
         const int inp_mult = dilate_h * div_up(jcp_.ic, nbits);
 
-        Label t_overflow_label, no_t_overflow_label, b_overflow_label, no_b_overflow_label;
+        Label t_overflow_label;
+        Label no_t_overflow_label;
+        Label b_overflow_label;
+        Label no_b_overflow_label;
 
         mov(aux_reg_input, reg_input);
         mov(aux_reg_kernel, reg_kernel_base);
@@ -948,7 +951,7 @@ private:
         }
         // offset = 8
         for (size_t d = 0; d < simd_w; ++d) {
-            uint32_t val = jcp_.pad_value == 1.0f ? 0xffffffff : 0x00000000;
+            uint32_t val = jcp_.pad_value == 1.0F ? 0xffffffff : 0x00000000;
             dd(val);
         }
     }
@@ -1104,7 +1107,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 }
 
 void BinaryConvolution::createPrimitive() {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1141,7 +1144,7 @@ void BinaryConvolution::createPrimitive() {
     jcp.dilate_w = dilation[1];
 
     jcp.pad_value = pad_value;
-    jcp.exclude_pad = jcp.pad_value == 0.0f;
+    jcp.exclude_pad = jcp.pad_value == 0.0F;
 
     jcp.with_dw_conv = false;
     jcp.with_binarization = withBinarization;
@@ -1262,7 +1265,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
                                          const std::vector<size_t>& d_str) {
-    auto dst_f32 = reinterpret_cast<float*>(dst);
+    auto* dst_f32 = reinterpret_cast<float*>(dst);
 
     const int MB = jcp.mb;
 
@@ -1317,8 +1320,8 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                                          uint8_t* dst,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
-                                         const std::vector<size_t>& d_str) {
-    auto dst_fp = reinterpret_cast<float*>(dst);
+                                         const std::vector<size_t>& d_str) const {
+    auto* dst_fp = reinterpret_cast<float*>(dst);
 
     const bool with_groups = jcp.ngroups > 1;
 
@@ -1371,7 +1374,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                         if (pad_value == 0) {
                             continue;
                         }
-                        s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+                        s = pad_value == 1.0F ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
 
                     } else {
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
@@ -1390,7 +1393,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
         ker(a, g, mb, oc, oh, ow);
 
         float base_value;
-        if (pad_value == 0.0f) {
+        if (pad_value == 0.0F) {
             const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
             const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
             const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
@@ -1415,9 +1418,9 @@ void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto weights = weightsMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    const auto* weights = weightsMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
@@ -1437,7 +1440,7 @@ void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }

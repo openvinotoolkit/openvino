@@ -472,7 +472,8 @@ void RoPE::initSupportedPrimitiveDescriptors() {
 }
 
 void RoPE::execute(const dnnl::stream& strm) {
-    std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
+    std::vector<MemoryPtr> inputs(getParentEdges().size());
+    std::vector<MemoryPtr> outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }

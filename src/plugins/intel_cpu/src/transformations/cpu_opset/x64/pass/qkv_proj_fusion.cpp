@@ -77,13 +77,13 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         OutputVector outputs;
         size_t hidden_size = 0;
         std::vector<int> proj_size;
-        for (auto& child : children) {
-            auto mm = ov::as_type<op::v0::MatMul>(child.get_node());
+        for (const auto& child : children) {
+            auto* mm = ov::as_type<op::v0::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;
             }
-            if (mm->get_transpose_a() != false || mm->get_transpose_b() != true) {
+            if (mm->get_transpose_a() || !mm->get_transpose_b()) {
                 return false;
             }
 

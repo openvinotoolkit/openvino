@@ -114,7 +114,7 @@ struct SubgraphKey {
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
 };
 
 struct SubgraphCodeGeneratorKey {
@@ -158,7 +158,7 @@ struct SubgraphShapeInferResultKey {
         return body_hash == rhs.body_hash && in_shapes == rhs.in_shapes;
     }
 
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
     uint64_t body_hash = 0;
 };
 
@@ -229,7 +229,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
     const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1u, 2u, 3u, 4u, 5u) && dimRanksAreEqual &&
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual &&
                                            !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
@@ -238,7 +238,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     bool isBlockedApplicable = false;
 #else
     bool isBlockedApplicable =
-        dnnl::impl::utils::one_of(ndims, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
+        dnnl::impl::utils::one_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1) {
@@ -707,7 +707,7 @@ void Subgraph::optimizeIR() {
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
     control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
-    subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
+    subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
@@ -819,7 +819,7 @@ bool Subgraph::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -827,7 +827,7 @@ bool Subgraph::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;

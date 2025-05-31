@@ -98,7 +98,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(const dnnl::stream&) {
+void ROIAlignRotated::execute(const dnnl::stream& /*strm*/) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 
