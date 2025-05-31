@@ -90,7 +90,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {

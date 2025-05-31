@@ -2462,6 +2462,7 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
                                              {},
                                              {convertNode->getOriginalOutputPrecisionAtPort(0)});
 #else
+    (void)this;
     return false;
 #endif
 }
@@ -2478,10 +2479,12 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        for (const auto& originalInputPrecision : node->getOriginalInputPrecisions()) {
-            if (originalInputPrecision != ov::element::i32) {
-                return false;
-            }
+        if (!std::all_of(node->getOriginalInputPrecisions().begin(),
+                         node->getOriginalInputPrecisions().end(),
+                         [](const ov::element::Type& originalInputPrecision) {
+                             return originalInputPrecision == ov::element::i32;
+                         })) {
+            return false;
         }
 
         return true;

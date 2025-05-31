@@ -196,6 +196,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
+        // NOLINTNEXTLINE(readability-use-anyofallof)
         for (const auto& e : node.getChildEdges()) {
             auto edge = e.lock();
             if (!edge) {

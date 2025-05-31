@@ -234,6 +234,7 @@ void Node::remove() {
 }
 
 bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
+    // NOLINTNEXTLINE(readability-use-anyofallof)
     for (const auto& edge : edges) {
         if (edge.lock()) {
             return false;
@@ -371,7 +372,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                                                     bool ignoreConstInputs) {
     // Filter out dynamic shape.
     if (isDynamic) {
-        return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        return;
     }
 
     auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
@@ -835,9 +837,10 @@ void Node::updateDynamicParams() {
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
-        return executeDynamic(strm, numaId);
+        executeDynamic(strm, numaId);
+    } else {
+        executeStatic(strm, numaId);
     }
-    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {
@@ -1218,7 +1221,7 @@ void Node::toNumaNode(int numaNodeID) {
         return;
     }
 
-    return toNumaNodeImpl(numaNodeID);
+    toNumaNodeImpl(numaNodeID);
 }
 
 void Node::toNumaNodeImpl(int numaNodeID) {
@@ -1521,13 +1524,9 @@ void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
 }
 
 bool Node::isFusedWith(Type fusedNodeType) const {
-    for (const auto& fusedNode : fusedWith) {
-        if (fusedNode->type == fusedNodeType) {
-            return true;
-        }
-    }
-
-    return false;
+    return std::any_of(fusedWith.begin(), fusedWith.end(), [fusedNodeType](const NodePtr& fusedNode) {
+        return fusedNode->type == fusedNodeType;
+    });
 }
 
 dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) {
@@ -2155,6 +2154,7 @@ void Node::resolveInPlaceDirection() {
             } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
                 // search if siblings already have downstream direction
                 auto downstreamPeers = [&] {
+                    // NOLINTNEXTLINE(readability-use-anyofallof)
                     for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
                         auto* peerNode = peerEdge->getChild().get();
                         if (peerNode == this) {
@@ -2234,8 +2234,8 @@ void Node::resolveInPlaceDirection() {
                                 } else {
                                     auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
                                     if (InplaceDirectionType::CYCLIC == result) {
-                                        return searchReferencingOutput(pChild,
-                                                                       pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        return;
                                     }
                                 }
                             }
