@@ -901,16 +901,12 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 }
 
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
-    for (auto map_rule : inputPortMap) {
+    return std::any_of(inputPortMap.begin(), inputPortMap.end(), [&](const PortMap& map_rule) {
         auto original_dims = sliced_input_dims(getSrcMemoryAtPort(map_rule.from), map_rule.axis, map_rule.stride);
         const auto& to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->getShape();
-        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
-            return true;
-        }
-    }
-
-    return false;
+        return body_inshape.isDynamic() || body_inshape.getDims() != original_dims;
+    });
 }
 
 // redefine memory for input nodes of subgraph and reset first_mappers as the primitives are invalid,

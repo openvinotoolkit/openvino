@@ -1650,11 +1650,11 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             }
 
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
-                for (auto& fusedNode : binConv->fusedWith) {
-                    const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                    if (eltwise && eltwise->isSpecialConvolutionAddFusing()) {
-                        return false;
-                    }
+                if (!std::all_of(binConv->fusedWith.begin(), binConv->fusedWith.end(), [](const NodePtr& fusedNode) {
+                        const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
+                        return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                    })) {
+                    return false;
                 }
                 return true;
             }
@@ -1672,12 +1672,10 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         }
 
         auto checkFusedWithSum = [](Convolution* conv) -> bool {
-            for (const auto& node : conv->getFusedWith()) {
+            return std::any_of(conv->getFusedWith().begin(), conv->getFusedWith().end(), [](const NodePtr& node) {
                 const auto eltwise = std::dynamic_pointer_cast<Eltwise>(node);
-                if (eltwise && eltwise->isSpecialConvolutionAddFusing()) {
-                    return true;
-                }
-            }
+                return eltwise && eltwise->isSpecialConvolutionAddFusing();
+            });
             return false;
         };
 
@@ -3186,10 +3184,10 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
         }
 
         auto&& childEdges = node->getChildEdgesAtPort(0);
-        for (auto&& edge : childEdges) {
-            if (Type::MemoryOutput != edge->getChild()->getType()) {
-                return false;
-            }
+        if (!std::all_of(childEdges.begin(), childEdges.end(), [](const auto& edge) {
+                return Type::MemoryOutput == edge->getChild()->getType();
+            })) {
+            return false;
         }
 
         return true;

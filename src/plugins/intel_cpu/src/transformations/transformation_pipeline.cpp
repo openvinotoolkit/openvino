@@ -268,13 +268,10 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
             return false;
         }
-        for (const auto& consumer : consumers) {
+        return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (!all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static())) {
-                return false;
-            }
-        }
-        return true;
+            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+        });
     };
 
     if (all_has_type(consumers, ov::op::v1::Reshape::get_type_info_static())) {

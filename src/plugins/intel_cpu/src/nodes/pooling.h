@@ -56,7 +56,7 @@ private:
 
     std::shared_ptr<PoolingExecutor> execPtr = nullptr;
 
-    void initEffectiveAttributes(const Shape& inDims, const Shape& outDims);
+    void initEffectiveAttributes(const Shape& inShape, const Shape& outShape);
     dnnl::algorithm getPoolingAlgorithm() const;
     dnnl::pooling_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candidate,
                                                                    const dnnl::memory::desc& out_candidate,

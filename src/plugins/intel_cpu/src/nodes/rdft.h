@@ -82,7 +82,7 @@ private:
                    const VectorDims& inputStrides,
                    const VectorDims& outputShape,
                    const VectorDims& outputStrides,
-                   const std::vector<size_t>& iteration_range);
+                   const std::vector<size_t>& iterationRange);
     void rdftNd(float* inputPtr,
                 float* outputPtr,
                 const std::vector<std::vector<float>>& twiddles,
@@ -103,7 +103,7 @@ private:
                  const VectorDims& outputStrides);
     virtual std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
     static std::vector<float> generateTwiddlesFFT(size_t N);
-    std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize, enum dft_type type, bool useFFT);
+    std::vector<float> generateTwiddlesCommon(size_t signalSize, size_t outputSize, enum dft_type type, bool useFFT);
 };
 
 class RDFT : public Node {

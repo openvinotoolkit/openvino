@@ -152,12 +152,18 @@ void GatherElements::directExecution() {
 
 void GatherElements::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (dataTypeSize_) {
-    case sizeof(element_type_traits<ov::element::i32>::value_type):
-        return directExecution<element_type_traits<ov::element::i32>::value_type>();
-    case sizeof(element_type_traits<ov::element::i16>::value_type):
-        return directExecution<element_type_traits<ov::element::i16>::value_type>();
-    case sizeof(element_type_traits<ov::element::i8>::value_type):
-        return directExecution<element_type_traits<ov::element::i8>::value_type>();
+    case sizeof(element_type_traits<ov::element::i32>::value_type): {
+        directExecution<element_type_traits<ov::element::i32>::value_type>();
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i16>::value_type): {
+        directExecution<element_type_traits<ov::element::i16>::value_type>();
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i8>::value_type): {
+        directExecution<element_type_traits<ov::element::i8>::value_type>();
+        break;
+    }
     default:
         THROW_CPU_NODE_ERR("Unsupported data type size");
     }

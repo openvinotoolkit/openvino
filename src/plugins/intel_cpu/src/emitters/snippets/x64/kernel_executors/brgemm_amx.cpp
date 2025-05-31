@@ -247,7 +247,7 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
 void BrgemmAMXKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                             BrgemmAMXKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
 }
 
 void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* config,

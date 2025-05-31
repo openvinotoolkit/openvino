@@ -775,7 +775,8 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
     if (m_intermediateReorders.empty()) {  // fast path
-        return m_prim.execute(m_stream, primArgs);
+        m_prim.execute(m_stream, primArgs);
+        return;
     }
 
     // keep original memory to restore it after the execution
