@@ -48,7 +48,6 @@
 # -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
-# -readability-avoid-nested-conditional-operator
 # -readability-avoid-return-with-void-value
 # -readability-const-return-type
 # -readability-convert-member-functions-to-static
@@ -115,7 +114,6 @@ Checks: >
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
-  -readability-avoid-nested-conditional-operator,
   -readability-avoid-return-with-void-value,
   -readability-const-return-type,
   -readability-convert-member-functions-to-static,
