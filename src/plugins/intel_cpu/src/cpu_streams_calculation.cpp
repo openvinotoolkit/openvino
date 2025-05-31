@@ -362,9 +362,14 @@ std::vector<std::vector<int>> get_streams_info_table(
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                auto model_threads = n_threads == 1                     ? 1
-                                     : model_prefer_threads > n_threads ? n_threads / 2
-                                                                        : model_prefer_threads;
+                int model_threads;
+                if (n_threads == 1) {
+                    model_threads = 1;
+                } else if (model_prefer_threads > n_threads) {
+                    model_threads = n_threads / 2;
+                } else {
+                    model_threads = model_prefer_threads;
+                }
                 n_streams = ((n_threads + model_threads - 1) / model_threads);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
@@ -688,12 +693,16 @@ int get_model_prefer_threads(const int num_streams,
             // By default the latency case uses (faster) Big cores only, depending on the compute ratio
             // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
             // cores only cases except LLM.
-            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
-                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
-                                      : proc_type_table[0][MAIN_CORE_PROC])
-                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            bool use_all_cores =
+                proc_type_table[0][MAIN_CORE_PROC] <=
+                (proc_type_table[0][EFFICIENT_CORE_PROC] / (int8_intensive ? int8_threshold : fp32_threshold));
+            bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
+
+            if (use_all_cores || use_big_and_little) {
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            } else {
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC];
+            }
 #endif
         }
     } else {  // throughput

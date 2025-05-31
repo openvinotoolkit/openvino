@@ -384,9 +384,14 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
-                       : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)      ? 8
-                                                                            : 4;
+    int channelBlock;
+    if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        channelBlock = 16;
+    } else if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+        channelBlock = 8;
+    } else {
+        channelBlock = 4;
+    }
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
     }
@@ -649,9 +654,14 @@ void Deconvolution::getSupportedDescriptors() {
 
     if (isInt8) {
         const auto& rank = getInputShapeAtPort(0).getRank();
-        auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
-                      : rank == 4 ? dnnl::memory::format_tag::nhwc
-                                  : dnnl::memory::format_tag::nwc;
+        dnnl::memory::format_tag format;
+        if (rank == 5) {
+            format = dnnl::memory::format_tag::ndhwc;
+        } else if (rank == 4) {
+            format = dnnl::memory::format_tag::nhwc;
+        } else {
+            format = dnnl::memory::format_tag::nwc;
+        }
         MemoryDescPtr in_candidate =
             std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate =

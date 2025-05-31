@@ -838,9 +838,14 @@ private:
 
         int nbits = 8;
         const int inp_mult = div_up(jcp_.ic, nbits);
-        const int out_mult = jcp_.with_dw_conv        ? jcp_.oc_block
-                             : jcp_.with_binarization ? div_up(jcp_.oc, nbits)
-                                                      : jcp_.oc;
+        int out_mult;
+        if (jcp_.with_dw_conv) {
+            out_mult = jcp_.oc_block;
+        } else if (jcp_.with_binarization) {
+            out_mult = div_up(jcp_.oc, nbits);
+        } else {
+            out_mult = jcp_.oc;
+        }
 
         int l_pad = jcp_.l_pad;
         int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1));
@@ -1168,10 +1173,13 @@ void BinaryConvolution::createPrimitive() {
     jcp.oc_block = simd_w;
     jcp.nb_oc = div_up(jcp.oc, jcp.oc_block);
 
-    jcp.nb_oc_blocking = nstl::min(implType == impl_desc_type::jit_sse42  ? 2
-                                   : implType == impl_desc_type::jit_avx2 ? 4
-                                                                          : 6,
-                                   jcp.nb_oc);
+    if (implType == impl_desc_type::jit_sse42) {
+        jcp.nb_oc_blocking = nstl::min(2, jcp.nb_oc);
+    } else if (implType == impl_desc_type::jit_avx2) {
+        jcp.nb_oc_blocking = nstl::min(4, jcp.nb_oc);
+    } else {
+        jcp.nb_oc_blocking = nstl::min(6, jcp.nb_oc);
+    }
 
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
