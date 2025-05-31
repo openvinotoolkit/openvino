@@ -32,9 +32,13 @@ size_t jit_emitter::get_max_vecs_count() const {
 }
 
 size_t jit_emitter::get_vec_length() const {
-    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 64
-           : one_of(host_isa_, cpu::x64::avx2)                             ? 32
-                                                                           : 16;
+    if (host_isa_ == cpu::x64::avx512_core) {
+        return 64;
+    }
+    if (host_isa_ == cpu::x64::avx2) {
+        return 32;
+    }
+    return 16;
 }
 
 void jit_emitter::push_vec(const Xbyak::Address& addr, size_t vec_idx) const {
