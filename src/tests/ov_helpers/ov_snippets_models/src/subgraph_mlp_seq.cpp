@@ -5,12 +5,12 @@
 #include "fake_quantize_helper.hpp"
 #include "subgraph_mlp_seq.hpp"
 
-#include "snippets/op/subgraph.hpp"
-
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/opsets/opset15.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -50,22 +50,20 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
-    float const_value = 0.1122f;
-
+    size_t seed = 1;
     auto mlp_layer = [&](size_t m, size_t n) {
-        auto b_shape = ov::Shape{m, n};
-        auto b_row = ov::Shape{m};
-        std::shared_ptr<Node> B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, b_shape, const_value);
-        auto fp_const = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, const_value);
-        B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);
-        B = std::make_shared<ov::op::v1::Multiply>(B, fp_const);
-        current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
-        current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
-        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_row, const_value);
-        current = std::make_shared<ov::op::v1::Add>(current, constant);
-        current = std::make_shared<ov::op::v0::Relu>(current);
+        ov::test::utils::InputGenerateData int_data(-128, 256, 1, seed);
+        ov::test::utils::InputGenerateData float_data(-128, 256, 1000, seed++);
 
-        const_value += 0.1122f;
+        auto weights = ov::test::utils::make_constant(ov::element::i8, ov::Shape{m, n}, int_data);
+        auto dq_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto dq_mul_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{m, 1}, float_data);
+        auto dq_mul = std::make_shared<ov::op::v1::Multiply>(dq_convert, dq_mul_const);
+        current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData);
+        current = std::make_shared<ov::op::v0::MatMul>(current, dq_mul, false, true);
+        auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{m}, float_data);
+        current = std::make_shared<ov::op::v1::Add>(current, bias_const);
+        current = std::make_shared<ov::op::v0::Relu>(current);
     };
 
     mlp_layer(hidden_matmul_size, static_cast<unsigned long>(input_shapes[0][1].get_length()));
