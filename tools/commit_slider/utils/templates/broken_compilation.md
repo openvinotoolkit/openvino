@@ -8,11 +8,17 @@
 ---
 
 ## How to run
-
-```bash
+Example 1 (CLI)
+```
 python3 commit_slider.py -t broken_compilation -c <start_commit>..<end_commit> -gitPath <pathToGitRepository> -buildPath <pathToBuildDirectory>
 ```
-
+Example 2 (Configuration, default paths)
+```
+{ "template" : {
+    "name" : "broken_compilation",
+    "c" : "<start_commit>..<end_commit>"
+}
+```
 ### Independent variables:
 ```
 - verbosity: -v {true|false}
