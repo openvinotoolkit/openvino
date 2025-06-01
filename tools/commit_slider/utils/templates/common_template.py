@@ -2,15 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC
-import utils.helpers as util
 from utils.subscription import SubscriptionManager
-from utils.break_validator import validateBMOutput
 from utils.break_validator import BmValidationError
 from utils.helpers import getClassByMethod
-import json
-import os
 from enum import Enum
-import csv
 
 class Template(ABC):
     def getClassName():
@@ -23,6 +18,11 @@ class Template(ABC):
             return Template
         else:
             return getClassByMethod('getClassName', cfg['template'], Template)
+    
+    def passParameters(parList, srcCfg, dstCfg):
+        for par in parList:
+            if par in srcCfg:
+                dstCfg[par] = srcCfg[par]
 
     def printResult(commitPath, outLogger, getCommitInfo):
         if not commitPath.metaInfo["preValidationPassed"]:
@@ -45,8 +45,6 @@ class Template(ABC):
                     print(commitInfo)
                     outLogger.info(commitInfo)
 
-    def prepareOutput():
-        pass
     @staticmethod
     def getTemplate(tmplName):
         # # WA: automatic import cannot find all modules

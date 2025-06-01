@@ -606,7 +606,7 @@
         "repoName": "cfgCrossCheckBadApplication",
         "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
         "testCfg": {
-            "appCmd" : "{actualAppCmd}",
+            "appCmd" : "{actualPar}",
             "appPath": "{appPath}",
             "gitPath" : "{gitPath}",
             "buildPath" : "{buildPath}",
@@ -616,8 +616,8 @@
                     "explicitList" : [ "{start}", "{end}" ]
                 },
                 "mode" : "crossCheck",
-                "firstAppCmd" : "{appCmd}",
-                "secondAppCmd" : "{appCmd}",
+                "par_1" : "{appCmd}",
+                "par_2" : "{appCmd}",
                 "traversal" : "bruteForce"
             }
         }

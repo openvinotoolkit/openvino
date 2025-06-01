@@ -7,7 +7,6 @@ class BenchmarkCrossCheckTemplate(Template):
     def printResult(commitPath, outLogger, getCommitInfo):
         print("\n*****************<Commit slider output>*******************\nTable of throughputs:" + '\n\t\tm1\tm2')
         for pathcommit in commitPath.getList():
-            from utils.common_mode import Mode
             commitInfo = getCommitInfo(pathcommit)
             cHash = pathcommit.cHash
             cHash = cHash[:7]
@@ -43,24 +42,20 @@ class BenchmarkCrossCheckTemplate(Template):
             start, end = interval[0], interval[1]
             curCfg['commitList'] = {'explicitList': [ start, end ] }
             tmpJSON['runConfig'] = curCfg
-        # todo: move common method to helpers
-        if 'gitPath' in customCfg:
-            tmpJSON['gitPath'] = customCfg['gitPath']
-        if 'buildPath' in customCfg:
-            tmpJSON['buildPath'] = customCfg['buildPath']
-        if 'appPath' in customCfg:
-            tmpJSON['appPath'] = customCfg['buildPath']
+        Template.passParameters([
+            'gitPath', 'buildPath', 'appPath'
+            ], customCfg, tmpJSON)
         if 'appCmd' in customCfg:
             if isinstance(customCfg['appCmd'], list):
                 curCfg = tmpJSON['runConfig']
-                curCfg['firstAppCmd'] = customCfg['appCmd'][0]
-                curCfg['secondAppCmd'] = customCfg['appCmd'][1]
+                curCfg['par_1'] = customCfg['appCmd'][0]
+                curCfg['par_2'] = customCfg['appCmd'][1]
                 tmpJSON['runConfig'] = curCfg
             else:
                 curCfg = tmpJSON['runConfig']
-                curCfg['firstAppCmd'] = customCfg['appCmd'].format(model=customCfg['modelList'][0])
-                curCfg['secondAppCmd'] = customCfg['appCmd'].format(model=customCfg['modelList'][1])
+                curCfg['par_1'] = customCfg['appCmd'].format(model=customCfg['modelList'][0])
+                curCfg['par_2'] = customCfg['appCmd'].format(model=customCfg['modelList'][1])
                 tmpJSON['runConfig'] = curCfg
-            tmpJSON['appCmd'] = "{actualAppCmd}"
+            tmpJSON['appCmd'] = "{actualPar}"
 
         return tmpJSON

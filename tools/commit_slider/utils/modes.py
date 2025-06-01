@@ -54,8 +54,8 @@ class CrossCheckMode(Mode):
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
-        self.firstAppCmd = cfg["runConfig"]["firstAppCmd"]
-        self.secondAppCmd = cfg["runConfig"]["secondAppCmd"]
+        self.par_1 = cfg["runConfig"]["par_1"]
+        self.par_2 = cfg["runConfig"]["par_2"]
         # todo: extend for another metrics
         self.outPattern = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{measure}'.format(
                 spec='Throughput', measure='FPS')
@@ -69,7 +69,7 @@ class CrossCheckMode(Mode):
         )
         handleCommit(commit, cfg)
         fullOutput = ""
-        simpleSubstitute(cfg, "actualAppCmd", "$.runConfig.firstAppCmd", "$.appCmd")
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_1", "$.appCmd")
 
         # run first app
         checkOut = fetchAppOutput(cfg, commit)
@@ -79,7 +79,7 @@ class CrossCheckMode(Mode):
         self.firstThroughput = foundThroughput
         self.firstModel = cfg['appCmd']
         fullOutput = checkOut
-        simpleSubstitute(cfg, "actualAppCmd", "$.runConfig.secondAppCmd", "$.appCmd")
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_2", "$.appCmd")
 
         # run second app
         checkOut = fetchAppOutput(cfg, commit)
@@ -118,10 +118,10 @@ class CrossCheckMode(Mode):
         pathCommit.secondModel = self.secondModel
 
     def getCommitInfo(self, commit):
-        return "{ci}, t1 = {d1}, t2 = {d2}".format(
-                ci=super().getCommitInfo(commit),
-                d1=commit.firstThroughput,
-                d2=commit.secondThroughput)
+        return "{hash}, throughput_1 = {t1}, throughput_2 = {t2}".format(
+            hash=commit.cHash,
+            t1=commit.firstThroughput,
+            t2=commit.secondThroughput)
 
 
 class CheckOutputMode(Mode):

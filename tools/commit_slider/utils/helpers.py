@@ -97,7 +97,6 @@ def getParams():
         mergedArgs = {**(args.__dict__), **addDict}
         argHolder = DictHolder(mergedArgs)
         customCfgPath = "custom_cfg_on_run.json"
-        # add CLI params to template
         jsonObj = {"template" : {"name" : argHolder.template}}
         for k, v in addDict.items():
             jsonObj['template'][k] = v
