@@ -123,7 +123,7 @@ public:
 
     ~jit_snippet() override = default;
 
-    jit_snippet() : jit_generator() {}
+    jit_snippet() = default;
 
     void generate() override {}
 };

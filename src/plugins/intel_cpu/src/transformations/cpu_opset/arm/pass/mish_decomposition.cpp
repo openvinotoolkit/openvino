@@ -31,7 +31,7 @@ ov::intel_cpu::MishDecomposition::MishDecomposition() {
         auto exp = std::make_shared<ov::op::v0::Exp>(mish->input_value(0));
         auto add = std::make_shared<ov::op::v1::Add>(
             exp,
-            op::v0::Constant::create(mish->get_output_element_type(0), ov::Shape{}, {1.0f}));
+            op::v0::Constant::create(mish->get_output_element_type(0), ov::Shape{}, {1.0F}));
         auto log = std::make_shared<ov::op::v0::Log>(add);
         auto tanh = std::make_shared<ov::op::v0::Tanh>(log);
         auto mul = std::make_shared<ov::op::v1::Multiply>(mish->input_value(0), tanh);

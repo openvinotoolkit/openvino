@@ -170,10 +170,10 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
         };
 
         supportedTypes.push_back(LayoutType::nspc);
-        if (canUseBlocked(8lu)) {
+        if (canUseBlocked(8LU)) {
             supportedTypes.push_back(LayoutType::nCsp8c);
         }
-        if (canUseBlocked(16lu)) {
+        if (canUseBlocked(16LU)) {
             supportedTypes.push_back(LayoutType::nCsp16c);
         }
     }
@@ -275,7 +275,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks, orderShiftForDims;
+        size_t orderShiftForBlocks;
+        size_t orderShiftForDims;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = 1;
             orderShiftForDims = attrs.nSpatialDims + 2;

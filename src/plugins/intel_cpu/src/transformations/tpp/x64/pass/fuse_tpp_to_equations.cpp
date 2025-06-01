@@ -95,8 +95,9 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
 
     auto equation = std::make_shared<op::EquationTPP>(eq_ivals, op_descs);
 
-    for (auto& kv : node_replace_map)
+    for (auto& kv : node_replace_map) {
         kv.second = equation;
+    }
     replace_nodes(m, {}, node_replace_map);
     for (const auto& in : equation->inputs()) {
         auto subtensor = root_subtensor;

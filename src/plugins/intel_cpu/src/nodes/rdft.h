@@ -102,7 +102,7 @@ private:
                  const VectorDims& outputShape,
                  const VectorDims& outputStrides);
     virtual std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
-    std::vector<float> generateTwiddlesFFT(size_t N);
+    static std::vector<float> generateTwiddlesFFT(size_t N);
     std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize, enum dft_type type, bool useFFT);
 };
 

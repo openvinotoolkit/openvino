@@ -38,7 +38,7 @@ Edge::Edge(const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port
       parent_port(pr_port),
       child_port(ch_port) {}
 
-const NodePtr Edge::getParent() const {
+NodePtr Edge::getParent() const {
     auto parentPtr = parent.lock();
     if (!parentPtr) {
         OPENVINO_THROW("Edge contains empty parent node");
@@ -46,7 +46,7 @@ const NodePtr Edge::getParent() const {
     return parentPtr;
 }
 
-const NodePtr Edge::getChild() const {
+NodePtr Edge::getChild() const {
     auto childPtr = child.lock();
     if (!childPtr) {
         OPENVINO_THROW("Edge contains empty child node");
@@ -250,11 +250,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     // order check
     auto lhsOrderClean = getCleanDim(lhsBlockMemDesc->getOrder(), lhsBlockDims);
     auto rhsOrderClean = getCleanDim(rhsBlockMemDesc->getOrder(), rhsBlockDims);
-    if (!dimsEqualStrong(lhsOrderClean, rhsOrderClean)) {
-        return false;
-    }
-
-    return true;
+    return dimsEqualStrong(lhsOrderClean, rhsOrderClean);
 }
 
 Edge::ReorderStatus Edge::needReorder() {
@@ -532,7 +528,7 @@ EdgePtr Edge::getSharedEdge() const {
     return memoryFromEdgePtr;
 }
 
-EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
+EdgePtr Edge::getSharedEdge(std::nothrow_t /*unused*/) const {
     return memoryFromEdge.lock();
 }
 

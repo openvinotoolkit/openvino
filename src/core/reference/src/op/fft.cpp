@@ -311,32 +311,26 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
     fft_axes = fft_common::reverse_fft_axes(fft_axes, complex_data_rank);
 
     const int64_t fft_rank = fft_axes.size();
-    const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
-    const auto fft_strides = fft_common::compute_strides(fft_lengths);
-    const int64_t fft_size = fft_strides[fft_rank];
-
     const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
     const int64_t outer_rank = outer_axes.size();
     const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
-    const auto outer_strides = fft_common::compute_strides(outer_lengths);
-    const int64_t outer_size = outer_strides[outer_rank];
 
     const auto output_strides = fft_common::compute_strides(reversed_output_shape);
     const auto reversed_input_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
     const auto input_strides = fft_common::compute_strides(reversed_input_shape);
 
-    result.fft_lengths = fft_lengths;
-    result.fft_strides = fft_strides;
-    result.outer_strides = outer_strides;
+    result.fft_lengths = get_lengths(reversed_output_shape, fft_axes);
+    result.fft_strides = fft_common::compute_strides(result.fft_lengths);
+    result.outer_strides = fft_common::compute_strides(outer_lengths);
     result.output_fft_strides = get_lengths(output_strides, fft_axes);
     result.output_outer_strides = get_lengths(output_strides, outer_axes);
     result.input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
     result.input_fft_strides = get_lengths(input_strides, fft_axes);
     result.input_outer_strides = get_lengths(input_strides, outer_axes);
     result.fft_rank = fft_rank;
-    result.fft_size = fft_size;
-    result.outer_size = outer_size;
-    result.buffer_size = compute_buffer_size(fft_lengths);
+    result.fft_size = result.fft_strides[fft_rank];
+    result.outer_size = result.outer_strides[outer_rank];
+    result.buffer_size = compute_buffer_size(result.fft_lengths);
 
     return result;
 }

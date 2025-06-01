@@ -106,11 +106,11 @@ void Broadcast::getSupportedDescriptors() {
         const auto ndims = repeats.size();
 
         if (broadcastType == NUMPY) {
-            for (size_t i = 0lu; i < srcDims.size(); i++) {
-                repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+            for (size_t i = 0LU; i < srcDims.size(); i++) {
+                repeats[ndims - 1LU - i] /= srcDims[srcDims.size() - 1LU - i];
             }
         } else if (broadcastType == EXPLICIT) {
-            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+            for (size_t i = 0LU; i < axesMapping.size(); i++) {
                 repeats[axesMapping[i]] /= srcDims[i];
             }
         }
@@ -150,8 +150,8 @@ void Broadcast::prepareParams() {
     auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     if (broadcastType == NUMPY) {
-        for (size_t i = 0lu; i < srcDims.size(); i++) {
-            repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+        for (size_t i = 0LU; i < srcDims.size(); i++) {
+            repeats[ndims - 1LU - i] /= srcDims[srcDims.size() - 1LU - i];
         }
     } else if (broadcastType == EXPLICIT) {
         for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
@@ -179,7 +179,7 @@ bool Broadcast::needShapeInfer() const {
             return true;
         }
         const auto* targetShapeData = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_IDX);
-        for (size_t i = 0lu; i < targetShape.size(); i++) {
+        for (size_t i = 0LU; i < targetShape.size(); i++) {
             if (targetShape[i] != targetShapeData[i]) {
                 return true;
             }
@@ -190,7 +190,7 @@ bool Broadcast::needShapeInfer() const {
             return true;
         }
         const auto* axesMappingData = getSrcDataAtPortAs<const int32_t>(AXES_MAPPING_IDX);
-        for (size_t i = 0lu; i < axesMapping.size(); i++) {
+        for (size_t i = 0LU; i < axesMapping.size(); i++) {
             if (axesMapping[i] != axesMappingData[i]) {
                 return true;
             }
@@ -242,7 +242,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     VectorDims srcAligned(dataDstRank);
     VectorDims srcStridesAligned(dataDstRank);
     const size_t prefixSize = dataDstRank - dataSrcRank;
-    for (size_t i = 0lu; i < dataDstRank; i++) {
+    for (size_t i = 0LU; i < dataDstRank; i++) {
         if (i < prefixSize) {
             srcAligned[i] = 1;
             srcStridesAligned[i] = srcStrides[0];
@@ -257,7 +257,10 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;
+        size_t i = 0LU;
+        size_t srcIdx = 0LU;
+        size_t start = 0LU;
+        size_t end = 0LU;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
@@ -265,7 +268,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
             i /= dstDims[j];
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
-            for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i) {
+            for (i = 0LU, srcIdx = 0LU; i < dataDstRank; ++i) {
                 srcIdx += counters[i] ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
             }
 

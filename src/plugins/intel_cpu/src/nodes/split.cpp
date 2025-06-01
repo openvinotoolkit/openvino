@@ -100,7 +100,7 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 void Split::getSupportedDescriptors() {}
 
 void Split::initSupportedPrimitiveDescriptors() {
-    constexpr size_t channelsPos = 1lu;
+    constexpr size_t channelsPos = 1LU;
 
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
@@ -132,7 +132,7 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     // Support channel blocked format only if we manipulate complete blocks
     if (srcShape.getRank() > 2) {
-        for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (auto item : {std::make_pair(8LU, LayoutType::nCsp8c), std::make_pair(16LU, LayoutType::nCsp16c)}) {
             const auto& blkDims = srcShape.getDims();
             if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0) {
                 continue;
@@ -358,7 +358,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     CPU_NODE_ASSERT(!config.inConfs.empty(), "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4U, 5U) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (const auto& outConf : config.outConfs) {
             if (!outConf.getMemDesc()->hasLayoutType(LayoutType::ncsp)) {

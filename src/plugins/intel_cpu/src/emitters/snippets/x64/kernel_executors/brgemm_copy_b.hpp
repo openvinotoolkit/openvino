@@ -180,8 +180,9 @@ private:
                         size_t N,
                         size_t K);
 
-    void init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
-                                   const BrgemmCopyBKernelConfig& conf) const;
+    static void init_brgemm_copy_b_kernel(
+        std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
+        const BrgemmCopyBKernelConfig& conf);
 
     std::set<snippets::Reg> get_live_regs() const;
 

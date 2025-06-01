@@ -88,7 +88,7 @@ protected:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     bool enabled_segfault_detector = false;
-    inline void segfault_detector();
+    inline void segfault_detector() const;
 #endif
 
 private:

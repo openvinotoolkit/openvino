@@ -28,7 +28,7 @@ void codec_xor(char* dst_str, const char* src_str, size_t len) {
 
 std::string codec_xor_str(const std::string& source_str) {
     std::string new_str(source_str);
-    codec_xor(&new_str[0], &new_str[0], new_str.size());
+    codec_xor(new_str.data(), new_str.data(), new_str.size());
     return new_str;
 }
 

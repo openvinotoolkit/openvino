@@ -72,7 +72,7 @@ private:
                        InterpolateLayoutType layout);
 
     [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    [[nodiscard]] static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
@@ -81,7 +81,7 @@ private:
                       int& index1,
                       float& weight0,
                       float& weight1);
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
+    static std::vector<float> getCubicCoeffs(float mantissa, float a);
 
 protected:
     InterpolateAttrs interpAttrs;

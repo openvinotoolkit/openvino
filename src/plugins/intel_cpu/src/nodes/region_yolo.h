@@ -84,7 +84,7 @@ private:
         int as_int_value;
     };
 
-    inline float logistic_scalar(float src);
+    static inline float logistic_scalar(float src);
     inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 

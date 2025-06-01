@@ -106,7 +106,7 @@ private:
                         const std::string& name,
                         const std::string& type);
 
-    float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
+    static float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
     void nmsWithEta(const float* boxes,
                     const float* scores,
@@ -124,14 +124,14 @@ private:
                        const VectorDims& roisnumStrides,
                        const bool shared);
 
-    const float* slice_class(const int batch_idx,
-                             const int class_idx,
-                             const float* dataPtr,
-                             const VectorDims& dataStrides,
-                             const bool is_boxes,
-                             const int* roisnum,
-                             const VectorDims& roisnumStrides,
-                             const bool shared);
+    static const float* slice_class(const int batch_idx,
+                                    const int class_idx,
+                                    const float* dataPtr,
+                                    const VectorDims& dataStrides,
+                                    const bool is_boxes,
+                                    const int* roisnum,
+                                    const VectorDims& roisnumStrides,
+                                    const bool shared);
 };
 
 }  // namespace ov::intel_cpu::node

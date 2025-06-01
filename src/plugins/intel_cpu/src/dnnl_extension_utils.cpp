@@ -65,7 +65,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
 
 std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType(
     const ov::element::Type& elementType,
-    DnnlExtensionUtils::nothrow_tag) noexcept {
+    DnnlExtensionUtils::nothrow_tag /*unused*/) noexcept {
     switch (elementType) {
     case ov::element::f32:
         return memory::data_type::f32;
@@ -105,7 +105,7 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
 }
 
 dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType,
-                                                                  DnnlExtensionUtils::throw_tag) {
+                                                                  DnnlExtensionUtils::throw_tag /*unused*/) {
     auto&& result = ElementTypeToDataType(elementType, nothrow_tag{});
     OPENVINO_ASSERT(result, "CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
     return result.value();

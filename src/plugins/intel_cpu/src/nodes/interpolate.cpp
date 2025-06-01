@@ -93,6 +93,7 @@ using ngInterpCoordTransf = ov::op::v4::Interpolate::CoordinateTransformMode;
 using ngInterpNearMode = ov::op::v4::Interpolate::NearestMode;
 using ngInterpShapeCalcMode = ov::op::v4::Interpolate::ShapeCalcMode;
 
+
 bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         constexpr size_t DATA_ID = 0;
@@ -899,6 +900,7 @@ void Interpolate::createPrimitive() {
     if (!memory[ARG_SRC_0]) {
         THROW_CPU_NODE_ERR("has null input memory");
     }
+
     if (!memory[ARG_DST]) {
         THROW_CPU_NODE_ERR("has null destination memory");
     }
@@ -1096,7 +1098,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
 bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow ||
-        (!one_of(dataRank, 4u, 5u) && !mayiuse(cpu::x64::avx2))) {
+        (!one_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2))) {
         return false;
     }
 

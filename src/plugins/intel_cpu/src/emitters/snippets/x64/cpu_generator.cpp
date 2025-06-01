@@ -116,7 +116,6 @@
 #    include "emitters/snippets/x64/jit_perf_count_rdtsc_emitters.hpp"
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #    include "emitters/snippets/x64/verbose.hpp"
-#    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP

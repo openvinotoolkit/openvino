@@ -130,7 +130,7 @@ private:
                                const MemoryPtr& indicesMemPtr,
                                const MemoryPtr& updateMemPtr,
                                int axis);
-    inline int64_t getIndicesValue(uint8_t* indices, size_t offset);
+    inline int64_t getIndicesValue(uint8_t* indices, size_t offset) const;
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };

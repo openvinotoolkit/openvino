@@ -103,7 +103,7 @@ private:
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 
-    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1);
+    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1) const;
 
     void nmsWithSoftSigma(const float* boxes,
                           const float* scores,

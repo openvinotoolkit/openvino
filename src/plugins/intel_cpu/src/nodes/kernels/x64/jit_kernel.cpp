@@ -294,7 +294,7 @@ const Xbyak::Reg64& stack_frame::pointer() const {
 }
 
 void stack_frame::clear() const {
-    const size_t end = _size & ~static_cast<size_t>(7u);
+    const size_t end = _size & ~static_cast<size_t>(7U);
 
     _kernel.foreach (
         0,

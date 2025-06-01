@@ -80,7 +80,7 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBl
 bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims,
                                                        VectorDims blockedRepeats,
                                                        const size_t elemsInBlock) {
-    if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu ||
+    if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0LU ||
         srcBlockedDims[1] == Shape::UNDEFINED_DIM ||
         (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)) {
         return false;
@@ -90,10 +90,11 @@ bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims
     srcBlockedDims.push_back(elemsInBlock);
     blockedRepeats.push_back(1);
 
-    VectorDims optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims;
+    VectorDims optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
-    constexpr size_t maxNDims = 6lu;
+    constexpr size_t maxNDims = 6LU;
     return optimizedDims.size() <= maxNDims;
 }
 
@@ -103,10 +104,11 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
     blockedRepeats.push_back(blockedRepeats[1]);
     blockedRepeats.erase(blockedRepeats.begin() + 1);
 
-    VectorDims optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims;
+    VectorDims optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
-    constexpr size_t maxNDims = 6lu;
+    constexpr size_t maxNDims = 6LU;
     return optimizedDims.size() <= maxNDims;
 }
 
@@ -216,15 +218,16 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node* node,
     }
     // for NSPC layouts
     if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) &&
-        one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4u, 5u)) {
+        one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4U, 5U)) {
         blockedRepeats.push_back(blockedRepeats[1]);
         blockedRepeats.erase(blockedRepeats.begin() + 1);
     }
 
-    VectorDims optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims;
+    VectorDims optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
-    constexpr size_t maxNDims = 6lu;
+    constexpr size_t maxNDims = 6LU;
     if (optimizedDims.size() > maxNDims) {
         return false;
     }

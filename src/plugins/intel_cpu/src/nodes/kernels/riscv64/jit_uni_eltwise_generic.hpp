@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "jit_generator.hpp"
-
 #include "cpu_isa_traits.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "jit_generator.hpp"
 #include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "utils/cpu_utils.hpp"
@@ -30,7 +29,6 @@ public:
 
     void generate() override;
 
-    
 protected:
     const uint8_t* getCodeAddress() const override {
         return code_section_address;
@@ -81,7 +79,8 @@ private:
 
     inline Xbyak_riscv::Reg src_aux_gpr(const int idx) const {
         // saved registers: x[18 + input_number]-x[18 + input_number + MAX_ELTWISE_INPUTS], in max case x25-x31
-        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src aux reg " + std::to_string(idx) + " is not supported");
+        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS,
+                        "src aux reg " + std::to_string(idx) + " is not supported");
         const auto start = static_cast<size_t>(src_gpr(0).getIdx()) + jep_.inputs_number;
         return Xbyak_riscv::Reg(start + idx);
     }
@@ -99,7 +98,8 @@ private:
     }
 
     inline Xbyak_riscv::FReg aux_fp_gpr(const int idx) const {
-        OPENVINO_ASSERT(idx >= 0 && idx < static_cast<int>(fp_gpr_count), "Cannot allocate aux fp register for emitter!");
+        OPENVINO_ASSERT(idx >= 0 && idx < static_cast<int>(fp_gpr_count),
+                        "Cannot allocate aux fp register for emitter!");
         return Xbyak_riscv::FReg(idx);
     }
 
@@ -115,7 +115,8 @@ private:
     }
 
     inline Xbyak_riscv::VReg src_vec(const int idx) const {
-        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src aux reg " + std::to_string(idx) + " is not supported");
+        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS,
+                        "src aux reg " + std::to_string(idx) + " is not supported");
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
         // v0 and v[lmul] - mask and dst registers
         const auto vec_idx = (idx + 2) * (lmul_v == 0 ? 1 : lmul_v);
@@ -144,7 +145,8 @@ private:
 
     inline size_t get_max_aux_vec_count() const {
         auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
-        if (lmul_v == 0) lmul_v = 1;
+        if (lmul_v == 0)
+            lmul_v = 1;
         const auto single_vec_count = vec_count - (src_vec(0).getIdx() + jep_.inputs_number + 1) * lmul_v;
         return static_cast<size_t>(single_vec_count / lmul_v);
     }
@@ -152,13 +154,22 @@ private:
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec);
 
     // Update reg_vlen reg_bvlen using current `work_amount` and target `lmul` and `sew`
-    void update_vlen(const Xbyak_riscv::Reg& gpr_work_amount, Xbyak_riscv::SEW sew, Xbyak_riscv::LMUL lmul, bool force = false);
+    void update_vlen(const Xbyak_riscv::Reg& gpr_work_amount,
+                     Xbyak_riscv::SEW sew,
+                     Xbyak_riscv::LMUL lmul,
+                     bool force = false);
 
     // Load vector with pointer increment if needed (no broadcasting)
-    void load_vector(size_t vec_idx, const Xbyak_riscv::Reg& gpr_ptr, const Xbyak_riscv::Reg& gpr_work_amount,
-                     const ov::element::Type& src_prc, const ov::element::Type& dst_prc, bool broadcast);
+    void load_vector(size_t vec_idx,
+                     const Xbyak_riscv::Reg& gpr_ptr,
+                     const Xbyak_riscv::Reg& gpr_work_amount,
+                     const ov::element::Type& src_prc,
+                     const ov::element::Type& dst_prc,
+                     bool broadcast);
     // Store vector with pointer increment
-    void store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc);
+    void store_vector(const Xbyak_riscv::Reg& gpr_work_amount,
+                      const ov::element::Type& src_prc,
+                      const ov::element::Type& dst_prc);
 
     Xbyak_riscv::LMUL compute_exec_lmul(const ov::element::Type& exec_prc) const;
     Xbyak_riscv::LMUL get_max_lmul(const ov::element::Type& exec_prc) const;
@@ -172,7 +183,7 @@ private:
     Xbyak_riscv::Reg reg_work_amount = reg_tmp_0;
     Xbyak_riscv::Reg reg_vlen = reg_tmp_1;
     Xbyak_riscv::Reg reg_loop_step = reg_offsets;
-    Xbyak_riscv::Reg reg_bvlen = Xbyak_riscv::x8; // vlen in bytes
+    Xbyak_riscv::Reg reg_bvlen = Xbyak_riscv::x8;  // vlen in bytes
 
     Xbyak_riscv::LMUL current_lmul = Xbyak_riscv::LMUL::m1;
     Xbyak_riscv::SEW current_sew = Xbyak_riscv::SEW::e32;
@@ -195,4 +206,4 @@ private:
     uint8_t* code_section_address = nullptr;
 };
 
-}  // ov::intel_cpu::riscv64
+}  // namespace ov::intel_cpu::riscv64

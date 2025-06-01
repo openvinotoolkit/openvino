@@ -209,7 +209,7 @@ void Multinomial::execute_convert_type() {
         gen.seed(seed);
     }
 
-    const auto gen_max = static_cast<float>(gen.max());
+    const auto gen_max = static_cast<float>(std::mt19937::max());
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
         return static_cast<P>(static_cast<float>(gen()) / gen_max);
     });

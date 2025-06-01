@@ -81,7 +81,7 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         copy_runtime_info(interpolate, new_interpolate);
 
         auto slice_inputs = slice->input_values();
-        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1lu);
+        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1LU);
 
         slice_inputs[0] = new_interpolate;
         slice_inputs[4] = new_slice_axes;

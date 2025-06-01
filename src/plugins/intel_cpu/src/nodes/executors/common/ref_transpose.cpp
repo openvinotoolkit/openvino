@@ -64,7 +64,8 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
     };
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims indexes(ndims, 0);
         splitter(work_amount, nthr, ithr, start, end);
 

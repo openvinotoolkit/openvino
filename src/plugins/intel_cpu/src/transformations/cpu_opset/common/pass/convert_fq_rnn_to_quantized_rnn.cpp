@@ -194,7 +194,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         }
 
         const auto* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
-        if (*input_scale_ptr == 0.f) {
+        if (*input_scale_ptr == 0.F) {
             OPENVINO_THROW("Cannot handle zero input scale");
         }
 
