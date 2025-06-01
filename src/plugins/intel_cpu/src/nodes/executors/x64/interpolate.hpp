@@ -4,9 +4,15 @@
 
 #pragma once
 
-#include "common/primitive_cache.hpp"
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+#include "cpu_types.h"
 #include "nodes/executors/interpolate_config.hpp"
-#include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -49,7 +55,7 @@ struct jit_uni_interpolate_kernel {
         : ker_(nullptr),
           jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_interpolate_kernel() {}
+    virtual ~jit_uni_interpolate_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -57,9 +63,9 @@ struct jit_uni_interpolate_kernel {
     const dnnl_primitive_attr& attr_;
 };
 
-class InterpolateJitExecutor : public InterpolateExecutorBase {
+class InterpolateJitExecutorLegacy : public InterpolateExecutorBaseLegacy {
 public:
-    InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+    InterpolateJitExecutorLegacy(const InterpolateAttrs& interpAttrs,
                            const VectorDims& srcDims,
                            const VectorDims& dstDims,
                            const std::vector<float>& dataScales,

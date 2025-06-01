@@ -3,8 +3,10 @@
 //
 
 #include "acl_interpolate.hpp"
+#include <vector>
 
 #include "acl_utils.hpp"
+#include "nodes/executors/interpolate_config.hpp"
 #include "utils/debug_capabilities.h"
 
 bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,

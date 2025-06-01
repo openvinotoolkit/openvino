@@ -18,9 +18,11 @@ struct Config;
 
 struct FCAttrs;
 struct ConvAttrs;
+struct InterpolateAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
 std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const InterpolateAttrs& attrs);
 
 template <typename Attrs>
 std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config) {

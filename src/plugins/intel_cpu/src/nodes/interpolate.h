@@ -19,6 +19,7 @@
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
+#include "executors/executor_factory.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -50,7 +51,7 @@ private:
     bool is_version11 = true;
     InterpolateAttrs interpAttrs;
     size_t dataRank = 0;
-    std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
+    std::shared_ptr<legacy::InterpolateExecutorBaseLegacy> execPtr = nullptr;
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
 
@@ -76,6 +77,10 @@ private:
 
     bool canUseAclExecutor = false;
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
+//////////////////////
+    MemoryArgs memory;
+    ExecutorFactoryPtr<InterpolateAttrs> factory;
+    ExecutorPtr executor = nullptr;
 };
 
 }  // namespace ov::intel_cpu::node

@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "interpolate.hpp"
+#include "ref_interpolate_legacy.hpp"
 
 #include <nodes/common/cpu_memcpy.h>
 
 #include <algorithm>
 #include <cmath>
-
+#include "nodes/executors/interpolate_config.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::legacy {
 
-void InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::NNRef(const uint8_t* in_ptr_,
                                    uint8_t* out_ptr_,
                                    int B,
                                    int C,
@@ -47,7 +47,7 @@ void InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::linearOnnxRef(const uint8_t* in_ptr_,
                                            uint8_t* out_ptr_,
                                            int B,
                                            int C,
@@ -146,7 +146,7 @@ void InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::cubicRef(const uint8_t* in_ptr_,
                                       uint8_t* out_ptr_,
                                       int B,
                                       int C,
@@ -185,36 +185,31 @@ void InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
     });
 }
 
-float InterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
+float InterpolateRefExecutorLegacy::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
     const uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
         return static_cast<float>(*baseOffset);
-        break;
     }
     case ov::element::i8: {
         const auto* valuePtr = reinterpret_cast<const int8_t*>(baseOffset);
         return static_cast<float>(*valuePtr);
-        break;
     }
     case ov::element::bf16: {
         const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
         return bfloat16_t::from_bits(*valuePtr);
-        break;
     }
     case ov::element::f32: {
         const auto* valuePtr = reinterpret_cast<const float*>(baseOffset);
         return *valuePtr;
-        break;
     }
     default: {
         OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
-        break;
     }
     }
 }
 
-void InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
+void InterpolateRefExecutorLegacy::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
     uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
@@ -238,12 +233,11 @@ void InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value,
     }
     default: {
         OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
-        break;
     }
     }
 }
 
-void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::linearInterpolation(const uint8_t* in_ptr_,
                                                  uint8_t* out_ptr_,
                                                  int B,
                                                  int C,
@@ -257,7 +251,7 @@ void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
                                                  int OH,
                                                  int OW,
                                                  int kernel_width,
-                                                 bool antialias) {
+                                                 bool isAntialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t spatialDimSize = IW * IH * ID;
         // TODO: enable when fusing into interp with linear mode will support
@@ -277,9 +271,9 @@ void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
         return;
     }
 
-    float ax = antialias ? fx : 1.0f;
-    float ay = antialias ? fy : 1.0f;
-    float az = antialias ? fz : 1.0f;
+    float ax = isAntialias ? fx : 1.0f;
+    float ay = isAntialias ? fy : 1.0f;
+    float az = isAntialias ? fz : 1.0f;
 
     int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
     int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
@@ -378,7 +372,7 @@ void InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::pillowRef(const uint8_t* in_ptr_,
                                        uint8_t* out_ptr_,
                                        int B,
                                        int C,
@@ -486,7 +480,7 @@ void InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
                                                  uint8_t* out_ptr_,
                                                  int B,
                                                  int C,
@@ -590,7 +584,7 @@ void InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
+void InterpolateRefExecutorLegacy::exec(const uint8_t* in_ptr_,
                                   uint8_t* out_ptr_,
                                   [[maybe_unused]] const void* post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
@@ -648,4 +642,4 @@ void InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     }
 }
 
-}  // namespace ov::intel_cpu
+} // namespace ov::intel_cpu::legacy

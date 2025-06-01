@@ -17,9 +17,9 @@
 #include "common/cpu_memcpy.h"
 #include "cpu_types.h"
 #include "eltwise.h"
-#include "executors/common/interpolate.hpp"
+#include "executors/memory_arguments.hpp"
+#include "nodes/executors/common/ref_interpolate_legacy.hpp"
 #include "executors/interpolate_config.hpp"
-#include "executors/x64/interpolate.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -184,7 +184,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
             const size_t dataRank = interp_v11->get_input_partial_shape(DATA_ID).rank().get_length();
             if (dataRank < 2 || dataRank > 4) {
-                // pillow only resize on H and W. resize on D(depth) is not defined.
+                // pillow only resizes on H and W. resize on D(depth) is not defined.
                 errorMessage = "Interpolate-11 does not support input tensor of rank : " + std::to_string(dataRank);
                 return false;
             }
@@ -242,6 +242,7 @@ private:
 
 Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InterpolateShapeInferFactory(op)) {
+    std::cout << "Interpolate::Interpolate" << "\n";
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         dataRank = getInputShapeAtPort(interpAttrs.DATA_ID).getRank();
@@ -376,7 +377,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 THROW_CPU_NODE_ERR("has unsupported interpolate mode");
             }
 
-            // pillow use fixed tf_half_pixel_for_nn style mode for coodinate transformation
+            // pillow uses fixed tf_half_pixel_for_nn style mode for coordinate transformation
             interpAttrs.coordTransMode = InterpolateCoordTransMode::tf_half_pixel_for_nn;
             interpAttrs.antialias = interpAttr.antialias;
 
@@ -435,6 +436,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void Interpolate::getSupportedDescriptors() {
+    std::cout << "Interpolate::getSupportedDescriptors" << "\n";
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4) {
         // v4: data, target_shape, scale, axis(optional).
         // v11: data, size_or_scale, axis(optional)
@@ -481,6 +483,7 @@ void Interpolate::getSupportedDescriptors() {
 }
 
 void Interpolate::initSupportedPrimitiveDescriptors() {
+    std::cout << "Interpolate::initSupportedPrimitiveDescriptors" << "\n";
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
@@ -675,7 +678,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
             // planar is only for float precision.
             // 1.ref on machine w/o avx2(no fuse)
-            // 2.JIT kernel for avx2(gatherps is available).(with fuse)
+            // 2.JIT kernel for avx2(gathers is available).(with fuse)
             if (inputPrecision == ov::element::f32) {
                 if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(LayoutType::ncsp, jit_avx2, false);
@@ -748,17 +751,18 @@ inline int Interpolate::get_axis_id() const {
 }
 
 void Interpolate::prepareParams() {
+    std::cout << "Interpolate::prepareParams" << "\n";
     if (!shapesDefined()) {
         THROW_CPU_NODE_ERR("input/output dims aren't defined");
     }
 
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
+//    auto dstMemPtr = getDstMemoryAtPort(0);
+    if (!memory[ARG_DST] || !memory[ARG_DST]->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined destination memory");
     }
 
-    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
+//    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
+    if (!memory[ARG_SRC_0] || !memory[ARG_SRC_0]->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory");
     }
 
@@ -786,14 +790,14 @@ void Interpolate::prepareParams() {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
     }
 
-    const auto& srcDimsOrign = srcMemPtr->getStaticDims();
-    const auto& dstDimsOrign = dstMemPtr->getStaticDims();
+    const auto& srcDimsOrign = memory[ARG_SRC_0]->getStaticDims();
+    const auto& dstDimsOrign = memory[ARG_DST]->getStaticDims();
 
     VectorDims srcDims = srcDimsOrign;
     VectorDims dstDims = dstDimsOrign;
 
     // layoutAlignment
-    if (interpAttrs.NCHWAsNHWC && srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+    if (interpAttrs.NCHWAsNHWC && memory[ARG_SRC_0]->getDesc().hasLayoutType(LayoutType::ncsp)) {
         auto logicalShapeAlign = [](VectorDims& Dims) {
             size_t C = Dims[3];
             Dims[3] = Dims[2];
@@ -843,8 +847,8 @@ void Interpolate::prepareParams() {
     InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
     setPostOps(key.attr, dstDims);
 
-    auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
-        std::shared_ptr<InterpolateExecutorBase> executor;
+    auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<legacy::InterpolateExecutorBaseLegacy> {
+        std::shared_ptr<legacy::InterpolateExecutorBaseLegacy> executor;
         bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
                                       key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
                                       key.nodeAttrs.mode == InterpolateMode::cubic;
@@ -857,14 +861,16 @@ void Interpolate::prepareParams() {
         bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
         if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
+#if defined(OPENVINO_ARCH_X86_64)
+            executor = std::make_shared<InterpolateJitExecutorLegacy>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
                                                                 key.dataScales,
                                                                 key.attr);
+#endif
         } else {
             executor =
-                std::make_shared<InterpolateRefExecutor>(key.nodeAttrs, key.srcDims, key.dstDims, key.dataScales);
+                std::make_shared<legacy::InterpolateRefExecutorLegacy>(key.nodeAttrs, key.srcDims, key.dstDims, key.dataScales);
         }
         return executor;
     };
@@ -874,29 +880,40 @@ void Interpolate::prepareParams() {
     execPtr = result.first;
 
     lastOutputDims = dstDimsOrign;
+
+    executor->update(memory);
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
 void Interpolate::createPrimitive() {
-    auto srcMemPtr = getSrcMemoryAtPort(interpAttrs.DATA_ID);
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr) {
+    std::cout << "Interpolate::createPrimitive" << "\n";
+    memory[ARG_SRC_0] = getSrcMemoryAtPort(interpAttrs.DATA_ID);
+    memory[ARG_DST] = getDstMemoryAtPort(0);
+    executor = factory->make(memory);
+
+
+    if (!memory[ARG_SRC_0]) {
         THROW_CPU_NODE_ERR("has null input memory");
     }
-    if (!dstMemPtr) {
+    if (!memory[ARG_DST]) {
         THROW_CPU_NODE_ERR("has null destination memory");
     }
 
-    if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+    if (memory[ARG_DST]->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
-    } else if (dstMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c) ||
-               dstMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+    } else if (memory[ARG_DST]->getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+            memory[ARG_DST]->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
         interpAttrs.layout = InterpolateLayoutType::block;
     } else {
         interpAttrs.layout = InterpolateLayoutType::by_channel;
     }
 
-    interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
-    interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
+    interpAttrs.inPrc = memory[ARG_SRC_0]->getDesc().getPrecision();
+    interpAttrs.outPrc = memory[ARG_DST]->getDesc().getPrecision();
 
     if (shapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
@@ -956,7 +973,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
     const size_t axesRank = axes.size();
     for (size_t i = 0; i < axesRank; i++) {
         int axis = axes[i];
-        // pillow always re-generate scales with input and output shape
+        // pillow always re-generates scales with input and output shape
         if (interpAttrs.mode == InterpolateMode::bilinear_pillow ||
             interpAttrs.mode == InterpolateMode::bicubic_pillow) {
             fullScales[axis] = static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
@@ -1067,6 +1084,8 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
 
         execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+    } else if (executor) {
+        executor->execute(memory);
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {

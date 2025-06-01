@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
+#include "nodes/executors/executor_config.hpp"
 
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
@@ -69,6 +70,8 @@ struct InterpolateAttrs {
     static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 };
+
+using InterpolateConfig = executor::Config<InterpolateAttrs>;
 
 static inline bool isFloatCompatible(ov::element::Type prc) {
     return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
@@ -143,58 +146,72 @@ struct InterpolateKey {
     bool operator==(const InterpolateKey& rhs) const;
 };
 
-class InterpolateExecutorBase {
-public:
-    InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
-                            const VectorDims& srcDims,
-                            const VectorDims& dstDims,
-                            const std::vector<float>& dataScales);
+namespace legacy {
 
-    virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
-    virtual ~InterpolateExecutorBase() = default;
+class InterpolateExecutorBaseLegacy {
+public:
+    InterpolateExecutorBaseLegacy(const InterpolateAttrs &interpAttrs,
+                                  const VectorDims &srcDims,
+                                  const VectorDims &dstDims,
+                                  const std::vector<float> &dataScales);
+
+    virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
+
+    virtual ~InterpolateExecutorBaseLegacy() = default;
+
     [[nodiscard]] VectorDims getSrcDimPad5d() const {
         return srcDimPad5d;
     }
 
 private:
-    void buildTblNN(const VectorDims& srcDimPad5d,
-                    const VectorDims& dstDim5d,
-                    const std::vector<float>& dataScales,
+    void buildTblNN(const VectorDims &srcDimPad5D,
+                    const VectorDims &dstDim5D,
+                    const std::vector<float> &dataScales,
                     InterpolateLayoutType layout,
                     InterpolateNearestMode nearestMode);
-    void buildTblLinearOnnx(const VectorDims& srcDimPad5d,
-                            const VectorDims& dstDim5d,
-                            const std::vector<float>& dataScales,
+
+    void buildTblLinearOnnx(const VectorDims &srcDimPad5D,
+                            const VectorDims &dstDim5D,
+                            const std::vector<float> &dataScales,
                             InterpolateLayoutType layout);
-    void buildTblLinear(const VectorDims& srcDimPad5d,
-                        const VectorDims& dstDim5d,
-                        const std::vector<float>& dataScales,
+
+    void buildTblLinear(const VectorDims &srcDimPad5D,
+                        const VectorDims &dstDim5D,
+                        const std::vector<float> &dataScales,
                         int kernel_width,
                         bool antialias);
-    void buildTblCubic(const VectorDims& srcDimPad5d,
-                       const VectorDims& dstDim5d,
-                       const std::vector<float>& dataScales,
+
+    void buildTblCubic(const VectorDims &srcDimPad5D,
+                       const VectorDims &dstDim5D,
+                       const std::vector<float> &dataScales,
                        float cubicCoeff,
                        InterpolateLayoutType layout);
-    void buildTblPillow(const VectorDims& srcDimPad5d,
-                        const VectorDims& dstDim5d,
-                        const std::vector<float>& dataScales,
+
+    void buildTblPillow(const VectorDims &srcDimPad5D,
+                        const VectorDims &dstDim5D,
+                        const std::vector<float> &dataScales,
                         float cubicCoeff,
                         InterpolateLayoutType layout);
 
     [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+
     [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
                       int outShape,
-                      int& index0,
-                      int& index1,
-                      float& weight0,
-                      float& weight1);
+                      int &index0,
+                      int &index1,
+                      float &weight0,
+                      float &weight1);
+
     std::vector<float> getCubicCoeffs(float mantissa, float a);
+
     static float getPillowBilinearCoeffs(float m);
+
     static float getPillowBicubicCoeffs(float m);
+
     inline void create_pillow_working_buf(InterpolateLayoutType layout);
 
 protected:
@@ -211,5 +228,7 @@ protected:
     std::vector<uint8_t> pillow_working_buf;
     size_t m_threads_num = 0lu;
 };
+
+}  // namespace legacy
 
 }  // namespace ov::intel_cpu

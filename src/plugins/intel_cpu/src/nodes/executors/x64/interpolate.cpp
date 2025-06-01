@@ -1607,12 +1607,12 @@ private:
     }
 };
 
-InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+InterpolateJitExecutorLegacy::InterpolateJitExecutorLegacy(const InterpolateAttrs& interpAttrs,
                                                const VectorDims& srcDims,
                                                const VectorDims& dstDims,
                                                const std::vector<float>& dataScales,
                                                const dnnl::primitive_attr& attr)
-    : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
+    : InterpolateExecutorBaseLegacy(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
@@ -1648,17 +1648,17 @@ InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAtt
         // gather ISA(for planar JIT kernel) for avx2 and fp32
         interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
     } else {
-        OPENVINO_THROW("Can't create InterpolateJitExecutor");
+        OPENVINO_THROW("Can't create InterpolateJitExecutorLegacy");
     }
 #endif  // OPENVINO_ARCH_X86_64
     if (interpolateKernel) {
         interpolateKernel->create_ker();
     } else {
-        OPENVINO_THROW("Can't compile InterpolateJitExecutor");
+        OPENVINO_THROW("Can't compile InterpolateJitExecutorLegacy");
     }
 }
 
-void InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void InterpolateJitExecutorLegacy::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -1700,14 +1700,14 @@ void InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, con
         break;
     }
     default: {
-        OPENVINO_THROW("InterpolateJitExecutor has unsupported interpolate mode: ", mode);
+        OPENVINO_THROW("InterpolateJitExecutorLegacy has unsupported interpolate mode: ", mode);
     }
     }
 }
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::NNCGathered(const uint8_t* in_ptr_,
                                          uint8_t* out_ptr_,
                                          const void* post_ops_data_,
                                          int B,
@@ -1773,7 +1773,7 @@ void InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
     }  // batch end
 }
 
-void InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::NNPlanar(const uint8_t* in_ptr_,
                                       uint8_t* out_ptr_,
                                       const void* post_ops_data_,
                                       int B,
@@ -1815,7 +1815,7 @@ void InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::linearOnnxPlanar(const uint8_t* in_ptr_,
                                               uint8_t* out_ptr_,
                                               const void* post_ops_data_,
                                               int B,
@@ -1848,7 +1848,7 @@ void InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::linearOnnxCGathered(const uint8_t* in_ptr_,
                                                  uint8_t* out_ptr_,
                                                  const void* post_ops_data_,
                                                  int B,
@@ -1929,7 +1929,7 @@ void InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::cubicCGathered(const uint8_t* in_ptr_,
                                             uint8_t* out_ptr_,
                                             const void* post_ops_data_,
                                             int B,
@@ -1985,7 +1985,7 @@ void InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::cubicPlanar(const uint8_t* in_ptr_,
                                          uint8_t* out_ptr_,
                                          const void* post_ops_data_,
                                          int B,
@@ -2028,7 +2028,7 @@ void InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
+void InterpolateJitExecutorLegacy::pillowCGathered(const uint8_t* in_ptr_,
                                              uint8_t* out_ptr_,
                                              [[maybe_unused]] const void* post_ops_data_,
                                              int B,

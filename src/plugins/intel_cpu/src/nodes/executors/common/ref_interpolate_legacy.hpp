@@ -12,15 +12,15 @@
 #include "nodes/executors/interpolate_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::legacy {
 
-class InterpolateRefExecutor : public InterpolateExecutorBase {
+class InterpolateRefExecutorLegacy : public InterpolateExecutorBaseLegacy {
 public:
-    InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
+    InterpolateRefExecutorLegacy(const InterpolateAttrs& interpAttrs,
                            const VectorDims& srcDims,
                            const VectorDims& dstDims,
                            const std::vector<float>& _dataScales)
-        : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
+        : InterpolateExecutorBaseLegacy(interpAttrs, srcDims, dstDims, _dataScales),
           antialias(interpAttrs.antialias),
           dataScales(_dataScales),
           refInterpAttrs(interpAttrs) {}
@@ -57,7 +57,7 @@ private:
                              int OH,
                              int OW,
                              int kernel_width,
-                             bool antialias);
+                             bool isAntialias);
 
     void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
@@ -73,4 +73,5 @@ private:
     InterpolateAttrs refInterpAttrs;
 };
 
-}  // namespace ov::intel_cpu
+} // namespace ov::intel_cpu::legacy
+
