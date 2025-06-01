@@ -581,7 +581,7 @@ size_t jit_logical_and_emitter::get_inputs_num() const {
 }
 
 size_t jit_logical_and_emitter::aux_gprs_count() const {
-    return 1;
+    return 2;
 }
 
 size_t jit_logical_and_emitter::aux_vecs_count() const {
