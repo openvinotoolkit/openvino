@@ -38,13 +38,15 @@ void SegmentMax::validate_and_infer_types() {
     OV_OP_SCOPE(v16_SegmentMax_validate_and_infer_types);
     const auto& segment_ids_element_type = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          segment_ids_element_type == element::i32 || segment_ids_element_type == element::i64,
+                          segment_ids_element_type.is_dynamic() || segment_ids_element_type == element::i32 ||
+                              segment_ids_element_type == element::i64,
                           "The element type of the segment_ids input be i32 or i64. Got: ",
                           segment_ids_element_type);
     if (inputs().size() == 3) {
         const auto& num_segments_element_type = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
-                              num_segments_element_type == element::i32 || num_segments_element_type == element::i64,
+                              num_segments_element_type.is_dynamic() || num_segments_element_type == element::i32 ||
+                                  num_segments_element_type == element::i64,
                               "The element type of the num_segments input be i32 or i64. Got: ",
                               num_segments_element_type);
     }

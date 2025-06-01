@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <type_traits>
+#include <unordered_map>
+
+#include "cpu_types.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
