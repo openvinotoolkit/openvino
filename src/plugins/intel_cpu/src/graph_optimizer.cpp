@@ -1654,9 +1654,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
                     const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
                     return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
                 };
-                if (!std::all_of(binConv->fusedWith.begin(),
-                                 binConv->fusedWith.end(),
-                                 isNotSpecialConvolutionAddFusing)) {
+                auto allFusedNodesNotSpecial = [&]() {
+                    return std::all_of(binConv->fusedWith.begin(),
+                                       binConv->fusedWith.end(),
+                                       isNotSpecialConvolutionAddFusing);
+                };
+                if (!allFusedNodesNotSpecial()) {
                     return false;
                 }
                 return true;
