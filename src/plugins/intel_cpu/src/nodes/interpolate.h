@@ -11,11 +11,14 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu_types.h"
+#include "executors/executor.hpp"
 #include "executors/interpolate.hpp"
 #include "executors/interpolate_config.hpp"
+#include "executors/memory_arguments.hpp"
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
@@ -67,9 +70,6 @@ private:
     std::vector<float> scales;
     bool isScaleConstant = false;
 
-    // 6 ptrs for each quantization, 2 ptrs for each depth_wise
-    std::vector<const void*> postOpsDataPtrs;
-
     std::vector<float> lastScales;
     std::vector<int32_t> lastSizes;
 
@@ -81,6 +81,8 @@ private:
     MemoryArgs memory;
     ExecutorFactoryPtr<InterpolateAttrs> factory;
     ExecutorPtr executor = nullptr;
+
+    std::unordered_map<size_t, size_t> m_atoi;
 };
 
 }  // namespace ov::intel_cpu::node

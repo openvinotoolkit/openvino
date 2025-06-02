@@ -13,7 +13,8 @@
 namespace ov::intel_cpu {
 
 CommonInterpolateExecutor::CommonInterpolateExecutor(const InterpolateAttrs &attrs, const MemoryArgs &memory,
-                                                     const ExecutorContext::CPtr  /*context*/) {
+                                                     const ExecutorContext::CPtr  /*context*/)
+                                                     : postOpsDataPtrs_(attrs.postOpsDataPtrs) {
     refExecutorLegacy = std::make_shared<legacy::InterpolateRefExecutorLegacy>(attrs,
                                                                                memory.at(0)->getDescPtr()->getShape().getDims(),
                                                                                memory.at(1)->getDescPtr()->getShape().getDims(),
@@ -23,7 +24,7 @@ CommonInterpolateExecutor::CommonInterpolateExecutor(const InterpolateAttrs &att
 void CommonInterpolateExecutor::execute(const MemoryArgs &memory) {
     refExecutorLegacy->exec(static_cast<const uint8_t *>(memory.at(0)->getData()),
                             static_cast<uint8_t *>(memory.at(1)->getData()),
-                            static_cast<const uint8_t *>(memory.at(2)->getData()));
+                            postOpsDataPtrs_.data());
 }
 
 bool CommonInterpolateExecutor::update(const MemoryArgs & /*memory*/) {

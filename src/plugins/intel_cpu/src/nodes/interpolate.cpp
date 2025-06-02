@@ -7,6 +7,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -17,6 +18,7 @@
 #include "common/cpu_memcpy.h"
 #include "cpu_types.h"
 #include "eltwise.h"
+#include "executors/executor_factory.hpp"
 #include "executors/memory_arguments.hpp"
 #include "nodes/executors/common/ref_interpolate_legacy.hpp"
 #include "executors/interpolate_config.hpp"
@@ -42,6 +44,7 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/precision_support.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
 
@@ -244,6 +247,11 @@ private:
 Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::cout << "Interpolate::Interpolate" << "\n";
+    m_atoi[ARG_SRC_0] = interpAttrs.DATA_ID;
+    m_atoi[ARG_SRC_1] = interpAttrs.TARGET_SHAPE_ID;
+    m_atoi[ARG_SRC_2] = interpAttrs.SCALES_ID;
+    m_atoi[ARG_SRC_3] = interpAttrs.AXES_ID;
+
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         dataRank = getInputShapeAtPort(interpAttrs.DATA_ID).getRank();
@@ -489,6 +497,73 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         return;
     }
 
+    const auto& srcTypes = getOriginalInputPrecisions();
+    auto dstTypes = getOriginalOutputPrecisions();
+    // @todo graph optimizer should update original output precisions instead
+    if (!fusedWith.empty()) {
+        dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
+    }
+
+    VecMemoryDescs srcDescs;
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < srcTypes.size(); i++) {
+        if (srcTypes[i] == element::dynamic) {
+            srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
+            continue;
+        }
+        const auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+        srcDescs.push_back(srcDesc);
+    }
+
+    VecMemoryDescs dstDescs;
+    for (size_t i = 0; i < dstTypes.size(); i++) {
+        const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
+        dstDescs.push_back(dstDesc);
+    }
+
+    MemoryDescArgs descs{
+            {ARG_SRC_0, srcDescs[interpAttrs.DATA_ID]},
+            {ARG_SRC_1, srcDescs[interpAttrs.TARGET_SHAPE_ID]}
+    };
+
+    if (is_version11) {
+        if (isAxesSpecified) {
+            descs[ARG_SRC_2] = srcDescs[interpAttrs.SCALES_ID];
+            descs[ARG_DST] = dstDescs[0];
+        } else {
+            descs[ARG_DST] = dstDescs[0];
+        }
+    } else {
+        if (isAxesSpecified) {
+            descs[ARG_SRC_2] = srcDescs[interpAttrs.SCALES_ID];
+            descs[ARG_SRC_3] = srcDescs[interpAttrs.AXES_ID];
+            descs[ARG_DST] = dstDescs[0];
+        } else {
+            descs[ARG_SRC_2] = srcDescs[interpAttrs.SCALES_ID];
+            descs[ARG_DST] = dstDescs[0];
+        }
+    }
+
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    factory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(interpAttrs, executionContext, descs);
+    const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
+    const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
+
+    NodeConfig nodeConfig;
+    nodeConfig.inConfs.resize(srcDescs.size());
+    for (const auto& desc : nodeDescriptors) {
+        if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
+            nodeConfig.inConfs[it->second] = desc.second;
+        }
+    }
+
+    const int inPlace = canBeInPlace() ? 0 : -1;
+    nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
+
+    supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+
+    return;
+
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(interpAttrs.DATA_ID);
 
 #if defined(OV_CPU_WITH_ACL)
@@ -540,7 +615,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             config.inConfs.resize(3);
         }
     }
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+
+//    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType dataFormat,
                         impl_desc_type implDetail,
                         bool is_version11_desc,
@@ -892,15 +968,16 @@ void Interpolate::prepareParams() {
 
 void Interpolate::createPrimitive() {
     std::cout << "Interpolate::createPrimitive" << "\n";
-    memory[ARG_SRC_0] = getSrcMemoryAtPort(interpAttrs.DATA_ID);
+    for (const auto& entry : m_atoi) {
+        const auto argumentId = entry.first;
+        const auto inputId = entry.second;
+        memory[argumentId] = getSrcMemoryAtPort(inputId);
+    }
     memory[ARG_DST] = getDstMemoryAtPort(0);
-    executor = factory->make(memory);
-
 
     if (!memory[ARG_SRC_0]) {
         THROW_CPU_NODE_ERR("has null input memory");
     }
-
     if (!memory[ARG_DST]) {
         THROW_CPU_NODE_ERR("has null destination memory");
     }
@@ -917,6 +994,8 @@ void Interpolate::createPrimitive() {
     interpAttrs.inPrc = memory[ARG_SRC_0]->getDesc().getPrecision();
     interpAttrs.outPrc = memory[ARG_DST]->getDesc().getPrecision();
 
+    executor = factory->make(memory);
+
     if (shapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
             prepareParams();
@@ -928,19 +1007,19 @@ void Interpolate::createPrimitive() {
 void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
 
-    postOpsDataPtrs.clear();
+    interpAttrs.postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
+            fakeQuantizeNode->appendPostOps(ops, {}, interpAttrs.postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, channelAxis);
+            eltwiseNode->appendPostOps(ops, dims, interpAttrs.postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -1085,11 +1164,11 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
             src_data = src_data_origin;
         }
 
-        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(interpAttrs.postOpsDataPtrs.data()));
     } else if (executor) {
         executor->execute(memory);
     } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(interpAttrs.postOpsDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive wasn't created");
     }

@@ -29,6 +29,7 @@ public:
     static bool supports(const InterpolateConfig& config);
 
 private:
+    std::vector<const void*> postOpsDataPtrs_;
     std::shared_ptr<legacy::InterpolateRefExecutorLegacy> refExecutorLegacy;
 };
 using CommonInterpolateExecutorPtr = std::shared_ptr<CommonInterpolateExecutor>;

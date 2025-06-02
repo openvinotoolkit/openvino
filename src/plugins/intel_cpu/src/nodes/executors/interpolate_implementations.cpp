@@ -11,6 +11,7 @@
 #include "cpu_types.h"
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
+#include "interpolate_config.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
@@ -46,10 +47,11 @@ using namespace ov::element;
 using namespace TypeMaskAlias;
 using namespace executor;
 
-static const MappingNotation refInterpolateMappingNotation{ARG_SRC, ARG_DST};
+static const MappingNotation refInterpolateMappingNotation{ARG_SRC_0, ARG_SRC_1, ARG_SRC_2, ARG_SRC_3, ARG_DST};
 
 using LayoutConfig = std::vector<LayoutType>;
-static const LayoutConfig refInterpolateLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
+static const LayoutConfig refInterpolateLayoutConfig{
+    LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 
 //template <dnnl::impl::cpu::x64::cpu_isa_t ISA>
 //struct Require {
@@ -60,7 +62,7 @@ static const LayoutConfig refInterpolateLayoutConfig{LayoutType::ncsp, LayoutTyp
 
 // clang-format off
 static const TypeMapping refInterpolateTypeMapping {
-    {{_any, _any}, pt(just<f32>(), just<f32>())},
+    {{_any, _any, _any, _any, _any}, pt(just<f32>(), just<f32>(), just<f32>(), just<f32>(), just<f32>())},
 };
 
 template <>

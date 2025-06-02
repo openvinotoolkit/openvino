@@ -60,6 +60,9 @@ struct InterpolateAttrs {
     // 3. config planar layout support and treated it as channel_first layout.
     bool NCHWAsNHWC = false;
 
+    // 6 ptrs for each quantization, 2 ptrs for each depth_wise
+    std::vector<const void*> postOpsDataPtrs;
+
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t TARGET_SHAPE_ID = 1;
     static constexpr size_t SCALES_ID = 2;
