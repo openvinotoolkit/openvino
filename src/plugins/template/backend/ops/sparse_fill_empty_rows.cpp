@@ -37,13 +37,11 @@ bool evaluate_index_type(const std::shared_ptr<ov::op::v16::SparseFillEmptyRows>
     bool* empty_row_indicator = outputs[2].data<bool>();
 
     const size_t values_size = inputs[0].get_shape()[0];
-    const size_t indices_size = ov::shape_size(inputs[2].get_shape());
 
     ov::reference::sparse_fill_empty_rows(values,
                                           values_size,
                                           dense_shape,
                                           indices,
-                                          indices_size,
                                           default_value,
                                           output_indices,
                                           output_values,

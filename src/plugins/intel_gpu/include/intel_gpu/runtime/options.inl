@@ -19,6 +19,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, host_task_priority, ov::hint::Prio
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM, "Low-level hint that controls the queue throttle level")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance.")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
@@ -50,6 +51,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Cont
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -81,7 +83,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, apply_dynamic_quantization_b1, false, "Apply dynamic quantization for batch=1 case if dynamic quantization is turned on for OneDNN")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, start_after_processes, std::vector<std::string>{}, "Start inference after specified list of processes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")
