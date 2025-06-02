@@ -2475,7 +2475,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        if (!any_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
+        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
             return false;
         }
 

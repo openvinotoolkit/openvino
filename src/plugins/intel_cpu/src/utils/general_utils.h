@@ -194,5 +194,12 @@ inline bool any_of_values(const Container& container, const T& value) {
     return std::find(container.begin(), container.end(), value) != container.end();
 }
 
+template <typename Container, typename T>
+inline bool all_of_values(const Container& container, const T& value) {
+    return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
+        return elem == value;
+    });
+}
+
 }  // namespace intel_cpu
 }  // namespace ov
