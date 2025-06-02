@@ -32,18 +32,14 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void ConvolutionTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, params, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
     function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
-        // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 }
