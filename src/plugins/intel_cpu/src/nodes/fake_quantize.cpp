@@ -27,6 +27,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <utility>
 
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
