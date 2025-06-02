@@ -63,6 +63,6 @@ Napi::Value PartialShapeWrap::get_dimensions(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::PartialShape, Napi::Array>(info, _partial_shape);
 }
 
-ov::PartialShape PartialShapeWrap::get_value() const {
+ov::PartialShape& PartialShapeWrap::get_value() {
     return _partial_shape;
 }
