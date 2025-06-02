@@ -220,6 +220,16 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
     }
 
     switch (jcp.n) {
+    case 0:
+    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+    // Such a situation is possible in the following graph:
+    //  Parameter
+    //     |
+    //  Transpose
+    //     |
+    //  Result
+    // The elimination of the Transpose node will not be performed
+    // So copy from input buffer to output buffer without any permutation
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
