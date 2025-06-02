@@ -311,7 +311,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
         params.attrs.padsEnd.push_back(0);
     } else {
         auto order = srcBlockMemDesc->getOrder();
-        VectorIdxs newPadsBegin(params.attrs.padsBegin.size(), 0), newPadsEnd(params.attrs.padsEnd.size(), 0);
+        VectorIdxs newPadsBegin(params.attrs.padsBegin.size(), 0);
+        VectorIdxs newPadsEnd(params.attrs.padsEnd.size(), 0);
         for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
             newPadsBegin[i] = params.attrs.padsBegin[order[i]];
             newPadsEnd[i] = params.attrs.padsEnd[order[i]];
@@ -367,7 +368,7 @@ void Pad::PadExecutor::workPartition() {
     params.lastDstDim = params.dstStrides[std::max(params.attrs.endPadIdx - 1, 0)];
     params.nDimsForWork = params.attrs.endPadIdx - std::max(params.attrs.beginPadIdx, 0);
     params.nThreads = params.nDimsForWork > 0 ? 0 : 1;
-    params.workAmount = params.nDimsForWork > 0 ? params.dstDims[0] : 1lu;
+    params.workAmount = params.nDimsForWork > 0 ? params.dstDims[0] : 1LU;
     for (int i = 1; i <= params.attrs.beginPadIdx; ++i) {
         params.workAmount *= params.dstDims[i];
         params.dstDims[0] *= params.dstDims[i];
@@ -503,7 +504,8 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
     const T* srcData = srcMemPtr->getDataAs<const T>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorIdxs indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
 
@@ -546,7 +548,8 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorIdxs indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
 
@@ -591,7 +594,8 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorIdxs indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
 
@@ -642,7 +646,8 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
         params.shift;
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorIdxs indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
 

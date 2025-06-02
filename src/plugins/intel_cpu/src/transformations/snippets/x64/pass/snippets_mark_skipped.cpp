@@ -65,7 +65,7 @@
 namespace ov::intel_cpu {
 
 namespace {
-static const int DEFAULT_AXIS = 1;
+const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
     const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
@@ -440,7 +440,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         return false;
     }
     auto isFusedBiasNode = [](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v1::Add>(n) && GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v1::Add>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto conv = n->get_input_source_output(0);
@@ -468,11 +468,10 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         const auto channelAxis = 1;
         return conv_shape[channelAxis].is_static() &&
                conv_shape[channelAxis].get_length() == static_cast<int64_t>(bias_norm_dims[channelAxis]) &&
-               bias_norm_dims[channelAxis] == static_cast<size_t>(shape_size(bias_norm_dims));
+               bias_norm_dims[channelAxis] == shape_size(bias_norm_dims);
     };
     auto isFusedFQNode = [&isFusedBiasNode](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) &&
-              GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto& parent = n->get_input_node_shared_ptr(0);

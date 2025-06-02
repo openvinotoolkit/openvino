@@ -35,8 +35,7 @@
 namespace ov::intel_cpu::tpp {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
-    : BrgemmGenericKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
+    : m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
     return BrgemmGenericKernelConfig::operator==(rhs) &&
@@ -70,7 +69,7 @@ BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, c
       m_prefetching_flags(false),
       m_hash(compute_hash()) {}
 
-size_t BrgemmKernelConfig::StaticParams::compute_hash() {
+size_t BrgemmKernelConfig::StaticParams::compute_hash() const {
     size_t seed = 0;
     HASH(m_type_in0);
     HASH(m_type_in1);
@@ -140,7 +139,10 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    int64_t M, N, K, beta;
+    int64_t M;
+    int64_t N;
+    int64_t K;
+    int64_t beta;
     std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
