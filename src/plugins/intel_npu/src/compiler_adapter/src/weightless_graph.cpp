@@ -307,11 +307,7 @@ void WeightlessGraph::initialize(const Config& config) {
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
         //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
         //  releasing it here to avoid unnecessary memory usage.
-        if (release_blob(config,
-                         _initBlobs.has_value() ? std::make_optional(_initBlobs->at(initIndex)) : std::nullopt,
-                         initHandle)) {
-            _initBlobs->at(initIndex) = ov::Tensor();
-        }
+        release_init_blob(initIndex, config);
     }
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -636,6 +632,26 @@ void WeightlessGraph::set_weights_inputs() {
         std::shared_ptr<ov::ITensor> weightsTensor = _mainInputsViewTensors.at(weightsInputName);
         set_argument_value(desc.idx, static_cast<unsigned char*>(weightsTensor->data()));
     }
+}
+
+void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
+    if (!_blobAllocatedByPlugin) {
+        return;
+    }
+    if (_initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
+        return;
+    }
+
+    ze_graph_properties_2_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsHandles.at(initIndex), &properties);
+
+    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+        return;
+    }
+
+    _initBlobs->at(initIndex) = ov::Tensor();
+    _logger.debug("Blob is released");
 }
 
 WeightlessGraph::~WeightlessGraph() {

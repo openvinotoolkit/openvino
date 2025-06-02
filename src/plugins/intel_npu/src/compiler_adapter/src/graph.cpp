@@ -157,11 +157,7 @@ void Graph::initialize(const Config& config) {
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
-    _blobIsReleased = release_blob(config, _blob, _handle);
-    if (_blobIsReleased) {
-        _blob = std::nullopt;
-    }
-
+    _blobIsReleased = release_blob(config);
     _batch_size = get_batch_size(_metadata);
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
@@ -176,24 +172,25 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
     IGraph::set_workload_type(workloadType, _command_queue);
 }
 
-bool Graph::release_blob(const Config& config, std::optional<ov::Tensor> blob, ze_graph_handle_t handle) {
+bool Graph::release_blob(const Config& config) {
     if (!_blobAllocatedByPlugin) {
         return false;
     }
 
-    if (blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
 
     ze_graph_properties_2_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(handle, &properties);
+    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
         return false;
     }
 
+    _blob = std::nullopt;
     _logger.debug("Blob is released");
 
     return true;

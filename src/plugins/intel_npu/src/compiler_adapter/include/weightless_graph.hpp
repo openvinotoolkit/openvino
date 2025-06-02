@@ -76,6 +76,8 @@ private:
 
     void set_weights_inputs();
 
+    void release_init_blob(const size_t initIndex, const Config& config);
+
     std::vector<ze_graph_handle_t> _initsHandles;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
