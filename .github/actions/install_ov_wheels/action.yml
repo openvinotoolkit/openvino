@@ -38,7 +38,7 @@ runs:
       if: runner.os != 'Windows'
       run: |
         echo "Python Version: $(python3 -V)"
-       
+        
         py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
         echo "Parsed Python version: ${py_version}"
         
