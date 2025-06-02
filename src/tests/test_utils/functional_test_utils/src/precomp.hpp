@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
 #include <gtest/gtest.h>
 
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pch/precomp_core.hpp"

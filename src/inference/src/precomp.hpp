@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
-#include "openvino/op/ops.hpp"
-#include "openvino/openvino.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/pch/precomp_core.hpp"

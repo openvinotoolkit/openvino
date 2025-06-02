@@ -5,4 +5,3 @@
 #pragma once
 
 #include "openvino/pch/precomp_core.hpp"
-

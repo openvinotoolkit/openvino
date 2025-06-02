@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/pch/precomp_core.hpp"
 #include "visitors/visitors.hpp"
-

@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
 #include "default_opset.hpp"
-#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/decoder.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/pch/precomp_core.hpp"

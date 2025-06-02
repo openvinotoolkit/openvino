@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
-#include "core/operator_set.hpp"
 #include "core/node.hpp"
 #include "core/null_node.hpp"
-#include "utils/tensor_external_data.hpp"
-#include "onnx/onnx_pb.h"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "onnx/onnx_pb.h"
 #include "openvino/op/constant.hpp"
+#include "openvino/pch/precomp_core.hpp"
+#include "utils/tensor_external_data.hpp"

@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
-
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/pch/precomp_core.hpp"

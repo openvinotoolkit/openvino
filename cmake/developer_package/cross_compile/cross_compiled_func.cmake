@@ -163,8 +163,6 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
     endforeach()
 
     target_sources(${TARGET} PRIVATE ${_ARCH_SOURCES})
-    message(for target  = ${TARGET})
-    message(_ARCH_SOURCES = ${_ARCH_SOURCES})
     set_source_files_properties(${_ARCH_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 endfunction()
 

@@ -250,8 +250,6 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
-file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
-
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -352,9 +350,6 @@ cross_compiled_file(${TARGET_NAME}
         NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
-
-
-file(GLOB_RECURSE FILES_FOR_CROSS_COMPILATION ${CMAKE_CURRENT_BINARY_DIR}/cross-compiled/*.cpp)
 
 ov_build_target_faster(${TARGET_NAME}
     PCH "src/precomp.hpp"

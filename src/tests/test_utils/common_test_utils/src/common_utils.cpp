@@ -4,6 +4,8 @@
 
 #include "common_test_utils/common_utils.hpp"
 
+#include <thread>
+
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
 
