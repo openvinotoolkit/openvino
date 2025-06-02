@@ -14,7 +14,12 @@ function(ov_build_target_faster TARGET_NAME)
     endif()
 
     if(FASTER_BUILD_PCH AND ENABLE_FASTER_BUILD)
-        target_precompile_headers(${TARGET_NAME} PRIVATE ${FASTER_BUILD_PCH})
+        # target_precompile_headers(${TARGET_NAME} PRIVATE ${FASTER_BUILD_PCH})
+        # ignore custom PCH header until the issue CVS-167942 is fixed
+        # use core PCH header
+        get_target_property(pch_core_header_path openvino::util PCH_CORE_HEADER_PATH)
+        target_precompile_headers(${TARGET_NAME} PRIVATE ${pch_core_header_path})
+
         foreach(exclude_src IN LISTS FASTER_BUILD_PCH_EXCLUDE)
             set_source_files_properties(${exclude_src} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
         endforeach()
