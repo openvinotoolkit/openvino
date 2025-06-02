@@ -682,8 +682,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto originalModel = model->clone();
-
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<intel_npu::IGraph> graph;
