@@ -254,13 +254,13 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                    ? 3u
-                                    : kvcache_desc.dim;
+                                 ? 3u
+                                 : kvcache_desc.dim;
 
         auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                    kv_dim,
-                                                    kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                    kvcache_desc.max_prompt_size);
+                                                   kv_dim,
+                                                   kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                   kvcache_desc.max_prompt_size);
 
         auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
@@ -292,8 +292,8 @@ void ov::npuw::LLMInferRequest::add_to_kvcache() {
             }
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
             const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                    ? 3u
-                                    : kvcache_desc.dim;
+                                     ? 3u
+                                     : kvcache_desc.dim;
             auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
                                                       kv_dim,
                                                       kvcache_desc.num_stored_tokens - 1,
@@ -320,8 +320,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > kvcache_desc.max_prompt_size) {
         OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
-                        kvcache_desc.max_prompt_size, ".\nPlease either setup bigger "
-                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
+                       kvcache_desc.max_prompt_size,
+                       ".\nPlease either setup bigger "
+                       "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
     prepare_for_new_conversation();
@@ -347,7 +348,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_tail_mm_request) {
         LOG_DEBUG("Calling inference for tail model asynchronously...");
-        m_tail_mm_request->set_tensor(m_tail_embed_port, m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+        m_tail_mm_request->set_tensor(m_tail_embed_port,
+                                      m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
         m_tail_mm_request->start_async();
         copy_kvcache();
         m_tail_mm_request->wait();
@@ -381,8 +383,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         if (m_tail_mm_request) {
             LOG_DEBUG("Set input tensor for tail inference request from generate model output.");
             m_tail_mm_request->set_tensor(m_tail_embed_port,
-                m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
-
+                                          m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
         }
     });
 

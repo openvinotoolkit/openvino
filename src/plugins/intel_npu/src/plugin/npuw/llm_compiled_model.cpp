@@ -12,8 +12,8 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -647,13 +647,12 @@ struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
 };
-} // anonymous namespace
+}  // anonymous namespace
 
 class CutTailMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutTailMatMul");
-    CutTailMatMul::CutTailMatMul(
-        std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
+    CutTailMatMul::CutTailMatMul(std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -670,10 +669,11 @@ public:
         auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
         auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
 
-        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(
-            ov::OutputVector{matmul->output(0), matmul_add->output(0),
-                             matmul_transpose->output(0), matmul_convert->output(0),
-                             matmul_multiply->output(0)});
+        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
+                                                                                    matmul_add->output(0),
+                                                                                    matmul_transpose->output(0),
+                                                                                    matmul_convert->output(0),
+                                                                                    matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -716,15 +716,13 @@ public:
             new_param->output(0).add_names({"output_embed"});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(
-                ov::OutputVector{new_result->output(0)},
-                ov::ParameterVector{new_param},
-                "TailVocabMatmul");
-           
+            tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)},
+                                                                  ov::ParameterVector{new_param},
+                                                                  "TailVocabMatmul");
+
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(res, "CutTailMatMul"), std::move(callback));
-
     }
 };
 
@@ -776,8 +774,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model,
-                                   const uint32_t& batch_dim) {
+void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, const uint32_t& batch_dim) {
     // We have only one input: output of Slice operation, and this output should
     // have "1" in 1st dimension.
     // Batch size should be also equal "1" for NPU.
@@ -808,13 +805,12 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model) {
                                                                 std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
             auto stop =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                        ov::Shape{3},
-                                                        std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
             auto step =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
 
-            auto slice =
-                std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
+            auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
 
             embed_result->input(0).replace_source_output(slice);
             embed_result->validate_and_infer_types();
@@ -894,7 +890,7 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
 }
 
 ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
-    //FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
+    // FIXME: add `if_model_contain_slice()` condition for `SLICE_OUT` option.
     auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
@@ -1029,7 +1025,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("Trying to separate Vocabulary matrix multiplication after Slice op into additional "
-        "model...");
+              "model...");
     auto tail_mm_model = cut_tail_matmul(kvcache_model);
     if (tail_mm_model) {
         LOG_INFO("Three-model pipeline will be created.");
@@ -1053,8 +1049,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
     if (tail_mm_model) {
         LOG_DEBUG("As pipeline contains separate tail model, apply Slice to static prefill model "
-            "at given stage, so tail model can be reshaped to working shape with prefill and "
-            "kvcache models.");
+                  "at given stage, so tail model can be reshaped to working shape with prefill and "
+                  "kvcache models.");
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
         // the Prefill model:
         slice_out_embeds(prefill_model);
@@ -1103,8 +1099,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint))
-            .as<ov::AnyMap>();
+        generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
     const auto& prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
@@ -1242,7 +1237,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
         bool is_tail_mm_present = m_tail_mm_compiled != nullptr;
-        write(model_stream, is_tail_mm_present); 
+        write(model_stream, is_tail_mm_present);
         if (is_tail_mm_present) {
             m_tail_mm_compiled->serialize(model_stream, enc_ctx);
         }
@@ -1435,7 +1430,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         bool is_tail_mm_present = false;
         read(model_stream, is_tail_mm_present);
         if (is_tail_mm_present) {
-            compiled->m_tail_mm_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            compiled->m_tail_mm_compiled =
+                ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
         return compiled;
     };
