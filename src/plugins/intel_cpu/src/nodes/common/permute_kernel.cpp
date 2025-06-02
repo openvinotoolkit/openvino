@@ -221,7 +221,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
 
     switch (jcp.n) {
     case 0:
-    // This case will trigger regression if the transpose connect from Parameter to Result
+    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+    // Such a situation is possible in the following graph:
     //  Parameter
     //     |
     //  Transpose
