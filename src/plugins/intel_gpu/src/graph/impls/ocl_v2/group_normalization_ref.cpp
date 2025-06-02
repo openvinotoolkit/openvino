@@ -177,7 +177,8 @@ public:
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         auto desc = params.typed_desc<group_normalization>();
-        size_t batch = params.output_layouts[0].get_shape()[0];
+        // Use get_max_shape() for upper bounded dynamic shape. This is not called for non upper bounded dynamic shape.
+        size_t batch = params.output_layouts[0].get_partial_shape().get_max_shape()[0];
         auto buf = BufferDescriptor{batch * static_cast<size_t>(desc->num_groups), ov::element::f32};
         return {buf, buf};
     }

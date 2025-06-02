@@ -42,7 +42,10 @@ StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
 Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                      const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     // align with intel_cpu::node::StridedSlice
-    static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t BEGIN_ID = 1;
+    static constexpr size_t END_ID = 2;
+    static constexpr size_t STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
     if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
@@ -60,7 +63,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         if ((cur_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
             return shapeIn[in_idx];
         }
-        int32_t begin = 0, end = 0;
+        int32_t begin = 0;
+        int32_t end = 0;
         if (stridePtr[cur_idx] < 0) {
             begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
             end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
@@ -83,8 +87,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
-        newAxis = (m_new_axis_mask_set.count(axis_idx) != 0u);
-        shrinkAxis = (m_shrink_axis_mask_set.count(axis_idx) != 0u);
+        newAxis = (m_new_axis_mask_set.count(axis_idx) != 0U);
+        shrinkAxis = (m_shrink_axis_mask_set.count(axis_idx) != 0U);
         if (newAxis) {
             // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
             // so merge if(newAxis) and if(shrinkAxis && newAxis) together.

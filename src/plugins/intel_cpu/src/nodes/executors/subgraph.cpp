@@ -132,7 +132,8 @@ void SubgraphBaseExecutor::parallel_for6d(const initializer_functor& initializer
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes{0, 0, 0, 0, 0};
@@ -170,7 +171,8 @@ void SubgraphBaseExecutor::parallel_forNd(const initializer_functor& initializer
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes(dom.size() - 1, 0);
