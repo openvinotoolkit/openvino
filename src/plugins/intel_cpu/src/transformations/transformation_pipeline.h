@@ -9,11 +9,10 @@
 #include <vector>
 
 #include "config.h"
-#include "itt.h"
-#include "low_precision/low_precision.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "transformations/convert_precision.hpp"
-#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -42,7 +41,7 @@ private:
 
     void PostSnippets(void);
 
-    bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node) const;
+    static bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node);
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
     static bool fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
