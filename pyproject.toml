@@ -41,6 +41,28 @@ pytest-dependency = ">=0.5.0,<=0.6.0"
 pytest-timeout = ">=2.0.0,<=2.4.0"
 pytest-forked = {version = "*", markers = "sys_platform != 'win32'"}
 
+[tool.poetry.group.tensorflow]
+optional = true
+
+[tool.poetry.group.tensorflow.dependencies]
+h5py = ">=2.10.0,<=3.9.0"
+tensorflow = ">=2.4.0,<=2.16.0"
+
+[tool.poetry.group.onnx]
+optional = true
+
+[tool.poetry.group.onnx.dependencies]
+protobuf = ">=3.20.0,<=4.25.0"
+docopt = "<=0.6.2"
+onnx = ">=1.8.0,<=1.15.0"
+
+[tool.poetry.group.paddle]
+optional = true
+
+[tool.poetry.group.paddle.dependencies]
+protobuf = ">=3.20.0,<=4.25.0"
+paddlepaddle = ">=2.4.0,<=2.6.0"
+
 [tool.poetry.group.dev]
 optional = true
 
