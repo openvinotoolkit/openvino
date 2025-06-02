@@ -79,6 +79,10 @@ class MultiMethod(object):
     # Checks if actual_type is a subclass of any type in the union
     def matches_union(self, union_type, actual_type) -> bool:  # type: ignore
         for type_arg in get_args(union_type):
+            origin = get_origin(type_arg)
+            if origin is not None:
+                type_arg = origin
+
             if isinstance(type_arg, type) and issubclass(actual_type, type_arg):
                 return True
             elif get_origin(type_arg) == list:

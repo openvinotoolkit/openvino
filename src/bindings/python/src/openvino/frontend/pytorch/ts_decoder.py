@@ -269,7 +269,7 @@ class TorchScriptPythonDecoder(Decoder):
             return OVAny(DecoderType.Tensor(self._get_known_type_for_value(pt_type.dtype())))
         elif isinstance(pt_type, torch.ListType):
             element_type = pt_type.getElementType()
-            return OVAny(DecoderType.list(self._get_known_type_for_value(element_type)))
+            return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
         elif isinstance(pt_type, (torch.StringType, torch.DeviceObjType)):
             return OVAny(DecoderType.Str())
         elif isinstance(pt_type, torch.NoneType):
