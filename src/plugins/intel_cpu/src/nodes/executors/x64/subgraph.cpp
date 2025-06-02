@@ -4,14 +4,36 @@
 
 #include "nodes/executors/x64/subgraph.hpp"
 
+#include <csignal>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/repacked_input.hpp"
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/subgraph.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "utils/general_utils.h"
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-#    include <csignal>
 
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 std::mutex err_print_lock;
@@ -39,10 +61,11 @@ inline void parallelNd_repacking(const BrgemmCopyBKernel* ker,
                                  const VectorDims& out_str,
                                  const uint8_t* src,
                                  uint8_t* dst) {
-    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1lu, std::multiplies<>());
+    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1LU, std::multiplies<>());
     parallel_nt_static(0, [&](const int ithr, const int nthr) {
         BrgemmCopyBKernel::call_args args;
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(batch, nthr, ithr, start, end);
         for (size_t iwork = start; iwork < end; ++iwork) {
             const uint8_t* src_u8 = src;
@@ -140,7 +163,7 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
     VectorDims dom;
     const auto& shape = dst_mem_ptr->getShape().getDims();
     OPENVINO_ASSERT(shape.size() <= tensor_rank, "Unsupported shape rank of repacking data");
-    init_parallel_domain(shape, tensor_rank, 2lu, dom);
+    init_parallel_domain(shape, tensor_rank, 2LU, dom);
 
     const auto& in_strides = repacked_input.in_offsets();
     const auto& out_strides = repacked_input.out_offsets();
@@ -188,11 +211,12 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
 }
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-void SubgraphExecutor::segfault_detector() {
+// NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
+void SubgraphExecutor::segfault_detector() const {
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
+            if (auto* segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
                 std::cout << segfault_detector_emitter->info() << '\n';
             }
             auto tid = parallel_get_thread_num();
@@ -204,6 +228,7 @@ void SubgraphExecutor::segfault_detector() {
         sigaction(SIGSEGV, &new_handler, nullptr);
     }
 }
+// NOLINTEND(misc-include-cleaner) bug in clang-tidy
 #endif
 
 std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::stream& strm,
@@ -277,7 +302,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs
     switch (get_repacking_impl_type()) {
     case RepackingImplType::IN_PARALLEL:
         initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-            init_call_args(call_args, in_mem_ptrs, out_mem_ptrs, m_start_offset_in, m_start_offset_out, ithr);
+            init_call_args(call_args, in_mem_ptrs, out_mem_ptrs, m_start_offset_in, m_start_offset_out);
             update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
             clean_repacked_offsets(ithr);
         };
@@ -289,7 +314,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs
     case RepackingImplType::SEPARATE:
     case RepackingImplType::NONE:
         initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-            init_call_args(call_args, in_mem_ptrs, out_mem_ptrs, m_start_offset_in, m_start_offset_out, ithr);
+            init_call_args(call_args, in_mem_ptrs, out_mem_ptrs, m_start_offset_in, m_start_offset_out);
             update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
         };
         caller =
@@ -334,7 +359,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     switch (get_repacking_impl_type()) {
     case RepackingImplType::IN_PARALLEL:
         initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-            init_call_args(call_args, ithr);
+            init_call_args(call_args);
             update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
             clean_repacked_offsets(ithr);
         };
@@ -347,7 +372,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     case RepackingImplType::SEPARATE:
     case RepackingImplType::NONE:
         initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-            init_call_args(call_args, ithr);
+            init_call_args(call_args);
             update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
         };
         caller =

@@ -4,9 +4,14 @@
 
 #include "sdpa.hpp"
 
-#include <algorithm>
+#include <cstddef>
+#include <memory>
 #include <utility>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ScaledDotProductAttentionWithKVCache::ScaledDotProductAttentionWithKVCache(const OutputVector& args,
@@ -124,15 +129,15 @@ void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
     const auto& output_ps = q_ps;
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == true);
     NODE_VALIDATION_CHECK(this, m_config.input_BLHxS == true);
-    NODE_VALIDATION_CHECK(this, q_ps.size() == 3u);
+    NODE_VALIDATION_CHECK(this, q_ps.size() == 3U);
 
     // permute_axes should be [B, H, L, S]
     const auto& permute_axes = this->m_config.permute_axes;
-    NODE_VALIDATION_CHECK(this, permute_axes.size() == 4u);
+    NODE_VALIDATION_CHECK(this, permute_axes.size() == 4U);
 
     // order_HS should be [H,S]
     const auto& order_HS = this->m_config.order_HS;
-    NODE_VALIDATION_CHECK(this, order_HS.size() == 2u);
+    NODE_VALIDATION_CHECK(this, order_HS.size() == 2U);
 
     set_output_type(0, get_input_element_type(0), output_ps);
 }

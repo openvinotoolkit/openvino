@@ -4,13 +4,30 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
 #include <memory>
-#include <utility>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <vector>
 
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
-#include "nodes/eltwise.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace x64 {

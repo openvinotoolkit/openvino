@@ -4,6 +4,16 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 namespace ov::intel_cpu {
 
 std::string jit_emitter_pretty_name(const std::string& pretty_func) {

@@ -4,10 +4,21 @@
 
 #include "brgemm.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/utils/utils.hpp"
-#include "utils/general_utils.h"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 

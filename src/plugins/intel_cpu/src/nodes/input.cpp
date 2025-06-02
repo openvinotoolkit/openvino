@@ -4,14 +4,51 @@
 
 #include "input.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -47,7 +84,8 @@ protected:
                   size_t step,
                   const Xbyak::Reg64& end,
                   std::function<void(const Xbyak::Reg64&)> && fn) {
-        Label loop, exit;
+        Label loop;
+        Label exit;
 
         L(loop);
         cmp(idx, end);
@@ -137,7 +175,6 @@ protected:
         uni_vtestps(b, b);                      // if (b != 0) CF = 1 else CF = 0
     }
 
-protected:
     Label exit, has_target_values, no_target_values;
 
     const Reg64& reg_src = rax;
@@ -405,8 +442,7 @@ void Input::cloneBlobIfRequired() {
                 return;
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
-            const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+            const bool do_bf16_saturation_check = context->getConfig().inferencePrecision == ov::element::bf16;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
@@ -419,7 +455,7 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = f32data + n * batch_size;
+                        const auto* ptr = f32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {
                             reinterpret_cast<const float*>(ptr),
                             std::min(batch_size, static_cast<size_t>(f32data + size - ptr)),
@@ -492,8 +528,8 @@ void Input::cloneBlobIfRequired() {
         } else {
             if (m_constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
-                auto dst = memory->getDataAs<StringMemory::OvString>();
+                const auto* src = m_constOp->get_data_ptr<StringMemory::OvString>();
+                auto* dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
@@ -665,7 +701,7 @@ void Input::initOptimalPrimitiveDescriptor() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output)) {
+    if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
         return Node::selectOptimalPrimitiveDescriptor();
     }
 

@@ -4,24 +4,62 @@
 
 #include "rnn.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/dnnl_executor.h"
 #include "nodes/input.h"
+#include "nodes/node_config.h"
 #include "nodes/reorder.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -154,19 +192,19 @@ size_t RNNKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
-    size_t seed = 0lu;
+    size_t seed = 0LU;
 
-    for (auto& desc : inDataDescs) {
+    for (const auto& desc : inDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : outDataDescs) {
+    for (const auto& desc : outDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : wDescs) {
+    for (const auto& desc : wDescs) {
         seed = hash_combine(seed, get_md_hash(*desc.get()));
     }
     seed = hash_combine(seed, cellType);
@@ -182,21 +220,21 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
         return false;
     }
 
-    for (size_t i = 0lu; i < inDataDescs.size(); i++) {
+    for (size_t i = 0LU; i < inDataDescs.size(); i++) {
         if (inDataDescs[i] != rhs.inDataDescs[i] &&
             (inDataDescs[i] == nullptr || rhs.inDataDescs[i] == nullptr ||
              inDataDescs[i]->getDnnlDesc() != rhs.inDataDescs[i]->getDnnlDesc())) {
             return false;
         }
     }
-    for (size_t i = 0lu; i < outDataDescs.size(); i++) {
+    for (size_t i = 0LU; i < outDataDescs.size(); i++) {
         if (outDataDescs[i] != rhs.outDataDescs[i] &&
             (outDataDescs[i] == nullptr || rhs.outDataDescs[i] == nullptr ||
              outDataDescs[i]->getDnnlDesc() != rhs.outDataDescs[i]->getDnnlDesc())) {
             return false;
         }
     }
-    for (size_t i = 0lu; i < wDescs.size(); i++) {
+    for (size_t i = 0LU; i < wDescs.size(); i++) {
         if (wDescs[i] != rhs.wDescs[i]) {
             return false;
         }
@@ -263,7 +301,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
         if (rnnCellBase) {
-            if (rnnCellBase->get_clip() != 0.f) {
+            if (rnnCellBase->get_clip() != 0.F) {
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }
@@ -391,7 +429,7 @@ public:
         auto& originOutputShapes = result.dims;
 
         // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-        if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+        if (is_sequence && !native_order && originOutputShapes[0].size() == 4LU && originOutputShapes[0][1] == 1LU) {
             originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
         }
         return {std::move(originOutputShapes), result.status};
@@ -601,13 +639,13 @@ void RNN::getSupportedDescriptors() {
 }
 
 void RNN::initCell() {
-    if (getInputShapeAtPort(0).getRank() != 2lu || getInputShapeAtPort(1).getRank() != 2lu) {
+    if (getInputShapeAtPort(0).getRank() != 2LU || getInputShapeAtPort(1).getRank() != 2LU) {
         THROW_CPU_NODE_ERR("has incorrect input ranks. Data rank: ",
                            getInputShapeAtPort(0).getRank(),
                            "; Hidden state rank: ",
                            getInputShapeAtPort(1).getRank());
     }
-    if (is_augru && getInputShapeAtPort(5).getRank() != 2lu) {
+    if (is_augru && getInputShapeAtPort(5).getRank() != 2LU) {
         THROW_CPU_NODE_ERR("has incorrect input ranks. Attention rank: ", getInputShapeAtPort(2).getRank());
     }
 
@@ -621,7 +659,8 @@ void RNN::initCell() {
     if (N.isStatic()) {
         // Expected shapes.
         const auto B = N.minVal;
-        const Shape shapeD{B, DC}, shapeS{B, SC};
+        const Shape shapeD{B, DC};
+        const Shape shapeS{B, SC};
 
         if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
             (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
@@ -698,7 +737,8 @@ void RNN::fillCellDesc() {
     const Shape RShape{SC * G, SC};
     const Shape BShape{SC * Gb};
 
-    std::vector<MemoryDescPtr> inCandidate, outCandidate;
+    std::vector<MemoryDescPtr> inCandidate;
+    std::vector<MemoryDescPtr> outCandidate;
 
     inCandidate.reserve(getOriginalInputsNumber());
     outCandidate.reserve(getOriginalOutputsNumber());
@@ -739,17 +779,17 @@ void RNN::initSequence() {
     const auto& inDataShape = getInputShapeAtPort(0);
     const auto& outDataShape = getOutputShapeAtPort(0);
 
-    if (inDataShape.getRank() != 3lu || outDataShape.getRank() != 4lu) {
+    if (inDataShape.getRank() != 3LU || outDataShape.getRank() != 4LU) {
         THROW_CPU_NODE_ERR("has incorrect input/output shapes. Input data shape: ",
                            inDataShape.toString(),
                            " Output shape: ",
                            outDataShape.toString());
     }
 
-    if (!one_of(getOriginalInputsNumber(), 6u, 7u)) {
+    if (!one_of(getOriginalInputsNumber(), 6U, 7U)) {
         THROW_CPU_NODE_ERR("has incorrect number of input ports: ", getOriginalInputsNumber());
     }
-    if (!one_of(getOriginalOutputsNumber(), 2u, 3u)) {
+    if (!one_of(getOriginalOutputsNumber(), 2U, 3U)) {
         THROW_CPU_NODE_ERR("has incorrect number of output ports: ", getOriginalOutputsNumber());
     }
 
@@ -808,7 +848,8 @@ void RNN::fillSequenceDesc() {
     const Shape RShape{D, G * SC, SC};
     const Shape BShape{D, Gb * SC};
 
-    std::vector<MemoryDescPtr> inCandidate, outCandidate;
+    std::vector<MemoryDescPtr> inCandidate;
+    std::vector<MemoryDescPtr> outCandidate;
 
     inCandidate.reserve(getOriginalInputsNumber());
     outCandidate.reserve(getOriginalOutputsNumber());
@@ -1040,7 +1081,7 @@ void RNN::fillBiases() {
 }
 
 void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
-    if (idx >= 3lu) {
+    if (idx >= 3LU) {
         THROW_CPU_NODE_ERR("got invalid weights index: ", idx);
     }
 
@@ -1335,7 +1376,7 @@ void RNN::prepareParams() {
 
     auto dataMemPtr = getSrcMemoryAtPort(0);
     const size_t B = dataMemPtr->getShape().getStaticDims()[0];
-    const size_t SL = is_cell ? 1lu : dataMemPtr->getShape().getStaticDims()[1];
+    const size_t SL = is_cell ? 1LU : dataMemPtr->getShape().getStaticDims()[1];
     const Shape shapeS_4D{L, D, B, SC};
 
     inDataDescs[0] =
@@ -1383,7 +1424,7 @@ void RNN::prepareParams() {
     }
 
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 

@@ -10,10 +10,12 @@
 #pragma once
 
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "config.h"
-#include "graph.h"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {

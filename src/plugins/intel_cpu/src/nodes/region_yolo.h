@@ -4,8 +4,19 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
 #include "nodes/common/softmax.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -73,7 +84,7 @@ private:
         int as_int_value;
     };
 
-    inline float logistic_scalar(float src);
+    static inline float logistic_scalar(float src);
     inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 

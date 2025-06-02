@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "openvino/core/model.hpp"
 
 namespace ov::intel_cpu {

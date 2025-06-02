@@ -4,15 +4,30 @@
 
 #include "rope.h"
 
-#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "graph_context.h"
 #include "kernels/x64/rope_kernel.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
 
 using namespace ov::intel_cpu::kernel;
@@ -457,7 +472,8 @@ void RoPE::initSupportedPrimitiveDescriptors() {
 }
 
 void RoPE::execute(const dnnl::stream& strm) {
-    std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
+    std::vector<MemoryPtr> inputs(getParentEdges().size());
+    std::vector<MemoryPtr> outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }

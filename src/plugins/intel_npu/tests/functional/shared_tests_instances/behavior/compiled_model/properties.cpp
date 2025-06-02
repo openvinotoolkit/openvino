@@ -181,8 +181,6 @@ const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
     {ov::device::properties(ov::test::utils::DEVICE_NPU,
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::properties(ov::test::utils::DEVICE_NPU,
-                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
-     ov::device::properties(ov::test::utils::DEVICE_NPU,
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
 const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
@@ -227,17 +225,20 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
-                                            ::testing::ValuesIn(configsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(configsWithSecondaryProperties)),
+                         ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelWithCorrectPropertiesTest>);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("MULTI"),
-                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)),
+                         ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelWithCorrectPropertiesTest>);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO"),
-                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)),
+                         ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelWithCorrectPropertiesTest>);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,

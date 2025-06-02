@@ -110,8 +110,8 @@ Tensor evaluate_undefined_result_mask(const TensorVector& bounds) {
 
     const auto& in_et = bounds.front().get_element_type();
 
-    const auto zero_t = ov::util::make_tensor_of_value(in_et, 0);
-    const auto max_t = ov::util::make_tensor_of_max_value(in_et);
+    const auto& zero_t = ov::util::make_tensor_of_value(in_et, 0);
+    const auto& max_t = ov::util::make_tensor_of_max_value(in_et);
 
     const auto& v_ub = bounds[1];
     const auto& m_lb = bounds[2];
@@ -180,7 +180,7 @@ bool evaluate_bound(const Node* const op, TensorVector& outputs, bool is_lower) 
     if (mod::are_bounds_valid(bounds)) {
         const auto& in_et = bounds[0].get_element_type();
 
-        const auto undefined_result_mask = mod::evaluate_undefined_result_mask(bounds);
+        const auto& undefined_result_mask = mod::evaluate_undefined_result_mask(bounds);
         if (!undefined_result_mask) {
             return false;
         }

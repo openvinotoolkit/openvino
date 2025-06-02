@@ -4,15 +4,32 @@
 
 #include "if.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/if.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -231,7 +248,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     }
 }
 
-std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
+std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
     std::deque<MemoryPtr> memories;
     for (const auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());

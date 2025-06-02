@@ -4,11 +4,28 @@
 
 #include "jit_memory_emitters.hpp"
 
-#include <memory>
+#include <cpu/x64/xbyak/xbyak.h>
 
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "snippets/op/buffer.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
 
 using namespace Xbyak;

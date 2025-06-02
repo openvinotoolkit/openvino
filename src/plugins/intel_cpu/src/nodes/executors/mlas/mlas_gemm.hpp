@@ -3,12 +3,13 @@
 //
 #pragma once
 
+#include <cstdint>
 #include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {

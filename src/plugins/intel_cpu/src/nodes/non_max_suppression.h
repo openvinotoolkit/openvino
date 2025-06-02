@@ -4,8 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/non_max_suppression.hpp"
 #include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -92,7 +103,7 @@ private:
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 
-    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1);
+    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1) const;
 
     void nmsWithSoftSigma(const float* boxes,
                           const float* scores,

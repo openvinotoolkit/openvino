@@ -4,11 +4,17 @@
 
 #pragma once
 
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov::intel_cpu {

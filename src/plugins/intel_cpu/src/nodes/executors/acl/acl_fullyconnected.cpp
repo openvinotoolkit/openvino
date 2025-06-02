@@ -29,7 +29,7 @@ static bool checkPostOps(const PostOps& postOps) {
     if (postOps.size() > 1) {
         return false;
     }
-    if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0])) {
+    if (const auto activation = std::any_cast<ActivationPostOp>(&postOps[0])) {
         if (checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()))) {
             return true;
         }
@@ -49,11 +49,11 @@ static void initFCAttrs(const FCAttrs& attrs,
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!attrs.postOps.empty() && checkPostOps(attrs.postOps)) {
-        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(attrs.postOps[0]);
-        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
-                                                                         activation->alpha(),
-                                                                         activation->beta(),
-                                                                         activation->gamma());
+        const auto& activation = std::any_cast<const ActivationPostOp&>(attrs.postOps[0]);
+        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
+                                                                         activation.alpha(),
+                                                                         activation.beta(),
+                                                                         activation.gamma());
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {

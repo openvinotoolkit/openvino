@@ -4,12 +4,26 @@
 
 #include "enforce_precision.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <set>
+#include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -56,7 +70,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             }
 
             auto port_has_to_be_handled = false;
-            for (auto index = 0ull; index < supported_precisions.size(); ++index) {
+            for (auto index = 0ULL; index < supported_precisions.size(); ++index) {
                 if ((supported_precisions[index] == target) && (actual_precisions[index] == source)) {
                     // actual input precision has to be enforced: at least one port has to be handled
                     port_has_to_be_handled = true;
@@ -90,7 +104,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             op->set_argument(input_index, convert);
         };
 
-        for (auto index = 0ull; index < supported_precisions_to_enforce.size(); ++index) {
+        for (auto index = 0ULL; index < supported_precisions_to_enforce.size(); ++index) {
             if ((supported_precisions_to_enforce[index] == target) || (actual_precisions[index] == source)) {
                 const auto op_parent =
                     ov::as_type_ptr<snippets::op::ConvertSaturation>(op->get_input_node_shared_ptr(index));

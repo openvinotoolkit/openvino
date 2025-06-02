@@ -4,7 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

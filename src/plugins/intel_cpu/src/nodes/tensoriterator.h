@@ -7,10 +7,21 @@
 #include <graph.h>
 #include <node.h>
 
-#include <common/memory_desc_wrapper.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
+
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -76,7 +87,7 @@ private:
     void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    bool check_buffer();
+    bool check_buffer() const;
     MemoryPtr create_buffer(const dnnl::engine& eng);
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();

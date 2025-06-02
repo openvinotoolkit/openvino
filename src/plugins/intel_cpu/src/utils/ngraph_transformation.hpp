@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+#include <bitset>
+#include <functional>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <openvino/pass/manager.hpp>

@@ -4,14 +4,27 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <memory>
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+
+#include "cache/multi_cache.h"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/repacked_input.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu {
 
@@ -167,8 +180,9 @@ private:
                         size_t N,
                         size_t K);
 
-    void init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
-                                   const BrgemmCopyBKernelConfig& conf) const;
+    static void init_brgemm_copy_b_kernel(
+        std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
+        const BrgemmCopyBKernelConfig& conf);
 
     std::set<snippets::Reg> get_live_regs() const;
 

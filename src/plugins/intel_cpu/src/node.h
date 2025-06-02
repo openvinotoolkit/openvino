@@ -6,12 +6,19 @@
 
 #include <nodes/common/blocked_desc_creator.h>
 
-#include <common/utils.hpp>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/itt.hpp>
 #include <shape_inference/shape_inference_cpu.hpp>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -29,9 +36,11 @@
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/factory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "perf_count.h"
-#include "selective_build.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -344,7 +353,7 @@ public:
     };
     ConstantType getConstantType() const;
     void updateConstantType();
-    bool isConstant();
+    bool isConstant() const;
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
     virtual int getFusingAxis() const {
@@ -519,7 +528,7 @@ public:
     void updateDynamicParams();
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
-    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
+    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const;
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -801,9 +810,9 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isOneDimShape(const ov::PartialShape& pshape);
-    bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
-    bool isConfigDefined(const NodeConfig& config) const;
+    static bool isOneDimShape(const ov::PartialShape& pshape);
+    static bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
+    static bool isConfigDefined(const NodeConfig& config);
     virtual bool canBeInPlace() const;
 
     /* returns default implementaion prioirity */
@@ -814,7 +823,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
+    static dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims);
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -903,7 +912,7 @@ private:
                     edges.end());
     }
 
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+    static bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges);
 
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;

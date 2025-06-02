@@ -69,7 +69,6 @@ private:
                                                               ov::intel_npu::compilation_mode_params.name(),
                                                               ov::intel_npu::compiler_dynamic_quantization.name(),
                                                               ov::intel_npu::tiles.name(),
-                                                              ov::intel_npu::dpu_groups.name(),
                                                               ov::intel_npu::dma_engines.name(),
                                                               ov::intel_npu::compilation_mode.name(),
                                                               ov::intel_npu::driver_version.name(),
