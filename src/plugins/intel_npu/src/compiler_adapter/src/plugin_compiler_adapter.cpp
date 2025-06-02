@@ -15,6 +15,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -52,13 +53,14 @@ namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
-      _logger("PluginCompilerAdapter", Logger::global().level()) {
+      _logger("PluginCompilerAdapter", ov::log::Level::DEBUG) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
-    std::string baseName = "npu_mlir_compiler";
-    auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-    _compiler = loadCompiler(libPath);
+    // std::string baseName = "npu_mlir_compiler";
+    // auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
+    //_compiler = loadCompiler(libPath);
+    _compiler = ov::SoPtr<intel_npu::ICompiler>(VCLCompilerImpl::getInstance(), VCLApi::getInstance()->getLibrary());
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -82,7 +84,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
-
+    _logger.debug("func: %s line: %d", __func__, __LINE__);
     auto tensor =
         ov::Tensor(ov::element::u8, ov::Shape{networkDesc.compiledNetwork.size()}, networkDesc.compiledNetwork.data());
     auto impl = ov::get_tensor_impl(tensor);
@@ -90,29 +92,41 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
     impl._so = std::move(sharedCompiledNetwork);
     tensor = ov::make_tensor(impl);
-
+    _logger.debug("func: %s line: %d", __func__, __LINE__);
     ze_graph_handle_t graphHandle = nullptr;
 
+    NetworkMetadata networkMeta;
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
             graphHandle =
                 _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(tensor.data()), tensor.get_byte_size());
+
+            networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
+            networkMeta.name = model->get_friendly_name();
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
     }
-
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphHandle,
-                                   std::move(networkDesc.metadata),
+                                   std::move(networkMeta),
                                    std::move(tensor),
                                    /* blobAllocatedByPlugin = */ false,
                                    config,
                                    _compiler);
+
+    // return std::make_shared<Graph>(_zeGraphExt,
+    //                                _zeroInitStruct,
+    //                                graphHandle,
+    //                                std::move(networkDesc.metadata),
+    //                                std::move(tensor),
+    //                                /* blobAllocatedByPlugin = */ false,
+    //                                config,
+    //                                _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
@@ -120,19 +134,21 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-    _logger.debug("parse start");
-    std::vector<uint8_t> network(blob.get_byte_size());
-    network.assign(reinterpret_cast<const uint8_t*>(blob.data()),
-                   reinterpret_cast<const uint8_t*>(blob.data()) + blob.get_byte_size());
-    auto networkMeta = _compiler->parse(network, config);
-    network.clear();
-    network.shrink_to_fit();
-    _logger.debug("parse end");
+    // _logger.debug("parse start");
+    // std::vector<uint8_t> network(blob.get_byte_size());
+    // network.assign(reinterpret_cast<const uint8_t*>(blob.data()),
+    //                reinterpret_cast<const uint8_t*>(blob.data()) + blob.get_byte_size());
+    // auto networkMeta = _compiler->parse(network, config);
+    // network.clear();
+    // network.shrink_to_fit();
+    // _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
+    NetworkMetadata networkMeta;
     if (_zeGraphExt) {
         graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     }
 
     return std::make_shared<Graph>(_zeGraphExt,
@@ -160,6 +176,8 @@ uint32_t PluginCompilerAdapter::get_version() const {
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     // PluginCompiler has all the same options as plugin
     // Returing empty string to let the plugin fallback to legacy registration
+
+    // TODO: for vcl, can call vcl API
     return {};
 }
 
