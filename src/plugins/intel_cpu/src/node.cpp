@@ -2149,20 +2149,18 @@ void Node::resolveInPlaceDirection() {
                 config.inConfs[inpPort].inPlace(-1);
                 initDescriptor(config);
             } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                // search if siblings already have downstream direction
                 auto downstreamPeers = [&] {
-                    // NOLINTNEXTLINE(readability-use-anyofallof)
-                    for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
-                        auto* peerNode = peerEdge->getChild().get();
-                        if (peerNode == this) {
-                            continue;
-                        }
-                        if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) ==
-                            InplaceDirectionType::DOWN) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    const auto& childEdges = pParent->getChildEdgesAtPort(pEdge->getInputNum());
+                    return std::any_of(childEdges.begin(),
+                                       childEdges.end(),
+                                       [this, &inPlaceDirection](const EdgePtr& edge) {
+                                           auto* peerNode = edge->getChild().get();
+                                           if (peerNode == this) {
+                                               return false;
+                                           }
+                                           return inPlaceDirection(peerNode, PortType::INPUT, edge->getOutputNum()) ==
+                                                  InplaceDirectionType::DOWN;
+                                       });
                 }();
                 if (downstreamPeers) {
                     // when there is an downstream peer we have to resolve upstream inplace for the node
