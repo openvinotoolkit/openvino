@@ -113,8 +113,8 @@ jobs:
           fail_level: error
           filter_mode: nofilter
           exclude: |
-            "*/thirdparty/*"
-            "./temp/*"
+             "*/thirdparty/*"
+             "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04
