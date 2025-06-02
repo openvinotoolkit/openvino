@@ -32,7 +32,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-size_t Graph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::vector<uint64_t>> Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -57,7 +57,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return 0;
+        return std::make_pair(0, std::vector<uint64_t>());
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -71,7 +71,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return blobSize;
+    return std::make_pair(blobSize, std::vector<uint64_t>());
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -147,7 +147,7 @@ void Graph::initialize(const Config& config) {
                                                     command_queue_options);
 
     if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
+        IGraph::set_workload_type(config.get<WORKLOAD_TYPE>(), _command_queue);
     }
 
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
@@ -157,8 +157,7 @@ void Graph::initialize(const Config& config) {
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
-    _blobIsReleased = release_blob(config);
-
+    _blobIsReleased = release_blob(config, _blob, _handle);
     _batch_size = get_batch_size(_metadata);
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
@@ -167,6 +166,10 @@ void Graph::initialize(const Config& config) {
 
         _last_submitted_event.resize(number_of_command_lists);
     }
+}
+
+void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
+    IGraph::set_workload_type(workloadType, _command_queue);
 }
 
 bool Graph::release_blob(const Config& config) {

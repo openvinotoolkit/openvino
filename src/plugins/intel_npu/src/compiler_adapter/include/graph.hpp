@@ -16,7 +16,7 @@
 
 namespace intel_npu {
 
-class Graph final : public IGraph {
+class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -27,7 +27,7 @@ public:
           const Config& config,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    size_t export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -36,12 +36,15 @@ public:
 
     void initialize(const Config& config) override;
 
+    void set_workload_type(const ov::WorkloadType workloadType) const override;
+
     ~Graph() override;
 
-private:
+protected:
     bool release_blob(const Config& config);
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
