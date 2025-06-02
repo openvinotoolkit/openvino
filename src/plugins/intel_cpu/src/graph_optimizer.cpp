@@ -3189,7 +3189,7 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
         }
 
         auto allChildrenAreMemoryOutput = [&]() {
-            auto& childEdges = node->getChildEdgesAtPort(0);
+            auto&& childEdges = node->getChildEdgesAtPort(0);
             return std::all_of(childEdges.begin(), childEdges.end(), [](const auto& edge) {
                 return Type::MemoryOutput == edge->getChild()->getType();
             });
