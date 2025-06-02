@@ -4,10 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "utils/general_utils.h"
 
 namespace ov {
