@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
@@ -33,6 +34,8 @@ public:
 private:
     void prepare_for_new_conversation();
     void init_tensor(const ov::Output<const ov::Node>& port);
+    void copy_kvcache();
+    void add_to_kvcache();
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
@@ -59,6 +62,8 @@ private:
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
+
+    std::unique_ptr<std::once_flag> m_once_per_generate;
 };
 
 }  // namespace npuw

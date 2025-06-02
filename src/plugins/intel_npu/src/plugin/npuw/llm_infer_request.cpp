@@ -199,6 +199,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
+
+    m_once_per_generate = std::make_unique<std::once_flag>();
 }
 
 void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
@@ -226,13 +228,87 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0);
-    auto& kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
-    fill_tensor<int64_t>(kv_attn_mask, 0);
-    LOG_DEBUG("Prepare attention mask pattern.");
-    // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
-    //       We can safely set this "1" at the start and then copy on one "1" less in the infer_generate().
-    kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - 1] = 1;
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
+}
+
+void ov::npuw::LLMInferRequest::copy_kvcache() {
+    LOG_DEBUG("Copying kv-cache from prefill to generate model.");
+    LOG_BLOCK();
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const std::size_t kStartOutputKVCacheLayers = 1u;
+    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
+    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
+        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+
+        const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            continue;
+        }
+        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+
+        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
+        //        taking into account kvcache dimension.
+        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                    ? 3u
+                                    : kvcache_desc.dim;
+
+        auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                                                    kv_dim,
+                                                    kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                    kvcache_desc.max_prompt_size);
+
+        auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+
+        if (kv_dim == 3u) {
+            copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+        } else if (kv_dim == 2u) {
+            copy_by_planes(prefill_out_slice, kvcache_in_slice);
+        } else {
+            prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+        }
+    }
+    LOG_DEBUG("Done.");
+}
+
+void ov::npuw::LLMInferRequest::add_to_kvcache() {
+    LOG_DEBUG("Update kv-cache with computed key and values for last input token.");
+    LOG_BLOCK();
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    if (kvcache_desc.num_stored_tokens != kvcache_desc.total_size) {
+        const std::size_t kStartOutputKVCacheLayers = 1u;
+        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
+        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
+            const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                continue;
+            }
+            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                    ? 3u
+                                    : kvcache_desc.dim;
+            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
+                                                      kv_dim,
+                                                      kvcache_desc.num_stored_tokens - 1,
+                                                      kvcache_desc.num_stored_tokens);
+            auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
+            if (kv_dim == 3u) {
+                ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
+            } else if (kv_dim == 2u) {
+                copy_by_planes(kvcache_out_tensor, kvcache_in_slice);
+            } else {
+                kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
+            }
+        }
+    }
+    LOG_DEBUG("Done.");
 }
 
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -273,54 +349,18 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Calling inference for tail model asynchronously...");
         m_tail_mm_request->set_tensor(m_tail_embed_port, m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
         m_tail_mm_request->start_async();
-    }
-
-    LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-    const std::size_t kStartOutputKVCacheLayers = 1u;
-    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
-        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-        auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-
-        const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
-            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-            continue;
-        }
-        auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
-        //        taking into account kvcache dimension.
-        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                    ? 3u
-                                    : kvcache_desc.dim;
-
-        auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                    kv_dim,
-                                                    kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                    kvcache_desc.max_prompt_size);
-
-        auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-        if (kv_dim == 3u) {
-            copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
-        } else if (kv_dim == 2u) {
-            copy_by_planes(prefill_out_slice, kvcache_in_slice);
-        } else {
-            prefill_out_slice->copy_to(kvcache_in_slice._ptr);
-        }
-    }
-
-    if (m_tail_mm_request) {
+        copy_kvcache();
         m_tail_mm_request->wait();
-        LOG_DEBUG("Inference for tail model is finished");
+        LOG_DEBUG("Calling inference for tail model - done.");
+
         m_logits = m_tail_mm_request->get_tensor(m_tail_logits_port);
     } else {
+        copy_kvcache();
+
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
     }
+
+    m_once_per_generate = std::make_unique<std::once_flag>();
 
     LOG_DEBUG("Done");
 }
@@ -330,6 +370,21 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
+
+    std::call_once(*m_once_per_generate, [this]() {
+        LOG_DEBUG("Prepare attention mask pattern.");
+        auto& kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
+        fill_tensor<int64_t>(kv_attn_mask, 0);
+        // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
+        //       We can safely set this "1" once and then copy on one "1" less in the infer_generate().
+        kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - 1] = 1;
+        if (m_tail_mm_request) {
+            LOG_DEBUG("Set input tensor for tail inference request from generate model output.");
+            m_tail_mm_request->set_tensor(m_tail_embed_port,
+                m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+
+        }
+    });
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     // NB: KV-cache is full, further generation is impossible
@@ -345,7 +400,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 reinterpret_cast<uint8_t*>(kv_input_ids->data()));
 
     // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
-    //       As it is already set in prepare_for_new_conversation(), here we copy on one "1" unit less.
+    //       As it is already set above, here we copy on one "1" unit less.
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
     std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, kv_attn_mask->data<int64_t>());
 
@@ -356,47 +411,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     kvcache_desc.num_stored_tokens += 1;
 
     if (m_tail_mm_request) {
-        LOG_DEBUG("Calling inference for tail model asynchronously...");
-        m_tail_mm_request->set_tensor(m_tail_embed_port, m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+        LOG_DEBUG("Calling inference for tail model asynchronously");
         m_tail_mm_request->start_async();
-    }
-    
-    if (kvcache_desc.num_stored_tokens != kvcache_desc.total_size) {
-        LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
-        const std::size_t kStartOutputKVCacheLayers = 1u;
-        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
-            const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
-                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-                continue;
-            }
-            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                    ? 3u
-                                    : kvcache_desc.dim;
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
-                                                    kv_dim,
-                                                    kvcache_desc.num_stored_tokens - 1,
-                                                    kvcache_desc.num_stored_tokens);
-            auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
-            if (kv_dim == 3u) {
-                ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
-            } else if (kv_dim == 2u) {
-                copy_by_planes(kvcache_out_tensor, kvcache_in_slice);
-            } else {
-                kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
-            }
-        }
-    }
-
-    if (m_tail_mm_request) {
+        add_to_kvcache();
         m_tail_mm_request->wait();
-        LOG_DEBUG("Inference for tail model is finished");
+        LOG_DEBUG("Calling inference for tail model -- done.");
+
         m_logits = m_tail_mm_request->get_tensor(m_tail_logits_port);
     } else {
+        add_to_kvcache();
+
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     }
 
