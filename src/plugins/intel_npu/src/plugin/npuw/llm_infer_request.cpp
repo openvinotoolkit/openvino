@@ -318,7 +318,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_BLOCK();
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    if (input_ids->get_size() > kvcache_desc.max_prompt_size) {
+    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > kvcache_desc.max_prompt_size) {
         OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
                         kvcache_desc.max_prompt_size, ".\nPlease either setup bigger "
                         "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
