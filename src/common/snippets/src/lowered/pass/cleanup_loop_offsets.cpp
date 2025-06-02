@@ -4,17 +4,19 @@
 
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
+                             lowered::LinearIR::constExprIt begin,
+                             lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
     bool is_modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
@@ -52,7 +54,8 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
                     if (found != per_port_connector_offset.end()) {
                         if (!is_incremented[found->second] || outer_data_sizes[i] != data_sizes[found->second])
                             continue;
-                        if (utils::is_dynamic_value(outer_ptr_increments[i]) || utils::is_dynamic_value(fin_offsets[found->second]))
+                        if (utils::is_dynamic_value(outer_ptr_increments[i]) ||
+                            utils::is_dynamic_value(fin_offsets[found->second]))
                             continue;
                         // Since data ptr is incremented on [ptr_increment x increment],
                         // we should guarantee proportionality of ptr shifts.
@@ -61,8 +64,8 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
                         // Inner Loop: WA = 32, Inc = 1, ptr_increment[0] = 20, final_offset[0] = -640
                         // Outer Loop: WA = 70, Inc = 32, ptr_increment[0] = 20, final_offset[0] = -1400
                         // To save data ptr shift proportionality, we have to calculate so:
-                        //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) / outer_Inc
-                        //    outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
+                        //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) /
+                        //    outer_Inc outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
 
                         const auto full_outer_increment = outer_ptr_increments[i] * outer_increment;
                         const auto new_final_outer_increment = full_outer_increment + fin_offsets[found->second];
@@ -82,8 +85,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
     return is_modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

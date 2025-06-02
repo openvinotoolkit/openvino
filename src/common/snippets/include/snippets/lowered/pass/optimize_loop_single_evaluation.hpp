@@ -21,10 +21,12 @@ namespace pass {
 class OptimizeLoopSingleEvaluation : public RangedPass {
 public:
     OPENVINO_RTTI("OptimizeLoopSingleEvaluation", "", RangedPass);
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

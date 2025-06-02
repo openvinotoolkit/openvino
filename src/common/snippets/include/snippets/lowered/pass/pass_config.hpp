@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "snippets/lowered/linear_ir.hpp"
-
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov {
 namespace snippets {
@@ -56,7 +55,7 @@ private:
     std::unordered_set<DiscreteTypeInfo> m_enabled;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

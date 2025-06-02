@@ -3,7 +3,7 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "snippets/utils/debug_caps_config.hpp"
+#    include "snippets/utils/debug_caps_config.hpp"
 
 namespace ov {
 namespace snippets {
@@ -73,4 +73,4 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
 }  // namespace snippets
 }  // namespace ov
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS
