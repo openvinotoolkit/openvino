@@ -1979,16 +1979,18 @@ void TopK::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
 #if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
@@ -2149,7 +2151,7 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        int j;
+        int j = 0;
         for (j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
@@ -2496,8 +2498,8 @@ void TopK::topk_ref_process(const float* src_data,
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
-        float tmp_value;
-        int tmp_index;
+        float tmp_value = NAN;
+        int tmp_index = 0;
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {

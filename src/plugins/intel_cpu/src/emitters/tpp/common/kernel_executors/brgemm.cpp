@@ -88,7 +88,7 @@ bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string BrgemmKernelConfig::StaticParams::to_string() const {
-    std::stringstream ss;
+    std::stringstream ss = 0;
     PRINT(m_type_in0);
     PRINT(m_type_in1);
     PRINT(m_type_out0);
@@ -99,7 +99,7 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
 }
 
 std::string BrgemmKernelConfig::to_string() const {
-    std::stringstream ss;
+    std::stringstream ss = 0;
     ss << get_static_params()->to_string() << "\n";
     ss << BrgemmGenericKernelConfig::to_string() << "\n";
     PRINT(m_compile_flags);
@@ -139,10 +139,10 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    int64_t M;
-    int64_t N;
-    int64_t K;
-    int64_t beta;
+    int64_t M = 0;
+    int64_t N = 0;
+    int64_t K = 0;
+    int64_t beta = 0;
     std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {

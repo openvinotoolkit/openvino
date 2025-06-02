@@ -446,8 +446,8 @@ private:
 template <typename T, typename U>
 const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
     if (prec.is_real()) {
-        double lbound;
-        double ubound;
+        double lbound = NAN;
+        double ubound = NAN;
         switch (prec) {
         case ov::element::f8e4m3:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
@@ -486,8 +486,8 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
             std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
         }
     } else {
-        int64_t lbound;
-        uint64_t ubound;
+        int64_t lbound = 0;
+        uint64_t ubound = 0;
         switch (prec) {
         case ov::element::boolean:
             lbound = static_cast<int64_t>(std::numeric_limits<bool>::lowest());
@@ -603,8 +603,8 @@ struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
-            float lbound;
-            float ubound;
+            float lbound = NAN;
+            float ubound = NAN;
             std::tie(lbound, ubound) = ctx.range<float>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
@@ -626,8 +626,8 @@ struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
                 dst[i] = static_cast<float>(src[i]);
             });
         } else {
-            float lbound;
-            float ubound;
+            float lbound = NAN;
+            float ubound = NAN;
             std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
@@ -703,8 +703,8 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound;
-        float ubound;
+        float lbound = NAN;
+        float ubound = NAN;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (std::is_integral<dst_t>::value) {
@@ -757,8 +757,8 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound;
-        float ubound;
+        float lbound = NAN;
+        float ubound = NAN;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (ctx.interimPrc.is_real()) {

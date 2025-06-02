@@ -470,16 +470,18 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     }
 
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
@@ -652,10 +654,10 @@ private:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart;
-                    int hend;
-                    int wstart;
-                    int wend;
+                    int hstart = 0;
+                    int hend = 0;
+                    int wstart = 0;
+                    int wend = 0;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -681,8 +683,8 @@ private:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x;
-                    float in_y;
+                    float in_x = NAN;
+                    float in_y = NAN;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -797,10 +799,10 @@ public:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart;
-                    int hend;
-                    int wstart;
-                    int wend;
+                    int hstart = 0;
+                    int hend = 0;
+                    int wstart = 0;
+                    int wend = 0;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -843,8 +845,8 @@ public:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x;
-                    float in_y;
+                    float in_x = NAN;
+                    float in_y = NAN;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -985,8 +987,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
     float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
-    float in_y;
-    float in_x;
+    float in_y = NAN;
+    float in_x = NAN;
     // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
     // and as result excess of right limit for proposal value,

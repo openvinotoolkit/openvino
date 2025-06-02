@@ -186,7 +186,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
-            int32_t time;
+            int32_t time = 0;
             int32_t idx = (maxTime - 1) * bbSize + batch * beamWidth;
             for (time = (maxTime - 1); time >= maxSequenceInBeam; time--, idx -= bbSize) {
                 finalIdx[idx + beam] = endToken;

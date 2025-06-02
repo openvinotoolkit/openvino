@@ -900,7 +900,7 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                 io_selection_size++;
                 if (sorted_boxes_size > 1LU) {
                     sorted_indices_ptr++;
-                    NMSCandidateStatus candidate_status;
+                    NMSCandidateStatus candidate_status = NMSCandidateStatus::SELECTED;
 
                     for (size_t candidate_idx = 1LU;
                          (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
@@ -946,14 +946,14 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
 /////////////// End of Rotated boxes ///////////////
 
 float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float* boxesJ) {
-    float yminI;
-    float xminI;
-    float ymaxI;
-    float xmaxI;
-    float yminJ;
-    float xminJ;
-    float ymaxJ;
-    float xmaxJ;
+    float yminI = NAN;
+    float xminI = NAN;
+    float ymaxI = NAN;
+    float xmaxI = NAN;
+    float yminJ = NAN;
+    float xminJ = NAN;
+    float ymaxJ = NAN;
+    float xmaxJ = NAN;
     if (boxEncodingType == NMSBoxEncodeType::CENTER) {
         //  box format: x_center, y_center, width, height
         yminI = boxesI[1] - boxesI[3] / 2.F;

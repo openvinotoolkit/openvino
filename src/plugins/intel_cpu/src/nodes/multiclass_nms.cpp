@@ -467,14 +467,14 @@ bool MultiClassNms::created() const {
 }
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI;
-    float xminI;
-    float ymaxI;
-    float xmaxI;
-    float yminJ;
-    float xminJ;
-    float ymaxJ;
-    float xmaxJ;
+    float yminI = NAN;
+    float xminI = NAN;
+    float ymaxI = NAN;
+    float xmaxI = NAN;
+    float yminJ = NAN;
+    float xminJ = NAN;
+    float ymaxJ = NAN;
+    float xmaxJ = NAN;
     const auto norm = static_cast<float>(!normalized);
 
     // to align with reference

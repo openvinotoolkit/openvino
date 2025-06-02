@@ -28,7 +28,7 @@ using namespace dnnl::impl::cpu::x64;
 void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
     palette_id = palette;
     startRow = _startRow;
-    uint64_t i;
+    uint64_t i = 0;
     for (i = 0; i < 14; i++) {
         reserved[i] = 0;
     }

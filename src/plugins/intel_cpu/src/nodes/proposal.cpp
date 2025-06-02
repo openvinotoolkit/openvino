@@ -47,8 +47,8 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     // enumerate all transformed boxes
     for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
         // transformed width & height for given ratio factors
-        float ratio_w;
-        float ratio_h;
+        float ratio_w = NAN;
+        float ratio_h = NAN;
         if (round_ratios) {
             ratio_w = std::roundf(std::sqrt(base_area / ratios[ratio]));
             ratio_h = std::roundf(ratio_w * ratios[ratio]);

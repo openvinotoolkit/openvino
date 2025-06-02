@@ -374,8 +374,8 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
                         confFilterCF(pconfReorder, pindices, pbuffer, pdetections, n);
                     }
 
-                    const float* pboxes;
-                    const float* psizes;
+                    const float* pboxes = nullptr;
+                    const float* psizes = nullptr;
                     if (isShareLoc) {
                         pboxes = decodedBboxesData + n * 4 * priorsNum;
                         psizes = bboxSizesData + n * priorsNum;
@@ -808,10 +808,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
             float priorCenterX = (priorXMin + priorXMax) / 2.0F;
             float priorCenterY = (priorYMin + priorYMax) / 2.0F;
 
-            float decodeBboxCenterX;
-            float decodeBboxCenterY;
-            float decodeBboxWidth;
-            float decodeBboxHeight;
+            float decodeBboxCenterX = NAN;
+            float decodeBboxCenterY = NAN;
+            float decodeBboxWidth = NAN;
+            float decodeBboxHeight = NAN;
 
             if (varianceEncodedInTarget) {
                 // variance is encoded in target, we simply need to restore the offset predictions.

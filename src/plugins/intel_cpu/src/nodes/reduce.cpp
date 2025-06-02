@@ -3669,8 +3669,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
     VectorDims src_strides =
         getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        int j;
-        size_t i;
+        int j = 0;
+        size_t i = 0;
         size_t start = 0;
         size_t end = 0;
         VectorDims dst_counters(process_dst_dims.size(), 0);

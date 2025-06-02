@@ -247,24 +247,24 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
         int scale = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41) ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
-            int izF;
-            int izE;
-            float weightF;
-            float weightE;
+            int izF = 0;
+            int izE = 0;
+            float weightF = NAN;
+            float weightE = NAN;
             linearOnnxCF(oz, fz, ID, OD, izF, izE, weightF, weightE);
             int idxOz = oz * OH * OW;
             for (int oy = 0; oy < OH; oy++) {
-                int iyT;
-                int iyB;
-                float weightT;
-                float weightB;
+                int iyT = 0;
+                int iyB = 0;
+                float weightT = NAN;
+                float weightB = NAN;
                 linearOnnxCF(oy, fy, IH, OH, iyT, iyB, weightT, weightB);
                 int idxOzOy = idxOz + oy * OW;
                 for (int ox = 0; ox < OW; ox++) {
-                    int ixL;
-                    int ixR;
-                    float weightL;
-                    float weightR;
+                    int ixL = 0;
+                    int ixR = 0;
+                    float weightL = NAN;
+                    float weightR = NAN;
                     linearOnnxCF(ox, fx, IW, OW, ixL, ixR, weightL, weightR);
 
                     int idxOzOyOx = idxOzOy + ox;
