@@ -49,16 +49,18 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     const auto& parameters = body->get_parameters();
     const auto& results = body->get_results();
     const auto& buffers = body->get_buffers();
-    num_inputs = parameters.size();
-    num_outputs = results.size();
     std::vector<snippets::Reg> data_ptr_regs;
-    data_ptr_regs.reserve(num_inputs + num_outputs);
     for (const auto& param : parameters) {
-        data_ptr_regs.push_back(param->get_output_port_descriptor(0)->get_reg());
+        const auto& reg = param->get_output_port_descriptor(0)->get_reg();
+        if (!reg.is_address()) {
+            data_ptr_regs.push_back(reg);
+        }
     }
+    num_inputs = data_ptr_regs.size();
     for (const auto& result : results) {
         data_ptr_regs.push_back(result->get_input_port_descriptor(0)->get_reg());
     }
+    num_outputs = data_ptr_regs.size() - num_inputs;
 
     std::set<size_t> unique_buffers;
     for (const auto& buffer_expr : buffers) {
