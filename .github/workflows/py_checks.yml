@@ -44,13 +44,13 @@ jobs:
 
       # samples code-style
       - name: Run flake8 on samples
-        run: python -m flake8 ./ --config=setup.cfg
+        run: poetry run flake8 ./ --config=setup.cfg
         working-directory: samples/python
 
       - name: Create code style diff for samples
         if: failure()
         run: |
-          python -m black -l 160 -S ./
+          poetry run black -l 160 -S ./
           git diff > samples_diff.diff
         working-directory: samples/python
 
@@ -62,13 +62,13 @@ jobs:
 
       # Python API Flake code-style
       - name: Run flake8 on Python API
-        run: python -m flake8 ./src/openvino --config=setup.cfg
+        run: poetry run flake8 ./src/openvino --config=setup.cfg
         working-directory: src/bindings/python
 
       - name: Create code style diff for Python API
         if: failure()
         run: |
-          python -m black -l 160 -S ./
+          poetry run black -l 160 -S ./
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
 
@@ -80,13 +80,13 @@ jobs:
 
       # wheel Flake code-style
       - name: Run flake8 on wheel
-        run: python -m flake8 ./ --config=../setup.cfg
+        run: poetry run flake8 ./ --config=../setup.cfg
         working-directory: src/bindings/python/wheel
 
       - name: Create code style diff for wheel
         if: failure()
         run: |
-          python -m black -l 160 -S ./
+          poetry run black -l 160 -S ./
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
 
@@ -99,17 +99,17 @@ jobs:
       # Python API tests Flake code-style
       - name: Run flake8 on python tests
         # ignore lack of docs in tests
-        run: python -m flake8 tests/ --config=setup.cfg
+        run: poetry run flake8 tests/ --config=setup.cfg
         working-directory: src/bindings/python
 
       # Python API mypy check
       - name: Run mypy on Python API
-        run: python -m mypy ./src/openvino --config-file ./setup.cfg
+        run: poetry run mypy ./src/openvino --config-file ./setup.cfg
         working-directory: src/bindings/python
       
       # Run pyright to assert no regressions in type hinting
       - name: Run pyright on Python API
-        run: python -m pyright --verbose
+        run: poetry run pyright --verbose
 
         # layer_tests Flake code-style
       - name: Run flake8 on python tests in openvino/tests/layer_tests
@@ -118,7 +118,7 @@ jobs:
           for file in $modified_files; do
             if [[ $file == "openvino/tests/layer_tests/"* ]]; then
               if [[ -f "$file" ]]; then
-                python -m flake8 "$file" --config= ./setup.cfg
+                poetry run flake8 "$file" --config= ./setup.cfg
               fi
             fi
           done            
