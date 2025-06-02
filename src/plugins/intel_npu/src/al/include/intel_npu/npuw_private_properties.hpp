@@ -495,6 +495,16 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
 }  // namespace llm
 
+namespace whisper {
+/**
+ * @brief
+ * Type: uint32_t.
+ * Size of sequence for whisper encoder last hidden state tensor.
+ * Default value: 1500.
+ */
+static constexpr ov::Property<uint32_t> lhs_seq_size{"NPUW_WHISPER_LHS_SEQ_SIZE"};
+}  // namespace whisper
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov

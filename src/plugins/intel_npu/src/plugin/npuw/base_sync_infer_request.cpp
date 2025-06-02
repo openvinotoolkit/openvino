@@ -257,7 +257,9 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
     // Preallocate input tensors
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
+        LOG_BLOCK();
         const auto& port = m_npuw_model->inputs()[i];
+        LOG_INFO("Input " << i << " of " << m_npuw_model->inputs().size() << ": " << port);
         ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
         m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{allocated, true};
