@@ -162,7 +162,7 @@ jobs:
       #
 
       - name: Configure poetry
-        uses: ./.github/actions/install_poetry
+        uses: ./openvino/.github/actions/install_poetry
         
       - name: Install Test dependencies
         run: poetry install --with tests
