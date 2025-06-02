@@ -104,18 +104,15 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
         L(unrolled_loop_label);
         {
-            int step;
-            int ur_ch;
-            if (isa == cpu::x64::sse41) {
-                step = nbits / 2;
-                ur_ch = nbits;
-            } else if (isa == cpu::x64::avx2) {
-                step = nbits;
-                ur_ch = nbits / 2;
-            } else {
-                step = 2 * nbits;
-                ur_ch = nbits / 4;
-            }
+            auto [step, ur_ch] = [&]() {
+                if (isa == cpu::x64::sse41) {
+                    return std::make_pair(nbits / 2, nbits);
+                }
+                if (isa == cpu::x64::avx2) {
+                    return std::make_pair(nbits, nbits / 2);
+                }
+                return std::make_pair(2 * nbits, nbits / 4);
+            }();
             const int unrolled_loop_step = ur_ch * step;
 
             cmp(reg_work_amount, unrolled_loop_step);
@@ -152,18 +149,15 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
         L(main_loop_label);
         {
-            int repeats;
-            int step;
-            if (isa == cpu::x64::sse41) {
-                repeats = 2;
-                step = nbits / 2;
-            } else if (isa == cpu::x64::avx2) {
-                repeats = 1;
-                step = nbits;
-            } else {
-                repeats = 1;
-                step = nbits * 2;
-            }
+            auto [repeats, step] = [&]() {
+                if (isa == cpu::x64::sse41) {
+                    return std::make_pair(2, nbits / 2);
+                }
+                if (isa == cpu::x64::avx2) {
+                    return std::make_pair(1, nbits);
+                }
+                return std::make_pair(1, nbits * 2);
+            }();
             const int main_loop_step = step * repeats;
 
             cmp(reg_work_amount, main_loop_step);

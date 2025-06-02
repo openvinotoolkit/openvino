@@ -838,14 +838,15 @@ private:
 
         int nbits = 8;
         const int inp_mult = div_up(jcp_.ic, nbits);
-        int out_mult;
-        if (jcp_.with_dw_conv) {
-            out_mult = jcp_.oc_block;
-        } else if (jcp_.with_binarization) {
-            out_mult = div_up(jcp_.oc, nbits);
-        } else {
-            out_mult = jcp_.oc;
-        }
+        int out_mult = [&]() {
+            if (jcp_.with_dw_conv) {
+                return jcp_.oc_block;
+            }
+            if (jcp_.with_binarization) {
+                return div_up(jcp_.oc, nbits);
+            }
+            return jcp_.oc;
+        }();
 
         int l_pad = jcp_.l_pad;
         int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1));

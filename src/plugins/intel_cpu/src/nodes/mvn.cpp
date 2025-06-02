@@ -798,14 +798,15 @@ private:
     }
 
     void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
-        int tile_start_idx;
-        if (isa == cpu::x64::avx512_core) {
-            tile_start_idx = 0;
-        } else if (isa == cpu::x64::avx2) {
-            tile_start_idx = 1;
-        } else {
-            tile_start_idx = 2;
-        }
+        int tile_start_idx = [&]() {
+            if (isa == cpu::x64::avx512_core) {
+                return 0;
+            }
+            if (isa == cpu::x64::avx2) {
+                return 1;
+            }
+            return 2;
+        }();
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
             cmp(reg_tail_num, tile_size[i]);
@@ -1727,14 +1728,15 @@ private:
     }
 
     void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
-        int tile_start_idx;
-        if (isa == cpu::x64::avx512_core) {
-            tile_start_idx = 0;
-        } else if (isa == cpu::x64::avx2) {
-            tile_start_idx = 1;
-        } else {
-            tile_start_idx = 2;
-        }
+        int tile_start_idx = [&]() {
+            if (isa == cpu::x64::avx512_core) {
+                return 0;
+            }
+            if (isa == cpu::x64::avx2) {
+                return 1;
+            }
+            return 2;
+        }();
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
             cmp(reg_tail_num, tile_size[i]);

@@ -168,14 +168,15 @@ void RegPrinter::print_vmm(jit_generator& h, REG_T vmm, const char* name) {
     h.push(abi_param2);
     h.push(abi_param3);
     {
-        int vlen;
-        if (vmm.isZMM()) {
-            vlen = 64;
-        } else if (vmm.isYMM()) {
-            vlen = 32;
-        } else {
-            vlen = 16;
-        }
+        int vlen = [&]() {
+            if (vmm.isZMM()) {
+                return 64;
+            }
+            if (vmm.isYMM()) {
+                return 32;
+            }
+            return 16;
+        }();
         h.sub(h.rsp, vlen);
         h.uni_vmovups(h.ptr[h.rsp], vmm);
 

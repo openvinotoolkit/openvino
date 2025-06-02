@@ -221,14 +221,15 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
         // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
         // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
         // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
-        int eltInGrid;
-        if (spatialDimSize > 2) {
-            eltInGrid = MAX_INPUT_INTERPOLATE;
-        } else if (spatialDimSize > 1) {
-            eltInGrid = 4;
-        } else {
-            eltInGrid = 2;
-        }
+        int eltInGrid = [&]() -> int {
+            if (spatialDimSize > 2) {
+                return MAX_INPUT_INTERPOLATE;
+            }
+            if (spatialDimSize > 1) {
+                return 4;
+            }
+            return 2;
+        }();
         int idxType = 2;
         int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
         indexTable.resize(idxType * scratchLen);

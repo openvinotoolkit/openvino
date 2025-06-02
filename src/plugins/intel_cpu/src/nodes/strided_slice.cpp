@@ -621,29 +621,30 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
                 srcIdx++;
             } else {
-                int b;
-                if (params.attrs.beginMask[axis] == 1) {
-                    b = params.attrs.begin[axis];
-                } else if (params.attrs.stride[axis] > 0) {
-                    b = 0;
-                } else {
-                    b = -1;
-                }
+                int b = [&]() {
+                    if (params.attrs.beginMask[axis] == 1) {
+                        return params.attrs.begin[axis];
+                    }
+                    if (params.attrs.stride[axis] > 0) {
+                        return 0;
+                    }
+                    return -1;
+                }();
                 correcting(b, params.srcBlockedDims[srcIdx]);
                 clipping(b, 0, params.srcBlockedDims[srcIdx]);
 
-                int e;
-                if (params.attrs.endMask[axis] == 1) {
-                    if (params.attrs.stride[axis] > 0) {
-                        e = params.attrs.end[axis] - 1;
-                    } else {
-                        e = params.attrs.end[axis] + 1;
+                int e = [&]() {
+                    if (params.attrs.endMask[axis] == 1) {
+                        if (params.attrs.stride[axis] > 0) {
+                            return params.attrs.end[axis] - 1;
+                        }
+                        return params.attrs.end[axis] + 1;
                     }
-                } else if (params.attrs.stride[axis] > 0) {
-                    e = -1;
-                } else {
-                    e = 0;
-                }
+                    if (params.attrs.stride[axis] > 0) {
+                        return -1;
+                    }
+                    return 0;
+                }();
                 correcting(e, params.srcBlockedDims[srcIdx]);
                 clipping(e, 0, params.srcBlockedDims[srcIdx]);
 

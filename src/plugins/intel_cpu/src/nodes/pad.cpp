@@ -610,14 +610,15 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift;
-                if (indexes[idx] < params.attrs.padsBegin[idx]) {
-                    shift = 0;
-                } else if (static_cast<size_t>(indexes[idx]) >= params.srcODims[idx]) {
-                    shift = params.srcDims[idx] - 1;
-                } else {
-                    shift = indexes[idx] - params.attrs.padsBegin[idx];
-                }
+                size_t shift = [&]() {
+                    if (indexes[idx] < params.attrs.padsBegin[idx]) {
+                        return size_t(0);
+                    }
+                    if (static_cast<size_t>(indexes[idx]) >= params.srcODims[idx]) {
+                        return params.srcDims[idx] - 1;
+                    }
+                    return static_cast<size_t>(indexes[idx] - params.attrs.padsBegin[idx]);
+                }();
                 srcIdx += shift * params.srcStrides[idx];
             }
             srcIdx *= params.dataSize;
@@ -665,14 +666,15 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx;
-                if (indexes[i] < params.attrs.padsBegin[i]) {
-                    idx = params.attrs.padsBegin[i] - indexes[i] - shift;
-                } else if (static_cast<size_t>(indexes[i]) >= params.srcODims[i]) {
-                    idx = params.srcDimsForReflectOrSymmetric[i] - indexes[i];
-                } else {
-                    idx = indexes[i] - params.attrs.padsBegin[i];
-                }
+                size_t idx = [&]() -> size_t {
+                    if (indexes[i] < params.attrs.padsBegin[i]) {
+                        return params.attrs.padsBegin[i] - indexes[i] - shift;
+                    }
+                    if (static_cast<size_t>(indexes[i]) >= params.srcODims[i]) {
+                        return params.srcDimsForReflectOrSymmetric[i] - indexes[i];
+                    }
+                    return indexes[i] - params.attrs.padsBegin[i];
+                }();
                 srcIdx += idx * params.srcStrides[i];
             }
             srcIdx *= params.dataSize;
