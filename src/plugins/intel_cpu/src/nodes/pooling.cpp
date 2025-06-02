@@ -15,6 +15,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"

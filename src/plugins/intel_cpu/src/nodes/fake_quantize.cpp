@@ -26,8 +26,8 @@
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
