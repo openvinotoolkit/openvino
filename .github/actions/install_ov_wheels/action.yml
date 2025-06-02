@@ -19,7 +19,7 @@ runs:
         Write-Host "Parsed Python version: $pyVersion"
         
         Write-Host "Wheels folder: $(Get-ChildItem -Path ${{ inputs.wheels-dir-path }})"
-        
+
         foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
             # Search for the python-specific wheel version and install it if exists
             $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Select-Object -First 1
@@ -38,7 +38,7 @@ runs:
       if: runner.os != 'Windows'
       run: |
         echo "Python Version: $(python3 -V)"
-
+       
         py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
         echo "Parsed Python version: ${py_version}"
         
