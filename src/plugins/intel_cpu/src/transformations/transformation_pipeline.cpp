@@ -1432,7 +1432,7 @@ void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;

@@ -28,6 +28,9 @@ static bool checkPostOps(const PostOps& postOps) {
     }
 
     const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
+    if (!activation) {
+        return false;
+    }
     return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
 }
 

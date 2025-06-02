@@ -8,6 +8,7 @@
 #include "utils/fusing_test_utils.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,32 +21,24 @@ public:
 
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         const auto precision = element::f32;
-        const auto input_static_shape = Shape{1, 3, 64, 64};
+        const auto input_static_shape = Shape{16, 3, 9, 9};
 
         auto in_shapes = static_shapes_to_test_representation({input_static_shape});
         init_input_shapes({in_shapes});
         ov::ParameterVector input_params{
             std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_static_shape))};
 
-        auto shared_il = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {0.f});
-        auto shared_ih = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
-        auto shared_ol = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {0.f});
-        auto shared_oh = ov::op::v0::Constant::create(precision, {1, 1, 1, 1}, {12.5f});
-        auto fq_before = std::make_shared<ov::op::v0::FakeQuantize>(input_params[0],
-                                                                    shared_il,
-                                                                    shared_ih,
-                                                                    shared_ol,
-                                                                    shared_oh,
-                                                                    256);
+        auto fq_before = ov::test::utils::make_fake_quantize(input_params[0], precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+
         // Weights
-        auto weights_shape = Shape{1, 3, 64, 64};
-        auto weights = utils::make_constant(element::i8, weights_shape, utils::InputGenerateData(-1, 2, 32768));
+        auto weights_shape = Shape{16, 3, 9, 9};
+        auto weights = utils::make_constant(element::i8, weights_shape);
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
         auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
 
         std::shared_ptr<Node> conv;
         {
-            const std::vector<size_t> kernelSize = {1, 1};
+            const std::vector<size_t> kernelSize = {3, 3};
             const std::vector<size_t> strides = {1, 1};
             const std::vector<ptrdiff_t> padBegin = {0, 0};
             const std::vector<ptrdiff_t> padEnd = {0, 0};
@@ -64,9 +57,15 @@ public:
                                                      numOutChannels);
         }
 
-        auto fq_after =
-            std::make_shared<ov::op::v0::FakeQuantize>(conv, shared_il, shared_ih, shared_ol, shared_oh, 256);
-        function = makeNgraphFunction(precision, input_params, fq_after, "ConvFQ");
+        auto add = std::make_shared<ov::op::v1::Add>(conv, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+        auto fq_after = ov::test::utils::make_fake_quantize(add, precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+
+        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
+        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, element::f32);
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+        const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
+
+        function = makeNgraphFunction(precision, input_params, matMul, "ConvFQ");
     }
 };
 
