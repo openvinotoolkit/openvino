@@ -71,7 +71,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
         if (order.empty()) {
             size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
-            for (size_t i = 1lu; i <= rank; ++i) {
+            for (size_t i = 1LU; i <= rank; ++i) {
                 order.emplace_back(rank - i);
             }
         }

@@ -353,7 +353,7 @@ public:
     };
     ConstantType getConstantType() const;
     void updateConstantType();
-    bool isConstant();
+    bool isConstant() const;
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
     virtual int getFusingAxis() const {
@@ -528,7 +528,7 @@ public:
     void updateDynamicParams();
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
-    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
+    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const;
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -810,9 +810,9 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isOneDimShape(const ov::PartialShape& pshape);
-    bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
-    bool isConfigDefined(const NodeConfig& config) const;
+    static bool isOneDimShape(const ov::PartialShape& pshape);
+    static bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
+    static bool isConfigDefined(const NodeConfig& config);
     virtual bool canBeInPlace() const;
 
     /* returns default implementaion prioirity */
@@ -823,7 +823,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
+    static dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims);
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -912,7 +912,7 @@ private:
                     edges.end());
     }
 
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+    static bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges);
 
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;

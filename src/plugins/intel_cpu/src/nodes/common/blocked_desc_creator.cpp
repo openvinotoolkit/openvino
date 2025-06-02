@@ -20,7 +20,7 @@
 namespace ov::intel_cpu {
 namespace {
 
-constexpr size_t channelsPos = 1lu;
+constexpr size_t channelsPos = 1LU;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
@@ -31,7 +31,7 @@ public:
         return {precision, srcShape, srcShape.getDims(), order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
-        return 0lu;
+        return 0LU;
     }
 };
 
@@ -55,7 +55,7 @@ public:
         return {precision, srcShape, blkDims, order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
-        return 3lu;
+        return 3LU;
     }
 };
 
@@ -81,7 +81,7 @@ public:
         return {precision, srcShape, blkDims, order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
-        return 3lu;
+        return 3LU;
     }
 
 private:
@@ -102,10 +102,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     const CreatorsMap& map,
     unsigned int rank) {
     auto rankFilter = [rank](const CreatorsMap::value_type& item) {
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankFilter), map.begin(), map.end());
@@ -117,7 +114,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     const CreatorsMap& map,
     unsigned rank,
     const std::vector<LayoutType>& supportedTypes) {
-    unsigned bitMask = 0ul;
+    unsigned bitMask = 0UL;
     for (const auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
     }

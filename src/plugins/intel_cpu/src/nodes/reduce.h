@@ -155,8 +155,8 @@ private:
                             std::function<float(float, float)> func);
     void create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp);
     inline void reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
-    void nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr);
-    void blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr);
+    void nspc2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const;
+    void blocked2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const;
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims, bool initWeights = false);
     void setJITBeyond5D();
     std::vector<int> update_src_dims();
