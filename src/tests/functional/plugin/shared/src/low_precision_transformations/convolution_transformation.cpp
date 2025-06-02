@@ -17,9 +17,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
     auto [netPrecision, inputShape, device, param] = obj.param;
-
-    ov::pass::low_precision::LayerTransformation::Params params =
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape, device, params) <<
            "_rank=" << inputShape.size() <<
