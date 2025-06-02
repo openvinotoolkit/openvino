@@ -13,8 +13,12 @@ runs:
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        # Get the Python version
+         Write-Host "Python Version: $(python3 -V)"
+
         $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+        Write-Host "Parsed Python version: $pyVersion"
+
+        Write-Host "Wheels folder: $(Get-ChildItem -Path ${{ inputs.wheels-dir-path }})"
         
         foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
             # Search for the python-specific wheel version and install it if exists
@@ -33,6 +37,10 @@ runs:
       if: runner.os != 'Windows'
       run: |
         py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+        echo "Parsed Python version: ${py_version}"
+        
+        echo "Wheels folder: $(ls -la ${{ inputs.wheels-dir-path }})"
+
         for wheel in ${{ inputs.wheels-to-install }}; do
           echo "Installing the ${wheel} wheel"
           

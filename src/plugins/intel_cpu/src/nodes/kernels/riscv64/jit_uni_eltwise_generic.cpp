@@ -430,8 +430,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
                                                                                   const ov::element::Type& exec_prec) {
     EltwiseEmitterContext ctx = {nullptr, this, isa, data, exec_prec};
 
-    OV_SWITCH(
-        intel_cpu,
+    OV_SWITCH(intel_cpu,
         EltwiseEmitter,
         ctx,
         data.algo,
