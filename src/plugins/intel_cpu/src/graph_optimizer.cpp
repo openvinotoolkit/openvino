@@ -1650,10 +1650,13 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             }
 
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
-                if (!std::all_of(binConv->fusedWith.begin(), binConv->fusedWith.end(), [](const NodePtr& fusedNode) {
-                        const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                        return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
-                    })) {
+                auto isNotSpecialConvolutionAddFusing = [](const NodePtr& fusedNode) {
+                    const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
+                    return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                };
+                if (!std::all_of(binConv->fusedWith.begin(),
+                                 binConv->fusedWith.end(),
+                                 isNotSpecialConvolutionAddFusing)) {
                     return false;
                 }
                 return true;
@@ -1676,7 +1679,6 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
                 const auto eltwise = std::dynamic_pointer_cast<Eltwise>(node);
                 return eltwise && eltwise->isSpecialConvolutionAddFusing();
             });
-            return false;
         };
 
         auto* convNode1 = dynamic_cast<Convolution*>(parent1.get());
@@ -3184,9 +3186,10 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
         }
 
         auto&& childEdges = node->getChildEdgesAtPort(0);
-        if (!std::all_of(childEdges.begin(), childEdges.end(), [](const auto& edge) {
-                return Type::MemoryOutput == edge->getChild()->getType();
-            })) {
+        auto isMemoryOutputChild = [](const auto& edge) {
+            return Type::MemoryOutput == edge->getChild()->getType();
+        };
+        if (!std::all_of(childEdges.begin(), childEdges.end(), isMemoryOutputChild)) {
             return false;
         }
 

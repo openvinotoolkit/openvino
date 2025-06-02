@@ -234,12 +234,9 @@ void Node::remove() {
 }
 
 bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
-    // NOLINTNEXTLINE(readability-use-anyofallof)
-    for (const auto& edge : edges) {
-        if (edge.lock()) {
-            return false;
-        }
-    }
+    return std::all_of(edges.begin(), edges.end(), [](const EdgeWeakPtr& edge) {
+        return !edge.lock();
+    });
     return true;
 }
 

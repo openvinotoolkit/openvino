@@ -2479,11 +2479,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        if (!std::all_of(node->getOriginalInputPrecisions().begin(),
-                         node->getOriginalInputPrecisions().end(),
-                         [](const ov::element::Type& originalInputPrecision) {
-                             return originalInputPrecision == ov::element::i32;
-                         })) {
+        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
             return false;
         }
 
