@@ -746,16 +746,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*",
         });
 
-        // [Tracking number: E#112064]
-        _skipRegistry.addPatterns(backendName.isZero(),
-                "Failing core threading tests", {
-                ".*CoreThreadingTest.smoke_QueryModel.*",
-                ".*CoreThreadingTestsWithIter.smoke_CompileModel.*",
-                ".*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*",
-                ".*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*",
-                ".*CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput.*"
-        });
-
         // [Tracking number: E#108600]
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Failing properties tests", {
