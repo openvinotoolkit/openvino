@@ -654,6 +654,43 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- EISW 112064 -->
+    <skip_config>
+        <message>Failing Linux core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 112064 -->
+    <skip_config>
+        <message>Failing Windows core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Failing properties tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <!-- EISW 108600 -->
+            <filter>.*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <!-- EISW 133153 -->
+            <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
+        </filters>
+    </skip_config>
+    
     <!-- EISW 117582 -->
     <skip_config>
         <message>Failing core threading test with cache enabled</message>
