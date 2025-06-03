@@ -183,7 +183,12 @@ void LSTMSequenceTest::SetUp() {
             abs_threshold = 0.005f;
         }
     } else {
-        rel_threshold = 0.02f;
+        if (activations == std::vector<std::string>{"sigmoid", "sigmoid", "sigmoid"}) {
+            rel_threshold = 0.02f;
+        }
+        if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
+            abs_threshold = 0.01f;
+        }
     }
 }
 
@@ -202,9 +207,7 @@ void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         } else {
             in_data.range = 10;
         }
-        if (i == 0) {
-            tensor = ov::test::utils::create_and_fill_tensor_real_distribution(func_inputs[i].get_element_type(), targetInputStaticShapes[i], 0, 1, 0);
-        } else if (i == 1 || i == 2) {
+        if (i < 3) {
             tensor = ov::test::utils::create_and_fill_tensor_real_distribution(func_inputs[i].get_element_type(), targetInputStaticShapes[i], 0, 1, 0);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
