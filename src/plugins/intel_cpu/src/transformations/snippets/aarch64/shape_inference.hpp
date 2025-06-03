@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <memory>
 #include <snippets/shape_inference/shape_inference.hpp>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ov::snippets {
 
