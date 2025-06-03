@@ -656,6 +656,19 @@ Example:
 
     <!-- EISW 112064 -->
     <skip_config>
+        <message>Failing common core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 112064 -->
+    <skip_config>
         <message>Failing Linux core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
@@ -663,19 +676,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel/.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- EISW 112064 -->
-    <skip_config>
-        <message>Failing Windows core threading tests</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <operating_system>windows</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
-            <filter>.*smoke_BehaviorTests_CoreThreadingTest_NPU/CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
     </skip_config>
 
