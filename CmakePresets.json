@@ -1,0 +1,31 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 19,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "vs2019-release",
+            "hidden": false,
+            "generator": "Visual Studio 16 2019",
+            "description": "Default preset",
+            "binaryDir": "${sourceDir}/build",
+            "installDir": "${sourceDir}/build/install",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install",
+                "CMAKE_SYSTEM_VERSION": "10.0.19041.0"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-preset",
+            "configurePreset": "vs2019-release",
+            "description": "Build with Visual Studio 2019 Release",
+            "configuration": "Release"
+        }
+    ]
+}
