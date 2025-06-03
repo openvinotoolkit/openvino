@@ -182,13 +182,6 @@ void LSTMSequenceTest::SetUp() {
             rel_threshold = 0.05f;
             abs_threshold = 0.005f;
         }
-    } else {
-        if (activations == std::vector<std::string>{"sigmoid", "sigmoid", "sigmoid"}) {
-            rel_threshold = 0.02f;
-        }
-        if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
-            abs_threshold = 0.01f;
-        }
     }
 }
 
