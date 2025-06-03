@@ -662,7 +662,7 @@ Example:
             <operating_system>linux</operating_system>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel/.*</filter>
         </filters>
     </skip_config>
 
@@ -675,6 +675,7 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
+            <filter>.*smoke_BehaviorTests_CoreThreadingTest_NPU/CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
     </skip_config>
 
@@ -690,7 +691,7 @@ Example:
             <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
         </filters>
     </skip_config>
-    
+
     <!-- EISW 117582 -->
     <skip_config>
         <message>Failing core threading test with cache enabled</message>
