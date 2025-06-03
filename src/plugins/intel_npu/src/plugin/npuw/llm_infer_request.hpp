@@ -51,7 +51,6 @@ private:
     std::shared_ptr<ov::IAsyncInferRequest> m_tail_mm_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
-    bool m_need_copy_kvcache = false;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
