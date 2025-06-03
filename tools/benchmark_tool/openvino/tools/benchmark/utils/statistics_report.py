@@ -138,7 +138,7 @@ class CsvStatisticsReport(StatisticsReport):
     def dump_performance_counters_sorted(self, prof_sorted_info):
         """Save sorted performance counters into csv file.
         """
-        filename = os.path.join(self.config.report_folder, 'benchmark_sorted_report.csv')
+        filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.csv')
         total = 0
         total_cpu = 0
         with open(filename, 'w') as f:
@@ -285,7 +285,7 @@ class JsonStatisticsReport(StatisticsReport):
 
             return prof_info_json
 
-        filename = os.path.join(self.config.report_folder, 'benchmark_sorted_report.json')
+        filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.json')
         with open(filename, 'w') as file:
             profiling_info_json = profiling_info_to_dict_list(prof_sorted_info)
             json_statistics = {

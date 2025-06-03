@@ -11,6 +11,7 @@ from openvino import (
     CompiledModel,
     InferRequest,
     Tensor,
+    compile_model,
 )
 
 from tests.utils.helpers import generate_model_with_memory

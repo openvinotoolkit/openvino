@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
-import argparse
+import sys, argparse
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 

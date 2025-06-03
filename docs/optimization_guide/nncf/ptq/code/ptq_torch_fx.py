@@ -25,6 +25,7 @@ quantized_model = nncf.quantize(exported_model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
+import openvino.torch
 
 input_fp32 = ... # FP32 model input
 

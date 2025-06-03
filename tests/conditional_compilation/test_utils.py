@@ -4,6 +4,7 @@
 
 """ Utility functions for work with json test configuration file.
 """
+import os
 import json
 import multiprocessing
 import sys

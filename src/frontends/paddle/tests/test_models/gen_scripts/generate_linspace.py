@@ -7,6 +7,7 @@
 import numpy as np
 from save_model import saveModel
 import paddle
+import random
 import sys
 
 data_type = "float32"

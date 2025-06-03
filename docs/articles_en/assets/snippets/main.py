@@ -24,7 +24,7 @@ def import_python_modules(directory, subdirectory=""):
             try:
                 with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                     mod.main()
-            except AttributeError:
+            except AttributeError as e:
                 pass
 
             print(f"Snippet {item} succesfully executed.")

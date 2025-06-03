@@ -5,6 +5,7 @@
 # slice paddle model generator
 #
 import sys
+import os
 
 import numpy as np
 import paddle

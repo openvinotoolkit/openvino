@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
-from utils.file_utils import get_ov_path
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
+from utils.file_utils import get_ov_path, find_latest_dir
+import defusedxml.ElementTree as ET
 
 import os
 import re
@@ -33,7 +34,7 @@ except:
         logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
         exit(0)
     else:
-        print('Impossible to run the tool! PyOpenVINO was not built!')
+        print(f'Impossible to run the tool! PyOpenVINO was not built!')
         exit(-1)
     
 
@@ -161,7 +162,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 for node in model.get_ordered_ops():
                     op_name = generate_op_name(node.get_type_info())
                     if is_report_op(op_name):
-                        if op_name not in operations.keys():
+                        if not op_name in operations.keys():
                             operations.update({op_name: TestStructure()})
                         # add op/subgraphs, dynamic/static and extractor_name to hash
                         model_dir, _ = os.path.split(model_path)
@@ -245,7 +246,7 @@ if __name__=="__main__":
     args = parse_arguments()
     operations = dict()
     rel_weights_dir = None
-    if args.rel_weights_dir is not None:
+    if not args.rel_weights_dir is None:
         rel_weights_dir = Path(args.rel_weights_dir)
         if not rel_weights_dir.is_dir():
             logger.info(f"Create rel weight_dir: {rel_weights_dir}")
@@ -258,7 +259,7 @@ if __name__=="__main__":
         # logger.info(f"Starting to rename models in {in_dir}")
         operations = create_hash(Path(in_dir), operations)
     
-    if rel_weights_dir is not None:
+    if not rel_weights_dir is None:
         save_rel_weights(rel_weights_dir, operations)
 
     logger.info("The run is successfully completed")

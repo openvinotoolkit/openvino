@@ -190,7 +190,7 @@ class TestSubWithRhsComplex(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_sub(alpha), ref_net, "aten::sub"
+        return aten_sub(alpha), ref_net, f"aten::sub"
 
     @pytest.mark.parametrize('alpha', (0, 0.5))
     @pytest.mark.parametrize("rhs_type",

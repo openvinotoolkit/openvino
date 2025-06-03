@@ -2,6 +2,7 @@
 from __future__ import annotations
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Tensor
+from openvino.tools.ovc.cli_parser import InputCutInfo as _InputCutInfo
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info
 from openvino.tools.ovc.error import Error
 import logging as log

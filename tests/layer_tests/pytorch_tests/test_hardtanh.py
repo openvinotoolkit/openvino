@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
 
 import numpy as np
 import pytest
@@ -14,6 +15,7 @@ class TestHardtanh(PytorchLayerTest):
         return (np.random.default_rng().uniform(-100.0, 100.0, input_shape).astype(input_dtype),)
 
     def create_model(self, min_val, max_val, inplace):
+        import torch
         import torch.nn.functional as F
 
         class aten_hardtanh(torch.nn.Module):

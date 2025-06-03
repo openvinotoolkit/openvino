@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino._offline_transformations import paged_attention_transformation
+from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Type, Union
@@ -69,9 +70,9 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["score_aggregation_window"] = r'score_aggregation_window'
 
     if (allow_cache_rotation):
-        interesting_input_patterns["rotated_block_indices"] = r'^rotated_block_indices\.[0-9]+'
-        interesting_input_patterns["rotation_deltas"] = r'^rotation_deltas\.[0-9]+'
-        interesting_input_patterns["rotation_trig_lut"] = r'rotation_trig_lut'
+        interesting_input_patterns["rotated_block_indices"] = r'^rotated_block_indices\.[0-9]+';
+        interesting_input_patterns["rotation_deltas"] = r'^rotation_deltas\.[0-9]+';
+        interesting_input_patterns["rotation_trig_lut"] = r'rotation_trig_lut';
 
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}

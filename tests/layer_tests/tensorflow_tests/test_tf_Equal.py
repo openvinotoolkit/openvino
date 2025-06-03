@@ -24,12 +24,12 @@ class TestTFEqual(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             if isinstance(self.x_shape, np.ndarray) or isinstance(self.x_shape, list):
-                if self.x_value is not None:
+                if not self.x_value is None:
                     inputs_dict[input] = np.full(inputs_dict[input], self.x_value, dtype=self.output_type)
                 else:
                     inputs_dict[input] = np.random.randint(-3, 3, inputs_dict[input]).astype(self.output_type)
             else:
-                if self.x_value is not None:
+                if not self.x_value is None:
                     if not isinstance(self.x_value, list):
                         inputs_dict[input] = self.output_type(self.x_value)
                     else:
@@ -69,12 +69,12 @@ class TestTFEqual(CommonTFLayerTest):
                 x = tf.compat.v1.placeholder(tf.int64, self.x_shape, 'Input')
 
             if isinstance(self.y_shape, np.ndarray) or isinstance(self.y_shape, list):
-                if self.y_value is not None:
+                if not self.y_value is None:
                     constant_value = np.full(self.y_shape, self.y_value, dtype=self.output_type)
                 else:
                     constant_value = np.random.randint(-3, 3, self.y_shape).astype(self.output_type)
             else:
-                if self.y_value is not None:
+                if not self.y_value is None:
                     if not isinstance(self.y_value, list):
                         constant_value = self.output_type(self.y_value)
                     else:

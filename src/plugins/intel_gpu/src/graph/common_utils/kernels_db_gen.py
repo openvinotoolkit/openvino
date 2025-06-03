@@ -4,6 +4,8 @@
 
 import os
 import argparse
+import glob
+import ntpath
 import re
 
 class Code2CHeaders(object):

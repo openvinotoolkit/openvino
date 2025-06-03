@@ -66,7 +66,7 @@ class TestMoveDim(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_move_dim(dim0, dim1), ref_net, "aten::movedim"
+        return aten_move_dim(dim0, dim1), ref_net, f"aten::movedim"
 
     @pytest.mark.parametrize(("dim0", "dim1"), [[0, 1], [-1, 0], [2, -2], [3, 1], [3, 3], [[1, 2], [3, 0]], [[-4, 1], [1, -1]], [[1, 3, 2], [0, 1, 2 ]]])
     @pytest.mark.nightly

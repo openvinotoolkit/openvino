@@ -4,6 +4,7 @@
 import os
 import sys
 
+import tensorflow as tf
 
 # Model:
 # (float32)tensor_0[12] -> QUANTIZE -> (int8)tensor_1[12]

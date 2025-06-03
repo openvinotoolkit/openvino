@@ -15,8 +15,7 @@
 #                         IntelSEAPI statistics files in CSV format
 #   --out cc.h            C++ header file to be generated
 
-import argparse
-import csv
+import argparse, csv
 from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod

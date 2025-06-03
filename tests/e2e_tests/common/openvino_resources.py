@@ -137,7 +137,7 @@ class OpenVINOResources:
                 resource_name, Path(accuracy_checker.__file__).parents[2] / "model_zoo"
             ):
                 return self._resources[resource_name]
-        except ImportError:  # pylint: disable=unused-variable
+        except ImportError as exc:  # pylint: disable=unused-variable
             if os.getenv("OMZ_ROOT"):
                 print("OMZ ROOT IS: {}".format(os.getenv("OMZ_ROOT")))
                 if self._check_resource(resource_name, Path(os.getenv("OMZ_ROOT"))):

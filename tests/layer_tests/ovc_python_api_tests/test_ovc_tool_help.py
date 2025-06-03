@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import os
 import sys
 import unittest
 from openvino.tools.ovc import ovc

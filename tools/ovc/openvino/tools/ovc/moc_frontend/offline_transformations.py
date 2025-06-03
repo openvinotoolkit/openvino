@@ -74,7 +74,7 @@ def get_available_transformations():
             'LowLatency2': apply_low_latency_transformation,
             'Pruning': apply_pruning_transformation,
         }
-    except Exception:
+    except Exception as e:
         return {}
 
 

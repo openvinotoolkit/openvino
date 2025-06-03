@@ -9,6 +9,7 @@ import numpy as np
 
 class TestLayerNorm(PytorchLayerTest):
     def _prepare_input(self):
+        import numpy as np
         return (np.random.randn(20, 5, 10, 10).astype(np.float32),)
 
     def create_model(self, normalized_shape, weight, bias, eps):

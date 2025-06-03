@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 import torch
+import openvino as ov
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestPolar(PytorchLayerTest):

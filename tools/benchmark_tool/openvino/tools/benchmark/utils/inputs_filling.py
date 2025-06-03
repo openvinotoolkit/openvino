@@ -10,7 +10,7 @@ from collections import defaultdict
 from pathlib import Path
 from importlib.util import find_spec
 
-from openvino import Tensor, PartialShape
+from openvino import Tensor, PartialShape, Type
 from openvino.utils.types import get_dtype
 
 from .constants import IMAGE_EXTENSIONS, NUMPY_EXTENSIONS, BINARY_EXTENSIONS

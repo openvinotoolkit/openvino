@@ -270,7 +270,7 @@ class Kernels2CHeaders(object):
             res += line + '\n'
             characters += len(line) + 1
 
-        res += ')__krnl"}},\n\n'
+        res += ')__krnl"}},\n\n'.format(kernel_name)
 
         return res
 

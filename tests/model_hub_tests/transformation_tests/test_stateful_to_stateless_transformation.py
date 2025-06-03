@@ -52,8 +52,8 @@ def check_result_desc_tensors(expected_tensors, tensors):
 @retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, stateful=True, compile=False)
-    assert len(model.model.get_sinks()), "Input model is not in the expected stateful form because it doesn't have any sinks."
-    assert len(get_read_value_ops(model.model)), "Input model is not in the expected stateful form because it doesn't have any ReadValue operations."
+    assert len(model.model.get_sinks()), f"Input model is not in the expected stateful form because it doesn't have any sinks."
+    assert len(get_read_value_ops(model.model)), f"Input model is not in the expected stateful form because it doesn't have any ReadValue operations."
 
     stateful_to_stateless_transformation(model.model)
 

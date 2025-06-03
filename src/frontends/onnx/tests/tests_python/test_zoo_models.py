@@ -13,6 +13,7 @@ from tests.tests_python.utils import OpenVinoOnnxBackend
 from tests.tests_python.utils.model_importer import ModelImportRunner
 
 from tests import (
+    xfail_issue_67415,
     xfail_issue_38701,
     xfail_issue_37957,
     xfail_issue_39669,

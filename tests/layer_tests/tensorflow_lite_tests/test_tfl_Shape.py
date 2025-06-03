@@ -1,11 +1,13 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+from functools import partial
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
+from common.utils.tflite_utils import parametrize_tests
 
 
 test_params = [

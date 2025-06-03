@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import logging as log
 import sys
 from collections import OrderedDict

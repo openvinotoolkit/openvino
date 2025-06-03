@@ -76,9 +76,9 @@ def main():
 
     init_parser = argparse.ArgumentParser(add_help=False)
     init_parser.add_argument('--timeline_report',
-                             help='create timeline HTML report file name')
+                             help=f'create timeline HTML report file name')
     init_parser.add_argument('--upload', action="store_true",
-                             help='upload results to database')
+                             help=f'upload results to database')
     init_parser.add_argument('--compare',
                              metavar='REFERENCE',
                              help='compare run with reference.'
@@ -118,9 +118,9 @@ def main():
                         default='',
                         )
     parser.add_argument('--manifest',
-                        help='extract commit information from build manifest')
+                        help=f'extract commit information from build manifest')
     parser.add_argument('--metadata',
-                        help='add extra commit information, json formated')
+                        help=f'add extra commit information, json formated')
     parser.add_argument('--strip_log_path',
                         metavar='REMOVE[,REPLACE]',
                         default='',

@@ -5,6 +5,7 @@
 import openvino.properties as props
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
 from openvino import Layout, Type, serialize
+import openvino as ov
 import openvino.runtime.opset12 as ops
 from utils import get_model, get_temp_dir, get_path_to_model, get_advanced_model
 
@@ -19,6 +20,8 @@ ppp = PrePostProcessor(model)
 # ! [ov:preprocess:create]
 
 # ! [ov:preprocess:tensor]
+from openvino.preprocess import ColorFormat
+from openvino import Layout, Type
 ppp.input(input_name).tensor() \
         .set_element_type(Type.u8) \
         .set_shape([1, 480, 640, 3]) \
@@ -30,6 +33,7 @@ ppp.input(input_name).tensor() \
 ppp.input(input_name).model().set_layout(Layout('NCHW'))
 # ! [ov:preprocess:model]
 # ! [ov:preprocess:steps]
+from openvino.preprocess import ResizeAlgorithm
 ppp.input(input_name).preprocess() \
     .convert_element_type(Type.f32) \
     .convert_color(ColorFormat.RGB) \
@@ -134,6 +138,7 @@ print(ppp)  # Dump preprocessing steps to see what will happen
 
 # ! [ov:preprocess:custom]
 # It is possible to insert some custom operations
+import openvino.runtime.opset12 as ops
 from openvino.runtime import Output
 from openvino.runtime.utils.decorators import custom_preprocess_function
 
@@ -157,6 +162,7 @@ ppp.output('result').tensor()\
     .set_element_type(Type.u8)
 
 # Also it is possible to insert some custom operations
+import openvino.runtime.opset12 as ops
 from openvino.runtime import Output
 from openvino.runtime.utils.decorators import custom_preprocess_function
 
@@ -172,6 +178,7 @@ ppp.output("result").postprocess()\
 # ! [ov:preprocess:save_headers]
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 from openvino import Core, Layout, Type, set_batch
+from openvino import serialize
 # ! [ov:preprocess:save_headers]
 
 model_path = get_path_to_model()

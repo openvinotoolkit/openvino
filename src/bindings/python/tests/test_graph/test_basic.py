@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import openvino.opset8 as ops
+import openvino as ov
 
 from openvino import (
     Model,

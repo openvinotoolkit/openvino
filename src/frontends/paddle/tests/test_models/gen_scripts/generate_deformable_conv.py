@@ -3,6 +3,7 @@
 #
 import numpy as np
 import sys
+from typing import List
 
 from save_model import saveModel
 

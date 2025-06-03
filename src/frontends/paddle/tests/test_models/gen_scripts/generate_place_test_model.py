@@ -8,6 +8,7 @@ import sys
 import os
 
 def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
+    import paddle
     paddle.enable_static()
     main_program = paddle.static.Program()
     startup_program = paddle.static.Program()
@@ -46,9 +47,9 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             program, feed_target_names, fetch_targets = paddle.static.io.load_inference_model(path_prefix, exe)
 
             if paddle.__version__ >= '2.6.0':
-                pass
+                from paddle.base import core
             else:
-                pass
+                from paddle.fluid import core
             condition = lambda v : not v.persistable and v.name != "transpose_1.tmp_1" and v.name != "transpose_0.tmp_1"
             vars_ = list(filter(condition, program.list_vars()))
             vars_name = [v.name for v in vars_]

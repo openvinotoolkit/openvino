@@ -1,5 +1,6 @@
 # ref: https://www.paddlepaddle.org.cn/tutorials/projectdetail/1998893#anchor-2
 
+import os
 import sys
 
 import numpy as np

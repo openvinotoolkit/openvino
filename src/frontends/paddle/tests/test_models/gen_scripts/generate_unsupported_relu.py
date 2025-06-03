@@ -46,6 +46,7 @@ def print_alike(arr):
 
 
 def relu(name: str, x):
+    import paddle
     paddle.enable_static()
 
     node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')

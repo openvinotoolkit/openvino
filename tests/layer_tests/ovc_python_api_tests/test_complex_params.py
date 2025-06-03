@@ -5,9 +5,10 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 import openvino as ov
 import pytest
-from openvino import PartialShape, Dimension
+from openvino import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb

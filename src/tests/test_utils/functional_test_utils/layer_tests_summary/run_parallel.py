@@ -24,9 +24,9 @@ if not constants.IS_WIN:
     from signal import SIGKILL
 
 if sys.version_info.major >= 3:
-    pass
+    import _thread as thread
 else:
-    pass
+    import thread
 
 HAS_PYTHON_API = True
 logger = get_logger("test_parallel_runner")
@@ -211,7 +211,7 @@ class TaskManager:
             )
             return
         if self._device_cnt == 0:
-            logger.error("Empty available devices! Check your device!")
+            logger.error(f"Empty available devices! Check your device!")
             sys.exit(-1)
         for target_device in self._available_devices:
             log_file_name = self._log_filename.replace(
@@ -247,7 +247,7 @@ class TaskManager:
                 os.killpg(pid, SIGKILL)
             else:
                 call(["taskkill", "/F", "/T", "/PID", str(pid)])
-        except OSError:
+        except OSError as err:
             # logger.warning(f"Impossible to kill process {pid} with error: {err}")
             pass
 
@@ -359,7 +359,7 @@ class TestParallelRunner:
         self._disabled_tests = []
         self._total_test_cnt = 0
         self._device = get_device_by_args(self._command.split())
-        self._available_devices = [self._device] if self._device is not None else []
+        self._available_devices = [self._device] if not self._device is None else []
         if HAS_PYTHON_API and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
         self._excluded_tests = excluded_tests
@@ -452,7 +452,7 @@ class TestParallelRunner:
             for test_name in test_list_file.read().split("\n"):
                 if "Running main() from" in test_name:
                     continue
-                if " " not in test_name:
+                if not " " in test_name:
                     test_suite = test_name.replace(".", "")
                     continue
                 pos = test_name.find(" # ")
@@ -813,7 +813,7 @@ class TestParallelRunner:
                                 if mes in line:
                                     dir = test_st
                                     break
-                            if dir is not None:
+                            if not dir is None:
                                 break
                     # Collect PostgreSQL reporting errors and warnings
                     if (constants.PG_ERR in line) or (constants.PG_WARN in line):

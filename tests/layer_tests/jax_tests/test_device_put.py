@@ -4,6 +4,7 @@
 import jax
 import numpy as np
 import pytest
+from jax import lax
 from jax import numpy as jnp
 
 from jax_layer_test_class import JaxLayerTest

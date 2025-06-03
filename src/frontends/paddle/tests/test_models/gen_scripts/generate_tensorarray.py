@@ -1,5 +1,7 @@
+import os
 import sys
 
+import numpy as np
 import paddle
 
 from save_model import exportModel

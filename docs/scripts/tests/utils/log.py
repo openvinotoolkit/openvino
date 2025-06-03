@@ -100,7 +100,7 @@ class LogParser:
                 filepath = match.group(1) or 'warning'
                 linenum = match.group(2)
                 warning = match.group(4)
-                if filepath not in self.out:
+                if not filepath in self.out:
                     self.out[filepath] = set()
                 if linenum:
                     warning = f'{warning} line ({linenum})'

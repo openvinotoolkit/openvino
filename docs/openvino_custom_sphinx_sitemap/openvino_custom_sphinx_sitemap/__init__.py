@@ -35,7 +35,7 @@ def create_sitemap(app, exception, searchers):
         return
 
     if not app.sitemap_links:
-        print("sphinx-sitemap warning: No pages generated.")
+        print(f"sphinx-sitemap warning: No pages generated.")
         return
 
     all_links = []

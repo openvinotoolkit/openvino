@@ -210,6 +210,7 @@ class TestReflectionPad(PytorchLayerTest):
 
     def create_model(self, pads):
         import torch
+        import torch.nn.functional as F
 
         class aten_pad(torch.nn.Module):
             def __init__(self, pads):

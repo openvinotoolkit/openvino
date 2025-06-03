@@ -153,7 +153,7 @@ def get_moc_frontends(argv: argparse.Namespace):
         return None, []
 
     # This check as a workaround to skip IR frontend
-    if moc_front_end.get_name() not in available_moc_front_ends:
+    if not moc_front_end.get_name() in available_moc_front_ends:
         return None, available_moc_front_ends
 
     return moc_front_end, available_moc_front_ends
@@ -217,7 +217,7 @@ def check_model_object(argv):
 
             if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
                 return "pytorch"
-        except Exception:
+        except Exception as e:
             pass
 
     import io

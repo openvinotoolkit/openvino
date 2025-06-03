@@ -24,9 +24,12 @@ import time
 import shutil
 import struct
 import signal
+import fnmatch
 import tempfile
+import binascii
 import platform
 import traceback
+import threading
 import subprocess # nosec
 from python_compat import *
 from glob import glob
@@ -2070,7 +2073,7 @@ class Collector:
 
     @classmethod
     def log(cls, msg, stack=False):
-        if type(stack) is not bool:
+        if not type(stack) is bool:
             stack = False
         msg = msg.strip()
         cut = '\n' + '-' * 100 + '\n'

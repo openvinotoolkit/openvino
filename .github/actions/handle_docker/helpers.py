@@ -45,7 +45,7 @@ def get_changeset(repo: str, pr: str, target_branch: str, commit_sha: str):
         target_branch_head_commit = gh_api.repos.get_branch(target_branch).commit.sha
         changed_files = gh_api.repos.compare_commits(f'{target_branch_head_commit}...{commit_sha}').get('files', [])
     else:
-        raise ValueError('Either "pr" or "target_branch" parameter must be non-empty')
+        raise ValueError(f'Either "pr" or "target_branch" parameter must be non-empty')
     return set([f.filename for f in changed_files])
 
 

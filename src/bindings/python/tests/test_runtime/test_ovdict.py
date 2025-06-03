@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Mapping
 import numpy as np
 import pytest
 

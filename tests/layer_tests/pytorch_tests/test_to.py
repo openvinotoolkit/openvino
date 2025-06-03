@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import torch
 
+from openvino.frontend import OpConversionFailure
 from pytorch_layer_test_class import PytorchLayerTest
 
 

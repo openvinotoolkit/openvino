@@ -333,7 +333,7 @@ def main():
                         default='',
                         )
     parser.add_argument('--artifact_root', required=True,
-                        help='A root directory to strip from log path before upload.')
+                        help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')
     args = parser.parse_args()
 

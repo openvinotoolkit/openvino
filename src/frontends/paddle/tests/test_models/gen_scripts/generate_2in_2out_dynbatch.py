@@ -3,6 +3,7 @@
 
 import paddle
 import numpy as np
+import os
 import sys
 from save_model import saveModel 
 

@@ -12,6 +12,8 @@ from openvino.utils.decorators import nameable_op
 from openvino.utils.types import (
     NodeInput,
     as_nodes,
+    as_node,
+    make_constant_node,
 )
 
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")

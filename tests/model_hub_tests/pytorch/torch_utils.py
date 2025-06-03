@@ -66,6 +66,7 @@ class TestTorchConvertModel(TestConvertModel):
     def convert_model_impl(self, model_obj):
         if hasattr(self, "mode") and self.mode == "export":
             from torch.export import export
+            from packaging import version
 
             model_obj.eval()
             graph = None

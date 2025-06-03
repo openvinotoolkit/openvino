@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestShiftOperators(PytorchLayerTest):

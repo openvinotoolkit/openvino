@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import singledispatchmethod
 from openvino._pyopenvino import Extension
 from openvino._pyopenvino import Node
+from openvino._pyopenvino import NodeFactory as _NodeFactory
 from openvino._pyopenvino import Output
 from openvino.exceptions import UserInputError
 from pathlib import Path

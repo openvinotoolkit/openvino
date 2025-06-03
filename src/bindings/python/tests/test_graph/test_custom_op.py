@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 import numpy as np
 from contextlib import nullcontext as does_not_raise

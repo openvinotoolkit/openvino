@@ -14,6 +14,7 @@ from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import overloading
 from openvino.utils.decorators import unary_op
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 import functools

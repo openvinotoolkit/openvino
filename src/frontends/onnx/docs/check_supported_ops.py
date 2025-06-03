@@ -19,7 +19,7 @@ def run_in_ci():
     return False
 
 
-if not run_in_ci() and '--manual' not in sys.argv:
+if not run_in_ci() and not '--manual' in sys.argv:
     # execute check only in CI when the code is productized
     exit(0)
 
@@ -65,7 +65,7 @@ with open(supported_ops_doc, 'rt') as src:
         if table_line > 2:
             row = [cell.strip() for cell in line.split('|')] # Split line by "|" delimeter and remove spaces
             domain = row[1]
-            if domain not in ops:
+            if not domain in ops:
                 ops[domain] = {}
             opname = row[2]
             defined = []
@@ -76,7 +76,7 @@ with open(supported_ops_doc, 'rt') as src:
                 except:
                     continue
                 defined.append(val)
-            if opname not in ops[domain]:
+            if not opname in ops[domain]:
                 ops[domain][opname] = {'supported':[], 'defined': defined, 'limitations':row[5]}
 
 documentation_errors = []
@@ -88,11 +88,11 @@ for file_path in files:
             # Multiline registration
             if 'ONNX_OP' in line:
                 reg_macro = ""
-            if reg_macro is not None:
+            if not reg_macro is None:
                 reg_macro += line
             else:
                 continue
-            if ');' not in line:
+            if not ');' in line:
                 continue
             # Registration macro has been found, trying parse it
             m = op_regex.search(reg_macro)
@@ -100,19 +100,19 @@ for file_path in files:
                 documentation_errors.append(f"Registration in file {file_path.as_posix()} is corrupted {reg_macro}, please check correctness")
                 if ');' in line: reg_macro = None
                 continue
-            domain = m.group(5)[2:].strip() if m.group(5) is not None else ""
-            if domain not in known_domains:
+            domain = m.group(5)[2:].strip() if not m.group(5) is None else ""
+            if not domain in known_domains:
                 documentation_errors.append(f"Unknown domain found in file {file_path.as_posix()} with identifier {domain}, please modify check_supported_ops.py if needed")
                 if ');' in line: reg_macro = None
                 continue
             domain = known_domains[domain]
             opname = m.group(2)
             opset = m.group(3)
-            if domain not in ops:
+            if not domain in ops:
                 documentation_errors.append(f"Domain {domain} is missing in a list of documented operations supported_ops.md, update it by adding operation description")
                 if ');' in line: reg_macro = None
                 continue
-            if opname not in ops[domain]:
+            if not opname in ops[domain]:
                 documentation_errors.append(f"Operation {domain if domain=='' else domain + '.'}{opname} is missing in a list of documented operations supported_ops.md, update it by adding operation description")
                 if ');' in line: reg_macro = None
                 continue

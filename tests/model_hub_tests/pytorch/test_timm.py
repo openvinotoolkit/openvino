@@ -101,4 +101,4 @@ class TestTimmConvertModel(TestTorchConvertModel):
         all_models_ref = set(filter_timm(m_list))
         all_models = set([m for m, _, _, _ in get_models_list(
             os.path.join(os.path.dirname(__file__), "timm_models"))])
-        assert all_models == all_models_ref, "Lists of models are not equal."
+        assert all_models == all_models_ref, f"Lists of models are not equal."

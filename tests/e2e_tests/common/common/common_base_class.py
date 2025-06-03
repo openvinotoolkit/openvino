@@ -113,7 +113,7 @@ class CommonConfig:
         :return: aligned results (ref_res, optim_model_res) with same keys
         """
 
-        log.debug("Aligning results")
+        log.debug(f"Aligning results")
         log.debug(f"ref_res.keys() {ref_res.keys()}")
         log.debug(f"optim_model_res.keys() {optim_model_res.keys()}")
         if len(ref_res) == 1 and len(optim_model_res) == 1:
@@ -133,7 +133,7 @@ class CommonConfig:
             return ref_res, optim_model_res
 
         if not self.mapping:
-            log.debug("Aligning results using mapping")
+            log.debug(f"Aligning results using mapping")
             pre_generated_irs = self.ie_pipeline.get('get_ir').get('pregenerated')
             if pre_generated_irs:
                 log.info("Construct mapping attribute from pre-generated IRs")

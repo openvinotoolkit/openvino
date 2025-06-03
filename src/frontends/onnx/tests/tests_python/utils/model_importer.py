@@ -8,10 +8,11 @@ import onnx.backend.test
 import unittest
 import dataclasses
 
-from collections import defaultdict
-from onnx import numpy_helper, ModelProto
+from collections import defaultdict, namedtuple
+from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
+from onnx.backend.test.runner import TestItem
 from pathlib import Path
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 from typing import (
@@ -19,8 +20,11 @@ from typing import (
     Dict,
     List,
     Optional,
+    Pattern,
+    Set,
     Text,
     Type,
+    Union,
     Callable,
     Sequence,
 )

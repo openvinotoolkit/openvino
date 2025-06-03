@@ -301,7 +301,7 @@ def pytest_collection_modifyitems(session, config, items):
             #     elif isinstance(value, (type(pytest.mark.Marker), str)):
             #         mark = value
             #     test.add_marker(mark)
-        except BrokenTestException:
+        except BrokenTestException as e:
             test.add_marker("broken_test")
             deselected.append(test)
             continue

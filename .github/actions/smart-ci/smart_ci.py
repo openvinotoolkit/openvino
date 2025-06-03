@@ -125,7 +125,7 @@ def get_changeset(gh_api, pr, target_branch, commit_sha):
         # commit_sha below
         changed_files = gh_api.repos.compare_commits(f'{target_branch_head_commit}...{commit_sha}').get('files', [])
         return changed_files
-    raise ValueError('Either "pr" or "target_branch" parameter must be non-empty')
+    raise ValueError(f'Either "pr" or "target_branch" parameter must be non-empty')
 
 
 def parse_args():
@@ -210,17 +210,17 @@ def main():
     merge_queue_target_branch = re.findall(f'^{merge_queue_prefix}(.*)/', args.ref_name)[0] if is_merge_queue else None
 
     if is_merge_queue:
-        logger.info("The run is a merge-queue run, executing full validation scope for all components, if "
-                    "not all queued changes match patterns in 'skip-when-only-listed-files-changed'")
+        logger.info(f"The run is a merge-queue run, executing full validation scope for all components, if "
+                    f"not all queued changes match patterns in 'skip-when-only-listed-files-changed'")
         run_full_scope = True
     elif is_postcommit:
-        logger.info("The run is a post-commit run, executing full validation scope for all components")
+        logger.info(f"The run is a post-commit run, executing full validation scope for all components")
         run_full_scope = True
     else:
         no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
         if no_match_files_changed:
-            logger.info("There are changed files that don't match any pattern in labeler config, "
-                        "executing full validation scope for all components")
+            logger.info(f"There are changed files that don't match any pattern in labeler config, "
+                        f"executing full validation scope for all components")
             run_full_scope = True
 
     # In post-commits - validate all components regardless of changeset
@@ -251,7 +251,7 @@ def main():
             skip_workflow = matched_files_only
 
     if skip_workflow:
-        logger.info("All changes are marked for skip, workflow may be skipped")
+        logger.info(f"All changes are marked for skip, workflow may be skipped")
         set_github_output("skip_workflow", str(skip_workflow))
 
     # Syntactic sugar for easier use in GHA pipeline

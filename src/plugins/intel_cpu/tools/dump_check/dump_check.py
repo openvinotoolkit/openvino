@@ -3,17 +3,19 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Core, Tensor
+from openvino.runtime import Core, Model, Tensor, PartialShape, Type
+from openvino.runtime import opset8 as opset
+from openvino.runtime.op import Constant, Parameter, tensor_iterator
 from openvino.runtime.passes import Manager, Serialize
 from openvino.runtime.utils.types import get_dtype
+import openvino as ov
 import numpy as np
 import sys
-import os
-import errno
+import os, errno
 import struct
 import argparse
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, Button
 
 class Colors:
     """ ANSI color codes """

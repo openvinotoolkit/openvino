@@ -5725,7 +5725,7 @@ def FilesBelongToSameModule(filename_cc, filename_h):
     string: the additional prefix needed to open the header file.
   """
     fileinfo_cc = FileInfo(filename_cc)
-    if fileinfo_cc.Extension().lstrip('.') not in GetNonHeaderExtensions():
+    if not fileinfo_cc.Extension().lstrip('.') in GetNonHeaderExtensions():
         return (False, '')
 
     fileinfo_h = FileInfo(filename_h)
@@ -5820,7 +5820,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
                 required[header] = (linenum, template)
 
         # The following function is just a speed up, no semantics are changed.
-        if '<' not in line:  # Reduces the cpu time usage by skipping lines.
+        if not '<' in line:  # Reduces the cpu time usage by skipping lines.
             continue
 
         for pattern, template, header in _re_pattern_templates:

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-import os
+import os, sys
+import argparse
 from kernels_db_gen import Code2CHeaders
 
 class TestOpenCLCodePreprocessing(unittest.TestCase):

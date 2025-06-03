@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 
 from openvino import Node, PartialShape, Type
-from openvino.op import Constant, Parameter
+from openvino.op import Constant, Parameter, tensor_iterator
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.utils.input_validation import (
@@ -17,6 +17,7 @@ from openvino.utils.input_validation import (
     is_non_negative_value,
     is_positive_value,
 )
+from openvino.utils.node_factory import NodeFactory
 from openvino.utils.types import (
     NodeInput,
     NumericData,
@@ -30,6 +31,7 @@ from openvino.utils.types import (
     get_element_type_str,
     make_constant_node,
 )
+from openvino.utils import deprecated
 
 _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 

@@ -257,7 +257,7 @@ class TestMulWithRhsComplex(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_mul(), ref_net, "aten::mul"
+        return aten_mul(), ref_net, f"aten::mul"
 
     @pytest.mark.parametrize("rhs_type",
                              [torch.float32,

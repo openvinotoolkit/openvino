@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
-from functools import partial
+from functools import partial, singledispatch
 from typing import Literal, Optional, Union
 import logging
 

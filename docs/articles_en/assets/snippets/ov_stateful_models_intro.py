@@ -87,7 +87,7 @@ def replace_non_reshapable_const():
     # Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
     # Then we can find this Constant by name in the model and replace it with a new one with the correct shape.
     core = ov.Core()
-    model = core.read_model("path_to_model")
+    model = core.read_model("path_to_model");
     # Creating the new Constant with a correct shape.
     # For the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
     new_const = ops.constant( """value_with_correct_shape, type""")
@@ -136,9 +136,9 @@ def main():
 
     # 2. Read a model
     log.info("Loading model files")
-    model = core.read_model("path_to_ir_xml_from_the_previous_section")
-    model.get_parameters()[0].set_layout("NC")
-    ov.set_batch(model, 1)
+    model = core.read_model("path_to_ir_xml_from_the_previous_section");
+    model.get_parameters()[0].set_layout("NC");
+    ov.set_batch(model, 1);
 
     # 3. Load the model to CPU
     compiled_model = core.compile_model(model, "CPU")

@@ -7,7 +7,7 @@ import subprocess
 import pytest
 import torch
 import tempfile
-from torch_utils import process_pytest_marks, TestTorchConvertModel
+from torch_utils import process_pytest_marks, get_models_list, TestTorchConvertModel
 
 
 # To make tests reproducible we seed the random generator
