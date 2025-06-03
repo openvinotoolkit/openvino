@@ -27,7 +27,9 @@
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/mlas/mlas_gemm.hpp"
+#if defined(OV_CPU_WITH_MLAS)
+#    include "nodes/executors/mlas/mlas_gemm.hpp"
+#endif
 #include "nodes/executors/precision_matcher.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
