@@ -47,10 +47,10 @@ public:
     static BlobDumper read(const std::string& file_path);
     static BlobDumper read(std::istream& stream);
 
-    void dump(const std::string& file_path) const;
+    void dump(const std::string& dump_path) const;
     void dump(std::ostream& stream) const;
 
-    void dumpAsTxt(const std::string& file_path) const;
+    void dumpAsTxt(const std::string& dump_path) const;
     void dumpAsTxt(std::ostream& stream) const;
 
     void* getDataPtr() const {

@@ -112,8 +112,8 @@ public:
 
 private:
     struct StaticParams {
-        StaticParams(const element::Type& src_dt,
-                     const element::Type& wei_dt,
+        StaticParams(const element::Type& src_type,
+                     const element::Type& wei_type,
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      bool is_with_comp,
                      bool is_transposed_B,

@@ -702,7 +702,8 @@ void Input::initOptimalPrimitiveDescriptor() {
 
 void Input::selectOptimalPrimitiveDescriptor() {
     if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
-        return Node::selectOptimalPrimitiveDescriptor();
+        Node::selectOptimalPrimitiveDescriptor();
+        return;
     }
 
     // ignore previous configuration
@@ -788,7 +789,8 @@ void Input::initSupportedPdFromMemDesc() {
 
 void Input::resolveInPlaceEdges(Edge::LOOK look) {
     if (!m_isInPlace) {
-        return Node::resolveInPlaceEdges(look);
+        Node::resolveInPlaceEdges(look);
+        return;
     }
 
     if (look & Edge::LOOK_UP) {

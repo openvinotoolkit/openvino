@@ -75,7 +75,7 @@ public:
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
-    void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t new_q_len);
+    void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t L1);
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
     ov::element::Type getRuntimePrecision() const override;
     void resetBeamTablePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);

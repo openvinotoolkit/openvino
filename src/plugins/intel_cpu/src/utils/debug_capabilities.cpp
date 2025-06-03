@@ -196,16 +196,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
-        for (const auto& e : node.getChildEdges()) {
+        return std::all_of(node.getChildEdges().begin(), node.getChildEdges().end(), [](const auto& e) {
             auto edge = e.lock();
-            if (!edge) {
-                continue;
-            }
-            if (edge->getInputNum() != 0) {
-                return false;
-            }
-        }
-        return true;
+            return edge && edge->getInputNum() == 0;
+        });
     };
 
     auto* nodeDesc = node.getSelectedPrimitiveDescriptor();

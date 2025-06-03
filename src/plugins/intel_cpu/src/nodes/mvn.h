@@ -127,7 +127,7 @@ private:
     public:
         MVNExecutorBase(const MVNAttrs& mvnAttrs);
         virtual void exec(const uint8_t* in_ptr_,
-                          uint8_t* out_ptr_,
+                          uint8_t* dst_data,
                           const void* post_ops_data_,
                           const VectorDims& shape5d) = 0;
         virtual ~MVNExecutorBase() = default;
@@ -146,15 +146,18 @@ private:
     public:
         MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr);
 
-        void exec(const uint8_t* in_ptr_,
-                  uint8_t* out_ptr_,
+        void exec(const uint8_t* src_data,
+                  uint8_t* dst_data,
                   const void* post_ops_data_,
                   const VectorDims& shape5d) override;
 
     private:
-        void mvn_pln(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_, const VectorDims& shape5d);
-        void mvn_blk(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_, const VectorDims& shape5d);
-        void mvn_nspc(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_, const VectorDims& shape5d);
+        void mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
+        void mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
+        void mvn_nspc(const uint8_t* src_data,
+                      uint8_t* dst_data,
+                      const void* post_ops_data_,
+                      const VectorDims& shape5d);
 
         std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
         std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
@@ -165,13 +168,13 @@ private:
     public:
         MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
-        void exec(const uint8_t* in_ptr_,
-                  uint8_t* out_ptr_,
+        void exec(const uint8_t* src_data,
+                  uint8_t* dst_data,
                   const void* post_ops_data_,
                   const VectorDims& shape5d) override;
 
     private:
-        void mvn_ref(const uint8_t* in_ptr_, uint8_t* out_ptr_, const VectorDims& shape5d);
+        void mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d);
     };
 };
 

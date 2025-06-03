@@ -310,7 +310,7 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model>& subgraph,
+    void Replicate(const std::shared_ptr<const ov::Model>& model,
                    const std::vector<node::Input::InputConfig>& inputConfigs = {},
                    const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 

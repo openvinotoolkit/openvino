@@ -120,7 +120,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& prop, const ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 

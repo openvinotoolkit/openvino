@@ -22,7 +22,7 @@ class EmbeddingBag {
 public:
     enum class Reduction { SUM, MEAN };
     EmbeddingBag(const std::shared_ptr<ov::Node>&,
-                 size_t requiredInputsNum,
+                 size_t requiredInputNum,
                  size_t indicesIdx,
                  size_t perSampleWeightsIdx,
                  size_t defaultIndexIdx);

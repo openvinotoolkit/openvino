@@ -527,7 +527,7 @@ public:
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
-    virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
+    virtual void redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const;
     bool outputShapeDataDependency() const;
 
@@ -766,8 +766,8 @@ protected:
 
     int curNumaNode = -1;
 
-    void toNumaNode(int numaID);
-    virtual void toNumaNodeImpl(int numaID);
+    void toNumaNode(int numaNodeID);
+    virtual void toNumaNodeImpl(int numaNodeID);
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
@@ -781,8 +781,8 @@ protected:
     Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
 
     Node(const std::string& type,
-         std::vector<Shape> inputShapes,
-         std::vector<Shape> outputShapes,
+         std::vector<Shape> inShapes,
+         std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
          const std::string& name,
@@ -864,10 +864,10 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& shapes) const;
     virtual IShapeInfer::Result shapeInfer() const;
 
-    void execute(const dnnl::stream& stream, int numaId);
+    void execute(const dnnl::stream& strm, int numaId);
     virtual void execute(const dnnl::stream& strm) = 0;
     // TODO [DS] : make pure after all nodes support dynamic shapes
     virtual void executeDynamicImpl(const dnnl::stream& strm) {
