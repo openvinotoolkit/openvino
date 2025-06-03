@@ -17,15 +17,9 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj) {
-    std::string targetDevice;
-    ov::element::Type precision;
-    ov::PartialShape shape;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    MultiplyToGroupConvolutionTransformationParam param;
-    std::tie(precision, shape, targetDevice, param) = obj.param;
-
+    auto [precision, shape, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, shape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(precision, shape, device) << "_" <<
            param.fqOnData << "_" <<
         param.constant << "_" <<
         param.layerName << "_" <<
@@ -35,10 +29,8 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const test
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {
-    ov::PartialShape shape;
-    ov::element::Type precision;
-    MultiplyToGroupConvolutionTransformationParam param;
-    std::tie(precision, shape, targetDevice, param) = this->GetParam();
+    auto [precision, shape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(shape);
 
