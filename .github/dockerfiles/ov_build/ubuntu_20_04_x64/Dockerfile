@@ -73,12 +73,15 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
+# Confirm versions
+RUN python --version && pip --version
+    
 # Use Python 3.9 as default instead of Python 3.8
-RUN ln -sf /usr/bin/python3.9 /usr/bin/python && \
-    ln -sf /usr/bin/python3.9 /usr/bin/python3 && \
-    ln -sf /usr/local/bin/pip3.9 /usr/bin/pip
+RUN ln -sf $(which python.9) /usr/bin/python && ln -sf $(which python.9) /usr/bin/python3
+RUN ln -sf $(which pip3.9) /usr/bin/pip && ln -sf $(which pip3.9) /usr/bin/pip3
 
 # Confirm versions
 RUN python --version && pip --version
+
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
