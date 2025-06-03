@@ -16,6 +16,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API TotalSequenceLengthPattern;
 class TRANSFORMATIONS_API TotalSequenceLengthPatternQwen;
+class TRANSFORMATIONS_API TotalSequenceLengthPatternCodeGen;
 
 }  // namespace pass
 }  // namespace ov
@@ -43,4 +44,10 @@ class ov::pass::TotalSequenceLengthPatternQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern", "0");
     explicit TotalSequenceLengthPatternQwen(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
+};
+
+class ov::pass::TotalSequenceLengthPatternCodeGen : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPatternCodeGen", "0");
+    explicit TotalSequenceLengthPatternCodeGen(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };

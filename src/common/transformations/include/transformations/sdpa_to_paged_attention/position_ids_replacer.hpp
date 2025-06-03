@@ -78,15 +78,14 @@ public:
 class ReplaceRoPERangeWithPositionIds : public ov::pass::MatcherPass {
 
 public:
-    ReplaceRoPERangeWithPositionIds(const std::shared_ptr<ov::Node>& position_ids, int& layer_index1, const std::shared_ptr<ov::Node>& concat) {
+    ReplaceRoPERangeWithPositionIds(const ov::Output<ov::Node>& position_ids, ResultVector& dbg_results, int& layer_index1) {
         using namespace ov::op;
         using namespace ov;
         using namespace ov::pass::pattern;
-        // 1. Pattern: Range -> (optional Convert/Reshape) -> Einsum with 'i,j->ij'
         auto range_pattern = wrap_type<v4::Range>({any_input(), any_input(), any_input()});
         auto einsum_pattern = wrap_type<v7::Einsum>({range_pattern, any_input()});
  
-        matcher_pass_callback callback = [=, &position_ids, &layer_index1](Matcher& m) {
+        matcher_pass_callback callback = [=, &position_ids, &dbg_results, &layer_index1](Matcher& m) {
             std::cout << "ReplaceRoPERangeWithPositionIds start" << std::endl;
             auto pattern_map = m.get_pattern_value_map();
             auto einsum = std::dynamic_pointer_cast<v7::Einsum>(m.get_match_root());
@@ -98,21 +97,20 @@ public:
             if (equation != "i,j->ij")
                 return false;
  
-            auto range = pattern_map[range_pattern];
-
- 
-            if (einsum->input(0).get_element_type() != concat->output(0).get_element_type()) {
+            if (einsum->input(0).get_element_type() != position_ids.get_element_type()) {
                 std::cout << "inside" << std::endl;
-                auto cast = std::make_shared<v0::Convert>(concat, einsum->input(0).get_element_type());
-                cast->set_friendly_name("position_ids_cast");
-                einsum->input(0).replace_source_output(cast->output(0));
+                auto convert = std::make_shared<v0::Convert>(position_ids, einsum->input(0).get_element_type());
+                std::cout << "inside 2" << std::endl;
+                convert->set_friendly_name("position_ids_cast");
+                einsum->input(0).replace_source_output(convert->output(0));
                 std::cout << "REPLACED" << std::endl;
             } else {
                 std::cout << "else" << std::endl;
-                einsum->input(0).replace_source_output(concat);
+                einsum->input(0).replace_source_output(position_ids);
             }
- 
-            std::cout << "ReplaceRoPERangeWithPositionIds finish" << std::endl;
+
+            layer_index1++;
+            std::cout << "ReplaceRoPERangeWithPositionIds finish: " << layer_index1 << std::endl;
             return true;
         };
 
@@ -140,26 +138,4 @@ public:
         auto m = std::make_shared<Matcher>(einsum_pattern, "ReplaceRoPERangeWithPositionIds");
         this->register_matcher(m, callback);
     }
-};
-
-class CustomModelPass : public ov::pass::ModelPass {
-public:
-    CustomModelPass(const std::shared_ptr<ov::Node>& position_ids) : m_position_ids(position_ids) {}
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        int layer_index1 = 0;
-
-        auto var_info = ov::op::util::VariableInfo{ov::PartialShape{-1}, ov::element::i64, "aaaaa" + std::to_string(layer_index1++)};
-        auto var = std::make_shared<ov::op::util::Variable>(var_info);
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{0}, {}), var);
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{read_value->output(0), m_position_ids->output(0)}, 0);
-        auto assign = std::make_shared<ov::op::v6::Assign>(concat, var);
-
-        ov::pass::Manager manager;
-        manager.set_per_pass_validation(false);
-        manager.register_pass<ReplaceRoPERangeWithPositionIds>(m_position_ids, layer_index1, concat);
-        manager.run_passes(model);
-        model->add_variables({var});
-        return true;
-    }
-    std::shared_ptr<ov::Node> m_position_ids;
 };

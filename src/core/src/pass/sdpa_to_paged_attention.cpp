@@ -50,7 +50,8 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
-    ov::pass::VisualizeTree("before_qwen.svg").run_on_model(model);
+    // ov::pass::VisualizeTree("before_codegen.svg").run_on_model(model);
+    ov::pass::Serialize(std::string("qwen7b_before.xml"), std::string("qwen7b_before.bin")).run_on_model(model);
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
@@ -170,11 +171,50 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids, dbg_results);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternCodeGen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
-    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
-    // manager.register_pass<ReplaceRoPERangeWithPositionIds>(position_ids, dbg_results, layer_index1, model);
-    manager.register_pass<CustomModelPass>(position_ids);
+    // manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    // manager.register_pass<ReplaceRoPERangeWithPositionIds>(position_ids, dbg_results, layer_index1);
+    // manager.register_pass<CustomModelPass>(position_ids);
     manager.run_passes(model);
+
+    int range_counter = 0;
+    int add_counter = 0;
+    for (auto& op : model->get_ordered_ops()) {
+        if (op->get_friendly_name() == "__module.model.transformer.h.0.attn/aten::cat/Concat") {
+            if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op)) {
+                auto c_result = std::make_shared<v0::Result>(op);
+                c_result->get_output_tensor(0).set_names({"concat_result"});
+                dbg_results.push_back(c_result);
+
+                auto input0 = concat->input_value(0);
+                auto c0_result = std::make_shared<v0::Result>(input0);
+                c0_result->get_output_tensor(0).set_names({"concat_input0_result"});
+                dbg_results.push_back(c0_result);
+
+                auto input1 = concat->input_value(1);
+                auto c1_result = std::make_shared<v0::Result>(input1);
+                c1_result->get_output_tensor(0).set_names({"concat_input1_result"});
+                dbg_results.push_back(c1_result);
+                std::cout << "added result to: " << concat << std::endl;
+            }
+        } else if (op->get_friendly_name() == "__module.model.transformer.h.0.attn/aten::arange/Range") {
+            if (auto range = ov::as_type_ptr<ov::op::v4::Range>(op)) {
+                auto dbg_result = std::make_shared<v0::Result>(op);
+                dbg_result->get_output_tensor(0).set_names({"range_result_" + std::to_string(range_counter++)});
+                dbg_results.push_back(dbg_result);
+                std::cout << "added result to: " << range << std::endl;
+            }
+        }
+        // } else if (op->get_friendly_name() == "__module.model.transformer.h.0.attn/aten::add_/Add") {
+        //     if (auto add = ov::as_type_ptr<ov::op::v1::Add>(op)) {
+        //         auto dbg_result = std::make_shared<v0::Result>(op);
+        //         dbg_result->get_output_tensor(0).set_names({"add_result_" + std::to_string(add_counter++)});
+        //         dbg_results.push_back(dbg_result);
+        //         std::cout << "added result to: " << add << std::endl;
+        //     }
+        // }
+    }
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
@@ -241,6 +281,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
-    ov::pass::VisualizeTree("after_qwen.svg").run_on_model(model);
+    ov::pass::VisualizeTree("after_qwen_7b_no_ivan_fixes_last.svg").run_on_model(model);
     return true;
 }
