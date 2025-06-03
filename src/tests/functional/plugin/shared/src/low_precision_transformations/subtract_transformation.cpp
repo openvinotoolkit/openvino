@@ -17,20 +17,13 @@
 namespace LayerTestsDefinitions {
 
 std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
-
-    return get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params);
+    auto [netPrecision, inputShapes, device] = obj.param;
+    return get_test_case_name_by_params(netPrecision, inputShapes, device);
 }
 
 void SubtractTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    auto [netPrecision, inputShape, device] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

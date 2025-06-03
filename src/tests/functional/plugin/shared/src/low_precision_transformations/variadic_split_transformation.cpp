@@ -15,15 +15,9 @@
 
 namespace LayerTestsDefinitions {
 std::string VariadicSplitTransformation::getTestCaseName(const testing::TestParamInfo<VariadicSplitTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    VariadicSplitTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShapes, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device) << "_" <<
            param.fakeQuantize << "_axis=" << param.splitedAxis << "_splitLengths={ ";
     for (size_t i = 0; i < param.splitLengths.size(); ++i) {
         result << param.splitLengths[i];
@@ -37,11 +31,8 @@ std::string VariadicSplitTransformation::getTestCaseName(const testing::TestPara
 
 
 void VariadicSplitTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    VariadicSplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [precision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

@@ -16,34 +16,25 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
+    auto [netPrecision, inputShape, device, param] = obj.param;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
-
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) <<
-           "_rank=" << inputShape.rank().get_length() <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device, params) <<
+           "_rank=" << inputShape.size() <<
         "D_fq_on_data={" << param.fakeQuantizeOnData <<
         "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}";
     return result.str();
 }
 
 void ConvolutionTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
     function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
-        // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 }
@@ -51,7 +42,7 @@ void ConvolutionTransformation::SetUp() {
 void ConvolutionTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
     if (expectedPrecision == "f32" && std::get<0>(GetParam()) == ov::element::f16) {

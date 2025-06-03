@@ -16,18 +16,10 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
-};
-
-
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, OutputLayers,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     OutputLayers::getTestCaseName);
 }  // namespace

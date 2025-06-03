@@ -17,13 +17,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    //  LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    //  LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
-    //  LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
-};
-
 const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     // tensor quantization
     {
@@ -81,7 +74,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ClampTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ClampTransformation::getTestCaseName);
 

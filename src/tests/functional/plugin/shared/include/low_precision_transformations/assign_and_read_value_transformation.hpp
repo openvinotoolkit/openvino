@@ -14,14 +14,13 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
-typedef std::tuple <
-    ov::element::Type,         // input precision
-    ov::PartialShape,          // input shape
-    size_t,                        // opset version
-    std::string,                   // device
-    ov::pass::low_precision::LayerTransformation::Params, // transformation params
-    AssignAndReadValueTransformationParam       // test params
-> AssignAndReadValueTransformationParams;
+typedef std::tuple<ov::element::Type,                     // input precision
+                   ov::PartialShape,                      // input shape
+                   size_t,                                // opset version
+                   std::string,                           // device
+                   AssignAndReadValueTransformationParam  // test params
+                   >
+    AssignAndReadValueTransformationParams;
 
 class AssignAndReadValueTransformation :
     public testing::WithParamInterface<AssignAndReadValueTransformationParams>,

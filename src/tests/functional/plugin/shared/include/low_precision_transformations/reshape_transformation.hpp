@@ -25,7 +25,6 @@ public:
 typedef std::tuple<
     ov::element::Type,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     ReshapeTransformationParam
 > ReshapeTransformationParams;
 

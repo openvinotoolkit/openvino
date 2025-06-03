@@ -30,27 +30,16 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 
 std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::string targetDevice;
-    SqueezeTransformationParam squeezeParam;
-    std::tie(netPrecision, targetDevice, params, squeezeParam) = obj.param;
-
+    auto [netPrecision, device, squeezeParam] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, squeezeParam.shape, targetDevice, params) << "_" <<
-           squeezeParam.fakeQuantize << "_" <<
-        squeezeParam.squeezeAxes << "_" <<
-        params.updatePrecisions << "_" <<
-        squeezeParam.shape;
+    result << get_test_case_name_by_params(netPrecision, squeezeParam.shape, device) << "_" << squeezeParam.fakeQuantize
+           << "_" << squeezeParam.squeezeAxes << "_" << squeezeParam.shape;
 
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    SqueezeTransformationParam squeezeParam;
-
-    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
+    auto [netPrecision, device, squeezeParam] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(squeezeParam.shape);
 

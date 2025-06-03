@@ -12,15 +12,9 @@
 namespace LayerTestsDefinitions {
 
 std::string SliceTransformation::getTestCaseName(const testing::TestParamInfo<SliceTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    SliceTransformationParam param;;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
         param.fakeQuantize << "_" <<
         ov::test::utils::vec2str(param.start) << "_" <<
         ov::test::utils::vec2str(param.stop) << "_" <<
@@ -30,11 +24,8 @@ std::string SliceTransformation::getTestCaseName(const testing::TestParamInfo<Sl
 }
 
 void SliceTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    SliceTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -52,7 +43,7 @@ TEST_P(SliceTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto& actualPrecision = get_runtime_precision_by_type("StridedSlice");
     EXPECT_EQ(actualPrecision, params.expectedPrecision);
 };

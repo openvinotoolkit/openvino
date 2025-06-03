@@ -28,15 +28,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
 }
 
 std::string InterpolateTransformation::getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
-    ov::element::Type precision;
-    std::pair<ov::PartialShape, ov::Shape> shapes;
-    std::string targetDevice;
-    interpAttributes attributes;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    std::tie(precision, shapes, targetDevice, attributes) = obj.param;
-
+    auto [precision, shapes, device, attributes] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, shapes.first, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(precision, shapes.first, device) << "_" <<
            shapes.second << "_" <<
         attributes.align_corners << "_" <<
         attributes.antialias << "_" <<
@@ -48,10 +42,8 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void InterpolateTransformation::SetUp() {
-    ov::element::Type precision;
-    std::pair<ov::PartialShape, ov::Shape> shapes;
-    interpAttributes attributes;
-    std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
+    auto [precision, shapes, device, attributes] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(shapes.first);
 

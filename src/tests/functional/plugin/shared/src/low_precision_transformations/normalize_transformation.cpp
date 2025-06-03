@@ -17,21 +17,12 @@
 namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    std::pair<ov::PartialShape, ov::Shape> shapes;
-    std::string targetDevice;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    std::vector<uint64_t> axes;
-    bool fuseMultiply;
-    bool shift;
-    std::tie(netPrecision, shapes, targetDevice, axes, fuseMultiply, shift) = obj.param;
-
+    auto [netPrecision, shapes, device, axes, fuseMultiply, shift] = obj.param;
     std::ostringstream result;
     result << netPrecision << "_" <<
            shapes.first << "_" <<
            shapes.second << "_" <<
-           targetDevice << "_" <<
-                               to_string(params) << "_" <<
+           device << "_" <<
            "_axes" << axes.size() <<
         (fuseMultiply ? "_multiply" : "") <<
         (shift ? "_shift" : "");
@@ -39,12 +30,8 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 }
 
 void NormalizeL2Transformation::SetUp() {
-    std::pair<ov::PartialShape, ov::Shape> shapes;
-    ov::element::Type precision;
-    std::vector<uint64_t> axes;
-    bool fuseMultiply;
-    bool shift;
-    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
+    auto [precision, shapes, device, axes, fuseMultiply, shift] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(shapes.first);
 

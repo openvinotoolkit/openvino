@@ -21,8 +21,7 @@ typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
     std::string,
-    ConcatWithSplitTransformationParam,
-    ov::pass::low_precision::LayerTransformation::Params> ConcatWithSplitTransformationParams;
+    ConcatWithSplitTransformationParam> ConcatWithSplitTransformationParams;
 
 class ConcatWithSplitTransformation :
     public testing::WithParamInterface<ConcatWithSplitTransformationParams>,

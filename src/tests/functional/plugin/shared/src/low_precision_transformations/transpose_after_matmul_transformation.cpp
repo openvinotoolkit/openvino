@@ -18,28 +18,17 @@
 namespace LayerTestsDefinitions {
 
 std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    bool perTensor;
-    bool transposeChannelDim;
-    std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
-
+    auto [netPrecision, inputShapes, device, perTensor, transposeChannelDim] = obj.param;
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+    result << netPrecision << "_" << device <<
            (perTensor ? "_perTensor" : "_perChannel") <<
-        (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
+           (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
     return result.str();
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    bool perTensor;
-    bool transposeChannelDim;
-    std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
+    auto [precision, inputShape, device, perTensor, transposeChannelDim] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ inputShape, inputShape });
 

@@ -18,11 +18,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     // ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-};
-
 const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam> params = {
     // Actual:
     //
@@ -616,7 +611,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionQDqTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     GroupConvolutionQDqTransformation::getTestCaseName);
 

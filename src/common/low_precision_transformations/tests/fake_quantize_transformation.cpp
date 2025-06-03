@@ -80,7 +80,6 @@ public:
                                 .setDefaultPrecisions(defaultPrecisions);
 
         actualFunction = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
-            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             fakeQuantizeOnData.actual,
@@ -97,7 +96,6 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ov::builder::subgraph::FakeQuantizeFunction::getReference(
-            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             params.updatePrecisions,

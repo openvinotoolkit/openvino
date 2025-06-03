@@ -12,15 +12,10 @@
 namespace LayerTestsDefinitions {
 
 std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ClampTransformationParam param;;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
+    auto [netPrecision, inputShape, targetDevice, param] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice) << "_" <<
            param.fakeQuantize << "_" <<
         "min=" << param.clampLowConst <<
         "max=" << param.clampHighConst;
@@ -28,11 +23,8 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
 }
 
 void ClampTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

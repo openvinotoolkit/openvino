@@ -21,11 +21,6 @@ const std::vector<size_t> opsetVersions = {
     6
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-};
-
 const std::vector<LayerTestsDefinitions::AssignAndReadValueTransformationParam> params{
     // u8
     {
@@ -47,7 +42,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, AssignAndReadValueTransformation,
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::ValuesIn(opsetVersions),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     AssignAndReadValueTransformation::getTestCaseName);
 

@@ -24,7 +24,6 @@ typedef std::tuple<
     ov::element::Type,
     ov::Shape,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionWIthIncorrectWeightsParam
 > ConvolutionWIthIncorrectWeightsParams;
 

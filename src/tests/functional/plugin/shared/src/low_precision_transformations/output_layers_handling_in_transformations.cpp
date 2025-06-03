@@ -17,22 +17,14 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::Shape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
-
-    return get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params);
+std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTransformationParams>& obj) {
+    auto [netPrecision, inputShapes, device] = obj.param;
+    return get_test_case_name_by_params(netPrecision, inputShapes, device);
 }
 
-
 void OutputLayers::SetUp() {
-    ov::Shape inputShape;
-    ov::element::Type ngPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
+    auto [ngPrecision, inputShape, device] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(ov::PartialShape(inputShape));
 

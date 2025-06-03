@@ -16,25 +16,16 @@
 namespace LayerTestsDefinitions {
 
 std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestParamInfo<ShuffleChannelsTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ShuffleChannelsTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            param.fakeQuantizeOnData << "_axis_" << param.axis << "_group_" << param.group;
     return result.str();
 }
 
 void ShuffleChannelsTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ShuffleChannelsTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -49,7 +40,7 @@ void ShuffleChannelsTransformation::SetUp() {
 void ShuffleChannelsTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }

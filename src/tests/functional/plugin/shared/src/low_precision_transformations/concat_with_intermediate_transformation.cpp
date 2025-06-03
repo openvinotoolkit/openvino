@@ -15,19 +15,11 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithIntermediateTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    bool transparentIntermediate;
-    bool multichannel;
-    std::tie(netPrecision, inputShapes, targetDevice, params, transparentIntermediate, multichannel) = obj.param;
+    auto [netPrecision, inputShapes, device, transparentIntermediate, multichannel] = obj.param;
 
     std::ostringstream result;
-    result <<
-           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
-           (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
-        (multichannel ? "_multichannel" : "");
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device)
+           << (transparentIntermediate ? "" : "_notTransparentIntermediate") << (multichannel ? "_multichannel" : "");
 
     return result.str();
 }
@@ -42,12 +34,8 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    ov::element::Type ngPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params trasformationParams;
-    bool transparentIntermediate;
-    bool multichannel;
-    std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
+    auto [netPrecision, inputShape, device, transparentIntermediate, multichannel] = this->GetParam();
+    targetDevice = device;
 
     ov::PartialShape inputShape1 = inputShape;
     if (inputShape1[2].is_static() && transparentIntermediate) {
@@ -61,7 +49,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
     init_input_shapes({ inputShape1, inputShape });
 
     function = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
-        ngPrecision,
+        netPrecision,
         inputShape,
         transparentIntermediate,
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
