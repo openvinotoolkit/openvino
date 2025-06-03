@@ -67,7 +67,7 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
 #else
                 ACCUMULATOR_TYPE bb = TO_ACCUMULATOR_TYPE(AS_STATE_TYPE(intel_sub_group_block_read_us((const __global ushort*)(B_ptr))));
 #endif
-                ACCUMULATOR_TYPE aa = TO_ACCUMULATOR_TYPE(AS_INPUT1_TYPE(intel_sub_group_broadcast(input, j)));
+                ACCUMULATOR_TYPE aa = TO_ACCUMULATOR_TYPE(AS_INPUT1_TYPE(sub_group_broadcast(input, j)));
 
                 sum = fma(aa, bb, sum);
                 B_ptr += LORA_RANK;
@@ -210,7 +210,7 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
         __attribute__((opencl_unroll_hint))
         for (int j = 0; j < SUBGROUP_SIZE; j++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
-            ACCUMULATOR_TYPE aa = AS_ACCUMULATOR_TYPE(intel_sub_group_broadcast(as_uint(input), j));
+            ACCUMULATOR_TYPE aa = AS_ACCUMULATOR_TYPE(sub_group_broadcast(as_uint(input), j));
 #else
             ACCUMULATOR_TYPE aa = AS_ACCUMULATOR_TYPE(intel_sub_group_broadcast(as_ushort(input), j));
 #endif
@@ -273,9 +273,8 @@ KERNEL(first_token_a)(OPTIONAL_SHAPE_INFO_ARG
         n_idx = N - REG_N * SUBGROUP_SIZE;
     }
 
-    int rank = N / LORA_COUNT;
     int strideA = K;
-    int strideB = rank;
+    int strideB = LORA_RANK;
 
     __global INPUT1_TYPE* ptrA = lora_input + m_idx * strideA;
     __global STATE_TYPE* ptrB = state_a_0 + n_idx;
@@ -283,14 +282,14 @@ KERNEL(first_token_a)(OPTIONAL_SHAPE_INFO_ARG
     __global ACCUMULATOR_TYPE* ptrC = C + m_idx * N + n_idx;
 
 #if LORA_COUNT == 3
-    if (n_idx >= rank * 2) {
-        ptrB = state_a_2 + n_idx - rank * 2;
-        alpha_ptr = state_alpha_2 + n_idx - rank * 2;
+    if (n_idx >= LORA_RANK * 2) {
+        ptrB = state_a_2 + n_idx - LORA_RANK * 2;
+        alpha_ptr = state_alpha_2 + n_idx - LORA_RANK * 2;
     } else
 #endif
-    if (n_idx >= rank) {
-        ptrB = state_a_1 + n_idx - rank;
-        alpha_ptr = state_alpha_1 + n_idx - rank;
+    if (n_idx >= LORA_RANK) {
+        ptrB = state_a_1 + n_idx - LORA_RANK;
+        alpha_ptr = state_alpha_1 + n_idx - LORA_RANK;
     }
 
     MAIN_MATMUL_CODE
