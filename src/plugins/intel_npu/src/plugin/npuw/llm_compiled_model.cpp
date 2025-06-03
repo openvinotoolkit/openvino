@@ -652,7 +652,7 @@ struct KVAxesPosition {
 class CutTailMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutTailMatMul");
-    CutTailMatMul::CutTailMatMul(std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
+    CutTailMatMul(std::reference_wrapper<std::shared_ptr<ov::Model>> tail_vocab_mm_ref) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -1120,7 +1120,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (tail_mm_model) {
-        auto& tail_mm_config = get_default_tail_mm_config(npudesc);
+        auto tail_mm_config = get_default_tail_mm_config(npudesc);
         merge_config_with(tail_mm_config, other_props);
         m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));

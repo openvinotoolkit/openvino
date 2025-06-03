@@ -375,7 +375,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     std::call_once(*m_once_per_generate, [this]() {
         LOG_DEBUG("Prepare attention mask pattern.");
-        auto& kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
+        auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
         fill_tensor<int64_t>(kv_attn_mask, 0);
         // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
         //       We can safely set this "1" once and then copy on one "1" less in the infer_generate().
