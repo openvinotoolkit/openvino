@@ -3,8 +3,10 @@
 //
 #pragma once
 
-#include "common.hpp"
-#include "openvino/openvino.hpp"
+#include <cstddef>
+#include <cstdint>
+
+#include "openvino/core/except.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>

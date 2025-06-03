@@ -4,9 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
