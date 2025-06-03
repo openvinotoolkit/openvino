@@ -667,13 +667,13 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
-            auto factory = std::make_shared<InterpolateExecutorFactory>(
+            auto exec_factory = std::make_shared<InterpolateExecutorFactory>(
                 interpAttrs,
                 srcMemoryDescs,
                 dstMemoryDescs,
                 std::make_shared<ExecutorContext>(context, getImplPriority()));
-            if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.emplace_back(config, implDetail, factory);
+            if (!exec_factory->isEmpty()) {
+                supportedPrimitiveDescriptors.emplace_back(config, implDetail, exec_factory);
             }
         } else {
             supportedPrimitiveDescriptors.emplace_back(config, implDetail);
@@ -800,13 +800,13 @@ void Interpolate::executeDynamicImpl(const dnnl::stream& strm) {
 
     const size_t port =
         interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? interpAttrs.TARGET_SHAPE_ID : get_scale_id();
-    const auto& memory = getParentEdgeAt(port)->getMemory();
+    const auto& source_memory = getParentEdgeAt(port)->getMemory();
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const auto* scales_dyn = memory.getDataAs<const float>();
-        lastScales.assign(scales_dyn, scales_dyn + memory.getDesc().getShape().getElementsCount());
+        const auto* scales_dyn = source_memory.getDataAs<const float>();
+        lastScales.assign(scales_dyn, scales_dyn + source_memory.getDesc().getShape().getElementsCount());
     } else {
-        const auto* sizes = memory.getDataAs<const int32_t>();
-        lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
+        const auto* sizes = source_memory.getDataAs<const int32_t>();
+        lastSizes.assign(sizes, sizes + source_memory.getDesc().getShape().getElementsCount());
     }
 }
 
@@ -1096,7 +1096,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
             if (interpAttrs.layout == InterpolateLayoutType::planar) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
                 parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                     const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                             inShapeBlock[3] * d + inShapeBlock[4] * h) *
@@ -1110,7 +1110,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
                 parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
                     const uint8_t* src =
                         src_data_origin +
@@ -1132,7 +1132,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 size_t CB = div_up(srcDimPad5d[1], blkSize);
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
-                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
                 if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
                     THROW_CPU_NODE_ERR("does not support padding on batch and channel dimensions");
                 }
