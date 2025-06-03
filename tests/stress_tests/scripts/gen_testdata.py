@@ -22,6 +22,7 @@ from inspect import getsourcefile
 from pathlib import Path
 import defusedxml.ElementTree as ET
 import xml.etree.ElementTree as eET
+import random
 
 class ListAction(argparse.Action):
   def __init__(self, option_strings, dest, nargs=None, **kwargs):
