@@ -237,6 +237,10 @@
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #endif

@@ -55,6 +55,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto& brgemm_config = brgemm_node->get_config();
     const auto& post_ops_config = brgemm_node->get_postops_config();
+    m_binary_postops_offset = post_ops_config.binary_postops_offset;
+
     if (brgemm_config.is_amx()) {
         BrgemmAMXKernelConfig kernel_config(brg0Prc,
                                             brg1Prc,
@@ -110,23 +112,33 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         return res;
     };
     if (config.is_amx()) {
-        return {form_precisions({element::i8, element::i8, element::u8}),
-                form_precisions({element::u8, element::i8, element::u8}),
-                form_precisions({element::bf16, element::bf16, element::u8}),
-                form_precisions({element::f16, element::f16, element::u8})};
+        std::set<std::vector<element::Type>> supported_types = {
+            form_precisions({element::i8, element::i8, element::u8}),
+            form_precisions({element::u8, element::i8, element::u8}),
+            form_precisions({element::bf16, element::bf16, element::u8})};
+        if (config.isa() == dnnl::impl::cpu::x64::avx512_core_amx_fp16) {
+            supported_types.insert(form_precisions({element::f16, element::f16, element::u8}));
+        }
+        return supported_types;
     }
     if (config.with_compensations()) {
         return {form_precisions({element::i8, element::i8, element::f32})};
     }
     if (config.with_wei_repacking()) {
-        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::u8, element::i8}),
-                                                                form_precisions({element::bf16, element::bf16}),
-                                                                form_precisions({element::f32, element::f32})};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert(form_precisions({element::i8, element::i8}));
+        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
+        if (snippets::utils::one_of(config.isa(),
+                                    dnnl::impl::cpu::x64::avx512_core_bf16,
+                                    dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert(form_precisions({element::bf16, element::bf16}));
         }
-        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni)) {
+        if (snippets::utils::one_of(config.isa(),
+                                    dnnl::impl::cpu::x64::avx512_core_vnni,
+                                    dnnl::impl::cpu::x64::avx2_vnni)) {
             supported_types.insert(form_precisions({element::u8, element::i8}));
+        }
+        if (config.isa() == dnnl::impl::cpu::x64::avx2_vnni_2) {
+            supported_types.insert(form_precisions({element::i8, element::i8}));
+            supported_types.insert(form_precisions({element::f16, element::f16}));
         }
         return supported_types;
     }

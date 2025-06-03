@@ -94,11 +94,14 @@ dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Ty
                     wei_dt);
 
     if (is_bf16) {
-        return mayiuse(avx512_core_amx) ? avx512_core_amx : mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa_undef;
+        return mayiuse(avx512_core_amx)    ? avx512_core_amx
+               : mayiuse(avx512_core_bf16) ? avx512_core_bf16
+               : mayiuse(avx2_vnni_2)      ? avx2_vnni_2
+                                           : isa_undef;
     }
 
     if (is_fp16) {
-        return mayiuse(avx512_core_amx_fp16) ? avx512_core_amx_fp16 : isa_undef;
+        return mayiuse(avx512_core_amx_fp16) ? avx512_core_amx_fp16 : mayiuse(avx2_vnni_2) ? avx2_vnni_2 : isa_undef;
     }
 
     if (is_int8) {
