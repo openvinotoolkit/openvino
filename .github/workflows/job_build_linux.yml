@@ -161,8 +161,14 @@ jobs:
       # Dependencies
       #
 
+      - name: Test python version 1
+        run: which python
+      
       - name: Configure poetry
         uses: ./openvino/.github/actions/install_poetry
+        
+      - name: Test python version 2
+        run: which python
         
       - name: Install Test dependencies
         run: |
