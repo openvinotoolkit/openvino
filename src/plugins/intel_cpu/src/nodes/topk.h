@@ -103,11 +103,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* dst_idx);
+    void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_idx_ptr);
     void topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx);
     inline void topk_kernel_process(const uint8_t* in_p,
                                     uint8_t* out_p,
-                                    uint8_t* src_idx,
+                                    uint8_t* out_idx_p,
                                     uint8_t* process_p,
                                     uint8_t* process_idx_p,
                                     size_t work_amount);

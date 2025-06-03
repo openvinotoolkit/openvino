@@ -405,12 +405,10 @@ void Graph::Activate() {
 void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
-    GraphOptimizer optimizer;
-
     SortTopologically();
     InitNodes();
 
-    optimizer.ApplyCommonGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -429,7 +427,7 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
 
     ResolveComplexInplaceConflicts();
 
-    optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyImplSpecificGraphOptimizations(*this);
 
     SortTopologically();
 
