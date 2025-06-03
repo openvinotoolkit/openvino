@@ -98,7 +98,6 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
-      POETRY_VIRTUALENVS_CREATE: false
     steps:
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
@@ -167,6 +166,7 @@ jobs:
         
       - name: Install Test dependencies
         run: |
+          poetry env use $(which python)
           poetry env list
           poetry env info
           poetry run which python3
