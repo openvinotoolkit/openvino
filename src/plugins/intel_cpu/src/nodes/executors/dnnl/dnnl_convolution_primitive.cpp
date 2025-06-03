@@ -930,12 +930,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     auto outDims = config.descs.at(ARG_DST)->getShape().getDims();
     auto ndims = inpDims.size();
 
-    size_t groupNum = 0;
-    size_t groupIC = 0;
-    size_t groupOC = 0;
-    size_t IC = 0;
-
-    std::tie(groupNum, groupIC, groupOC, IC) = getChannelParams(config);
+    auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
 
     bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 

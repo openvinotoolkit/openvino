@@ -467,25 +467,11 @@ bool MultiClassNms::created() const {
 }
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI = NAN;
-    float xminI = NAN;
-    float ymaxI = NAN;
-    float xmaxI = NAN;
-    float yminJ = NAN;
-    float xminJ = NAN;
-    float ymaxJ = NAN;
-    float xmaxJ = NAN;
+    auto [yminI, xminI, ymaxI, xmaxI] =
+        std::tuple<float, float, float, float>{boxesI[0], boxesI[1], boxesI[2], boxesI[3]};
+    auto [yminJ, xminJ, ymaxJ, xmaxJ] =
+        std::tuple<float, float, float, float>{boxesJ[0], boxesJ[1], boxesJ[2], boxesJ[3]};
     const auto norm = static_cast<float>(!normalized);
-
-    // to align with reference
-    yminI = boxesI[0];
-    xminI = boxesI[1];
-    ymaxI = boxesI[2];
-    xmaxI = boxesI[3];
-    yminJ = boxesJ[0];
-    xminJ = boxesJ[1];
-    ymaxJ = boxesJ[2];
-    xmaxJ = boxesJ[3];
 
     float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
     float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);

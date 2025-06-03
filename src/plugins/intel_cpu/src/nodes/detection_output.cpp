@@ -12,6 +12,7 @@
 #include <mutex>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -808,24 +809,20 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
             float priorCenterX = (priorXMin + priorXMax) / 2.0F;
             float priorCenterY = (priorYMin + priorYMax) / 2.0F;
 
-            float decodeBboxCenterX = NAN;
-            float decodeBboxCenterY = NAN;
-            float decodeBboxWidth = NAN;
-            float decodeBboxHeight = NAN;
-
-            if (varianceEncodedInTarget) {
-                // variance is encoded in target, we simply need to restore the offset predictions.
-                decodeBboxCenterX = locXMin * priorWidth + priorCenterX;
-                decodeBboxCenterY = locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth = std::exp(locXMax) * priorWidth;
-                decodeBboxHeight = std::exp(locYMax) * priorHeight;
-            } else {
+            auto [decodeBboxCenterX, decodeBboxCenterY, decodeBboxWidth, decodeBboxHeight] = [&] {
+                if (varianceEncodedInTarget) {
+                    // variance is encoded in target, we simply need to restore the offset predictions.
+                    return std::tuple{locXMin * priorWidth + priorCenterX,
+                                      locYMin * priorHeight + priorCenterY,
+                                      std::exp(locXMax) * priorWidth,
+                                      std::exp(locYMax) * priorHeight};
+                }
                 // variance is encoded in bbox, we need to scale the offset accordingly.
-                decodeBboxCenterX = varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX;
-                decodeBboxCenterY = varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth = std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth;
-                decodeBboxHeight = std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight;
-            }
+                return std::tuple{varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX,
+                                  varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY,
+                                  std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth,
+                                  std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight};
+            }();
 
             newXMin = decodeBboxCenterX - decodeBboxWidth / 2.0F;
             newYMin = decodeBboxCenterY - decodeBboxHeight / 2.0F;

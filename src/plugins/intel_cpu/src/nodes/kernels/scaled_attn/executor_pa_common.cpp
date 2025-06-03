@@ -28,11 +28,11 @@ using namespace dnnl::impl::cpu::x64;
 void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
     palette_id = palette;
     startRow = _startRow;
-    uint64_t i = 0;
-    for (i = 0; i < 14; i++) {
+    for (uint64_t i = 0; i < 14; i++) {
         reserved[i] = 0;
     }
-    for (i = 0; i < _rows_columnsBytes.size(); i++) {
+    uint64_t i = 0;
+    for (; i < _rows_columnsBytes.size(); i++) {
         rows[i] = _rows_columnsBytes[i].first;
         cols[i] = _rows_columnsBytes[i].second;
     }

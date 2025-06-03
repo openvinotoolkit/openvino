@@ -654,20 +654,16 @@ private:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart = 0;
-                    int hend = 0;
-                    int wstart = 0;
-                    int wend = 0;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
-                                                                                roi_end_h,
-                                                                                roi_start_w,
-                                                                                roi_end_w,
-                                                                                jpp.ih,
-                                                                                oh,
-                                                                                jpp.iw,
-                                                                                ow,
-                                                                                jpp.pooled_h,
-                                                                                jpp.pooled_w);
+                    auto [hstart, hend, wstart, wend] = getBordersForMaxMode(roi_start_h,
+                                                                             roi_end_h,
+                                                                             roi_start_w,
+                                                                             roi_end_w,
+                                                                             jpp.ih,
+                                                                             oh,
+                                                                             jpp.iw,
+                                                                             ow,
+                                                                             jpp.pooled_h,
+                                                                             jpp.pooled_w);
 
                     arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] +
                                         wstart * src_strides[3]];
@@ -683,18 +679,16 @@ private:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x = NAN;
-                    float in_y = NAN;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
-                                                                roi_end_h_,
-                                                                roi_start_w_,
-                                                                roi_end_w_,
-                                                                jpp.ih,
-                                                                oh,
-                                                                jpp.iw,
-                                                                ow,
-                                                                jpp.pooled_h,
-                                                                jpp.pooled_w);
+                    auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
+                                                             roi_end_h_,
+                                                             roi_start_w_,
+                                                             roi_end_w_,
+                                                             jpp.ih,
+                                                             oh,
+                                                             jpp.iw,
+                                                             ow,
+                                                             jpp.pooled_h,
+                                                             jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         arg.bin_area = 0;
@@ -799,20 +793,16 @@ public:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart = 0;
-                    int hend = 0;
-                    int wstart = 0;
-                    int wend = 0;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
-                                                                                roi_end_h,
-                                                                                roi_start_w,
-                                                                                roi_end_w,
-                                                                                jpp.ih,
-                                                                                oh,
-                                                                                jpp.iw,
-                                                                                ow,
-                                                                                jpp.pooled_h,
-                                                                                jpp.pooled_w);
+                    auto [hstart, hend, wstart, wend] = getBordersForMaxMode(roi_start_h,
+                                                                             roi_end_h,
+                                                                             roi_start_w,
+                                                                             roi_end_w,
+                                                                             jpp.ih,
+                                                                             oh,
+                                                                             jpp.iw,
+                                                                             ow,
+                                                                             jpp.pooled_h,
+                                                                             jpp.pooled_w);
 
                     for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                         int ch_blk_cur = cbb * cb_num + cbb_cur;
@@ -845,18 +835,16 @@ public:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x = NAN;
-                    float in_y = NAN;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
-                                                                roi_end_h_,
-                                                                roi_start_w_,
-                                                                roi_end_w_,
-                                                                jpp.ih,
-                                                                oh,
-                                                                jpp.iw,
-                                                                ow,
-                                                                jpp.pooled_h,
-                                                                jpp.pooled_w);
+                    auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
+                                                             roi_end_h_,
+                                                             roi_start_w_,
+                                                             roi_end_w_,
+                                                             jpp.ih,
+                                                             oh,
+                                                             jpp.iw,
+                                                             ow,
+                                                             jpp.pooled_h,
+                                                             jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {

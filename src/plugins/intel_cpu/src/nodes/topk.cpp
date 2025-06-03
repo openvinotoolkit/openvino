@@ -2151,8 +2151,7 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        int j = 0;
-        for (j = src_dims.size() - 1; j >= 0; j--) {
+        for (int j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
             }
@@ -2498,16 +2497,14 @@ void TopK::topk_ref_process(const float* src_data,
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
-        float tmp_value = NAN;
-        int tmp_index = 0;
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            tmp_value = max_values[index1];
+            float tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
-            tmp_index = max_indexes[index1];
+            int tmp_index = max_indexes[index1];
             max_indexes[index1] = max_indexes[index2];
             max_indexes[index2] = tmp_index;
         };

@@ -51,8 +51,8 @@ void ACLScheduler::schedule_custom(ICPPKernel* kernel, const Hints& hints, const
         const unsigned int num_iterations = m * n;
         const auto num_threads = get_num_threads(num_iterations);
 
-        unsigned m_threads = 0, n_threads = 0;
-        std::tie(m_threads, n_threads) = scheduler_utils::split_2d(num_threads, m, n);
+        auto [m_threads, n_threads] = scheduler_utils::split_2d(num_threads, m, n);
+
         unsigned int max_parallelism = std::min<unsigned int>(m, m_threads) * std::min<unsigned int>(n, n_threads);
         if (max_parallelism < num_threads) {
             m_threads = std::min<unsigned int>(m, m_threads);
