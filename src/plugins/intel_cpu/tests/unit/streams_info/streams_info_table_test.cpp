@@ -1910,7 +1910,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_9 = {
     0,
     "THROUGHPUT",
     {},
-    {{76, 38, 0, 0, 38, 0, 0},},
+    {{76, 38, 0, 0, 38, 0, 0}},
     {{9, MAIN_CORE_PROC, 4, 0, 0}, {9, HYPER_THREADING_PROC, 4, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_1 = {
