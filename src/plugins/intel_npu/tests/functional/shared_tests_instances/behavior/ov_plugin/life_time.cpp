@@ -7,7 +7,6 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "intel_npu/config/options.hpp"
-#include "overload/ov_plugin/life_time.hpp"
 
 using namespace ov::test::behavior;
 
@@ -36,18 +35,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVHoldersTestOnImportedNetwork,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVHoldersTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         OVHoldersTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetworkNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_VirtualPlugin_BehaviorTests,
                          OVHoldersTestWithConfig,

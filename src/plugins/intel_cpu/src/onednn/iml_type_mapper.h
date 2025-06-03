@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -87,6 +88,8 @@ enum impl_desc_type : int64_t {
     jit_sse42_dw = jit | sse42 | _dw,
     jit_uni_dw = jit | uni | _dw,
     jit_avx512_amx_dw = jit | avx512 | amx | _dw,
+
+    jit_avx2_1x1_dw = jit | avx2 | _1x1 | _dw,
 
     brgconv_avx512 = brgconv | avx512,
     brgconv_avx2 = brgconv | avx2,

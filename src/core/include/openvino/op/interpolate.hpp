@@ -64,7 +64,8 @@ public:
         return m_attrs;
     }
 
-    void set_attrs(Attributes attrs);
+    void set_attrs(Attributes&& attrs);
+    void set_attrs(const Attributes& attrs);
 
 private:
     Attributes m_attrs;

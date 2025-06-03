@@ -4,11 +4,26 @@
 
 #include "brgemm_cpu_blocking.hpp"
 
-#include "snippets/itt.hpp"
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <tuple>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/brgemm_blocking.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -52,9 +67,11 @@ size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+    assert(brgemm && "BrgemmCPU is expected!");
 
-    size_t m_blk, n_blk, k_blk;
+    size_t m_blk;
+    size_t n_blk;
+    size_t k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)

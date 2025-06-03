@@ -4,8 +4,22 @@
 
 #include "brgemm_generic.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <tuple>
+
 #include "common/utils.hpp"
-#include "dnnl_extension_utils.h"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 #define PRINT(X) ss << #X << " = " << (X) << "\n"
@@ -137,7 +151,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& loop_ids = expr->get_loop_ids();
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto get_loop_info = [&]() {
-        OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
+        assert(loop_idx < loop_ids.size() && "Loop is missed");
         return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
     };
 

@@ -4,9 +4,17 @@
 
 #pragma once
 
-#include "brgemm_copy_b.hpp"
+#include <cstddef>
+#include <memory>
+#include <vector>
+
 #include "brgemm_utils.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
+#include "cpu_types.h"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/op/brgemm.hpp"
 
 namespace ov::intel_cpu {

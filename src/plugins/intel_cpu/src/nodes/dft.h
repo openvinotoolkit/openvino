@@ -4,11 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/dft_uni_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
 namespace node {
 
 class DFT : public Node {
@@ -19,9 +31,11 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
-
-    void prepareParams() override;
+    void createPrimitive() override;
+    bool needShapeInfer() const override;
+    bool needPrepareParams() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -42,7 +56,7 @@ private:
              const float** resultBuf) const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
-    std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
+    static std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse);
     void updateTwiddlesFFT(size_t n_complex, bool inverse);
 
     std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;
@@ -52,8 +66,6 @@ private:
     std::unordered_map<size_t, std::vector<float>> twiddlesMapDFT;
 
     std::vector<int32_t> axes;
-    VectorDims inputShape;
-    // std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
@@ -61,6 +73,9 @@ private:
 
     bool inverse;
     bool lastInverse;
+
+    bool m_is_axes_size_const = false;
+    bool m_is_signal_size_const = false;
 };
 
 }  // namespace node

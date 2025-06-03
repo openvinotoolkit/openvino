@@ -209,14 +209,14 @@ VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_po
 
 VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr_port) {
     const auto& desc = expr_port.get_descriptor_ptr();
-    const auto shape = expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input
+    const auto& shape = expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input
                            ? get_planar_vdims(expr_port)
                            : get_preordered_vdims(expr_port);
     auto subtensor = desc->get_subtensor();
     for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
-        auto& dim = subtensor[subtensor.size() - i];
-        if (utils::is_full_dim_value(dim))
+        if (auto& dim = subtensor[subtensor.size() - i]; utils::is_full_dim_value(dim)) {
             dim = shape[shape.size() - i];
+        }
     }
     return subtensor;
 }

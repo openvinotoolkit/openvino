@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/common/op/submodel.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {
@@ -51,6 +52,7 @@ enum class Type {
     Transpose,
     SpaceToBatch,
     SpaceToDepth,
+    SparseFillEmptyRows,
     StridedSlice,
     MemoryOutput,
     MemoryInput,
@@ -123,7 +125,6 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA,
     RandomUniform,
     Unique,
     Ngram,
