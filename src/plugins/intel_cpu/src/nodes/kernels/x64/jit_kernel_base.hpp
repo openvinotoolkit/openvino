@@ -45,46 +45,46 @@ public:
         return vlen;
     }
 
-    void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vfnmadd132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vfmsub231ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpaddd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpaddd(vDst, vSrc, op);
+    void uni_vpaddd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
+        jit_generator::uni_vpaddd(v_dst, v_src, op);
     }
 
-    void uni_vpaddd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
+    void uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpaddq(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vpaddq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpsubd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpsubd(vDst, vSrc, op);
+    void uni_vpsubd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
+        jit_generator::uni_vpsubd(v_dst, v_src, op);
     }
 
-    void uni_vpsubd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
+    void uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op);
 
     void uni_vsubpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
     void uni_vmulpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& op_1, const Xbyak::Operand& op_2);
+    void uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op_2);
 
-    void uni_vdivps(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+    void uni_vdivps(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
 
     void uni_vdivpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op2);
 
-    void uni_vandps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
+    void uni_vandps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
 
-    void uni_vandnps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
+    void uni_vandnps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
 
     void uni_kmovd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc) {
         kmovd(kDst, kSrc);
     }
 
-    void uni_kmovd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc) {
-        uni_vmovups(vDst, vSrc);
+    void uni_kmovd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src) {
+        uni_vmovups(v_dst, v_src);
     }
 
     void uni_kandd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc1, const Xbyak::Opmask& kSrc2) {
@@ -109,23 +109,23 @@ public:
 
     void uni_vpmovzxdq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
 
-    void uni_vshufpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_srs, const Xbyak::Operand& op, uint8_t imm);
+    void uni_vshufpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op, uint8_t imm);
 
-    void gatherdd(const Xbyak::Xmm& vDst,
+    void gatherdd(const Xbyak::Xmm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Xmm& vSrcShift,
                   const Xbyak::Opmask& kReadMask,
                   const bool useMask = true,
                   const bool zeroFill = false);
 
-    void gatherdd(const Xbyak::Xmm& vDst,
+    void gatherdd(const Xbyak::Xmm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Xmm& vSrcShift,
                   const Xbyak::Xmm& vReadMask,
                   const bool useMask = true,
                   const bool zeroFill = false);
 
-    void gatherdd(const Xbyak::Ymm& vDst,
+    void gatherdd(const Xbyak::Ymm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Ymm& vSrcShift,
                   const Xbyak::Ymm& vReadMask,
@@ -134,29 +134,29 @@ public:
 
     void fillRestWorkMask(const Xbyak::Opmask& kDstMask, const Xbyak::Reg64& rWorkRest);
 
-    void fillRestWorkMask(const Xbyak::Xmm& ymmDstMask, const Xbyak::Reg64& rWorkRest, const uint64_t typeSize = 4);
+    void fillRestWorkMask(const Xbyak::Xmm& xmmDstMask, const Xbyak::Reg64& rWorkRest, const uint64_t typeSize = 4);
 
     void fillRestWorkMask(const Xbyak::Ymm& ymmDstMask, const Xbyak::Reg64& rWorkRest, const uint64_t typeSize = 4);
 
-    void load(const Xbyak::Xmm& vDst,
+    void load(const Xbyak::Xmm& v_dst,
               const Xbyak::Address& srcAddr,
               const Xbyak::Reg64& rLoadNum,
               const size_t typeSize,
               const bool zeroFill = false);
 
-    void load(const Xbyak::Ymm& vDst,
+    void load(const Xbyak::Ymm& v_dst,
               const Xbyak::Address& srcAddr,
               const Xbyak::Reg64& rLoadNum,
               const size_t typeSize,
               const bool zeroFill = false);
 
     void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Xmm& vSrc,
+               const Xbyak::Xmm& v_src,
                const Xbyak::Reg64& rToStoreNum,
                const size_t typeSize);
 
     void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Ymm& vSrc,
+               const Xbyak::Ymm& v_src,
                const Xbyak::Reg64& rToStoreNum,
                const size_t typeSize);
 
@@ -165,7 +165,7 @@ public:
                   const Xbyak::Reg64& rSrc,
                   const Xbyak::Xmm& vReadMask,
                   const Xbyak::Xmm& vSrcShift,
-                  const Xbyak::Reg64& rToStoreCounter,
+                  const Xbyak::Reg64& rToStoreNum,
                   const bool useMask = true,
                   const bool zeroFill = false);
 
@@ -174,7 +174,7 @@ public:
                   const Xbyak::Reg64& rSrc,
                   const Xbyak::Ymm& vReadMask,
                   const Xbyak::Ymm& vSrcShift,
-                  const Xbyak::Reg64& rToStoreCounter,
+                  const Xbyak::Reg64& rToStoreNum,
                   const bool useMask = true,
                   const bool zeroFill = false);
 

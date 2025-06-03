@@ -146,7 +146,7 @@ public:
     enum class mode { read_value_assign, single_read_value };
 
 public:
-    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx);
 
     ~MemoryInputBase() override;
 
