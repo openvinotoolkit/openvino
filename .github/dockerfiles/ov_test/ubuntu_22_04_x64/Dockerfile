@@ -36,6 +36,8 @@ RUN apt-get update && \
         clang \
         # parallel gzip
         pigz \
+        # Samples
+        clang \
         # Python
         python3.11-dev \
         python3.11-venv \

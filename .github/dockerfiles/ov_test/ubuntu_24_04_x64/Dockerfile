@@ -33,6 +33,8 @@ RUN apt-get update && \
         clang \
         # parallel gzip
         pigz \
+        # Samples
+        clang \
         # Python
         python3-full \
         libhdf5-dev \

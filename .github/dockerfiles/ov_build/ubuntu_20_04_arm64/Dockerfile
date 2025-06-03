@@ -54,10 +54,12 @@ RUN apt-get update && \
         # Compiler, required for multi-isa build
         gcc-10 \
         g++-10 \
-        # OpenVINO JS API
+        # JS API
+        xvfb \
         libgtk-3-0 \
         libgbm1 \
-        xvfb \
+        # ONNX Runtime
+        language-pack-en \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -71,7 +73,7 @@ RUN chmod +x /install_build_dependencies.sh && \
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
-# Install sscache
+# Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
@@ -99,6 +101,9 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
 ENV NODE_VERSION=21.7.3
