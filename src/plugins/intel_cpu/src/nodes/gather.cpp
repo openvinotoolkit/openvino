@@ -461,7 +461,8 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
@@ -528,7 +529,8 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
