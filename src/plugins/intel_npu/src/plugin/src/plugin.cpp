@@ -21,6 +21,7 @@
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -166,6 +167,26 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base
     }
     // if there is no compiler_type provided = use base_config value
     return base_conf.get<COMPILER_TYPE>();
+}
+
+std::shared_ptr<ov::Model> store_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+    auto clonedModel = model->clone();
+    ov::RTMap& runtimeInfoMap = clonedModel->get_rt_info();
+
+    for (auto&& ov_node : clonedModel->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
+            continue;
+        }
+
+        if (auto it = ov_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
+            it != ov_node->get_rt_info().end()) {
+            clonedModel->set_rt_info(true, "any_weightless_cache_attribute_present");
+            return clonedModel;
+        }
+    }
+
+    clonedModel->set_rt_info(false, "any_weightless_cache_attribute_present");
+    return clonedModel;
 }
 
 }  // namespace
@@ -537,7 +558,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph = compiler->compile(model->clone(), localConfig);
         } else {
             auto begin = std::chrono::steady_clock::now();
-            graph = compiler->compileWS(model->clone(), localConfig);
+            graph = compiler->compileWS(store_weightless_cache_attribute_occurrence(model), localConfig);
             auto end = std::chrono::steady_clock::now();
             std::cout << "compiler->compileWS() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
@@ -765,7 +786,18 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
             OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
         }
 
-        runOVPasses(originalModel);
+        originalModel = store_weightless_cache_attribute_occurrence(originalModel);
+
+        // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to
+        // the
+        // approach that relies on running the common OV passes inside the plugin as well
+        const ov::RTMap& runtimeInfoMap = originalModel->get_rt_info();
+        const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
+        if (weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>()) {
+            // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of
+            // the ov::Model object with the init inputs
+            runOVPasses(originalModel);
+        }
     }
 
     auto graph =

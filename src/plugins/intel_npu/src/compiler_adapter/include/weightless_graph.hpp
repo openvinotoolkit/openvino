@@ -60,7 +60,7 @@ public:
 
 private:
     InputData allocate_inputs(const size_t initIndex,
-                              const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants);
+                              const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants);
 
     OutputData allocate_outputs(const size_t initIndex);
 

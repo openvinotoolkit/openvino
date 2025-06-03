@@ -11,6 +11,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -21,22 +22,45 @@ namespace intel_npu {
 namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
+constexpr char INIT_INPUT_DELIMITER = '_';
 
-std::vector<std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
+std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
     begin = std::chrono::steady_clock::now();
-    for (auto&& node : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
+
+    const ov::RTMap& runtimeInfoMap = model->get_rt_info();
+    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
+    if (weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>()) {
+        std::cout << "Weightless cache attribute found in the model." << std::endl;
+        for (auto&& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::v0::Constant>(node)) {
+                continue;
+            }
+
+            auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+            ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+            const auto& weightlessCacheAttrIt =
+                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+                constants[weightlessCacheAttr.bin_offset] = constantNode;
+            }
         }
-        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        constants.push_back(constantNode);
+    } else {
+        size_t constantId = 0;
+        for (auto&& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::v0::Constant>(node)) {
+                continue;
+            }
+            auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+            constants[constantId++] = constantNode;
+        }
     }
     end = std::chrono::steady_clock::now();
     std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
@@ -59,7 +83,7 @@ struct QueueData {
 // task 2
 template <typename Task1Callable, typename Task2Callable>
 class Parallelizer {
-    std::vector<std::shared_ptr<ov::op::v0::Constant>> _modelConstants;
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> _modelConstants;
 
     std::mutex _mutex;
     std::queue<QueueData> _payloads;
@@ -92,7 +116,8 @@ public:
                 }
                 lock.unlock();
 
-                _task2(std::move(payload), task1SyncPoint, _progressTask1);  // TODO: putting sync point inside is meh
+                _task2(std::move(payload), task1SyncPoint,
+                       _progressTask1);  // TODO: putting sync point inside is meh
             }
         });
 
@@ -341,7 +366,7 @@ void WeightlessGraph::set_workload_type(const ov::WorkloadType workloadType) con
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
-    const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
+    const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
     std::vector<std::shared_ptr<ov::ITensor>> initInputsViewTensors;
 
     std::chrono::steady_clock::time_point begin;
@@ -373,38 +398,64 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         << std::chrono::duration_cast<std::chrono::microseconds>(end_tensor_creation - begin_tensor_creation).count()
         << "[microseconds]" << std::endl;
 
+    const ov::RTMap& runtimeInfoMap = _model->get_rt_info();
+    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
+    const bool foundWeightlessCacheAttribute =
+        weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>();
+
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
-        const size_t id = std::stoi(descriptor.nameFromCompiler);
         auto currentInputBufferLocation =
             static_cast<unsigned char*>(const_cast<void*>(initInputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
-        OPENVINO_ASSERT(id < constants.size(), "Mismatch between weights IDs and parsed inputs");
-        const auto& constant = constants.at(id);
-        OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
-                        "Byte size mismatch for ",
-                        descriptor.nameFromCompiler,
-                        ": ",
-                        constant->get_byte_size(),
-                        " vs. ",
-                        currentInputSize);
-        OPENVINO_ASSERT(constant->get_element_type().size() == descriptor.precision.size(),
-                        "Precision mismatch for ",
-                        descriptor.nameFromCompiler,
-                        ": ",
-                        constant->get_element_type().size(),
-                        " vs. ",
-                        descriptor.precision.size());
-        OPENVINO_ASSERT(constant->get_shape() == descriptor.shapeFromCompiler.to_shape(),
-                        "Shape mismatch for ",
-                        descriptor.nameFromCompiler,
-                        ": ",
-                        constant->get_shape(),
-                        " vs. ",
-                        descriptor.shapeFromCompiler.to_shape());
+        size_t id;
+        std::shared_ptr<ov::op::v0::Constant> constant;
+        if (foundWeightlessCacheAttribute) {
+            const size_t delimiterPosition = descriptor.nameFromCompiler.find(INIT_INPUT_DELIMITER);
+            OPENVINO_ASSERT(delimiterPosition > 0, "Invalid name for init inpu ", descriptor.nameFromCompiler);
+            id = std::stoi(descriptor.nameFromCompiler.substr(0, delimiterPosition));
+
+            OPENVINO_ASSERT(constants.count(id) > 0,
+                            "Weights ID ",
+                            id,
+                            " not found in the model constants. This may indicate a mismatch between the model and the "
+                            "metadata of the compiled model.");
+            constant = constants.at(id);
+        } else {
+            id = std::stoi(descriptor.nameFromCompiler);
+
+            // Asserts checking the metadata match
+            OPENVINO_ASSERT(constants.count(id) > 0,
+                            "Weights ID ",
+                            id,
+                            " not found in the model constants. This may indicate a mismatch between the model and the "
+                            "metadata of the compiled model.");
+            constant = constants.at(id);
+            OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
+                            "Byte size mismatch for ",
+                            descriptor.nameFromCompiler,
+                            ": ",
+                            constant->get_byte_size(),
+                            " vs. ",
+                            currentInputSize);
+            OPENVINO_ASSERT(constant->get_element_type().size() == descriptor.precision.size(),
+                            "Precision mismatch for ",
+                            descriptor.nameFromCompiler,
+                            ": ",
+                            constant->get_element_type().size(),
+                            " vs. ",
+                            descriptor.precision.size());
+            OPENVINO_ASSERT(constant->get_shape() == descriptor.shapeFromCompiler.to_shape(),
+                            "Shape mismatch for ",
+                            descriptor.nameFromCompiler,
+                            ": ",
+                            constant->get_shape(),
+                            " vs. ",
+                            descriptor.shapeFromCompiler.to_shape());
+        }
 
         begin_memcpy = std::chrono::steady_clock::now();
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
@@ -527,7 +578,8 @@ void WeightlessGraph::run_init_multi_threaded() {
     //                                    allocate I/O -> create Pipeline -> run Pipeline
     Parallelizer multiThreadedRunner(
         _model,
-        [&](const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants, int64_t initIndex) -> QueueData {
+        [&](const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
+            int64_t initIndex) -> QueueData {
             QueueData data{};
             data.initIndex = initIndex;
             data.inputs = allocate_inputs(initIndex, constants);
