@@ -95,6 +95,7 @@ ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 ENV DOXYGEN_HOME="/opt/doxygen"
 ENV DOXYGEN_VERSION='1.9.6'
 RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.nl/files/doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
-    tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
+    tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
+    rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
 
