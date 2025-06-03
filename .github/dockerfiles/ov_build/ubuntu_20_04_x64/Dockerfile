@@ -74,10 +74,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
     
 # Use Python 3.9 as default instead of Python 3.8
-RUN ln -sf $(which python3.9) /usr/bin/python && \
-    ln -sf $(which python3.9) /usr/bin/python3
-RUN ln -sf $(which pip3.9) /usr/bin/pip && \
-    ln -sf $(which pip3.9) /usr/bin/pip3
+RUN ln -sfv $(which python3.9) /usr/bin/python && \
+    ln -sfv $(which python3.9) /usr/bin/python3
+RUN ln -sfv $(which pip3.9) /usr/bin/pip && \
+    ln -sfv $(which pip3.9) /usr/bin/pip3
 
 # Confirm versions
 RUN python --version && pip --version
