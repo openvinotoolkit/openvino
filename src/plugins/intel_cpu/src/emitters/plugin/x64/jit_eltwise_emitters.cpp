@@ -4,7 +4,26 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cmath>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/op/powerstatic.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -809,7 +828,8 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto xmm0 = Xmm(0), xmm1 = Xmm(1);
+    auto xmm0 = Xmm(0);
+    auto xmm1 = Xmm(1);
 
     // caller obligation to save gprs as callee may use them
     size_t gpr_size = 8;
@@ -1689,8 +1709,8 @@ jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator* host,
     }
 
     power = powerStaticNode->get_power();
-    scale = 1.f;
-    shift = 0.f;
+    scale = 1.F;
+    shift = 0.F;
 
     prepare_table();
 }
@@ -1738,9 +1758,10 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-    auto xmm0 = Xmm(0), xmm1 = Xmm(1);
+    auto xmm0 = Xmm(0);
+    auto xmm1 = Xmm(1);
 
-    if (scale != 1.f || shift != 0.f) {
+    if (scale != 1.F || shift != 0.F) {
         if (isa == x64::sse41) {
             h->uni_vmovups(vmm_aux0, table_val("scale"));
             h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src0);
@@ -1762,11 +1783,11 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
     }
 
-    if (power == 1.f) {
-    } else if (power == 0.5f || power == -0.5f) {
+    if (power == 1.F) {
+    } else if (power == 0.5F || power == -0.5F) {
         h->uni_vsqrtps(vmm_dst, vmm_dst);
 
-        if (power < 0.f) {
+        if (power < 0.F) {
             h->uni_vmovups(vmm_aux0, table_val("one"));
             if (isa == x64::sse41) {
                 h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_dst);
@@ -1788,7 +1809,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             ipower = ipower >> 1;
         }
 
-        if (power < 0.f) {
+        if (power < 0.F) {
             h->uni_vmovups(vmm_aux0, table_val("one"));
             if (isa == x64::sse41) {
                 h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_dst);
@@ -1888,7 +1909,7 @@ void jit_power_static_emitter::register_table_entries() {
     push_arg_entry_of("power", x64::float2int(power), true);
     push_arg_entry_of("scale", x64::float2int(scale), true);
     push_arg_entry_of("shift", x64::float2int(shift), true);
-    push_arg_entry_of("one", x64::float2int(1.f), true);
+    push_arg_entry_of("one", x64::float2int(1.F), true);
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {
@@ -2125,7 +2146,7 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->uni_vaddps(vmm_dst, vmm_dst, table_val("half"));
 
     // tmp = floorf(fx)
-    const auto _op_floor = 1u;
+    const auto _op_floor = 1U;
     h->uni_vroundps(vmm_aux1, vmm_dst, _op_floor);
 
     // keep vmm_dst = fx for further computations
@@ -2282,7 +2303,7 @@ void jit_erf_emitter::register_table_entries() {
 }
 
 size_t jit_erf_emitter::aux_vecs_count() const {
-    return 4ul;
+    return 4UL;
 }
 
 void jit_erf_emitter::emit_data() const {
@@ -2351,7 +2372,7 @@ void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>
                                                        const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);
@@ -2408,7 +2429,7 @@ void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
     auto vmm_dst = Zmm(out_vec_idxs[0]);
 
     if (detect_negative || detect_positive) {
-        auto& ones_mask = h->k1;
+        const auto& ones_mask = h->k1;
         auto reg32_one = Reg32(aux_gpr_idxs[0]);
         uint8_t imm = detect_negative ? 0B00010000 : 0B00000000;
         if (detect_positive) {
@@ -2483,7 +2504,7 @@ void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
                                                     const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);

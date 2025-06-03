@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <memory>
+
 #include "common/pass/align_matmul_input_ranks.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
@@ -15,9 +18,12 @@
 #include "config.h"
 #include "nodes/fullyconnected.h"
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/validate.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/convert_precision.hpp"
@@ -42,11 +48,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
-            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc,
-                                                                                       IC,
-                                                                                       OC,
-                                                                                       G,
-                                                                                       config.inferencePrecision);
+            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
         });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);

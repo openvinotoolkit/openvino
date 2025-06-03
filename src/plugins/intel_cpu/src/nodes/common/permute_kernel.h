@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <utility>
 
-#include "node.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -66,7 +70,7 @@ public:
     }
 
 private:
-    void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
+    void optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb);
 
     jit_permute_config_params jcp = {};
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;

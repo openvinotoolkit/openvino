@@ -220,8 +220,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0 && !info.supports_immad) {
-        m_dynamic_quantization_group_size = 32;
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
+         if (info.supports_immad)
+            m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
+         else
+            m_dynamic_quantization_group_size = 32;
     }
 
     if (!get_force_implementations().empty()) {

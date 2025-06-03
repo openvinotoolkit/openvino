@@ -440,11 +440,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                                                        (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
-                            #if OUTER_OFM > 1
-                                ACCUMULATOR_TYPE dzp = decompression_zp[offset_ofm];
-                            #else
-                                ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
-                            #endif
+                                #if OUTER_OFM > 1
+                                    ACCUMULATOR_TYPE dzp = decompression_zp[offset_ofm];
+                                #else
+                                    ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
+                                #endif
                             #endif
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
@@ -1195,8 +1195,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             #if COMPRESSED_WEIGHTS_INT8 && DECOMPRESSION_ZP_TERM && DECOMPRESSION_ZP_GROUPS_NUM > 1 && !DECOMPRESSION_ZP_SCALAR
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                    #if FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
-                        #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1"
+                    #if FILTER_LOAD_BLOCK_SIZE > DECOMPRESSION_ZP_GROUP_SIZE && FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
+                        #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1 with unaligned DECOMPRESSION_ZP_GROUP_SIZE"
+                    #elif FILTER_LOAD_BLOCK_SIZE < DECOMPRESSION_ZP_GROUP_SIZE && DECOMPRESSION_ZP_GROUP_SIZE % FILTER_LOAD_BLOCK_SIZE != 0
+                        #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1 with unaligned FILTER_LOAD_BLOCK_SIZE"
                     #endif
 
                     const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;

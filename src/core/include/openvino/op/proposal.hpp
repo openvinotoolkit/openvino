@@ -68,8 +68,11 @@ public:
     /**
      * @brief Set the Proposal operator attributes.
      * @param attrs  Attributes to be set.
+     * @{
      */
-    void set_attrs(Attributes attrs);
+    void set_attrs(Attributes&& attrs);
+    void set_attrs(const Attributes& attrs);
+    /** @} */
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

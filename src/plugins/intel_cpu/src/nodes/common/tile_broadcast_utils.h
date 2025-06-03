@@ -6,8 +6,11 @@
 
 #include <node.h>
 
-#include <memory>
+#include <cstddef>
 #include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,8 +35,8 @@ private:
                                                VectorDims& optimizedSrcStrides);
     static void broadcastScalar(const char* srcData, char* dstData, size_t elt_cnt, size_t data_size);
 
-    static bool canBeExecutedInBlockedLayout(VectorDims srcDims, VectorDims repeats, const size_t elemsInBlock);
-    static bool canBeExecutedInNSPCLayout(VectorDims srcDims, VectorDims repeats);
+    static bool canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims repeats, const size_t elemsInBlock);
+    static bool canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, VectorDims repeats);
 
     struct {
         VectorDims dims;

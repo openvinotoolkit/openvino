@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <initializer_list>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {

@@ -4,11 +4,31 @@
 
 #include "external_repacking_adjuster.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+
+#include "cache/multi_cache.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/runtime_optimizer.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -99,7 +119,7 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
                                                     size_t K,
                                                     ov::element::Type prc) {
     const auto generic_config = executor->get_config().get_clone_ptr();
-    auto config = static_cast<BrgemmCopyBKernelConfig*>(generic_config.get());
+    auto* config = static_cast<BrgemmCopyBKernelConfig*>(generic_config.get());
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride = ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * prc.size();
     const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N, prc));

@@ -4,6 +4,9 @@
 
 #include "memory_formats_attribute.hpp"
 
+#include <memory>
+#include <string>
+
 #include "openvino/core/node.hpp"
 
 namespace ov::intel_cpu {

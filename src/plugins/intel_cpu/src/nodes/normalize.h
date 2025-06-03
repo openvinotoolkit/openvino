@@ -6,14 +6,23 @@
 
 #include <node.h>
 
+#include <algorithm>
 #include <cassert>
-#include <cpu/ref_depthwise_injector.hpp>
-#include <cpu/ref_eltwise.hpp>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "onednn/dnnl.h"
-#include "openvino/core/parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include "utils/cpu_utils.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

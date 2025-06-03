@@ -4,7 +4,19 @@
 
 #pragma once
 
-#include "compiled_model.h"
+#include <istream>
+#include <memory>
+#include <string>
+
+#include "config.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
@@ -46,8 +58,8 @@ public:
 private:
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
-    void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;
-    void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
+    static void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model);
+    static void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false);
     Config engConfig;
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */

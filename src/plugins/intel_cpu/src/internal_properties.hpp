@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include <cstdint>
+#include <istream>
+#include <ostream>
+#include <string>
+
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {

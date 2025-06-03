@@ -4,11 +4,20 @@
 
 #pragma once
 
-#include <common/memory_desc.hpp>
-#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/memory_desc.hpp>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

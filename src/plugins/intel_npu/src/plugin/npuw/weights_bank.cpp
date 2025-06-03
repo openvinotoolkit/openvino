@@ -110,7 +110,7 @@ void Bank::evaluate_and_allocate() {
             // mutex only to update the device bank (& allocate on-device memory, if needed)
             const auto& transformed_tensor = lt.eval();
 
-            std::unique_lock<std::mutex> guard(device_bank.mutex);
+            dev_guard.lock();
             if (device_for_alloc == "CPU") {
                 // No allocation needed
                 device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
@@ -126,7 +126,7 @@ void Bank::evaluate_and_allocate() {
                 remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
             allocated_tensor = ov::make_tensor(remote_tensor);
             device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = allocated_tensor;
-            guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
+            dev_guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
             transformed_tensor.copy_to(allocated_tensor);
 

@@ -5,13 +5,18 @@
 #pragma once
 
 #include <cpu_shape.h>
-#include <onednn/dnnl.h>
 
+#include <cstddef>
 #include <memory>
 #include <mutex>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
@@ -444,7 +449,7 @@ using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
-bool mbind_move(void* data, size_t size, int numaNodeID);
+bool mbind_move(void* data, size_t size, int targetNode);
 bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
 bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 

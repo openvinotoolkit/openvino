@@ -548,7 +548,7 @@ static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout,
     ASSERT_EQ(output_layout.spatial(1), e_output_layout.spatial(1));
     // value check
     {
-        mem_lock<float> output_ptr{ output_mem, get_test_stream() };
+        mem_lock<float, mem_lock_type::read> output_ptr{ output_mem, get_test_stream() };
         for (size_t i = 0, iend = output_layout.count(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
         }
@@ -753,7 +753,7 @@ static void test_loop_gpu_wo_trip_count_w_multiple_shapes(ov::PartialShape body_
         ASSERT_EQ(output_layout.spatial(1), e_output_layout.spatial(1));
         // value check
         {
-            mem_lock<float> output_ptr{ output_mem, get_test_stream() };
+            mem_lock<float, mem_lock_type::read> output_ptr{ output_mem, get_test_stream() };
             for (size_t i = 0, iend = output_layout.count(); i < iend; ++i) {
                 ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
             }
@@ -1194,7 +1194,7 @@ static void test_loop_gpu_wo_trip_count_update_primitive_id(ov::PartialShape bod
         ASSERT_EQ(output_layout.spatial(1), e_output_layout.spatial(1));
         // value check
         {
-            mem_lock<float> output_ptr{ output_mem, get_test_stream() };
+            mem_lock<float, mem_lock_type::read> output_ptr{ output_mem, get_test_stream() };
             for (size_t i = 0, iend = output_layout.count(); i < iend; ++i) {
                 ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
             }

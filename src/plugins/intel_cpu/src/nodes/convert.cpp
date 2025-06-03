@@ -4,10 +4,28 @@
 
 #include "convert.h"
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
 #include "common/blocked_desc_creator.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/common/ref_convert.hpp"
+#include "nodes/executors/convert_list.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
@@ -16,7 +34,7 @@ namespace ov::intel_cpu::node {
 
 bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
+        const auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
@@ -42,7 +60,7 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
+    auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(op);
     convertParams.origPrc = convert->get_destination_type();
 }
 
@@ -163,10 +181,10 @@ void Convert::initSupportedPrimitiveDescriptors() {
 }
 
 void Convert::prepareParams() {
-    auto& parentMem = getParentEdgeAt(0)->getMemory();
+    const auto& parentMem = getParentEdgeAt(0)->getMemory();
     convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
     MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
     execPtr =
@@ -179,8 +197,8 @@ void Convert::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto& parentMem = getParentEdgeAt(0)->getMemory();
-    auto& childMem = getChildEdgeAt(0)->getMemory();
+    const auto& parentMem = getParentEdgeAt(0)->getMemory();
+    const auto& childMem = getChildEdgeAt(0)->getMemory();
 
     const auto parentPaddElemCount = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     const auto childPaddElemCount = childMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();

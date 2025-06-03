@@ -314,7 +314,7 @@ void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     }
     UNPACK_SAVE_TICK();
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -454,7 +454,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -611,7 +611,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -724,7 +724,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -788,7 +788,7 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 64;  // note pDst is int16_t
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -969,7 +969,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1153,7 +1153,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1254,7 +1254,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1302,7 +1302,7 @@ void ov::npuw::util::XARCH::unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 8;
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1344,7 +1344,7 @@ void ov::npuw::util::XARCH::unpack_i8f16_scale(const ov::SoPtr<ov::ITensor>& fro
         pScl += scale_elem_type.size();
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1398,7 +1398,7 @@ void ov::npuw::util::XARCH::unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pZrp++;
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1423,7 +1423,7 @@ ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
         pdst += (8 * 2);  // offset in bytes
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
     return tnew;
 }

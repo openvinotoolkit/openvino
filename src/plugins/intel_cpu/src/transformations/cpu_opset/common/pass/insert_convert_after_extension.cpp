@@ -4,10 +4,20 @@
 
 #include "insert_convert_after_extension.hpp"
 
+#include <memory>
+
 #include "cpu_types.h"
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convert.hpp"
-#include "transformations/utils/utils.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
 ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_output_precision) {
     MATCHER_SCOPE(InsertConvertAfterExtension);

@@ -64,18 +64,20 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
+    for (const auto& [name, option] : compileOptions) {
+        seed = hash_combine(seed, name + option.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
-        const auto& rt = op->get_rt_info();
-        for (const auto& rtMapData : rt) {
-            seed = hash_combine(seed, rtMapData.first);
-            std::stringstream strm;
-            rtMapData.second.print(strm);
-            seed = hash_combine(seed, strm.str());
+        // Skip runtime attributes which are not hash-able
+        for (const auto& [name, attribute] : op->get_rt_info()) {
+            if (!attribute.is<ov::RuntimeAttribute>() || attribute.as<ov::RuntimeAttribute>().is_deterministic()) {
+                seed = hash_combine(seed, name);
+                std::stringstream strm;
+                attribute.print(strm);
+                seed = hash_combine(seed, strm.str());
+            }
         }
     }
 

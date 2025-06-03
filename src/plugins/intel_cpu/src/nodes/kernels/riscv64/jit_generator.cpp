@@ -64,9 +64,11 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
         const auto upper_20 = (value32 + 0x800) >> 12 & 0xFFFFF;
         int32_t lower_12 = static_cast<int32_t>(value32) & 0xFFF;
         // Convert to signed 12-bit
-        if (lower_12 > 2047) lower_12 -= 4096;
-        if (lower_12 < -2048) lower_12 += 4096;
-    
+        if (lower_12 > 2047)
+            lower_12 -= 4096;
+        if (lower_12 < -2048)
+            lower_12 += 4096;
+
         if (upper_20 != 0) {
             lui(rd, upper_20);
         }
@@ -92,8 +94,10 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
 
     int32_t lower_12 = static_cast<int32_t>(static_cast<int64_t>(value << 52) >> 52);
     // Convert to signed 12-bit
-    if (lower_12 > 2047) lower_12 -= 4096;
-    if (lower_12 < -2048) lower_12 += 4096;
+    if (lower_12 > 2047)
+        lower_12 -= 4096;
+    if (lower_12 < -2048)
+        lower_12 += 4096;
 
     // Add 0x800 to cancel out the signed extension of ADDI.
     uint64_t upper_52 = (value + 0x800) >> 12;
@@ -112,37 +116,56 @@ void jit_generator::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VRe
 }
 
 Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) {
-    if (lmul == 0.125f) return LMUL::mf8;
-    if (lmul == 0.25f) return LMUL::mf4;
-    if (lmul == 0.5f) return LMUL::mf2;
-    if (lmul == 1.f) return LMUL::m1;
-    if (lmul == 2.f) return LMUL::m2;
-    if (lmul == 4.f) return LMUL::m4;
-    if (lmul == 8.f) return LMUL::m8;
+    if (lmul == 0.125f)
+        return LMUL::mf8;
+    if (lmul == 0.25f)
+        return LMUL::mf4;
+    if (lmul == 0.5f)
+        return LMUL::mf2;
+    if (lmul == 1.f)
+        return LMUL::m1;
+    if (lmul == 2.f)
+        return LMUL::m2;
+    if (lmul == 4.f)
+        return LMUL::m4;
+    if (lmul == 8.f)
+        return LMUL::m8;
     OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(lmul));
 }
 
 float jit_generator::lmul2float(const LMUL lmul) {
     switch (lmul) {
-    case LMUL::mf8: return 0.125f;
-    case LMUL::mf4: return 0.25f;
-    case LMUL::mf2: return 0.5f;
-    case LMUL::m1: return 1;
-    case LMUL::m2: return 2;
-    case LMUL::m4: return 4;
-    case LMUL::m8: return 8;
+    case LMUL::mf8:
+        return 0.125f;
+    case LMUL::mf4:
+        return 0.25f;
+    case LMUL::mf2:
+        return 0.5f;
+    case LMUL::m1:
+        return 1;
+    case LMUL::m2:
+        return 2;
+    case LMUL::m4:
+        return 4;
+    case LMUL::m8:
+        return 8;
     default: {
-        OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(static_cast<uint32_t>(lmul)));
+        OPENVINO_THROW(std::string("not supported vector length multiplier: ") +
+                       std::to_string(static_cast<uint32_t>(lmul)));
     }
     }
 }
 
 Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) {
-    switch(sew) {
-    case 1lu: return SEW::e8;
-    case 2lu: return SEW::e16;
-    case 4lu: return SEW::e32;
-    case 8lu: return SEW::e64;
+    switch (sew) {
+    case 1lu:
+        return SEW::e8;
+    case 2lu:
+        return SEW::e16;
+    case 4lu:
+        return SEW::e32;
+    case 8lu:
+        return SEW::e64;
     default: {
         OPENVINO_THROW(std::string("not supported sew: ") + std::to_string(sew));
     }
@@ -150,18 +173,21 @@ Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) {
 }
 
 size_t jit_generator::sew2bytes(const Xbyak_riscv::SEW sew) {
-    switch(sew) {
-    case SEW::e8: return 1lu;
-    case SEW::e16: return 2lu;
-    case SEW::e32: return 4lu;
-    case SEW::e64: return 8lu;
+    switch (sew) {
+    case SEW::e8:
+        return 1lu;
+    case SEW::e16:
+        return 2lu;
+    case SEW::e32:
+        return 4lu;
+    case SEW::e64:
+        return 8lu;
     default: {
         OPENVINO_THROW(std::string("not supported sew: ") + std::to_string(static_cast<uint32_t>(sew)));
     }
     }
 }
 
-
-}   // namespace riscv64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace riscv64
+}  // namespace intel_cpu
+}  // namespace ov

@@ -3,12 +3,15 @@
 //
 #pragma once
 
+#include <functional>
+#include <istream>
+#include <memory>
+#include <ostream>
 #include <pugixml.hpp>
+#include <string>
 
 #include "openvino/core/model.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "utils/codec_xor.hpp"
 
 namespace ov::intel_cpu {
@@ -34,7 +37,7 @@ public:
     ModelDeserializer(std::istream& model,
                       std::shared_ptr<ov::AlignedBuffer> model_buffer,
                       ModelBuilder fn,
-                      const CacheDecrypt& encrypt_fn,
+                      const CacheDecrypt& decrypt_fn,
                       bool decript_from_string);
 
     virtual ~ModelDeserializer() = default;

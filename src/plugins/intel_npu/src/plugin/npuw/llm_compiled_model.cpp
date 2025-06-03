@@ -414,7 +414,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
+            const auto partial_shape_size = input.get_partial_shape().size();
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // The first dimension (3) represents the three components of position encoding: time, height, and width
+            // enabling alignment across multimodal inputs like text, audio, and video
+            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            new_shape =
+                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -519,7 +525,7 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
         }
     }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
+        config.emplace("NPU_TILES", npudesc->max_tiles);
     }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
@@ -540,7 +546,7 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
     if (npudesc.has_value() && npudesc->arch == "4000") {
-        config.emplace("NPU_DPU_GROUPS", 4);
+        config.emplace("NPU_TILES", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");

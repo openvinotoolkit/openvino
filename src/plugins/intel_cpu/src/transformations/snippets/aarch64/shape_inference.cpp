@@ -4,7 +4,12 @@
 
 #include "shape_inference.hpp"
 
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"

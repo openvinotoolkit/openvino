@@ -14,6 +14,21 @@
 #include "spatial.hpp"
 #include "util.hpp"
 
+// NOTE: This construtor should only be used when exporting blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
+                                               const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+    : is_weightless(_is_weightless),
+      const_to_offset(_const_to_offset) {}
+
+// NOTE: This construtor can and should only be used when importing weightless blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                                               const s11n::WeightsContext::ConstsCache& _consts_cache)
+    : is_weightless(true),
+      weights(_weights),
+      consts_cache(_consts_cache) {
+    NPUW_ASSERT(_weights || !_consts_cache.empty());
+}
+
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
@@ -70,7 +85,11 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
         var.copy_to(tensor);
     }
     NPUW_ASSERT(tensor);
-    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+    size_t blob_size = var.get_byte_size();
+    if (blob_size > static_cast<decltype(blob_size)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    stream.write(reinterpret_cast<const char*>(var.data()), static_cast<std::streamsize>(blob_size));
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {

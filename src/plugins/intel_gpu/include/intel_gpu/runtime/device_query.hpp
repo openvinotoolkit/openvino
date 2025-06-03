@@ -22,7 +22,8 @@ public:
                           void* user_context = nullptr,
                           void* user_device = nullptr,
                           int ctx_device_id = 0,
-                          int target_tile_id = -1);
+                          int target_tile_id = -1,
+                          bool initialize_devices = false);
 
     std::map<std::string, device::ptr> get_available_devices() const {
         return _available_devices;

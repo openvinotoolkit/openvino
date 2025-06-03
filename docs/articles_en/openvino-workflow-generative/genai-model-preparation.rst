@@ -110,6 +110,13 @@ While optimizing models, you can decide to keep the original precision or select
 
                optimum-cli export openvino --trust-remote-code --model openai/whisper-base ov_whisper
 
+         .. tab-item:: SpeechT5 TTS models (text2speech):
+            :sync: whisp-speech-txt
+
+            .. code-block:: console
+
+               optimum-cli export openvino --model microsoft/speecht5_tts --model-kwargs "{\"vocoder\": \"microsoft/speecht5_hifigan\"}" ov_speecht5_tts
+
    .. tab-item:: Exporting to selected precision
       :sync: low-precision
 

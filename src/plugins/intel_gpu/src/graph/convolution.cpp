@@ -178,8 +178,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     conv_info.add("dilation", cldnn::to_string(dilation));
     conv_info.add("deformable_groups", desc->deformable_groups);
     conv_info.add("groups", desc->groups);
-    conv_info.add("has zero points for weights: ", w_zp);
-    conv_info.add("has zero points for activations: ", a_zp);
+    conv_info.add("has zero points for weights", w_zp);
+    conv_info.add("has zero points for activations", a_zp);
     node_info->add("convolution info", conv_info);
     node_info->dump(primitive_description);
 

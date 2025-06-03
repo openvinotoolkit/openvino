@@ -45,7 +45,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         4);  // required, in docs: number of bits used for weight quantization (default 4)
 
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
-    const auto blob_size = static_cast<int64_t>(ceil(block_size * bits / 8));
+    const auto blob_size = (block_size * bits + 7) / 8;
 
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);

@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common/memory_desc_wrapper.hpp>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_types.h"
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/common/common_utils.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
@@ -18,16 +21,21 @@
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/implementations.hpp"
+#include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "nodes/executors/precision_matcher.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
@@ -36,6 +44,7 @@
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_fullyconnected.hpp"
 #    include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
+#    include "nodes/executors/common/common_utils.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -212,7 +221,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 //   M = 1, K = (IC*H*W), when M = 1 it should not be efficient since acts as a vector multiply
                 // if layout is nchw/nChw16c: brg1x1 not support. Although jit supports, it should have similar
                 //   problems with the above.
-                VERIFY(one_of(srcRank(config), 2u, 3u), UNSUPPORTED_SRC_RANK);
+                VERIFY(one_of(srcRank(config), 2U, 3U), UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2, UNSUPPORTED_WEI_RANK);
                 // brg convolution does not support stride
                 VERIFY(getOffset0(config.descs.at(ARG_DST)) == 0, UNSUPPORTED_DST_STRIDES);
@@ -329,7 +338,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               aclFullyConnectedMappingNotation);
             },
             // acceptsShapes
-            [](const FCAttrs& attrs,
+            []([[maybe_unused]] const FCAttrs& attrs,
                const MemoryArgs& memory) -> bool {
                 const auto dequantizationScales = getDeQuantizedScales(memory);
                 bool isPerChannelQuantization = dequantizationScales.size() > 1;
@@ -347,12 +356,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(everyone_is(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(one_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
                 if (config.attrs.withBias) {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
-                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
             },
@@ -444,16 +452,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlConvolutionMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
-            // create
-            [](const FCAttrs& attrs,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<DnnlExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
-                                                                                                       memory,
-                                                                                                       context,
-                                                                                                       false,
-                                                                                                       true);
-            })
+            CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}
+            )
     };
 
     return fullyconnectedImplementations;

@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "group_normalization_base.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "program_node.h"
@@ -15,9 +16,9 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
-struct GroupNormalizationBfyxOpt : public ImplementationManager {
+struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
     OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::bfyx_opt")
-    explicit GroupNormalizationBfyxOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+    explicit GroupNormalizationBfyxOpt(shape_types shape_type, ValidateFunc vf = nullptr) : GroupNormalizationBase(shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {

@@ -4,9 +4,16 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <initializer_list>
+#include <limits>
+#include <string>
 #include <vector>
 
 #include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/interval.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 namespace ov {

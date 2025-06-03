@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,11 +41,11 @@ private:
     template <bool reverse, bool exclusive, typename dataType>
     void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
 
-    void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
+    static void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
-    inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
+    static inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
-    inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) const;
+    static inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides);
 
     size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 

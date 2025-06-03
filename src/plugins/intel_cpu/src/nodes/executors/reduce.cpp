@@ -6,6 +6,8 @@
 
 #include <utility>
 
+#include "nodes/executors/executor.hpp"
+
 namespace ov::intel_cpu {
 
 ReduceExecutor::ReduceExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}

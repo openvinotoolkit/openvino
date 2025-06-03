@@ -38,7 +38,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ov::element::f32,
         {},
         "output_original",
-        "U8"
+        "u8"
     },
     {
         ov::element::f32,
@@ -57,7 +57,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ov::element::f32,
         {},
         "output_original",
-        "FP32"
+        "f32"
     }
 };
 
