@@ -64,12 +64,17 @@ optional = true
 protobuf = ">=3.20.0,<=4.25.0"
 paddlepaddle = ">=2.4.0,<=2.6.0"
 
+[tool.poetry.group.build]
+optional = true
+
+[tool.poetry.group.build.dependencies]
+wheel = "<=0.45.1"
+setuptools = "<=80.4.0"
+
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-wheel = "<=0.45.1"
-setuptools = "<=80.4.0"
 tox = "<=4.26.0"
 pygments = "<=2.16.1"
 pep8-naming = "<=0.13.0"
