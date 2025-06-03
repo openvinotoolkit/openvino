@@ -6,7 +6,7 @@ runs:
     - name: Install Poetry
       shell: bash
       run: |
-        POETRY_VERSION=$(grep -E '^poetry==' requirements.txt | head -n1 | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+        POETRY_VERSION=$(grep -E '^poetry==' ${{ github.action_path }}/requirements.txt | head -n1 | sed -E 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
         curl -sSL https://install.python-poetry.org | python3 - --version "$POETRY_VERSION"
 
     - name: Add Poetry to PATH (Linux/macOS)
