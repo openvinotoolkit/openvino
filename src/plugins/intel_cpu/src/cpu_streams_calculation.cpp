@@ -543,6 +543,7 @@ int get_model_prefer_threads(const int num_streams,
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
             config.modelPreferThreads = 2;
+            std::cout << "modelPreferThreads = " << config.modelPreferThreads << std::endl;
         }
         if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
             (proc_type_table[0][HYPER_THREADING_PROC] == proc_type_table[0][MAIN_CORE_PROC])) {
@@ -579,6 +580,8 @@ int get_model_prefer_threads(const int num_streams,
     } else {  // throughput
         model_prefer = config.modelPreferThreads;
     }
+
+    std::cout << "model_prefer = " << model_prefer << std::endl;
 
     return model_prefer;
 }
