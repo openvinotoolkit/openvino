@@ -69,6 +69,13 @@ def get_model_recs(test_conf_root):
 
     return test_conf_root.find("models")
 
+
+def get_ref_recs(ref_conf_root):
+    """Parse references from ref config.
+    """
+    return ref_conf_root.find("models")
+
+
 def get_args(parser):
     """Parse command line options
     """
