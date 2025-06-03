@@ -206,7 +206,10 @@ jobs:
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
           
-            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")          
+  
+            poetry env use $python_exec_path
+            poetry install --with build
             
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
