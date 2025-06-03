@@ -81,5 +81,6 @@ RUN ln -sf $(which pip3.9) /usr/bin/pip && \
 
 # Confirm versions
 RUN python --version && pip --version
+RUN python3.9 --version && pip3.9 --version
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
