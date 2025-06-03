@@ -7,17 +7,39 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <partitioned_mem_blk.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/util/pp.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
 
@@ -78,7 +100,7 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 void Split::getSupportedDescriptors() {}
 
 void Split::initSupportedPrimitiveDescriptors() {
-    constexpr size_t channelsPos = 1lu;
+    constexpr size_t channelsPos = 1LU;
 
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
@@ -110,7 +132,7 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     // Support channel blocked format only if we manipulate complete blocks
     if (srcShape.getRank() > 2) {
-        for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (auto item : {std::make_pair(8LU, LayoutType::nCsp8c), std::make_pair(16LU, LayoutType::nCsp16c)}) {
             const auto& blkDims = srcShape.getDims();
             if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0) {
                 continue;
@@ -132,7 +154,7 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     std::vector<size_t> pdIndexesToReuse;
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto itrRange =
         BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
@@ -327,7 +349,7 @@ bool Split::created() const {
 
 void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
@@ -336,7 +358,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     CPU_NODE_ASSERT(!config.inConfs.empty(), "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4U, 5U) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (const auto& outConf : config.outConfs) {
             if (!outConf.getMemDesc()->hasLayoutType(LayoutType::ncsp)) {
@@ -366,7 +388,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
         auto parentEdge = getParentEdgeAt(0);
         auto parentPtr = parentEdge->getParent();
-        auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+        auto* parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
 
         if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
             int inNum = parentEdge->getInputNum();
@@ -398,7 +420,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
         for (size_t i = 0; i < getChildEdges().size(); ++i) {
             auto childEdge = getChildEdgeAt(i);
             auto childPtr = childEdge->getChild();
-            auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
+            const auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
             const auto& outputDesc =
                 supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].getMemDesc();
 
@@ -408,7 +430,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
                     inNum = 0;
                 }
                 bool hasMatchDesc = false;
-                for (auto& childSpd : vecChildSpd) {
+                for (const auto& childSpd : vecChildSpd) {
                     if (static_cast<size_t>(inNum) >= childSpd.getConfig().inConfs.size()) {
                         inNum = 0;
                     }
@@ -453,8 +475,8 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t H = parentDims[rank - 2];
     const size_t W = parentDims[rank - 1];
 
-    auto& srcMem = parentEdge->getMemory();
-    auto srcData = srcMem.getDataAs<const uint8_t>();
+    const auto& srcMem = parentEdge->getMemory();
+    const auto* srcData = srcMem.getDataAs<const uint8_t>();
     const auto dataSize = srcMem.getDesc().getPrecision().size();
 
     const size_t DHW = D * H * W;
@@ -463,7 +485,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = dstMemPtrs[i].second->getDataAs<uint8_t>();
+        auto* dstData = dstMemPtrs[i].second->getDataAs<uint8_t>();
 
         size_t innerSize = 1;
         auto dims = getChildEdgeAt(dstMemPtrs[i].first)->getMemory().getStaticDims();
@@ -471,14 +493,14 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
         }
-        auto srcPtr = srcData + srcMem.getDesc().getElementOffset(sIdx) * dataSize;
+        const auto* srcPtr = srcData + srcMem.getDesc().getElementOffset(sIdx) * dataSize;
 
         const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;
 
         parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
-            auto localSrcPtr = srcPtr + b * strideIB + j * strideIW;
-            auto localDstPtr = dstData + b * strideOB + j * dataSize;
+            const auto* localSrcPtr = srcPtr + b * strideIB + j * strideIW;
+            auto* localDstPtr = dstData + b * strideOB + j * dataSize;
             for (size_t c = 0; c < OC; c++) {
                 cpu_memcpy(localDstPtr, localSrcPtr, dataSize);
                 localSrcPtr += dataSize;
@@ -562,11 +584,11 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         Node::resolveInPlaceEdges(look);
         return;
     }
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
-    auto& config = selected_pd->getConfig();
+    const auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
@@ -578,7 +600,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         "can not use inPlace memory with splitting on dynamic dimension");
         const auto& childEdges = getChildEdgesAtPort(i);
-        for (auto& childEdge : childEdges) {
+        for (const auto& childEdge : childEdges) {
             CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();

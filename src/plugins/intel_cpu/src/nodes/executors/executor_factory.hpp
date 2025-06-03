@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "executor.hpp"
 #include "memory_format_filter.hpp"
@@ -18,7 +20,7 @@
 #include "nodes/executors/printers.hpp"
 #include "nodes/executors/variable_executor.hpp"
 #include "openvino/core/except.hpp"
-#include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 

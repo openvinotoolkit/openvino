@@ -4,17 +4,19 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+
 #include "eltwise.hpp"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_eltwise.hpp"
 #endif
 #if defined(OV_CPU_WITH_SHL)
 #    include "shl/shl_eltwise.hpp"
 #endif
-
-#include "common/primitive_cache.hpp"
-#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 

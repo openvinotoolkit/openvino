@@ -5,20 +5,24 @@
 #include "config.h"
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_map_scheduling.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include "internal_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
@@ -152,7 +156,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }
@@ -173,7 +177,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Expected only true/false.");
             }
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
-            float val_f = 0.0f;
+            float val_f = 0.0F;
             try {
                 val_f = val.as<float>();
             } catch (const ov::Exception&) {
@@ -181,7 +185,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
             }
-            if (val_f < 0.f || val_f > 1.f) {
+            if (val_f < 0.F || val_f > 1.F) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Sparse rate must be in range [0.0f,1.0f]");
@@ -519,12 +523,12 @@ void Config::updateProperties() {
         return;
     }
 
-    if (collectPerfCounters == true) {
+    if (collectPerfCounters) {
         _config.insert({ov::enable_profiling.name(), "YES"});
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
     }
-    if (exclusiveAsyncRequests == true) {
+    if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});
