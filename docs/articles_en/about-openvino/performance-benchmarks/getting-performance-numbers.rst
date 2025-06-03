@@ -262,15 +262,8 @@ performance on the timeline view.
 OpenVINO benchmarking (LLM)
 +++++++++++++++++++++++++++++++
 
-Large Language Models require a different benchmarking approach to static models. A detailed
-description will be added soon.
-
-
-
-
-
-
-
+Large Language Models require a different benchmarking approach to static models. For more details,
+see the `Benchmarking Script for Large Language Models <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench>`__ .
 
 
 
