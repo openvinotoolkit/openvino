@@ -56,16 +56,24 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                 const auto& precision = node->get_input_element_type(1);
                 /*
                  * The BrgemmCopyB operation repacks the weights in the following way:
-                 *  1) VNNI format is applied: KN4k for I8/U8, or KN2k for BF16
-                 *  2) Zero padding is applied if N4k < 256 or N2k < 64
+                 *   1) Not-FP32 Brgemm requires inner K block which is equal to VNNI factor
+                 *   2) If BrgemmConfig returns `are_wei_blocked()=1`, weights are repacked
+                 *      in format BA<wei_k_blk>a<m_wei_n_blk>b<vnni_factor>a (if there is vnni).
+                 *   3) If BrgemmConfig returns `are_wei_blocked()=0`, there is zero padding
+                 *      for K and N dimensions due to memory access patern in BrgemmCopyB onednn kernel.
                  */
                 if (brgemm_config.with_wei_repacking() && loop_port.is_incremented()) {
                     int64_t blocked_shape_ptr_inc = 0;
-                    if (loop_port.get_dim_idx() == 1) {  // K blocking loop: account for zero padding
+                    if (loop_port.get_dim_idx() == 1) {
+                        // Blocking loop by K dimension:
+                        //  - pointer increment is equal to LDB
                         blocked_shape_ptr_inc = brgemm_utils::repacking::compute_LDB(loop_desc.ptr_increment,
                                                                                      brgemm_config.wei_n_blk(),
                                                                                      brgemm_config.are_wei_blocked());
-                    } else if (loop_port.get_dim_idx() == 0) {  // N blocking loop: account for the VNNI format
+                    } else if (loop_port.get_dim_idx() == 0) {
+                        // Blocking loop by N dimension:
+                        //  - if weights are not in blocked format, account for the VNNI format
+                        //  - if weights are blocked, account for zero padding in K dimension
                         const auto& shape = loop_port.get_expr_port()->get_descriptor_ptr()->get_shape();
                         const auto k_dim = *++shape.rbegin();
                         if (snippets::utils::is_dynamic_value(k_dim)) {
@@ -79,6 +87,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }
+
                     assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
                     modified = true;
                 }

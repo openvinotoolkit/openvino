@@ -13,6 +13,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/parameter.hpp"
@@ -89,7 +90,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         if (const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(brgemm_parent_1)) {
             const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
             OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
-                            "Parameter index is invalid in EliminateBrgemmCopyB transformation");
+                            "Parameter index is invalid in BrgemmToBrgemmCPU transformation");
             are_wei_constant = m_constant_inputs_idxs.count(param_idx) > 0;
         }
 
@@ -133,7 +134,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
             set_full_port_desc(scratch->output(0));
             set_full_port_desc(brgemm_cpu->input(2));
         } else if (brgemm_config.with_compensations()) {
-            OPENVINO_ASSERT(brgemm_copy_b, "Needs to BrgemmCopyB");
+            OPENVINO_ASSERT(brgemm_copy_b, "BrgemmCopyB is required");
             brgemm_cpu = std::make_shared<BrgemmCPU>(ov::OutputVector{brgemm_in0, brgemm_in1, brgemm_copy_b->output(1)},
                                                      brgemm_config,
                                                      std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}, {0, 0}},
@@ -164,6 +165,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
 
         brgemm_cpu->validate_and_infer_types();
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
+        ov::copy_runtime_info(brgemm, brgemm_cpu);
         ov::replace_node(brgemm, brgemm_cpu);
 
         status = true;

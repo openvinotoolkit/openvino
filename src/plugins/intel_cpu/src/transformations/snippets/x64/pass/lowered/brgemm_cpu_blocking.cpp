@@ -116,13 +116,15 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
 
     const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
+    const auto default_m_blk = 32;
     const auto default_n_blk =
         dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    const auto default_k_blk = !ov::snippets::utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
 
-    size_t m_blk = get_corrected_blk_size_by_dim(m, get_default_m_blk(m));
+    size_t m_blk = get_corrected_blk_size_by_dim(m, default_m_blk);
     size_t n_blk =
         get_corrected_blk_size_by_dim(n, brgemm_config.are_wei_blocked() ? brgemm_config.wei_n_blk() : default_n_blk);
-    size_t k_blk = get_corrected_blk_size_by_dim(k, get_default_k_blk(k));
+    size_t k_blk = get_corrected_blk_size_by_dim(k, default_k_blk);
 
     // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     //         the low precision cases (ticket: 156014)

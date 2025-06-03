@@ -51,7 +51,7 @@ BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
       m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
       m_are_wei_constant(are_wei_constant),
       m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt) && m_are_wei_constant),
-      m_wei_k_blk(brgemm_utils::get_elems_in_vec(wei_dt)) {
+      m_wei_k_blk(get_elems_in_vec(wei_dt)) {
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
 
     // FC always requires weight repacking
@@ -87,7 +87,11 @@ dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Ty
     const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
     const auto is_int8 =
         ov::snippets::utils::one_of(src_dt, ov::element::i8, ov::element::u8) && wei_dt == ov::element::i8;
-    OPENVINO_ASSERT(is_fp32 || is_fp16 || is_bf16 || is_int8, "Incorrect configuration");
+    OPENVINO_ASSERT(is_fp32 || is_fp16 || is_bf16 || is_int8,
+                    "Incorrect configuration: src_dt = ",
+                    src_dt,
+                    ", wei_dt = ",
+                    wei_dt);
 
     if (is_bf16) {
         return mayiuse(avx512_core_amx) ? avx512_core_amx : mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa_undef;
@@ -119,17 +123,17 @@ void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
 }
 
-size_t compute_vnni_factor(const ov::element::Type& precision) {
-    return data_type_vnni_granularity(
-        static_cast<dnnl_data_type_t>(ov::intel_cpu::DnnlExtensionUtils::ElementTypeToDataType(precision)));
-}
-
-size_t get_elems_in_vec(const ov::element::Type& precision) {
+size_t BrgemmConfig::get_elems_in_vec(const ov::element::Type& precision) {
     using namespace dnnl::impl::cpu;
     OV_CPU_JIT_EMITTER_ASSERT(x64::mayiuse(x64::avx2), "doesn't support non avx512 platforms");
     const auto vlen =
         x64::mayiuse(avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen : x64::cpu_isa_traits<x64::avx2>::vlen;
     return vlen / precision.size();
+}
+
+size_t compute_vnni_factor(const ov::element::Type& precision) {
+    return data_type_vnni_granularity(
+        static_cast<dnnl_data_type_t>(ov::intel_cpu::DnnlExtensionUtils::ElementTypeToDataType(precision)));
 }
 
 namespace repacking {

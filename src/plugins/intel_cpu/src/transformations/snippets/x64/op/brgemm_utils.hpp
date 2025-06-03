@@ -65,6 +65,7 @@ private:
 
     static dnnl::impl::cpu::x64::cpu_isa_t get_prim_isa(const ov::element::Type& src_dt,
                                                         const ov::element::Type& wei_dt);
+    static size_t get_elems_in_vec(const ov::element::Type& precision);
 
     dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
     bool m_with_wei_repacking = false;
@@ -74,9 +75,9 @@ private:
      *  - planar - ab
      *  - planar with inner K blocking for low precision - Ab<vnni_factor>a
      *  - blocked - BA<wei_k_blk>a<m_wei_n_blk>b<vnni_factor>a (if there is vnni)
-     *  "Blocked" weight-format helps to achieve better cache-locality - LDB is equal to <m_wei_n_blk>.
-     * Note: FC requires blocked by N weights for better cache-locality (small LDB).
-     *       In MatMul scenario it might leads to perf degradation.
+     *  "Blocked" weight-format helps to achieve better cache utilization - LDB is equal to <m_wei_n_blk>.
+     * Note: FC requires blocked by N weights for better cache utilization (small LDB).
+     *       In MatMul scenario it might lead to perf degradation.
      */
     bool m_are_wei_blocked = false;
     size_t m_wei_n_blk = 0lu;
@@ -85,8 +86,6 @@ private:
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision
 size_t compute_vnni_factor(const ov::element::Type& precision);
-/// \brief Computes number of elems with requested precision that fit in the vector register
-size_t get_elems_in_vec(const ov::element::Type& precision);
 
 /// \brief The following helpers return True if the target precision is supported by BRGEMM on the current platform
 inline bool is_fp32_supported() {

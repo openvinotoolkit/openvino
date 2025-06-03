@@ -46,7 +46,9 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
-    const auto& brgemm_config = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node())->get_config();
+    const auto& brgemm_copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node());
+    OPENVINO_ASSERT(brgemm_copy_b, "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
+    const auto& brgemm_config = brgemm_copy_b->get_config();
 
     const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
     const size_t n_blk = *in_subtensor.rbegin();
@@ -86,7 +88,9 @@ void CompensationsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
-    const auto& brgemm_config = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node())->get_config();
+    const auto& brgemm_copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node());
+    OPENVINO_ASSERT(brgemm_copy_b, "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
+    const auto& brgemm_config = brgemm_copy_b->get_config();
     // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
     // because of OneDNN implementation nuances (as in get_repacking_buffer_size).
     // However, the compensations are computed by N dimension, so K dimension doesn't affect the compensations buffer
