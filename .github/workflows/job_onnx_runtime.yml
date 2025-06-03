@@ -112,11 +112,6 @@ jobs:
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277
         run: |
-          # see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
-          apt-get update && apt-get install --assume-yes --no-install-recommends language-pack-en
-          locale-gen en_US.UTF-8
-          update-locale LANG=en_US.UTF-8
-
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
 
