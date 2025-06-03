@@ -17,7 +17,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <sstream>
 #include <string>
-#include <tuple>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "common/utils.hpp"
@@ -120,11 +119,7 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
                                              const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                              BrgemmBaseKernelConfig& config) {
     // update M/N/K/beta
-    int64_t M = 0;
-    int64_t N = 0;
-    int64_t K = 0;
-    int64_t beta = 0;
-    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));

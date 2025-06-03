@@ -14,6 +14,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <queue>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 

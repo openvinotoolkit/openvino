@@ -139,11 +139,7 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    int64_t M = 0;
-    int64_t N = 0;
-    int64_t K = 0;
-    int64_t beta = 0;
-    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
         if (ov::snippets::utils::is_full_dim_value(dim)) {
