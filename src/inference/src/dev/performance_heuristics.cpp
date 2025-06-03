@@ -36,10 +36,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             continue;
         }
         auto type1 = node->input_value(1).get_element_type();  // weights
-        type1 =
-            ((type1 == ov::element::f32) && (targetType != ov::element::f32) && (targetType != ov::element::undefined))
-                ? targetType
-                : type1;
+        type1 = ((type1 == ov::element::f32) && (targetType != ov::element::f32)) ? targetType : type1;
         const bool isINT8 = isLowPrecision(type1);
         const bool isBF16orFP16 = isHalfPrecision(type1);
         const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
