@@ -236,7 +236,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
-            (activation_type == utils::ActivationTypes::Sigmoid) )
+            (activation_type == utils::ActivationTypes::Sigmoid) ||
+            (activation_type == utils::ActivationTypes::Sqrt))
             return "jit";
     }
 #if defined(OV_CPU_WITH_SHL)

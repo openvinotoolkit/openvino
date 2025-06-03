@@ -499,7 +499,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIPooling::createPrimitive() {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -652,7 +652,10 @@ private:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
+                    int hstart;
+                    int hend;
+                    int wstart;
+                    int wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -678,7 +681,8 @@ private:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
+                    float in_x;
+                    float in_y;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -793,7 +797,10 @@ public:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
+                    int hstart;
+                    int hend;
+                    int wstart;
+                    int wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -836,7 +843,8 @@ public:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
+                    float in_x;
+                    float in_y;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -977,7 +985,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
     float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
-    float in_y, in_x;
+    float in_y;
+    float in_x;
     // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
     // and as result excess of right limit for proposal value,

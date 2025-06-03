@@ -505,7 +505,8 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -713,7 +714,7 @@ void MatMul::prepareParams() {
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }

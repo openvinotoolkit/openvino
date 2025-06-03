@@ -177,7 +177,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) {
             return Shape::UNDEFINED_DIM == x;
         })) {
-        bool inner_block_are_dense = one_of(strides.back(), 0u, 1u);  // stride 1 - is dense case, 0 - broad casted
+        bool inner_block_are_dense = one_of(strides.back(), 0U, 1U);  // stride 1 - is dense case, 0 - broad casted
         for (size_t i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
@@ -280,20 +280,20 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
     return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
     return false;
@@ -441,11 +441,7 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
             return false;
         }
     }
-    if (blk_size != UNREACHABLE_DIM && static_cast<int64_t>(blk_size) != desc.get_inner_blks()[0]) {
-        return false;
-    }
-
-    return true;
+    return blk_size == UNREACHABLE_DIM || static_cast<int64_t>(blk_size) == desc.get_inner_blks()[0];
 }
 
 bool DnnlBlockedMemoryDesc::isTailCFormat() const {
@@ -549,8 +545,8 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         }
     }
 
-    auto actualStrides = desc.get()->format_desc.blocking.strides;
-    auto refStrides = refDesc.get()->format_desc.blocking.strides;
+    auto* actualStrides = desc.get()->format_desc.blocking.strides;
+    auto* refStrides = refDesc.get()->format_desc.blocking.strides;
 
     VectorDims actualOrder(desc.get()->ndims);
     {
@@ -595,10 +591,7 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         });
     }
 
-    if (actualOrder != refOrder) {
-        return false;
-    }
-    return true;
+    return actualOrder == refOrder;
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {

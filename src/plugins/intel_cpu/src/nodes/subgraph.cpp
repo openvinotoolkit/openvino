@@ -61,6 +61,7 @@
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
@@ -114,7 +115,7 @@ struct SubgraphKey {
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
 };
 
 struct SubgraphCodeGeneratorKey {
@@ -158,7 +159,7 @@ struct SubgraphShapeInferResultKey {
         return body_hash == rhs.body_hash && in_shapes == rhs.in_shapes;
     }
 
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
     uint64_t body_hash = 0;
 };
 
@@ -229,7 +230,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
     const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1u, 2u, 3u, 4u, 5u) && dimRanksAreEqual &&
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual &&
                                            !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
@@ -238,7 +239,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     bool isBlockedApplicable = false;
 #else
     bool isBlockedApplicable =
-        dnnl::impl::utils::one_of(ndims, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
+        dnnl::impl::utils::one_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1) {
@@ -530,20 +531,25 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                context->getConfig().inferencePrecision);
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
-    const auto cpu_config =
-        ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
-#endif
-
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                           ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                           getConstantInputIndexes(),
-                                           cpu_config->repacked_input_config,
-                                           repacked_constant_input_config);
+    if (subgraph_attrs->snippet->has_domain_sensitive_ops()) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto cpu_config =
+            ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
+#endif
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               external_ptrs_idces);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
+                                               getConstantInputIndexes(),
+                                               cpu_config->repacked_input_config,
+                                               repacked_constant_input_config);
+    }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -707,7 +713,7 @@ void Subgraph::optimizeIR() {
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
     control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
-    subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
+    subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
@@ -751,8 +757,10 @@ void Subgraph::prepareParams() {
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
                 SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
+                [this](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                    return std::make_shared<SubgraphCodeGenerator>(key.attrs,
+                                                                   std::make_shared<CPURuntimeConfig>(),
+                                                                   external_ptrs_idces);
                 });
             const auto& code_gen = code_gen_result.first;
             // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with
@@ -763,6 +771,8 @@ void Subgraph::prepareParams() {
             }
             const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
             return std::make_shared<SubgraphDynamicSpecializedExecutor>(snippet_config,
+                                                                        external_ptrs_idces,
+                                                                        input_num,
                                                                         key.attrs,
                                                                         code_gen,
                                                                         start_offset_in,
@@ -777,10 +787,12 @@ void Subgraph::prepareParams() {
         const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
         const auto code_gen_result = cache->getOrCreate(
             SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+            [this, &snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config, external_ptrs_idces);
             });
         return std::make_shared<SubgraphStaticExecutor>(snippet_config,
+                                                        external_ptrs_idces,
+                                                        input_num,
                                                         key.attrs,
                                                         code_gen_result.first,
                                                         start_offset_in,
@@ -819,7 +831,7 @@ bool Subgraph::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -827,7 +839,7 @@ bool Subgraph::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;

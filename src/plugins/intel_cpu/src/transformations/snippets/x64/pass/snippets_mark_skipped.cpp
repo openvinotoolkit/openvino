@@ -65,9 +65,9 @@
 namespace ov::intel_cpu {
 
 namespace {
-static const int DEFAULT_AXIS = 1;
+const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
-    auto& rt = node->get_rt_info();
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end()) {
         return NodeFusingType::NotSet;
@@ -211,7 +211,7 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) 
 int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     int channelAxis = DEFAULT_AXIS;
     if (!keep_dims) {
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis == 1) {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
@@ -440,7 +440,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         return false;
     }
     auto isFusedBiasNode = [](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v1::Add>(n) && GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v1::Add>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto conv = n->get_input_source_output(0);
@@ -468,11 +468,10 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         const auto channelAxis = 1;
         return conv_shape[channelAxis].is_static() &&
                conv_shape[channelAxis].get_length() == static_cast<int64_t>(bias_norm_dims[channelAxis]) &&
-               bias_norm_dims[channelAxis] == static_cast<size_t>(shape_size(bias_norm_dims));
+               bias_norm_dims[channelAxis] == shape_size(bias_norm_dims);
     };
     auto isFusedFQNode = [&isFusedBiasNode](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) &&
-              GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto& parent = n->get_input_node_shared_ptr(0);

@@ -3,7 +3,6 @@
 //
 
 #include <cstddef>
-#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <optional>
 #include <vector>
@@ -66,8 +65,8 @@ struct RequiresFallbackDefault {
 template <typename PostOpType>
 [[maybe_unused]] static inline bool hasPostOp(const ConvConfig& config) {
     const auto& postOps = config.attrs.postOps;
-    return any_of(postOps.begin(), postOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-        return std::dynamic_pointer_cast<PostOpType>(postOp);
+    return any_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        return postOp.type() == typeid(PostOpType);
     });
 }
 
@@ -104,11 +103,7 @@ bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
     const auto desc = DnnlBlockedMemoryDesc(config.descs.at(ARG_DST)->getShape(),
                                             dnnl::memory::data_type::f32,
                                             filter.output.front());
-    if (!desc.hasLayoutType(layoutConfig.back())) {
-        return false;
-    }
-
-    return true;
+    return desc.hasLayoutType(layoutConfig.back());
 }
 
 // to keep OV_CPU_INSTANCE macros aligned

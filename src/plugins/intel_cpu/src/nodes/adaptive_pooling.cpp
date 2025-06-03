@@ -100,7 +100,7 @@ void AdaptivePooling::getSupportedDescriptors() {
 }
 
 bool AdaptivePooling::needShapeInfer() const {
-    const auto newSpatialDimsPtr = getSrcDataAtPortAs<int32_t>(1);
+    auto* const newSpatialDimsPtr = getSrcDataAtPortAs<int32_t>(1);
     for (int i = 0; i < spatialDimsCount; i++) {
         if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
@@ -151,8 +151,8 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("doesn't support demanded precisions");
     }
 
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
     int* indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
@@ -186,17 +186,18 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
     const auto IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
 
-    const auto OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
-    const auto OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
+    const auto OD = (spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
+    const auto OH = (spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
     const auto OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
 
     const int iHW = IH * IW;
-    const int oDHW = OD * OH * OW, oHW = OH * OW;
+    const int oDHW = OD * OH * OW;
+    const int oHW = OH * OW;
 
     const int chPadding =
         blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 : chPadding / blockSize);
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -219,7 +220,12 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     std::function<void(const float*, float*, int, int, int, size_t)> pool;
     auto poolMax = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
-        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+        size_t dStart;
+        size_t dEnd;
+        size_t hStart;
+        size_t hEnd;
+        size_t wStart;
+        size_t wEnd;
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
@@ -240,7 +246,12 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     };
     auto poolAvg =
         [&](const float* srcData, float* dstData, int od, int oh, int ow, [[maybe_unused]] size_t spatIndOff) {
-            size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+            size_t dStart;
+            size_t dEnd;
+            size_t hStart;
+            size_t hEnd;
+            size_t wStart;
+            size_t wEnd;
             setBinBorders(&dStart, &dEnd, od, ID, OD);
             setBinBorders(&hStart, &hEnd, oh, IH, OH);
             setBinBorders(&wStart, &wEnd, ow, IW, OW);
@@ -267,10 +278,13 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     parallel_for5d(N, blockCount, OD, OH, OW, [&](int n, int blkIdx, int od, int oh, int ow) {
-        auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
-        auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
-                       ow * outStrides[4];
-        int cStart = 0, cEnd = C, inResidual = 0, outResidual = 0;
+        const auto* srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
+        auto* dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
+                        ow * outStrides[4];
+        int cStart = 0;
+        int cEnd = C;
+        int inResidual = 0;
+        int outResidual = 0;
         if (!isTailCFmt) {
             cStart = blkIdx * blockSize;
             cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);

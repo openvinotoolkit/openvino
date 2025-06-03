@@ -60,7 +60,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         repeats = originRepeats =
             ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
-            repeats.insert(repeats.begin(), 1lu);
+            repeats.insert(repeats.begin(), 1LU);
         }
     }
 }
@@ -85,7 +85,7 @@ void Tile::getSupportedDescriptors() {
         THROW_CPU_NODE_ERR("has no output edges.");
     }
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
-    for (size_t i = 1lu; i < outputShapes.size(); i++) {
+    for (size_t i = 1LU; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size()) {
             THROW_CPU_NODE_ERR("has output edges 0 and ",
@@ -139,9 +139,9 @@ void Tile::prepareParams() {
         const auto* repeatsData = repeatsMem.getDataAs<const int32_t>();
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
-        repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
+        repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1LU);
         const size_t offset = repeats.size() - originRepeats.size();
-        for (size_t i = 0lu; i < originRepeats.size(); i++) {
+        for (size_t i = 0LU; i < originRepeats.size(); i++) {
             repeats[i + offset] = originRepeats[i];
         }
     }
@@ -162,7 +162,7 @@ bool Tile::needShapeInfer() const {
             return true;
         }
         const auto* repeatsData = getSrcDataAtPortAs<const int32_t>(TILE_REPEATS);
-        for (size_t i = 0lu; i < originRepeats.size(); i++) {
+        for (size_t i = 0LU; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i])) {
                 return true;
             }
@@ -189,7 +189,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
-    auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
+    const auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
     const auto* src_ptr = srcMemory.getDataAs<const uint8_t>();
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(0);
