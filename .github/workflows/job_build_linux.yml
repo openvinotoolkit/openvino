@@ -168,6 +168,8 @@ jobs:
       - name: Install Test dependencies
         run: |
           poetry env use system
+          poetry config virtualenvs.create false --local
+          poetry run which python
           poetry install --with dev
         working-directory: ${{ env.OPENVINO_REPO }}
 
