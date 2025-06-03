@@ -172,8 +172,8 @@ jobs:
         
       - name: Install Test dependencies
         run: |
+          source /venv/bin/activate
           python_exec=$(which python3)
-          poetry env use $python_exec
           poetry env list
           poetry env info
           poetry run which python3
