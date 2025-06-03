@@ -50,7 +50,7 @@ bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::No
 
 EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 3lu, 1lu, 4lu, 3lu) {
+      EmbeddingBag(op, 3LU, 1LU, 4LU, 3LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -70,11 +70,11 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
                                ov::as_string(offsets_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("has indices data with invalid rank.");
     }
 
-    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("offsets data has invalid rank.");
     }
 }
@@ -140,7 +140,7 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _offsetsLen) {
+    if (embIndex >= _offsetsLen) {
         THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
     if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
@@ -148,23 +148,23 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
     }
 
     indices = nullptr;
-    size = 0lu;
+    size = 0LU;
     withWeight = _withWeights;
 
-    if (embIndex == _offsetsLen - 1lu) {
+    if (embIndex == _offsetsLen - 1LU) {
         size = _indicesLen - offsetsData_[embIndex];
     } else {
-        size = offsetsData_[embIndex + 1lu] - offsetsData_[embIndex];
+        size = offsetsData_[embIndex + 1LU] - offsetsData_[embIndex];
     }
 
-    if (size != 0lu) {
+    if (size != 0LU) {
         indices = indicesData_ + offsetsData_[embIndex];
     } else {
         // Empty or default bag
         withWeight = false;
         if (defaultIndices_) {
             indices = defaultIndices_;
-            size = 1lu;
+            size = 1LU;
         }
         return;
     }

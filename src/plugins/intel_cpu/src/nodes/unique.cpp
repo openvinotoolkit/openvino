@@ -60,7 +60,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4) {
+    if (!one_of(op->get_input_size(), 1U, 2U) || op->get_output_size() != 4) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges.");
     }
 
@@ -198,7 +198,9 @@ void Unique::flattenTensorExec() {
     const size_t inputLen = getSrcMemoryAtPort(IN_DATA)->getSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int* firstTmpPtr = nullptr;
+    int* inToOutTmpPtr = nullptr;
+    int* occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -305,7 +307,9 @@ template <typename T>
 void Unique::slicedTensorExec() {
     auto inDataMemPtr = getSrcMemoryAtPort(IN_DATA);
     const auto* srcDataPtr = inDataMemPtr->getDataAs<const T>();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int* firstTmpPtr = nullptr;
+    int* inToOutTmpPtr = nullptr;
+    int* occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -319,7 +323,7 @@ void Unique::slicedTensorExec() {
     const auto& srcDataShape = inDataMemPtr->getStaticDims();
 
     const auto axisDim = srcDataShape[axis];
-    int64_t outerLen = 1lu;
+    int64_t outerLen = 1LU;
     if (axis > 0) {
         outerLen = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, 1, std::multiplies<>());
     }
@@ -341,19 +345,19 @@ void Unique::slicedTensorExec() {
         std::fill(occurTmpPtr, occurTmpPtr + axisDim, 1);
     }
 
-    uniqueLen = 1lu;
-    std::vector<size_t> uniqIdx(axisDim, 0lu);
+    uniqueLen = 1LU;
+    std::vector<size_t> uniqIdx(axisDim, 0LU);
     // Search for unique slices.
-    for (size_t a = 1lu; a < axisDim; a++) {
+    for (size_t a = 1LU; a < axisDim; a++) {
         const auto* first1 = srcDataPtr + a * innerLen;
-        const auto* last1 = srcDataPtr + (a + 1lu) * innerLen;
+        const auto* last1 = srcDataPtr + (a + 1LU) * innerLen;
         bool equal = true;
-        size_t uIdx = 0lu;
+        size_t uIdx = 0LU;
         // Compare with unique blocks.
         for (; uIdx < uniqueLen; uIdx++) {
             const auto* first2 = srcDataPtr + uniqIdx[uIdx] * innerLen;
             equal = true;
-            for (int64_t o = 0lu; o < outerLen; o++) {
+            for (int64_t o = 0LU; o < outerLen; o++) {
                 equal = std::equal(first1, last1, first2);
                 if (!equal) {
                     break;
@@ -387,7 +391,9 @@ void Unique::slicedTensorExec() {
     dstDataShape[axis] = uniqueLen;
     redefineOutputMemory({dstDataShape, {uniqueLen}, {axisDim}, {uniqueLen}});
 
-    int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
+    int* firstPtr = nullptr;
+    int* inToOutPtr = nullptr;
+    int* occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
     }
@@ -405,7 +411,7 @@ void Unique::slicedTensorExec() {
         parallel_for(uniqueLen, [&](size_t u) {
             const auto* first1 = srcDataPtr + uniqIdx[u] * innerLen;
             auto first2 = dstDataPtr + u * innerLen;
-            for (int64_t p = 0lu; p < outerLen; p++) {
+            for (int64_t p = 0LU; p < outerLen; p++) {
                 cpu_memcpy(first2, first1, innerSizeB);
                 first1 += srcOuterStep;
                 first2 += dstOuterStep;
@@ -426,10 +432,14 @@ void Unique::slicedTensorExec() {
         };
 
         std::vector<OrdEl> colToSort(uniqueLen);
-        T *dst1 = dstDataPtr, *dst2 = dstBuff;
-        int *first1 = firstPtr, *first2 = firstTmpPtr;
-        int *occurN1 = occurNPtr, *occurN2 = occurTmpPtr;
-        int *inToOut1 = inToOutPtr, *inToOut2 = inToOutTmpPtr;
+        T* dst1 = dstDataPtr;
+        T* dst2 = dstBuff;
+        int* first1 = firstPtr;
+        int* first2 = firstTmpPtr;
+        int* occurN1 = occurNPtr;
+        int* occurN2 = occurTmpPtr;
+        int* inToOut1 = inToOutPtr;
+        int* inToOut2 = inToOutTmpPtr;
 
         const bool defined3outputs =
             definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];

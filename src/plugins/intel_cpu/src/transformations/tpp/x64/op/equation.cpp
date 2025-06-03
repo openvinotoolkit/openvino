@@ -47,8 +47,9 @@ std::shared_ptr<Node> EquationTPP::clone_with_new_inputs(const OutputVector& new
 
 bool EquationTPP::visit_attributes(AttributeVisitor& visitor) {
     std::ostringstream ss;
-    for (size_t i = 0; i + 1 < m_op_descs.size(); i++)
+    for (size_t i = 0; i + 1 < m_op_descs.size(); i++) {
         ss << m_op_descs[i] << ", ";
+    }
     ss << m_op_descs.back();
     std::string str = ss.str();
     visitor.on_attribute("op_descs", str);

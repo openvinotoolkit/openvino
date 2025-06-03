@@ -248,8 +248,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto parentNode = node->getParentEdgeAt(0)->getParent();
         auto scaleNode = node->getParentEdgeAt(1)->getParent();
-        if (!(parentNode->getType() == Type::Convolution || parentNode->getType() == Type::MatMul ||
-              parentNode->getType() == Type::Deconvolution)) {
+        if (parentNode->getType() != Type::Convolution && parentNode->getType() != Type::MatMul &&
+            parentNode->getType() != Type::Deconvolution) {
             return false;
         }
         if (!scaleNode->isConstant()) {
@@ -909,7 +909,7 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
 
     auto isSuitablePattern = [](const NodePtr& parent) {
-        bool res = true && parent->getType() == Type::Transpose && parent->getChildEdges().size() == 1 &&
+        bool res = parent->getType() == Type::Transpose && parent->getChildEdges().size() == 1 &&
                    parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected && parent->isConstant();
         return res;
     };
@@ -1245,10 +1245,10 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
             dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
             is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-            everyone_is(1u,
+            everyone_is(1U,
                         static_cast<unsigned int>(strides[strides.size() - 1]),
                         static_cast<unsigned int>(strides[strides.size() - 2])) &&
-            everyone_is(0u,
+            everyone_is(0U,
                         static_cast<unsigned int>(paddings[paddings.size() - 1]),
                         static_cast<unsigned int>(paddings[paddings.size() - 2])) &&
             !conv->canBeExecutedInInt8();
@@ -1310,20 +1310,20 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         bool isSupportedParams =
             dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
             convChild->outputShapes[0].getDims()[1] != 1 &&
-            everyone_is(3u,
+            everyone_is(3U,
                         static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 1]),
                         static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 2])) &&
-            everyone_is(1u,
+            everyone_is(1U,
                         static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 1]),
                         static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 2])) &&
-            everyone_is(1u,
+            everyone_is(1U,
                         static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 1]),
                         static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 2])) &&
-            everyone_is(1u,
+            everyone_is(1U,
                         static_cast<unsigned int>(convChild->getDilation()[stridesSize - 1] + 1),
                         static_cast<unsigned int>(convChild->getDilation()[stridesSize - 2] + 1)) &&
             convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] && withBias &&
-            one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
+            one_of(convChild->getStride()[stridesSize - 1], 1U, 2U) &&
             childNode->getOutputShapeAtPort(0).getRank() == 4;
 
         return isSupportedParams;
@@ -1720,7 +1720,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             const auto isBranch2Quantized = isBranchQuantized(graphNode->getParentEdgeAt(1)->getParent());
             if (isBranch1Quantized || isBranch2Quantized) {
                 // INT8
-                const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1ul;
+                const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1UL;
 
                 // if both branches are quantized, then parent1 is selected (result is not changed)
                 mergedConv = isBranch2Quantized && parent1CanBeMerged ? parent1 : parent2;
@@ -1818,7 +1818,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(secondTermPort));
         }
 
-        size_t childIdx = 0lu;
+        size_t childIdx = 0LU;
         for (; childIdx < peerNode->getChildEdges().size(); childIdx++) {
             if (peerNode->getChildEdgeAt(childIdx)->getChild() == sum) {
                 break;
@@ -2408,7 +2408,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         std::vector<int> nonConstPorts;
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
-            if (!(parent->getType() == Type::Input && parent->isConstant())) {
+            if (parent->getType() != Type::Input || !parent->isConstant()) {
                 nonConstPorts.push_back(i);
             }
         }
@@ -2492,7 +2492,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
         for (float i : scalesBuffer) {
-            if (i == 0.f) {
+            if (i == 0.F) {
                 return false;
             }
         }
@@ -2524,11 +2524,11 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
             }
         }
 
-        std::vector<float> zeroShift(newInputScale.size(), 0.f);
+        std::vector<float> zeroShift(newInputScale.size(), 0.F);
 
         const auto isSubnormal = [](const float value) {
             const auto* u32data = reinterpret_cast<const uint32_t*>(&value);
-            return ((*u32data) != 0u) && (((*u32data) & (0xFF << 23)) == 0);
+            return ((*u32data) != 0U) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
         for (size_t i = 0; i < newInputScale.size(); i++) {
@@ -2536,14 +2536,14 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
             newInputScale[i] = isc * scalesBuffer[i];
             if (isSubnormal(newInputScale[i])) {
-                newInputScale[i] = 0.f;
+                newInputScale[i] = 0.F;
                 // zero value have to be shifted if it's not in input range
                 float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
                 float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
-                if (0.f < cl) {
+                if (0.F < cl) {
                     zeroShift[i] = isc * cl;
                 }
-                if (ch < 0.f) {
+                if (ch < 0.F) {
                     zeroShift[i] = isc * ch;
                 }
             }
@@ -2555,7 +2555,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
             newInputShift[i] = ish + shiftsBuffer[i] * isc + zeroShift[i];
             if (isSubnormal(newInputShift[i])) {
-                newInputShift[i] = 0.f;
+                newInputShift[i] = 0.F;
             }
         }
 
@@ -3166,11 +3166,7 @@ void GraphOptimizer::RemoveMemoryInputConvert(Graph& graph) {
         }
 
         auto parent = node->getParentEdgeAt(0)->getParent();
-        if (Type::MemoryInput != parent->getType()) {
-            return false;
-        }
-
-        return true;
+        return Type::MemoryInput == parent->getType();
     };
 
     for (const auto& node : graphNodes) {
@@ -3237,10 +3233,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
         auto& memOutputNode = memInputNode->getOutputNode();
         auto memOutputParent = memOutputNode.getParentEdgeAt(0)->getParent();
-        if (memOutputParent != childSdpa) {
-            return false;
-        }
-        return true;
+        return memOutputParent == childSdpa;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {

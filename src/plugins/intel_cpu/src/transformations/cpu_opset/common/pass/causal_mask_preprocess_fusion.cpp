@@ -171,7 +171,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                          1,
                                          1,
                                      }),
-                                     {0.000000f});
+                                     {0.000000F});
     auto eq_Equal =
         makePattern<ov::op::v1::Equal>({causal_mask_boolean_slice | causal_mask_boolean_strided_slice, Constant_107278},
                                        {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,8192,..8192]>
@@ -186,7 +186,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                          1,
                                          1,
                                      }),
-                                     {0.000000f});
+                                     {0.000000F});
     auto eq_Equal_1 = makePattern<ov::op::v1::Equal>({eq_Convert, Constant_107279},
                                                      {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,1,?]>
     auto mul_LogicalAnd =

@@ -21,6 +21,7 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -30,6 +31,7 @@
 namespace ov::intel_cpu {
 
 using namespace snippets::lowered;
+using PortDescriptor = ov::snippets::modifier::MemoryAccess::PortDescriptor;
 
 namespace {
 template <typename T>
@@ -79,12 +81,10 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
         if (stand_alone(brgemm_type)) {
-            brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                     brgemm->input_value(1),
+            brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_values(),
                                                      brgemm_type,
-                                                     offset_a,
-                                                     offset_b,
-                                                     offset_c,
+                                                     std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}},
+                                                     PortDescriptor{0, offset_c},
                                                      layout_a,
                                                      layout_b,
                                                      layout_c);
@@ -107,41 +107,34 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
             if (with_amx(brgemm_type)) {
                 const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         scratch,
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         0,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                brgemm_cpu = std::make_shared<BrgemmCPU>(
+                    OutputVector{brgemm->input_value(0), brgemm_repacking->output(0), scratch},
+                    brgemm_type,
+                    std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}, {0, 0}},
+                    PortDescriptor{0, offset_c},
+                    layout_a,
+                    std::vector<size_t>{},
+                    layout_c);
                 set_full_port_desc(scratch->output(0));
                 set_full_port_desc(brgemm_cpu->input(2));
             } else if (with_compensations(brgemm_type)) {
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         brgemm_repacking->output(1),
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         0,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                brgemm_cpu = std::make_shared<BrgemmCPU>(
+                    OutputVector{brgemm->input_value(0), brgemm_repacking->output(0), brgemm_repacking->output(1)},
+                    brgemm_type,
+                    std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}, {0, 0}},
+                    PortDescriptor{0, offset_c},
+                    layout_a,
+                    std::vector<size_t>{},
+                    layout_c);
             } else if (repacking_only(brgemm_type)) {
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                brgemm_cpu =
+                    std::make_shared<BrgemmCPU>(OutputVector{brgemm->input_value(0), brgemm_repacking->output(0)},
+                                                brgemm_type,
+                                                std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}},
+                                                PortDescriptor{0, offset_c},
+                                                layout_a,
+                                                std::vector<size_t>{},
+                                                layout_c);
             } else {
                 OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
             }

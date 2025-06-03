@@ -86,7 +86,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto input_shape_it = input_shape.rbegin();
         auto output_shape_it = output_shape.rbegin();
         while (output_shape_it != output_shape.rend() && input_shape_it != input_shape.rend()) {
-            int64_t in_dim = *input_shape_it, out_dim = *output_shape_it;
+            int64_t in_dim = *input_shape_it;
+            int64_t out_dim = *output_shape_it;
             if (in_dim != out_dim) {
                 if (in_dim != 1) {
                     return false;
