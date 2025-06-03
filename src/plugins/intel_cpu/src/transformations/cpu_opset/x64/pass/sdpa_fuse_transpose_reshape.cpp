@@ -4,15 +4,26 @@
 
 #include "sdpa_fuse_transpose_reshape.hpp"
 
-#include <transformations/utils/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 /*
@@ -147,9 +158,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
 
-        OutputVector args = {q_reshape->get_input_node_shared_ptr(0),
-                             k_reshape->get_input_node_shared_ptr(0),
-                             v_reshape->get_input_node_shared_ptr(0)};
+        OutputVector args = {q_reshape->input_value(0), k_reshape->input_value(0), v_reshape->input_value(0)};
 
         // Config
         intel_cpu::SDPAWithTransposeReshape::Config config;

@@ -228,13 +228,16 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((activation_type == utils::ActivationTypes::Clamp) ||
+        if ((activation_type == utils::ActivationTypes::Abs) ||
+            (activation_type == utils::ActivationTypes::Clamp) ||
             (activation_type == utils::ActivationTypes::Exp) ||
+            (activation_type == utils::ActivationTypes::Floor) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
-            (activation_type == utils::ActivationTypes::Sigmoid) )
+            (activation_type == utils::ActivationTypes::Sigmoid) ||
+            (activation_type == utils::ActivationTypes::Sqrt))
             return "jit";
     }
 #if defined(OV_CPU_WITH_SHL)

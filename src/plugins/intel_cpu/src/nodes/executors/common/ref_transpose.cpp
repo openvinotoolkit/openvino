@@ -4,7 +4,19 @@
 
 #include "ref_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/transpose.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
@@ -52,7 +64,8 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
     };
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims indexes(ndims, 0);
         splitter(work_amount, nthr, ithr, start, end);
 

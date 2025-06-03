@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "executors/interpolate.hpp"
-#include "executors/interpolate_list.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #define MAX_INPUT_INTERPOLATE 8
 
@@ -99,14 +112,6 @@ public:
 private:
     bool is_version11 = true;
     InterpolateAttrs interpAttrs;
-    // Some FEs or preprocessing step resize spatial dimension for tensor with NHWC layout memory,
-    // but imported as planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without pad
-    // for now, nhwc layout path and the kernel(nhwc layout executor) can be used for this planar layout and axis
-    // settings(NCHWAsNHWC is true) to get higher perf with
-    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
-    // 2. axis alignment [1,2] to [2,3].
-    // 3. config planar layout support and treated it as channel_first layout.
-    bool NCHWAsNHWC = false;
     size_t dataRank = 0;
 
     class InterpolateExecutorBase {
@@ -149,7 +154,7 @@ private:
                             InterpolateLayoutType layout);
 
         float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-        int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+        static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
         void linearOnnxCF(int outCoord,
                           float scale,
                           int inShape,
@@ -158,7 +163,7 @@ private:
                           int& index1,
                           float& weight0,
                           float& weight1);
-        std::vector<float> getCubicCoeffs(float mantissa, float a);
+        static std::vector<float> getCubicCoeffs(float mantissa, float a);
         static float getPillowBilinearCoeffs(float m);
         static float getPillowBicubicCoeffs(float m);
         inline void create_pillow_working_buf(InterpolateLayoutType layout);
@@ -280,7 +285,8 @@ private:
                                const std::vector<float>& _dataScales)
             : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
               antialias(interpAttrs.antialias),
-              dataScales(_dataScales) {}
+              dataScales(_dataScales),
+              refInterpAttrs(interpAttrs) {}
 
         void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
@@ -315,6 +321,8 @@ private:
                                  int kernel_width,
                                  bool antialias);
         void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+        void
+        pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
         static float getValue(const uint8_t* base, size_t offset, ov::element::Type prec);
         static void setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec);
@@ -322,6 +330,7 @@ private:
     private:
         bool antialias;
         std::vector<float> dataScales;
+        InterpolateAttrs refInterpAttrs;
     };
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
