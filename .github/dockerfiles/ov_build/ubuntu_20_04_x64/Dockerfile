@@ -78,11 +78,5 @@ RUN ln -sfv $(which python3.9) /usr/bin/python && \
     ln -sfv $(which python3.9) /usr/bin/python3
 RUN ln -sfv $(which pip3.9) /usr/local/bin/pip && \
     ln -sfv $(which pip3.9) /usr/local/bin/pip3
-    
-RUN echo $PATH
-
-# Confirm versions
-RUN python --version && pip --version
-RUN python3.9 --version && pip3.9 --version
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
