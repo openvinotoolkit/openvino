@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/util/op_types.hpp"
 #include "traits.hpp"
+
+#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace npuw {
 
-bool partitioning::traits::is_tiny_shape(const ov::Shape &shape) {
+bool partitioning::traits::is_tiny_shape(const ov::Shape& shape) {
     const auto total = std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
 
     // The initial check
@@ -18,7 +19,7 @@ bool partitioning::traits::is_tiny_shape(const ov::Shape &shape) {
     return false;
 }
 
-bool partitioning::traits::is_tiny_scalar(const std::shared_ptr<ov::Node> &node) {
+bool partitioning::traits::is_tiny_scalar(const std::shared_ptr<ov::Node>& node) {
     if (!ov::op::util::is_constant(node)) {
         return false;
     }
