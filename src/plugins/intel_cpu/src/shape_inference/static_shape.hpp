@@ -116,7 +116,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -264,7 +264,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;

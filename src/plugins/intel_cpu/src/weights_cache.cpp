@@ -55,10 +55,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
                 return false;
             }
             newPtr = ptr->sharedMemory.lock();
-            if (!newPtr) {
-                return false;
-            }
-            return true;
+            return static_cast<bool>(newPtr);
         };
 
         if (!isCached()) {

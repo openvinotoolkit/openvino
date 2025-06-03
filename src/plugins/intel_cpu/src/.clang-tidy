@@ -3,10 +3,6 @@
 ### NOTE:
 # The 'Checks: >' is a multiline string here. Comment must not be moved into the string.
 #
-### Scopes to be enabled:
-#
-# readability-*,
-#
 ### Checks that are turned off for a reason:
 #
 # -cppcoreguidelines-avoid-c-arrays. There are a lot of code which uses C-style arrays
@@ -52,8 +48,13 @@
 # -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
-# -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
+# -readability-avoid-nested-conditional-operator
+# -readability-const-return-type
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+# -readability-isolate-declaration
+# -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
+# -readability-simplify-boolean-expr
+# -readability-suspicious-call-argument
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
@@ -66,10 +67,7 @@ Checks: >
   google-*,
   modernize-*,
   misc-*,
-  readability-container-size-empty,
-  readability-else-after-return,
-  readability-implicit-bool-conversion,
-  readability-qualified-auto,
+  readability-*,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
@@ -79,6 +77,7 @@ Checks: >
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-explicit-virtual-functions,
   -cppcoreguidelines-init-variables,
@@ -111,11 +110,15 @@ Checks: >
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -readability-uppercase-literal-suffix,
+  -readability-avoid-nested-conditional-operator,
+  -readability-const-return-type,
   -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-simplify-boolean-expr,
+  -readability-suspicious-call-argument,
+  -readability-uppercase-literal-suffix,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
@@ -153,8 +156,7 @@ CheckOptions:
       .*/selective_build.h;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.cpp;
-### To be considered to enable:
 #  Reasonable way to enforce splitting complex code into simple functions
-#  - key: google-readability-function-size.StatementThreshold
-#    value: "800"
+  - key: readability-function-size.StatementThreshold
+    value: "800"
 ---
