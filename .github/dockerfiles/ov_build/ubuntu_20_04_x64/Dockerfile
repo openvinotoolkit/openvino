@@ -74,8 +74,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
     
 # Use Python 3.9 as default instead of Python 3.8
-RUN ln -sfv $(which python3.9) /usr/bin/python && \
-    ln -sfv $(which python3.9) /usr/bin/python3
 RUN ln -sfv $(which python3.9) /usr/local/bin/python && \
     ln -sfv $(which python3.9) /usr/local/bin/python3
 RUN ln -sfv $(which pip3.9) /usr/local/bin/pip && \
