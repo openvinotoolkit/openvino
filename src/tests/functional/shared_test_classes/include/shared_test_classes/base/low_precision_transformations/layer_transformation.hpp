@@ -17,36 +17,17 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsUtils {
-
-class LayerTransformationParamsNGraphFactory {
-public:
-    static ov::pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();
-    static ov::pass::low_precision::LayerTransformation::Params createParamsU8I8();
-    static ov::pass::low_precision::LayerTransformation::Params createParamsI8I8();
-    static ov::pass::low_precision::LayerTransformation::Params createParams();
-};
-
-class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphFactory {
-};
-
 class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
 protected:
     LayerTransformation();
 
-    static std::pair<float, float> get_quantization_interval(ov::element::Type precision);
-
     static std::string to_string(const ov::pass::low_precision::LayerTransformation::Params& params);
 
-    static std::string get_test_case_name_by_params(
-        ov::element::Type precision,
-        const ov::PartialShape& inputShapes,
-        const std::string& targetDevice,
-        const ov::pass::low_precision::LayerTransformation::Params& params);
-
-    static std::string get_test_case_name_by_params(
-        ov::element::Type precision,
-        const ov::PartialShape& inputShapes,
-        const std::string& targetDevice);
+    static std::string get_test_case_name_by_params(ov::element::Type precision,
+                                                    const ov::PartialShape& inputShapes,
+                                                    const std::string& targetDevice,
+                                                    const ov::pass::low_precision::LayerTransformation::Params& params =
+                                                        ov::pass::low_precision::LayerTransformation::Params());
 
     // get runtime precision by operation friendly name
     std::string get_runtime_precision(const std::string& layerName);
@@ -69,11 +50,4 @@ protected:
 
     void init_input_shapes(const std::vector<ov::PartialShape>& shapes);
 };
-
-typedef std::tuple<
-    ov::element::Type,
-    ov::Shape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
-
 }  // namespace LayerTestsUtils
