@@ -14,6 +14,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -139,12 +140,53 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
 
+        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
+        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
+        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
+        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
+        std::cout << "Convert: Subtract 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr() << std::endl;
+        std::cout << "p_prev_max_seq_len: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr() << std::endl;
+
+        std::cout << "p_total_seq: " << pattern_map.at(p_total_seq).get_node_shared_ptr() << std::endl;
         auto target_type = total_seq->get_output_element_type(0);
         auto required_shape = total_seq->get_output_partial_shape(0);
         align_replacement(replacement, required_shape, target_type);
 
         replace_node(total_seq, replacement);
         std::cout << "TotalSequenceLengthPatternQwen end" << std::endl;
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_total_seq, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::TotalSequenceLengthPatternCodeGen::TotalSequenceLengthPatternCodeGen(
+    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
+    MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen);
+
+    
+    auto p_max_context_len = wrap_type<v0::Parameter>();
+    auto p_sub = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
+    auto p_conv = wrap_type<v0::Convert>({p_sub});
+
+    auto p_var_split = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
+    auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_var_split});
+    auto p_gather = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
+    auto p_total_seq = wrap_type<v1::Add>({p_gather, p_conv});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        std::cout << "TotalSequenceLengthPatternCodeGen start" << std::endl;
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
+        std::shared_ptr<Node> replacement = max_context_len;
+
+        auto target_type = total_seq->get_output_element_type(0);
+        auto required_shape = total_seq->get_output_partial_shape(0);
+        align_replacement(replacement, required_shape, target_type);
+
+        replace_node(total_seq, replacement);
+        std::cout << "TotalSequenceLengthPatternCodeGen end" << std::endl;
         return true;
     };
 

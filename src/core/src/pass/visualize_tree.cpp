@@ -217,7 +217,7 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
 
-    static const bool ovasp = ov::util::getenv_bool("OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION");
+    static const bool ovasp = true;//ov::util::getenv_bool("OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION");
     if (ovasp) {
         std::cerr << "Warning: OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION enabled. ov::pass::SymbolicPropagation will be "
                      "triggered"
