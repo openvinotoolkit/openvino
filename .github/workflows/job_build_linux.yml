@@ -166,7 +166,7 @@ jobs:
         
       - name: Install Test dependencies
         run: |
-          poetry env use $(which python)
+          poetry env use $(which python3)
           poetry env list
           poetry env info
           poetry run which python3
