@@ -15,16 +15,10 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj) {
-    ov::element::Type precision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    auto [precision, inputShapes, targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice) <<
            testValues.fqOnData1 <<
         testValues.dequantization1 <<
         testValues.fqOnData2 <<
@@ -33,10 +27,8 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
 }
 
 void ConcatTransformation::SetUp() {
-    ov::PartialShape inputShape;
-    ov::element::Type precision;
-    ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    auto [precision, inputShape, device, testValues] = this->GetParam();
+    targetDevice = device;
 
     std::vector<ov::PartialShape> inputs;
     if (testValues.input_constant1 == nullptr) {

@@ -15,30 +15,20 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testing::TestParamInfo<ConcatNeighboringGraphTransformationParams>& obj) {
-    ov::element::Type precision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::string expectedKernelName, expectedRuntimePrecision;
-    std::tie(precision, inputShapes, targetDevice, params, expectedKernelName, expectedRuntimePrecision) = obj.param;
-
-    return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
+    auto [precision, inputShapes, device, expectedKernelName, expectedRuntimePrecision] = obj.param;
+    return get_test_case_name_by_params(precision, inputShapes, device) + "_" + expectedKernelName + "_" +
+           expectedRuntimePrecision;
 }
 
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    ov::element::Type ngPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::string expectedKernelName, expectedRuntimePrecision;
-    std::tie(ngPrecision, inputShape, targetDevice, params, expectedKernelName, expectedRuntimePrecision) = this->GetParam();
+    auto [precision, inputShape, device, expectedKernelName, expectedRuntimePrecision] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ inputShape, inputShape, inputShape });
 
     function = ov::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
-        ngPrecision,
+        precision,
         inputShape,
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} },
@@ -50,9 +40,9 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 void ConcatWithNeighborsGraphTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<3>(GetParam());
-    const auto expectedKernelName = std::get<4>(GetParam());
-    const auto expectedRuntimePrecision = std::get<5>(GetParam());
+    const auto params = std::get<2>(GetParam());
+    const auto expectedKernelName = std::get<3>(GetParam());
+    const auto expectedRuntimePrecision = std::get<4>(GetParam());
     const auto actualType = get_runtime_precision(expectedKernelName);
 
     EXPECT_EQ(actualType, expectedRuntimePrecision);
