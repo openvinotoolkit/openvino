@@ -186,16 +186,9 @@ public:
     }
 
     [[nodiscard]] static size_t get_max_gemma_sgk(const RuntimeParams& params) {
-        size_t max_gemma_sgk = 0;
-
-        if (LT == LoraType::SINGLE) {
-            auto in_dtype = params.get_input_layout().data_type;
-            max_gemma_sgk = in_dtype == ov::element::f16 ? 64ul : 32ul;
-        } else {
-            size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
-            max_gemma_sgk = 64ul / lora_count;
-        }
-
+        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+        size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
+        size_t max_gemma_sgk = max_workgroup_size / min_lora_rank / lora_count;
         return max_gemma_sgk;
     }
 
@@ -207,6 +200,7 @@ public:
     }
 
     static constexpr size_t gemm_a_sg_bk = 32ul;
+    static constexpr size_t min_lora_rank = 16ul;
 };
 
 template <LoraType LT>
@@ -381,7 +375,7 @@ protected:
 
         jit_constants.make("FIRST_TOKEN_A", 1);
 
-        jit_constants.make("N", "LORA_RANK");
+        jit_constants.make("N", "LORA_RANK * LORA_COUNT");
 
         LayoutJitter state_a_dims(params.input_layouts[2], params.in_port_to_shape_info_offset.at(2));
         jit_constants.make("K", state_a_dims.dim(ChannelName::FEATURE));
@@ -900,7 +894,7 @@ public:
     Stage::Ptr lora_hf_ref = make_stage<LoraRef<HORIZONTAL_FUSED>>();
     Stage::Ptr lora_opt_hf_first_token_a_medium = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("medium", 8, 1);
     Stage::Ptr lora_opt_hf_first_token_a_large = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("large", 16, 2);
-    Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8, 8);
+    Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8, 4);
     Stage::Ptr lora_opt_hf_first_token_b_medium = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("medium", 8, 2, 16, 4);
     Stage::Ptr lora_opt_hf_first_token_b_large = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("large", 16, 2, 8, 4);
     Stage::Ptr lora_opt_hf_second_token_a = make_stage<LoraOptSecondTokenA<HORIZONTAL_FUSED>>();
