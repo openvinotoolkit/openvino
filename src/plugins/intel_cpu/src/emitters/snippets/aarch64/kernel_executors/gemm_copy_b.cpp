@@ -71,10 +71,16 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     int64_t N = *in0_shape.rbegin();
     int64_t K = *++in0_shape.rbegin();
-    const auto& child_gemm = intel_cpu::aarch64::gemm_utils::repacking::get_gemm_expr(expr);
-    OV_CPU_JIT_EMITTER_ASSERT(child_gemm, "Can not get gemm after gemm_copyb.");
-    const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm->get_input_port(1));
-    const size_t n_blk_size = *gemm_in_subtensor.rbegin();
+    const auto& child_gemms = intel_cpu::aarch64::gemm_utils::repacking::get_gemm_exprs(expr);
+    OV_CPU_JIT_EMITTER_ASSERT(!child_gemms.empty(), "Can not get gemm after gemm_copyb.");
+    size_t n_blk_size = 0;
+    for (size_t i = 0; i < child_gemms.size(); i++) {
+        const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemms[i]->get_input_port(1));
+        const auto& current_block = *gemm_in_subtensor.rbegin();
+        if (n_blk_size < current_block) {
+            n_blk_size = current_block;
+        }
+    }
     config.update(N, K, n_blk_size);
     biasMem.resize(N * sizeof(float), 0);
 }
