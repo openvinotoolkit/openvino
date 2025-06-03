@@ -674,7 +674,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeBF16_(3|4)D/MHAWOTranspose.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[2.\?.64\].*IS\[1\]=\[2.64.\?\].*IS\[2\]=\[2.\?.64\].*)");
         // Issue: 141705
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
@@ -697,6 +697,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(
             R"(smoke_GroupConv_.*D_Gemm_BF16/GroupConvolutionLayerCPUTest.CompareWithRefs.*primitive=jit_gemm.*)");
         retVector.emplace_back(R"(smoke_.*MatMulLayerCPUTest.*INFERENCE_PRECISION_HINT=bf16.*_primitive=jit_gemm.*)");
+        // by calc abs_threshold with expected value
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[\]_\(\[12.128.100\]\).*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[2.\?.64\].*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[\?.\?.\?.\?\].*)");
     }
 
     return retVector;
