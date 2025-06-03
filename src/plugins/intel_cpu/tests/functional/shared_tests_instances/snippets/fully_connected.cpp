@@ -7,33 +7,23 @@
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
+#include "utils.hpp"
+
 namespace ov {
 namespace test {
 namespace snippets {
 namespace {
-static inline std::vector<std::vector<element::Type>> quantized_precisions() {
-    std::vector<std::vector<element::Type>> prc = {};
-    // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-    if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
-        prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
-        prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
-    }
-    return prc;
-}
-
 static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
-    std::vector<std::vector<element::Type>> prc = {
-            {element::f32, element::f32},
-    };
+    std::vector<std::vector<element::Type>> prc = precision_f32(2);
 // Note: TPP doesn't support low precisions yet
 #ifndef SNIPPETS_LIBXSMM_TPP
     if (!only_fp32) {
-        auto quant = quantized_precisions();
+        auto quant = quantized_precisions_if_supported();
         std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
-        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
-            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
-        }
+        auto bfloat = precision_bf16_if_supported(2);
+        std::copy(bfloat.begin(), bfloat.end(), std::back_inserter(prc));
+        auto halffloat = precision_fp16_if_supported(2);
+        std::copy(halffloat.begin(), halffloat.end(), std::back_inserter(prc));
     }
 #endif
     return prc;
@@ -133,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedBias, MatMulBias,
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedBiasQuantized, MatMulBiasQuantized,
                          ::testing::Combine(
                                  ::testing::ValuesIn(fc_bias_shapes),
-                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::ValuesIn(quantized_precisions_if_supported()),
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Subgraph
                                  ::testing::Values(1), // Tokenized MatMul+Bias
@@ -151,7 +141,7 @@ std::vector<std::vector<ov::test::InputShape>> fc_quantized_shapes{
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantized, MatMulsQuantized,
                          ::testing::Combine(
                                  ::testing::ValuesIn(fc_quantized_shapes),
-                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::ValuesIn(quantized_precisions_if_supported()),
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Reshape on weights is folded => only 1 Subgraph remains
                                  ::testing::Values(1), // Tokenized [MatMul+FQ+Matmul]
@@ -161,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantized, MatMulsQuantiz
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantizedSoftmax, MatMulsQuantizedSoftmax,
                          ::testing::Combine(
                                  ::testing::ValuesIn(fc_quantized_shapes),
-                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::ValuesIn(quantized_precisions_if_supported()),
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Reshape on weights is folded => only 1 Subgraph remains
                                  ::testing::Values(1), // Tokenized [MatMul+FQ+Matmul]

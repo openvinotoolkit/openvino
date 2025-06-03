@@ -13,11 +13,11 @@ namespace snippets {
 #define SNIPPETS_TESTS_STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
 static inline bool is_bf16_supported_by_brgemm() {
-    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
+    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
 static inline bool is_fp16_supported_by_brgemm() {
-    return ov::with_cpu_x86_avx512_core_amx_fp16();
+    return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
 static inline bool is_i8_supported_by_brgemm() {

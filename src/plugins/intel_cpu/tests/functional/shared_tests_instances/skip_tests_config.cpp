@@ -613,21 +613,21 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) {
-        // ignored for not supported bf16 platforms
+    // MHA BF16 precision is only supported on BF16 supported platform
+    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
-        // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
+    // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
     if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
         retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
         retVector.emplace_back(R"(nightly.*bf16.*(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
     }
-    // MHA FP16 precision is only supported on amx_fp16 platform
-    if (!ov::with_cpu_x86_avx512_core_amx_fp16()) {
+    // MHA FP16 precision is only supported on amx_fp16 and avx2_vnni_2 platform
+    if (!ov::with_cpu_x86_avx512_core_amx_fp16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
     }
 
@@ -674,7 +674,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeBF16_(3|4)D/MHAWOTranspose.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[2.\?.64\].*IS\[1\]=\[2.64.\?\].*IS\[2\]=\[2.\?.64\].*)");
         // Issue: 141705
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
@@ -697,6 +697,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(
             R"(smoke_GroupConv_.*D_Gemm_BF16/GroupConvolutionLayerCPUTest.CompareWithRefs.*primitive=jit_gemm.*)");
         retVector.emplace_back(R"(smoke_.*MatMulLayerCPUTest.*INFERENCE_PRECISION_HINT=bf16.*_primitive=jit_gemm.*)");
+        // by calc abs_threshold with expected value
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[\]_\(\[12.128.100\]\).*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[2.\?.64\].*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeBF16/MHAWOTranspose.CompareWithRefImpl/.*IS\[0\]=\[\?.\?.\?.\?\].*)");
     }
 
     return retVector;
