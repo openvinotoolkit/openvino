@@ -351,10 +351,6 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
-ov_build_target_faster(${TARGET_NAME}
-    PCH "src/precomp.hpp"
-)
-
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -371,10 +367,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-
-    ov_build_target_faster(${TARGET_NAME}_obj
-        PCH "src/precomp.hpp"
-    )
 
     set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
     if(RISCV64)
