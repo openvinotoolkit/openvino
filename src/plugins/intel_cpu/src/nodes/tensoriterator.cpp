@@ -4,19 +4,43 @@
 
 #include "tensoriterator.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cache/multi_cache.h"
 #include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -93,7 +117,7 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0f ? -1 : 1;
+        auto sign_of_stride = stride < 0.0F ? -1 : 1;
 
         iter_count = full_dims[axis] / abs_stride;
 
@@ -106,7 +130,7 @@ public:
         chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
         full_mem = full_blob->getPrimitive();
-        const auto full_mem_handler = full_mem.get_data_handle();
+        auto* const full_mem_handler = full_mem.get_data_handle();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
@@ -173,7 +197,7 @@ public:
 
     void execute([[maybe_unused]] const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
-        auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for IterCountPortHelper");
         }
@@ -190,7 +214,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asBoolCheck");
         }
@@ -207,7 +231,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asIntCheck");
         }
@@ -281,7 +305,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     num_execs = 0;
 }
 
-bool DynamicBuffer::check_buffer() {
+bool DynamicBuffer::check_buffer() const {
     if (map_rule.stride > 0) {
         if (static_cast<ptrdiff_t>(chunk_offset_in_byte + chunk_unit_in_byte) > chunk_stride_in_byte) {
             return true;
@@ -578,8 +602,8 @@ int TensorIterator::registerToAllocationContext(int offset, AllocationContext& c
 
 bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
-        const auto tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
-        const auto condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
+        const auto* const tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
+        const auto* const condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
         if (tripCountPtr[0] != static_cast<size_t>(lastUsedTripCount) ||
             static_cast<bool>(condPtr[0]) != lastUsedCond) {
             return true;
@@ -879,7 +903,7 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
     for (auto map_rule : inputPortMap) {
         auto original_dims = sliced_input_dims(getSrcMemoryAtPort(map_rule.from), map_rule.axis, map_rule.stride);
-        auto& to_mems = input_mems[map_rule.to];
+        const auto& to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->getShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
             return true;

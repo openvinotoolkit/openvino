@@ -549,7 +549,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     }
                     return false;
                 };
-                // check that we won't do change dimenstion rank
+                // check that we won't do change dimension rank
                 if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
                     !check_mask(strided_slice_node->get_new_axis_mask()) ||
                     !check_mask(strided_slice_node->get_ellipsis_mask())) {

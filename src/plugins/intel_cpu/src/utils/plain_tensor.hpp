@@ -4,27 +4,32 @@
 
 #pragma once
 
-#include <node.h>
-
 #include <cassert>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <initializer_list>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
-#ifdef _WIN32
-#    include <cstdlib>
-#endif
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
 template <typename T>
-inline void assert_dt(ov::element::Type dt) {
+inline void assert_dt([[maybe_unused]] ov::element::Type dt) {
     OPENVINO_ASSERT(false);
 }
 
@@ -107,7 +112,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] VectorDims shape() const {
-        return VectorDims(m_dims, m_dims + m_rank);
+        return {m_dims, m_dims + m_rank};
     }
 
     [[nodiscard]] size_t size(int i) const {
@@ -409,7 +414,7 @@ struct PlainTensor {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
     template <typename DT, typename... Is>
-    DT* ptr(Is... indices) const {
+    [[nodiscard]] DT* ptr(Is... indices) const {
         return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
     }
 
@@ -505,8 +510,9 @@ struct PlainTensor {
                 ss << m_dims[i] << ",";
             }
             ss << "] expect_dims=[";
-            for (auto& i : expect_dims)
+            for (auto& i : expect_dims) {
                 ss << i << ",";
+            }
             ss << "]";
             // asm("int3");
             OPENVINO_THROW(ss.str());
