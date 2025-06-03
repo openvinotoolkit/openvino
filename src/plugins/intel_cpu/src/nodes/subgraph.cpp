@@ -738,7 +738,8 @@ void Subgraph::optimizeIR() {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    // control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+
     subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 

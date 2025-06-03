@@ -17,7 +17,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
