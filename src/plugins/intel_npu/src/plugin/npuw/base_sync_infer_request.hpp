@@ -27,7 +27,7 @@ class CompiledModel;
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
                            std::size_t /* Subrequest output index */
-                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+                           >;          // FIXME: This is a third, if not fourth, definition of such structure
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
