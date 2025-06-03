@@ -167,7 +167,9 @@ jobs:
         uses: ./openvino/.github/actions/install_poetry
 
       - name: Install Test dependencies
-        run: poetry install --with build
+        run: |
+          poetry env info
+          poetry install --with build
         working-directory: ${{ env.OPENVINO_REPO }}
 
       #
