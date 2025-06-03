@@ -74,7 +74,7 @@ private:
 
     void copyWeightsData();
 
-    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) override;
+    void prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) override;
     class RnnDnnlExecutor : public DnnlExecutorLegacy {
     public:
         RnnDnnlExecutor(const dnnl::primitive_desc& pd);

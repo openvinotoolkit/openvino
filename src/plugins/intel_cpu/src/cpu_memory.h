@@ -449,7 +449,7 @@ using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
-bool mbind_move(void* data, size_t size, int numaNodeID);
+bool mbind_move(void* data, size_t size, int targetNode);
 bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
 bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 

@@ -24,8 +24,8 @@ enum class BRGEMM_TYPE {
     STAND_ALONE,  // No extra requirements, used for f32|f32
     WITH_AMX,     // i8|i8 or bf16|bf16 on AMX system or fp16|fp16 on AMX_FP16 system - needs BrgemmCopyB and scratchpad
     WITH_COMPENSATIONS,  // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
-    REPACKING_ONLY,      // u8|i8, or bf16|bf16 (non-AMX system), or brgemm with transpose_b=true - needs BrgemmCopyB on
-                         // second input for data repacking
+    REPACKING_ONLY,      // u8|i8, bf16|bf16 or f16|f16 (non-AMX system), or brgemm with transpose_b=true - needs
+                         // BrgemmCopyB on second input for data repacking
 };
 
 dnnl::impl::cpu::x64::cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx);
@@ -60,6 +60,25 @@ inline bool with_scratchpad(BRGEMM_TYPE type) {
 size_t compute_vnni_factor(const ov::element::Type& precision);
 /// \brief Computes number of elems with requested precision that fit in the vector register
 size_t get_elems_in_vec(const ov::element::Type& precision);
+
+/// \brief The following helpers return True if the target precision is supported by BRGEMM on the current platform
+inline bool is_fp32_supported() {
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+}
+inline bool is_bf16_supported() {
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+}
+inline bool is_fp16_supported() {
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+}
+inline bool is_i8_supported() {
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
+}
 
 namespace repacking {
 /// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
