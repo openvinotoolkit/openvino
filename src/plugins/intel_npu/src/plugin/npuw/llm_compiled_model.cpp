@@ -1024,8 +1024,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-    LOG_DEBUG("Trying to separate Vocabulary matrix multiplication after Slice op into additional "
-              "model...");
+    LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
     auto tail_mm_model = cut_tail_matmul(kvcache_model);
     if (tail_mm_model) {
         LOG_INFO("Three-model pipeline will be created.");
