@@ -38,7 +38,8 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs);
 class SubgraphCodeGenerator {
 public:
     SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
-                          const std::shared_ptr<CPURuntimeConfig>& config);
+                          const std::shared_ptr<CPURuntimeConfig>& config,
+                          const std::set<size_t>& external_ptrs_idces);
 
     [[nodiscard]] const std::shared_ptr<snippets::Schedule>& get() const {
         return schedule;
@@ -108,11 +109,40 @@ protected:
     std::vector<ptrdiff_t> m_start_offset_out = {};
 };
 
-// Class for Subgraphs with static shapes
-class SubgraphStaticBaseExecutor {
+class SubgraphSpecializedBaseExecutor {
 public:
-    SubgraphStaticBaseExecutor() = default;
-    virtual ~SubgraphStaticBaseExecutor() = default;
+    SubgraphSpecializedBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num) {
+        size_t external_idx = 0, src_idx = 0;
+        m_external_ptr_mappings.resize(external_ptrs_idces.size());
+        m_src_ptr_mappings.resize(in_num - external_ptrs_idces.size());
+        for (size_t i = 0; i < in_num; i++) {
+            if (external_ptrs_idces.count(i)) {
+                m_external_ptr_mappings[external_idx] = {i, external_idx};
+                external_idx++;
+            } else {
+                m_src_ptr_mappings[src_idx] = {i, src_idx};
+                src_idx++;
+            }
+        }
+    };
+    virtual ~SubgraphSpecializedBaseExecutor() = default;
+
+protected:
+    struct PtrMapping {
+        size_t original_idx;
+        size_t postprocessed_idx;
+    };
+
+    // Mappings are needed to map original ptrs to the kernel and external ptrs based on external ptrs indices
+    std::vector<PtrMapping> m_src_ptr_mappings;
+    std::vector<PtrMapping> m_external_ptr_mappings;
+};
+
+// Class for Subgraphs with static shapes
+class SubgraphStaticBaseExecutor : public SubgraphSpecializedBaseExecutor {
+public:
+    SubgraphStaticBaseExecutor(const std::set<size_t>& external_ptrs_idces, size_t in_num)
+        : SubgraphSpecializedBaseExecutor(external_ptrs_idces, in_num) {}
 
 protected:
     using kernel = void (*)(const void*, const void*);
@@ -121,12 +151,16 @@ protected:
                                const std::vector<MemoryPtr>& srcMemPtrs,
                                const std::vector<MemoryPtr>& dstMemPtrs,
                                const std::vector<ptrdiff_t>& start_offset_in,
-                               const std::vector<ptrdiff_t>& start_offset_out,
-                               [[maybe_unused]] size_t ithr) {
-        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
-            call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+                               const std::vector<ptrdiff_t>& start_offset_out) {
+        call_args.init_external_ptrs(m_external_ptr_mappings.size());
+        for (const auto& mapping : m_src_ptr_mappings) {
+            call_args.src_ptrs[mapping.postprocessed_idx] =
+                srcMemPtrs[mapping.original_idx]->getDataAs<const uint8_t>() + start_offset_in[mapping.original_idx];
         }
-
+        for (const auto& mapping : m_external_ptr_mappings) {
+            call_args.external_ptrs[mapping.postprocessed_idx] =
+                srcMemPtrs[mapping.original_idx]->getDataAs<const uint8_t>() + start_offset_in[mapping.original_idx];
+        }
         for (size_t i = 0; i < dstMemPtrs.size(); i++) {
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
         }
@@ -134,21 +168,24 @@ protected:
 };
 
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
-class SubgraphDynamicSpecializedBaseExecutor {
+class SubgraphDynamicSpecializedBaseExecutor : public SubgraphSpecializedBaseExecutor {
 public:
-    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
-        : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
+    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                                           const std::set<size_t>& external_ptrs_idces,
+                                           size_t in_num)
+        : SubgraphSpecializedBaseExecutor(external_ptrs_idces, in_num),
+          m_buffer_offsets(snippet_config->buffer_cluster_offsets),
           m_data_offsets(snippet_config->io_data_offsets),
           m_loop_args(snippet_config->loop_args) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
-    virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
 protected:
     using dynamic_kernel = void (*)(const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args, [[maybe_unused]] size_t ithr) {
+    inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(m_loop_args);
+        call_args.init_external_ptrs(m_external_ptr_mappings.size());
         std::copy(m_buffer_offsets.cbegin(), m_buffer_offsets.cend(), call_args.buffer_offsets);
     }
 
@@ -176,13 +213,22 @@ protected:
                             const std::vector<const uint8_t*>& src_ptrs,
                             const std::vector<uint8_t*>& dst_ptrs,
                             const std::vector<size_t>& indexes) const {
-        for (size_t i = 0; i < src_ptrs.size(); i++) {
-            auto i_ptr = src_ptrs[i];
+        for (const auto& mapping : m_src_ptr_mappings) {
+            auto i_ptr = src_ptrs[mapping.original_idx];
             for (size_t j = 0; j < indexes.size(); j++) {
-                i_ptr += m_data_offsets[i][j] * indexes[j];
+                i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
             }
-            call_args.src_ptrs[i] = i_ptr;
+            call_args.src_ptrs[mapping.postprocessed_idx] = i_ptr;
         }
+
+        for (const auto& mapping : m_external_ptr_mappings) {
+            auto i_ptr = src_ptrs[mapping.original_idx];
+            for (size_t j = 0; j < indexes.size(); j++) {
+                i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
+            }
+            call_args.external_ptrs[mapping.postprocessed_idx] = i_ptr;
+        }
+
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
             auto i_ptr = dst_ptrs[i];
             for (size_t j = 0; j < indexes.size(); j++) {

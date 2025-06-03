@@ -42,9 +42,8 @@ public:
     void set_shape(const VectorDims& tensor);
     void set_layout(const VectorDims& layout);
     void set_subtensor(const VectorDims& subtensor);
-    void set_reg(Reg reg) { m_reg = std::move(reg); }
-    void set_reg_type(RegType type) { m_reg.type = type; }
-    void set_reg_idx(size_t idx) { m_reg.idx = idx; }
+    void set_reg(Reg reg);
+    void set_reg_type(RegType type);
 
     // Indexing starts from the end (rbegin() + idx)
     void set_subtensor_dim(size_t idx, VectorDims::value_type value);
@@ -89,6 +88,9 @@ public:
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& in);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& out);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<const ov::Node>& out);
+
+    static void set_address_reg_type(const ov::Input<ov::Node>& in);
+    static void set_address_reg_type(const ov::Output<ov::Node>& out);
 
     static void clean(const std::shared_ptr<ov::Node>& node);
 

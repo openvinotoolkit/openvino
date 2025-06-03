@@ -77,6 +77,16 @@ void PortDescriptor::set_subtensor(const VectorDims& subtensor) {
     m_subtensor_shape = subtensor;
 }
 
+void PortDescriptor::set_reg(Reg reg) {
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg: reg with 'address' type mustn't be changed");
+    m_reg = std::move(reg);
+}
+
+void PortDescriptor::set_reg_type(RegType type) {
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg type: address reg type mustn't be changed");
+    m_reg.type = type;
+}
+
 void PortDescriptor::set_subtensor_dim(size_t idx, VectorDims::value_type value) {
     OPENVINO_ASSERT(idx < m_subtensor_shape.size(), "Failed to set subtensor value: idx should be less than size");
     *(m_subtensor_shape.rbegin() + idx) = value;
@@ -213,6 +223,18 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<cons
     if (out_descs.size() != node->get_output_size())
         OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
     return out_descs[out.get_index()];
+}
+
+void PortDescriptorUtils::set_address_reg_type(const ov::Input<ov::Node>& in) {
+    auto desc = get_port_descriptor_ptr(in);
+    desc->set_reg_type(RegType::address);
+    set_port_descriptor_ptr(in, desc);
+}
+
+void PortDescriptorUtils::set_address_reg_type(const ov::Output<ov::Node>& out) {
+    auto desc = get_port_descriptor_ptr(out);
+    desc->set_reg_type(RegType::address);
+    set_port_descriptor_ptr(out, desc);
 }
 
 void PortDescriptorUtils::clean(const std::shared_ptr<ov::Node>& node) {
