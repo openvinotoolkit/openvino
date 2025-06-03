@@ -26,4 +26,6 @@ public:
 // SDPA-unroll and transpose transformations
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
 
+// clang-format off
 }  // namespace ov
+// clang-format on
