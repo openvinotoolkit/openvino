@@ -434,12 +434,12 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                void* local_a_ptr;
-                if (is_avx_f16_only || k > 0) {
-                    local_a_ptr = ptr_scartch_a;
-                } else {
-                    local_a_ptr = ptr_A;
-                }
+                void* local_a_ptr = [&]() {
+                    if (is_avx_f16_only || k > 0) {
+                        return ptr_scartch_a;
+                    }
+                    return ptr_A;
+                }();
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
                 auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
