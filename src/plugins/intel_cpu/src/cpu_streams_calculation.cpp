@@ -617,7 +617,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
         for (auto& row2 : row1) {
             std::cout << "streams_info_table = " << row2 << std::endl;
         }
-    }                                                
+    }
 
     auto cpu_pinning =
         get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);
