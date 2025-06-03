@@ -29,7 +29,6 @@ typedef std::tuple<
     ov::element::Type,
     FullyConnectedShapes,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     ov::element::Type,
     FullyConnectedParams,
     std::string> FullyConnectedTransformationParams;

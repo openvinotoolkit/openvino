@@ -17,26 +17,16 @@
 namespace LayerTestsDefinitions {
 
 std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNTransformationParams>& obj) {
-    std::string targetDevice;
-    ov::PartialShape shape;
-    ov::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    ov::AxisSet reductionAxes;
-    bool normalizeVariance;
-    std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = obj.param;
-
+    auto [precision, shape, device, reductionAxes, normalizeVariance] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, shape, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, shape, device) <<
            "_" << reductionAxes << "_" << normalizeVariance;
     return result.str();
 }
 
 void MVNTransformation::SetUp() {
-    ov::PartialShape shape;
-    ov::element::Type precision;
-    ov::AxisSet reductionAxes;
-    bool normalizeVariance;
-    std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
+    auto [precision, shape, device, reductionAxes, normalizeVariance] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(shape);
 

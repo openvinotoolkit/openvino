@@ -16,10 +16,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8AndI8(),
-};
-
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeOnDataValues = {
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
@@ -104,7 +100,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeWithNotOptimalTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),
     FakeQuantizeWithNotOptimalTransformation::getTestCaseName);
 }  // namespace

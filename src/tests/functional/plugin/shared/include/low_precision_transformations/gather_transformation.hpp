@@ -19,7 +19,6 @@ public:
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
     int64_t batch_dims;
-    ov::pass::low_precision::LayerTransformation::Params params;
     ov::element::Type precisionBeforeFq;
     ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
