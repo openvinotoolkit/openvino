@@ -44,8 +44,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_gen
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
-    is_work_amount_dynamic =
-        ov::snippets::utils::is_dynamic_value(work_amount) || ov::snippets::utils::is_dynamic_value(wa_increment);
+    is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -67,6 +66,11 @@ void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                        const std::vector<size_t>& out) const {
+    if (evaluate_once && !is_work_amount_dynamic) {
+        // If the loop evaluates once, we can skip loop begin code emission
+        return;
+    }
+
     auto reg_work_amount = XReg(out[0]);
     XReg reg_runtime_params = XReg(Operand::X0);
     if (is_work_amount_dynamic) {
@@ -78,9 +82,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         h->cmp(reg_work_amount, wa_increment);
         h->b(LT, *loop_end_label);
     } else {
-        if (!evaluate_once) {
-            h->mov(reg_work_amount, work_amount);
-        }
+        h->mov(reg_work_amount, work_amount);
     }
     h->L(*loop_begin_label);
 }
