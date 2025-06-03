@@ -11,7 +11,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/init_node_info.hpp"
@@ -62,7 +69,7 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -98,7 +105,7 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
 
         auto res_ti_1 = std::make_shared<Result>(concat);
         // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -146,7 +153,7 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -182,7 +189,7 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
 
         auto res_ti_1 = std::make_shared<Result>(concat);
         // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -233,7 +240,7 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -270,7 +277,7 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
 
         auto res_ti_1 = std::make_shared<Result>(concat);
         // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -318,7 +325,7 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -348,7 +355,7 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -396,7 +403,7 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -425,7 +432,7 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto unsqueeze_1 = std::make_shared<Unsqueeze>(rnn_cell_1, axis);
         auto res_ti_1 = std::make_shared<Result>(unsqueeze_1);
 
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -476,7 +483,7 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -506,7 +513,7 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto unsqueeze_1 = std::make_shared<Unsqueeze>(lstm_cell_1, axis);
         auto res_ti_1 = std::make_shared<Result>(unsqueeze_1);
         // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);

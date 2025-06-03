@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -30,7 +37,6 @@ private:
     const int INPUT_ROIS{0};
     const int INPUT_DELTAS{1};
     const int INPUT_SCORES{2};
-    const int INPUT_IM_INFO{3};
 
     const int OUTPUT_BOXES{0};
     const int OUTPUT_CLASSES{1};

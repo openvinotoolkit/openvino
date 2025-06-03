@@ -4,17 +4,26 @@
 
 #include "brgemm_tpp_blocking.hpp"
 
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <tuple>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/brgemm_blocking.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 
 using namespace ov::snippets::utils;
 
-bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& linear_ir,
+bool BrgemmTPPBlocking::SetBrgemmBeta::run([[maybe_unused]] ov::snippets::lowered::LinearIR& linear_ir,
                                            ov::snippets::lowered::LinearIR::constExprIt begin,
                                            ov::snippets::lowered::LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
@@ -32,12 +41,16 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmB
 
 std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    size_t m, n, k;
+    size_t m;
+    size_t n;
+    size_t k;
     std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
     OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n),
                     "BrgemmTPP doesn't support dynamic shapes");
 
-    size_t m_blk, n_blk, k_blk;
+    size_t m_blk;
+    size_t n_blk;
+    size_t k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
 
     auto get_projected_blk = [](const size_t dim, const size_t blk) {

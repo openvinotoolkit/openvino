@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <initializer_list>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
@@ -219,10 +226,10 @@ protected:
         std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask(int requestedIdx) {
+    virtual int getFreeOpmask([[maybe_unused]] int requestedIdx) {
         OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set");
     }
-    virtual void returnOpmaskToPool(int idx) {
+    virtual void returnOpmaskToPool([[maybe_unused]] int idx) {
         OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
     }
     [[nodiscard]] virtual size_t countUnusedOpmask() const {

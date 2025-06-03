@@ -7,16 +7,20 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/cpp/maybe_unused.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
-    if (!memory.count(ARG_DST_DEQ_SCALE)) {
+[[maybe_unused]] static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
+    if (memory.find(ARG_DST_DEQ_SCALE) == memory.end()) {
         return {};
     }
 

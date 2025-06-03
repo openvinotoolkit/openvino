@@ -188,5 +188,4 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         dst_idx = update_index(cur_pos, dst_strides);
     }
 }
-
 }  // namespace ov

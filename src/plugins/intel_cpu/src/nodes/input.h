@@ -6,7 +6,19 @@
 
 #include <node.h>
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
+#include <string>
+#include <utility>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -45,6 +57,8 @@ public:
           const std::string& name,
           const std::string& type,
           const GraphContext::CPtr& context);
+
+    Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context);
 
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config);
 

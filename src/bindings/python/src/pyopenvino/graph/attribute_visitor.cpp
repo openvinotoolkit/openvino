@@ -71,7 +71,7 @@ void regclass_graph_AttributeVisitor(py::module m) {
 
                     OPENVINO_ASSERT(!_list.empty(), "Attributes list is empty.");
 
-                    PY_TYPE detected_type = Common::utils::check_list_element_type(_list);
+                    PY_TYPE detected_type = Common::utils::check_container_element_type<py::list>(_list);
 
                     switch (detected_type) {
                     case PY_TYPE::STR:

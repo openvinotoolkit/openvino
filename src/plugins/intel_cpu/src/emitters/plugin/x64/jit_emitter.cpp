@@ -4,9 +4,21 @@
 
 #include "jit_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
 #include <vector>
 
-#include "utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -58,7 +70,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -172,6 +185,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
+        OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "No aux gprs available");
         p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
@@ -180,7 +194,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         h->push(Reg64(preserved_gpr_idx));
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->sub(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -200,7 +214,7 @@ void jit_emitter::emitter_postamble() const {
         pop_vec(preserved_vec_idxs[i], h->ptr[h->rsp + i * get_vec_length()]);
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->add(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -217,10 +231,10 @@ void jit_emitter::emitter_postamble() const {
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (const auto& it : entry_map_) {

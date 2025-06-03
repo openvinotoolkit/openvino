@@ -1,6 +1,14 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "perf_count_rdtsc.hpp"
@@ -9,11 +17,11 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 /////////////////////////PerfCountRdtscBegin//////////////////////
-PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {
+PerfCountRdtscBegin::PerfCountRdtscBegin() {
     validate_and_infer_types_except_PerfCountEnd();
 }
 
-std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
     return std::make_shared<PerfCountRdtscBegin>();
 }
 

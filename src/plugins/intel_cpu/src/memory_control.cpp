@@ -4,11 +4,22 @@
 
 #include "memory_control.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <queue>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/memory_solver.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -28,10 +39,10 @@ public:
     [[nodiscard]] void* getRawPtr() const noexcept override {
         return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
     }
-    void setExtBuff(void* ptr, size_t size) override {
+    void setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) override {
         OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
     }
-    bool resize(size_t size) override {
+    bool resize([[maybe_unused]] size_t size) override {
         // don't pass over as it's static memory
         return false;
     }
@@ -160,9 +171,7 @@ class MemoryManagerIO : public IMemoryManager {
 public:
     using BlockType = MemoryBlockWithReuse;
 
-public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         auto block = make_unique<BlockType>();
         CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
@@ -184,7 +193,6 @@ private:
         return "MemoryManagerIO";
     }
 
-private:
     MemoryControl::MemorySolution m_solution;
     CPU_DEBUG_CAP_ENABLE(std::vector<std::reference_wrapper<BlockType>> m_blocks;)
     CPU_DEBUG_CAP_ENABLE(friend MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj);)
@@ -192,8 +200,7 @@ private:
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         OPENVINO_ASSERT(reg.size >= 0, getClassName(), ": got undefined block size");
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
         reset_flag = true;
@@ -242,7 +249,6 @@ private:
         return "MemoryManagerStatic";
     }
 
-private:
     MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::shared_ptr<MemoryBlockWithRelease> m_workspace;
@@ -286,7 +292,7 @@ public:
 private:
 #ifdef CPU_DEBUG_CAPS
     using InternalBlock = IndividualMemoryBlockWithRelease;
-    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+    static std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
         return std::make_shared<InternalBlock>(block);
     }
 #else
@@ -296,7 +302,6 @@ private:
     }
 #endif  // CPU_DEBUG_CAPS
 
-private:
     void solve() {
         ov::MemorySolver::normalize_boxes(m_boxes);
 
@@ -339,7 +344,6 @@ private:
         return "MemoryManagerNonOverlappingSets";
     }
 
-private:
     MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<InternalBlock>> m_internalBlocks;
@@ -452,7 +456,6 @@ class MemoryControl::RegionHandler {
 public:
     using Condition = std::function<bool(const MemoryRegion&)>;
 
-public:
     RegionHandler(Condition cond, MemoryManagerPtr memManager)
         : m_cond(std::move(cond)),
           m_memManager(std::move(memManager)) {}
@@ -494,7 +497,6 @@ private:
 
 #endif  // CPU_DEBUG_CAPS
 
-private:
     Condition m_cond;
     MemoryManagerPtr m_memManager;
 };
@@ -520,28 +522,19 @@ MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
 MemoryControl::MemoryControl(std::string id) : m_id(std::move(id)) {
     // init handlers
     m_handlers.emplace_back(buildHandler<MemoryManagerStatic>([](const MemoryRegion& reg) {
-        if (reg.size < 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-            MemoryRegion::AllocType::POD != reg.alloc_type) {
-            return false;
-        }
-        return true;
+        return reg.size >= 0 && MemoryRegion::RegionType::VARIABLE == reg.type &&
+               MemoryRegion::AllocType::POD == reg.alloc_type;
     }));
 
     // handler for static tensors
     m_handlers.emplace_back(buildHandler<MemoryManagerNonOverlappingSets>([](const MemoryRegion& reg) {
-        if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-            MemoryRegion::AllocType::POD != reg.alloc_type) {
-            return false;
-        }
-        return true;
+        return reg.size < 0 && MemoryRegion::RegionType::VARIABLE == reg.type &&
+               MemoryRegion::AllocType::POD == reg.alloc_type;
     }));
 
     // handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
-        if (MemoryRegion::RegionType::VARIABLE == reg.type || reg.alloc_type != MemoryRegion::AllocType::POD) {
-            return false;
-        }
-        return true;
+        return MemoryRegion::RegionType::VARIABLE != reg.type && reg.alloc_type == MemoryRegion::AllocType::POD;
     }));
 }
 

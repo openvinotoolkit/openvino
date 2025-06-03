@@ -88,7 +88,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto rnn_cell = std::make_shared<op::v0::RNNCell>(X, H_t, W, R, B, params.hiddenSize);
-        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(OutputVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -114,7 +114,7 @@ private:
                                                                 std::vector<float>{},
                                                                 std::vector<float>{},
                                                                 clip);
-        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(OutputVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -148,7 +148,7 @@ private:
                                                                 std::vector<float>{},
                                                                 std::vector<float>{},
                                                                 clip);
-        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(OutputVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };

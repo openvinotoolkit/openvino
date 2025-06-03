@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -18,7 +28,7 @@ public:
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 

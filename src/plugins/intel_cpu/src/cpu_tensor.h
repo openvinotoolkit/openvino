@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <mutex>
+
 #include "cpu_memory.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 
 namespace ov {
@@ -27,7 +34,10 @@ public:
 
     const ov::Strides& get_strides() const override;
 
-    void* data(const element::Type& type) const override;
+    void* data() override;
+    void* data(const element::Type& type) override;
+    const void* data() const override;
+    const void* data(const element::Type& type) const override;
 
     MemoryPtr get_memory() {
         return m_memptr;

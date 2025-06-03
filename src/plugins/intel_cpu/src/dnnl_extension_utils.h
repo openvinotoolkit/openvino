@@ -8,8 +8,15 @@
  */
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "common/c_types_map.hpp"
 #include "cpu_types.h"
@@ -17,8 +24,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
@@ -83,8 +89,9 @@ public:
                 return true;
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return false;
@@ -99,18 +106,20 @@ public:
 
             if (comparator(descImplType)) {
                 func(itpd);
-                if (first_match)
+                if (first_match) {
                     break;
+                }
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return;
     }
 
-    static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type implType);
+    static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type);
     static dnnl_primitive_desc_t clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
@@ -126,5 +135,4 @@ public:
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

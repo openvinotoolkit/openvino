@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cassert>
+
 #include "snippets/lowered/port_descriptor.hpp"
 #include <snippets/utils/utils.hpp>
 
@@ -34,21 +36,44 @@ PortDescriptor::PortDescriptor() : PortDescriptor(VectorDims(), {}, {}) {} // to
 void PortDescriptor::validate_arguments() {
     OPENVINO_ASSERT(m_tensor_shape, "Tensor Shape is nullptr");
     if (!m_tensor_shape->empty() && m_layout.empty()) {
-        m_layout.resize(m_tensor_shape->size());
-        // NCHW layout by default
-        std::iota(m_layout.begin(), m_layout.end(), 0);
+        m_layout = utils::get_planar_layout(m_tensor_shape->size());
     }
+    OPENVINO_ASSERT(m_subtensor_shape.size() <= m_tensor_shape->size(),
+                    "Snippets tensor descriptor: Subtensor shape must be less than or equal to tensor shape");
     OPENVINO_ASSERT(m_layout.size() == m_tensor_shape->size(), "Snippets tensor descriptor: Layout size must be equal to the shape size");
 }
 
 const VectorDims& PortDescriptor::get_shape() const {
-    OPENVINO_ASSERT(m_tensor_shape, "Failed to get_shape: Tensor Shape is nullptr");
+    assert(m_tensor_shape && "Failed to get_shape: Tensor Shape is nullptr");
     return *m_tensor_shape;
 }
 
 void PortDescriptor::set_shape(const VectorDims& tensor) {
     OPENVINO_ASSERT(m_tensor_shape, "Failed to set_shape: Tensor Shape is nullptr");
+    OPENVINO_ASSERT(m_subtensor_shape.size() <= tensor.size(),
+                    "Snippets tensor descriptor: Subtensor shape must be less than or equal to tensor shape");
     *m_tensor_shape = tensor;
+}
+
+void PortDescriptor::set_layout(const std::vector<size_t>& layout) {
+    OPENVINO_ASSERT(layout.size() == m_tensor_shape->size(),
+                    "Snippets tensor descriptor: Layout size must be equal to the shape size");
+    m_layout = layout;
+}
+void PortDescriptor::set_subtensor(const VectorDims& subtensor) {
+    OPENVINO_ASSERT(subtensor.size() <= m_tensor_shape->size(),
+                    "Subtensor shape must be less than or equal to tensor shape");
+    m_subtensor_shape = subtensor;
+}
+
+void PortDescriptor::set_reg(Reg reg) {
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg: reg with 'address' type mustn't be changed");
+    m_reg = std::move(reg);
+}
+
+void PortDescriptor::set_reg_type(RegType type) {
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg type: address reg type mustn't be changed");
+    m_reg.type = type;
 }
 
 void PortDescriptor::set_subtensor_dim(size_t idx, VectorDims::value_type value) {
@@ -185,6 +210,18 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<cons
     if (out_descs.size() != node->get_output_size())
         OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
     return out_descs[out.get_index()];
+}
+
+void PortDescriptorUtils::set_address_reg_type(const ov::Input<ov::Node>& in) {
+    auto desc = get_port_descriptor_ptr(in);
+    desc->set_reg_type(RegType::address);
+    set_port_descriptor_ptr(in, desc);
+}
+
+void PortDescriptorUtils::set_address_reg_type(const ov::Output<ov::Node>& out) {
+    auto desc = get_port_descriptor_ptr(out);
+    desc->set_reg_type(RegType::address);
+    set_port_descriptor_ptr(out, desc);
 }
 
 void PortDescriptorUtils::clean(const std::shared_ptr<ov::Node>& node) {

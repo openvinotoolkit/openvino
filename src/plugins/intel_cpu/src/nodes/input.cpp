@@ -4,14 +4,51 @@
 
 #include "input.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -37,7 +74,9 @@ struct jit_has_special_value_base : public jit_generator {
     }
 
     fn_t get() {
-        return jit_ker() || create_kernel() == dnnl::impl::status::success ? (fn_t)jit_ker() : nullptr;
+        return jit_ker() || create_kernel() == dnnl::impl::status::success
+                   ? reinterpret_cast<fn_t>(const_cast<uint8_t*>(jit_ker()))
+                   : nullptr;
     }
 
 protected:
@@ -45,7 +84,8 @@ protected:
                   size_t step,
                   const Xbyak::Reg64& end,
                   std::function<void(const Xbyak::Reg64&)> && fn) {
-        Label loop, exit;
+        Label loop;
+        Label exit;
 
         L(loop);
         cmp(idx, end);
@@ -123,7 +163,7 @@ protected:
 
     void check_bf16_saturations(const Xbyak::Reg64& src,
                                 const Xbyak::Xmm& bf16_max_mask,
-                                const Xbyak::Xmm& bf16_min_mask) {
+                                [[maybe_unused]] const Xbyak::Xmm& bf16_min_mask) {
         auto a = xmm1;
         auto b = xmm2;
         auto c = xmm3;
@@ -135,7 +175,6 @@ protected:
         uni_vtestps(b, b);                      // if (b != 0) CF = 1 else CF = 0
     }
 
-protected:
     Label exit, has_target_values, no_target_values;
 
     const Reg64& reg_src = rax;
@@ -183,7 +222,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -199,9 +238,9 @@ struct jit_has_subnormals : public jit_has_special_value_base {
 
         // Initialize necessary consts
         uni_vpxor(zero, zero, zero);
-        mov(reg_mask_addr, (size_t)exponent_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(exponent_mask_data));
         uni_vmovdqu(exponent_mask, ptr[reg_mask_addr]);
-        mov(reg_mask_addr, (size_t)mantissa_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(mantissa_mask_data));
         uni_vmovdqu(mantissa_mask, ptr[reg_mask_addr]);
 
         // Main loop
@@ -209,7 +248,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
         mov(r8, reg_sz);
         shr(r8, sh_bits);
 
-        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach (reg_idx, 1, r8, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             check_subnormals(reg_src, exponent_mask, mantissa_mask, zero);
             jnc(has_target_values);
             add(reg_src, sizeof(float) * vlen);
@@ -257,7 +296,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -273,9 +312,9 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
 
         // Initialize necessary consts
         uni_vpxor(zero, zero, zero);
-        mov(reg_mask_addr, (size_t)bf16_max_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(bf16_max_mask_data));
         uni_vmovdqu(bf16_max_mask, ptr[reg_mask_addr]);
-        mov(reg_mask_addr, (size_t)bf16_min_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(bf16_min_mask_data));
         uni_vmovdqu(bf16_min_mask, ptr[reg_mask_addr]);
 
         // Main loop
@@ -283,7 +322,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
         mov(r8, reg_sz);
         shr(r8, sh_bits);
 
-        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach (reg_idx, 1, r8, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             check_bf16_saturations(reg_src, bf16_max_mask, bf16_min_mask);
             jnz(has_target_values, T_NEAR);
             add(reg_src, sizeof(float) * vlen);
@@ -403,8 +442,7 @@ void Input::cloneBlobIfRequired() {
                 return;
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
-            const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+            const bool do_bf16_saturation_check = context->getConfig().inferencePrecision == ov::element::bf16;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
@@ -417,10 +455,11 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = u32data + n * batch_size;
-                        jit_has_special_value_base::args_t args = {reinterpret_cast<float const*>(ptr),
-                                                                   std::min(batch_size, (size_t)(u32data + size - ptr)),
-                                                                   false};
+                        const auto* ptr = f32data + n * batch_size;
+                        jit_has_special_value_base::args_t args = {
+                            reinterpret_cast<const float*>(ptr),
+                            std::min(batch_size, static_cast<size_t>(f32data + size - ptr)),
+                            false};
 
                         if (needFlushDenormalsToZero && !has_subnormals_local) {
                             fn(&args);
@@ -489,8 +528,8 @@ void Input::cloneBlobIfRequired() {
         } else {
             if (m_constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
-                auto dst = memory->getDataAs<StringMemory::OvString>();
+                const auto* src = m_constOp->get_data_ptr<StringMemory::OvString>();
+                auto* dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
@@ -599,6 +638,13 @@ Input::Input(const MemoryDescPtr& memDesc,
     extMemDesc = memDesc;
 }
 
+Input::Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context)
+    : Input(mem->getDesc().getShape(), mem->getDesc().getPrecision(), name, type, context) {
+    extMemDesc = mem->getDescPtr();
+    memoryPtr = mem;
+    constant = Node::ConstantType::Const;
+}
+
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
     extMemDesc = config.desc;
@@ -655,8 +701,9 @@ void Input::initOptimalPrimitiveDescriptor() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output)) {
-        return Node::selectOptimalPrimitiveDescriptor();
+    if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
+        Node::selectOptimalPrimitiveDescriptor();
+        return;
     }
 
     // ignore previous configuration
@@ -742,7 +789,8 @@ void Input::initSupportedPdFromMemDesc() {
 
 void Input::resolveInPlaceEdges(Edge::LOOK look) {
     if (!m_isInPlace) {
-        return Node::resolveInPlaceEdges(look);
+        Node::resolveInPlaceEdges(look);
+        return;
     }
 
     if (look & Edge::LOOK_UP) {

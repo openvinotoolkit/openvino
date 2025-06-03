@@ -10,7 +10,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <assert.h>
 #include <memory>
 
 
@@ -65,12 +64,12 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
             input_precisions.push_back(input_precision);
         }
 
-        assert(std::all_of(
-            supported_precisions.begin(),
-            supported_precisions.end(),
-            [&input_precisions](const std::vector<element::Type>& precisions) {
-                return precisions.size() == input_precisions.size();
-            }) && "input precisions count is not equal for supported precisions");
+        OPENVINO_ASSERT(std::all_of(supported_precisions.begin(),
+                                    supported_precisions.end(),
+                                    [&input_precisions](const std::vector<element::Type>& precisions) {
+                                        return precisions.size() == input_precisions.size();
+                                    }),
+                        "input precisions count is not equal for supported precisions");
 
         // update input precisions
         // if possible then convert precisions to supported
@@ -171,7 +170,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         if (actual_type != it->second) {
             was_updated = true;
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                result->get_input_node_shared_ptr(0),
+                result->input_value(0),
                 expected_type);
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);

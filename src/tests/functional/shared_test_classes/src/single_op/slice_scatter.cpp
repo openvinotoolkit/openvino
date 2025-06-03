@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/slice_scatter.hpp"
+#include "openvino/op/slice_scatter.hpp"
 
 namespace ov {
 namespace test {

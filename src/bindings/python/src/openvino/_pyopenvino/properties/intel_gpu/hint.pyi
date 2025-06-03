@@ -1,12 +1,12 @@
 # type: ignore
-"""
-openvino.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import openvino._pyopenvino.properties.hint
 import typing
-__all__ = ['ThrottleLevel', 'available_device_mem', 'host_task_priority', 'queue_priority', 'queue_throttle']
+"""
+openvino.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint
+"""
+__all__ = ['ThrottleLevel', 'available_device_mem', 'enable_lora_operation', 'host_task_priority', 'queue_priority', 'queue_throttle']
 class ThrottleLevel:
     """
     openvino.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel
@@ -20,6 +20,12 @@ def available_device_mem() -> str:
     ...
 @typing.overload
 def available_device_mem(arg0: int) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def enable_lora_operation() -> str:
+    ...
+@typing.overload
+def enable_lora_operation(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def host_task_priority() -> str:

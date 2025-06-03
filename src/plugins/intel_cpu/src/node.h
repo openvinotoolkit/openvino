@@ -6,12 +6,19 @@
 
 #include <nodes/common/blocked_desc_creator.h>
 
-#include <common/utils.hpp>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/itt.hpp>
 #include <shape_inference/shape_inference_cpu.hpp>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -23,14 +30,17 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/factory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "perf_count.h"
-#include "selective_build.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -183,7 +193,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(std::string const& name)
+        PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -343,7 +353,7 @@ public:
     };
     ConstantType getConstantType() const;
     void updateConstantType();
-    bool isConstant();
+    bool isConstant() const;
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
     virtual int getFusingAxis() const {
@@ -398,7 +408,7 @@ public:
         return mergedWith;
     }
 
-    const std::vector<NodePtr>& getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
 
@@ -517,8 +527,8 @@ public:
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
-    virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
-    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
+    virtual void redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes);
+    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const;
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -559,8 +569,7 @@ public:
      * The main use case are nodes with nested graphs.
      * Use this method to make nested graphs a part of global allocation procedure
      */
-    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
-        (void)context;  // nothing to register by default
+    virtual int registerToAllocationContext(int offset, [[maybe_unused]] AllocationContext& context) {
         return offset;
     }
 
@@ -757,13 +766,12 @@ protected:
 
     int curNumaNode = -1;
 
-    void toNumaNode(int numaID);
-    virtual void toNumaNodeImpl(int numaID);
+    void toNumaNode(int numaNodeID);
+    virtual void toNumaNodeImpl(int numaNodeID);
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
-    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 
@@ -773,8 +781,8 @@ protected:
     Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
 
     Node(const std::string& type,
-         std::vector<Shape> inputShapes,
-         std::vector<Shape> outputShapes,
+         std::vector<Shape> inShapes,
+         std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
          const std::string& name,
@@ -802,9 +810,9 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isOneDimShape(const ov::PartialShape& pshape);
-    bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
-    bool isConfigDefined(const NodeConfig& config) const;
+    static bool isOneDimShape(const ov::PartialShape& pshape);
+    static bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
+    static bool isConfigDefined(const NodeConfig& config);
     virtual bool canBeInPlace() const;
 
     /* returns default implementaion prioirity */
@@ -815,7 +823,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
+    static dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims);
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -856,10 +864,10 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& shapes) const;
     virtual IShapeInfer::Result shapeInfer() const;
 
-    void execute(const dnnl::stream& stream, int numaId);
+    void execute(const dnnl::stream& strm, int numaId);
     virtual void execute(const dnnl::stream& strm) = 0;
     // TODO [DS] : make pure after all nodes support dynamic shapes
     virtual void executeDynamicImpl(const dnnl::stream& strm) {
@@ -904,7 +912,7 @@ private:
                     edges.end());
     }
 
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+    static bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges);
 
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;

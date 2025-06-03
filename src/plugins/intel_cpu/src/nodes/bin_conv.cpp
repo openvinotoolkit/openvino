@@ -4,21 +4,45 @@
 
 #include "bin_conv.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <common/nstl.hpp>
+#include <common/primitive_attr.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "conv.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -461,7 +485,10 @@ private:
         int nbits = 8;
         const int inp_mult = dilate_h * div_up(jcp_.ic, nbits);
 
-        Label t_overflow_label, no_t_overflow_label, b_overflow_label, no_b_overflow_label;
+        Label t_overflow_label;
+        Label no_t_overflow_label;
+        Label b_overflow_label;
+        Label no_b_overflow_label;
 
         mov(aux_reg_input, reg_input);
         mov(aux_reg_kernel, reg_kernel_base);
@@ -924,7 +951,7 @@ private:
         }
         // offset = 8
         for (size_t d = 0; d < simd_w; ++d) {
-            uint32_t val = jcp_.pad_value == 1.0f ? 0xffffffff : 0x00000000;
+            uint32_t val = jcp_.pad_value == 1.0F ? 0xffffffff : 0x00000000;
             dd(val);
         }
     }
@@ -938,9 +965,9 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
             return false;
         }
 
-        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::op::v1::BinaryConvolution>(op);
         if (!binConv) {
-            errorMessage = "Only opset1 BinaryConvolution operation is supported";
+            errorMessage = "Only v1 BinaryConvolution operation is supported";
             return false;
         }
         if (binConv->get_mode() != ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
@@ -957,7 +984,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::op::v1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
         for (uint64_t i : binConv->get_strides()) {
@@ -1080,7 +1107,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 }
 
 void BinaryConvolution::createPrimitive() {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1103,8 +1130,8 @@ void BinaryConvolution::createPrimitive() {
     jcp.ow = dstDims[3];
 
     bool with_groups = group > 1;
-    jcp.kh = weiDims[with_groups + 2];
-    jcp.kw = weiDims[with_groups + 3];
+    jcp.kh = weiDims[static_cast<int>(with_groups) + 2];
+    jcp.kw = weiDims[static_cast<int>(with_groups) + 3];
 
     jcp.t_pad = paddingL[0];
     jcp.b_pad = paddingR[0];
@@ -1117,7 +1144,7 @@ void BinaryConvolution::createPrimitive() {
     jcp.dilate_w = dilation[1];
 
     jcp.pad_value = pad_value;
-    jcp.exclude_pad = jcp.pad_value == 0.0f;
+    jcp.exclude_pad = jcp.pad_value == 0.0F;
 
     jcp.with_dw_conv = false;
     jcp.with_binarization = withBinarization;
@@ -1238,7 +1265,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
                                          const std::vector<size_t>& d_str) {
-    auto dst_f32 = reinterpret_cast<float*>(dst);
+    auto* dst_f32 = reinterpret_cast<float*>(dst);
 
     const int MB = jcp.mb;
 
@@ -1293,8 +1320,8 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                                          uint8_t* dst,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
-                                         const std::vector<size_t>& d_str) {
-    auto dst_fp = reinterpret_cast<float*>(dst);
+                                         const std::vector<size_t>& d_str) const {
+    auto* dst_fp = reinterpret_cast<float*>(dst);
 
     const bool with_groups = jcp.ngroups > 1;
 
@@ -1347,7 +1374,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                         if (pad_value == 0) {
                             continue;
                         }
-                        s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+                        s = pad_value == 1.0F ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
 
                     } else {
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
@@ -1366,7 +1393,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
         ker(a, g, mb, oc, oh, ow);
 
         float base_value;
-        if (pad_value == 0.0f) {
+        if (pad_value == 0.0F) {
             const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
             const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
             const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
@@ -1386,14 +1413,14 @@ void BinaryConvolution::executeReference(const uint8_t* src,
     });
 }
 
-void BinaryConvolution::execute(const dnnl::stream& strm) {
+void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto weights = weightsMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    const auto* weights = weightsMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
@@ -1413,7 +1440,7 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }

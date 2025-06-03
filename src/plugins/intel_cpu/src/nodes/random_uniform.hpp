@@ -6,9 +6,22 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <random>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "kernels/x64/random_uniform.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -125,7 +138,7 @@ private:
     void preparePhiloxParams();
 
     std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
+                                                size_t output_elements_count,
                                                 const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +155,7 @@ private:
 
     void prepareMersenneTwisterParams();
 
-    void computeMersenneTwister(void* out, size_t work_amount);
+    void computeMersenneTwister(void* out, size_t output_elements_count);
 
     /////////////////////////////////////////////////////////////////////////////////
 

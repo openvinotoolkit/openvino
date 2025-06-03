@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
+#include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
 #include "executor.hpp"
-#include "nodes/common/dnnl_executor.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/coordinate_diff.hpp"
 
@@ -53,7 +56,7 @@ using DeconvExecutorCPtr = std::shared_ptr<const DeconvExecutor>;
 
 class DeconvExecutorBuilder {
 public:
-    ~DeconvExecutorBuilder() = default;
+    virtual ~DeconvExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const DeconvAttrs& convAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;

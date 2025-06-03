@@ -6,9 +6,19 @@
 
 #include <node.h>
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -93,24 +103,24 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* dst_idx);
+    void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_idx_ptr);
     void topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx);
     inline void topk_kernel_process(const uint8_t* in_p,
                                     uint8_t* out_p,
-                                    uint8_t* src_idx,
+                                    uint8_t* out_idx_p,
                                     uint8_t* process_p,
                                     uint8_t* process_idx_p,
                                     size_t work_amount);
     inline static int count(const VectorDims& dims, size_t start_ind, size_t end_ind);
     inline static int count(const VectorDims& dims, size_t start_ind = 0);
-    inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true);
+    inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true) const;
     void calc_bitonic_idx(size_t n, int& cnt, bool cmp_val);
     void calc_dims_size(const VectorDims& layout_dims);
     void topk_ref_process(const float* src_data,
                           float* dst_data,
                           int32_t* dst_idx,
                           const VectorDims& in_dims,
-                          std::function<float(float, float)> compare) const;
+                          std::function<bool(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 

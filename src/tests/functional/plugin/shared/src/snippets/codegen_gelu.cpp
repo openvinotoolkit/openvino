@@ -10,6 +10,7 @@
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {

@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -25,7 +26,6 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
@@ -157,6 +157,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
+REGISTER_OCL(ISTFT);
 
 #undef REGISTER_OCL
 

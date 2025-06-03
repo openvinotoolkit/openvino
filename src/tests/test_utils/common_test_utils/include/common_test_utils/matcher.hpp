@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 

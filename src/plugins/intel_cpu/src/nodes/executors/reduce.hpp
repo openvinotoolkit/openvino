@@ -4,9 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "cpu_memory.h"
-#include "dnnl_scratch_pad.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
@@ -42,7 +47,7 @@ using ReduceExecutorCPtr = std::shared_ptr<const ReduceExecutor>;
 
 class ReduceExecutorBuilder {
 public:
-    ~ReduceExecutorBuilder() = default;
+    virtual ~ReduceExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const ReduceAttrs& reduceAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;

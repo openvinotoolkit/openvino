@@ -12,6 +12,10 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 using ov::test::InputShape;

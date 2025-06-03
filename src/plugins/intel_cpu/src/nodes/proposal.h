@@ -4,7 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 #include "proposal_imp.hpp"
 
 using proposal_conf = ov::Extensions::Cpu::proposal_conf;

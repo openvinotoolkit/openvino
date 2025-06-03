@@ -5,15 +5,31 @@
 #include "shuffle_channels.h"
 
 #include <cmath>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/shuffle_channels.hpp>
+#include <set>
 #include <string>
 
-#include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "openvino/core/parallel.hpp"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/permute_kernel.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -290,7 +306,7 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ShuffleChannels::execute(const dnnl::stream& strm) {
+void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

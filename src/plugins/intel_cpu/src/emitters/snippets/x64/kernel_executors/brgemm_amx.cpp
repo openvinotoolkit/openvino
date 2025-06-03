@@ -4,8 +4,33 @@
 
 #include "brgemm_amx.hpp"
 
-#include <cpu/x64/amx_tile_configure.hpp>
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/utils.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -22,18 +47,23 @@ namespace ov::intel_cpu::x64 {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
-                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+                                             const element::Type& out_dtype,
+                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                             const dnnl_post_ops& post_ops)
+    : m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, primitive_isa, post_ops)) {
     m_hash = compute_hash();
 }
 
 BrgemmAMXKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                   const element::Type& in1_dtype,
-                                                  dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+                                                  const element::Type& out_dtype,
+                                                  dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                                  const dnnl_post_ops& post_ops)
     : StaticBaseParams(in0_dtype,
                        in1_dtype,
+                       out_dtype,
                        primitive_isa,
+                       post_ops,
                        compute_hash(INNER_K_BLK(in0_dtype), VNNI_FACTOR(in0_dtype))),
       inner_k_blk(INNER_K_BLK(in0_dtype)),
       vnni_factor(VNNI_FACTOR(in0_dtype)) {}
@@ -129,6 +159,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
         create_brgemm_kernel(ker->brgemm_kernel,
                              k.get_dt_in0(),
                              k.get_dt_in1(),
+                             k.get_dt_out(),
                              k.get_isa(),
                              k.get_M(),
                              k.get_N(),
@@ -137,6 +168,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
                              k.get_LDB(),
                              k.get_LDC(),
                              k.get_beta(),
+                             k.get_post_ops(),
                              true,
                              ker->palette);
         return ker;
@@ -223,7 +255,7 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
 void BrgemmAMXKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                             BrgemmAMXKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
 }
 
 void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* config,
@@ -232,7 +264,7 @@ void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* confi
                                                         dnnl_dim_t N,
                                                         dnnl_dim_t K) {
     auto compatible = [&](amx_tile_config_t* rhs) {
-        return rhs && rhs->M == M && rhs->N == N && rhs->K == K;
+        return (rhs != nullptr) && rhs->M == M && rhs->N == N && rhs->K == K;
     };
     if (config && !compatible(config)) {
         config->M = M;
@@ -277,20 +309,31 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
     const auto K_tail = config.get_K() % config.get_inner_K_blk();
     const auto K_body = config.get_K() - K_tail;
 
-    if (K_body != 0) {
+    const bool execute_main_body = K_body != 0;
+    const bool execute_tail = K_tail != 0;
+
+    if (execute_main_body) {
         const auto& K_body_kernel = kernel->K_body_kernel;
         configure_tiles_if_needed(args->amx_tile_config,
                                   K_body_kernel->palette,
                                   config.get_M(),
                                   config.get_N(),
                                   K_body);
-        execute_brgemm_kernel(K_body_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
-
-        src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
-        wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
+        // Post ops are applied only on last iteration, so they mustn't be applied if tail is present
+        const bool apply_post_ops = !execute_tail;
+        execute_brgemm_kernel(K_body_kernel->brgemm_kernel,
+                              src_ptr,
+                              wei_ptr,
+                              args->C,
+                              scratch,
+                              args->post_ops_binary_arg_vec,
+                              false,
+                              apply_post_ops);
     }
 
-    if (K_tail != 0) {
+    if (execute_tail) {
+        src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
+        wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
         if (config.need_copy_a(K_tail)) {
             auto* tr_src = scratch + BrgemmCPU::SCRATCH_BYTE_SIZE;
 
@@ -304,7 +347,14 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
+        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel,
+                              src_ptr,
+                              wei_ptr,
+                              args->C,
+                              scratch,
+                              args->post_ops_binary_arg_vec,
+                              false,
+                              true);
     }
 }
 

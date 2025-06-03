@@ -110,7 +110,7 @@ private:
                                                                               params.samplingRatio,
                                                                               params.spatialScale,
                                                                               params.clockwise);
-        return std::make_shared<Model>(NodeVector{roi_align_rot}, ParameterVector{featureMap});
+        return std::make_shared<Model>(OutputVector{roi_align_rot}, ParameterVector{featureMap});
     }
 };
 

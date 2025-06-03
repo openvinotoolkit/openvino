@@ -4,9 +4,23 @@
 
 #include "mlas_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mlas.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -337,9 +351,9 @@ void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
 }
 
 bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
-                                 const std::vector<MemoryDescPtr>& srcDescs,
-                                 const std::vector<MemoryDescPtr>& dstDescs,
-                                 const dnnl::primitive_attr& attr) {
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
@@ -347,14 +361,14 @@ bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
+bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
-    if (!one_of(srcDescs[0]->getPrecision().size(), 1u, 2u, 4u, 8u)) {
+    if (!one_of(srcDescs[0]->getPrecision().size(), 1U, 2U, 4U, 8U)) {
         DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
         return false;
     }

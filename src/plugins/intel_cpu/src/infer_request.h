@@ -4,12 +4,28 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 #include "compiled_model.h"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
 #include "cpu_tensor.h"
 #include "graph.h"
 #include "memory_state.h"
-#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "proxy_mem_blk.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,6 +49,8 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
+
+    void check_tensors() const override;
 
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request

@@ -4,10 +4,29 @@
 
 #include "grid_sample.hpp"
 
+#include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/grid_sample.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/grid_sample.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
@@ -138,9 +157,9 @@ void GridSample::createPrimitive() {
             std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<>());
     } else {
         jcp.dynamicBatch = srcDataDims[0] == Shape::UNDEFINED_DIM;
-        jcp.batchNum = jcp.dynamicBatch ? 1lu : srcDataDims[0];
+        jcp.batchNum = jcp.dynamicBatch ? 1LU : srcDataDims[0];
         jcp.dynamicChannel = srcDataDims[1] == Shape::UNDEFINED_DIM;
-        jcp.cannelNum = jcp.dynamicChannel ? 1lu : srcDataDims[1];
+        jcp.cannelNum = jcp.dynamicChannel ? 1LU : srcDataDims[1];
     }
 
     if (x64::mayiuse(x64::avx512_core)) {
@@ -159,7 +178,7 @@ void GridSample::createPrimitive() {
     execParamsPerThread.resize(m_threads_num);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+        parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -209,14 +228,14 @@ void GridSample::prepareParams() {
     const uint64_t totalWork = dstShape[2] * dstShape[3];
     const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
-    parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
         auto& p = execParamsPerThread[ithr];
 
         p.workAmount = dstEnd - dstStart;
-        if (p.workAmount == 0lu) {
+        if (p.workAmount == 0LU) {
             return;
         }
 
@@ -237,23 +256,23 @@ void GridSample::prepareParams() {
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
         p.dataTypeSize[0] = dataTypeSize;
 
-        p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.f;
-        p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.f;
-        p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.f;
-        p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.f;
+        p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
+        p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
+        p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.F;
+        p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.F;
         if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
             p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
         } else {
             p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;
         }
         if (alignCorners) {
-            p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.f ? 1.f : p.srcHeightSub1F[0] * 2.f;
-            p.srcWidthMul2Sub1F[0] = p.srcWidthF[0] == 1.f ? 1.f : p.srcWidthSub1F[0] * 2.f;
-            p.wDenormCoefF[0] = (p.srcWidthF[0] - 1.f) / 2.f;
-            p.hDenormCoefF[0] = (p.srcHeightF[0] - 1.f) / 2.f;
+            p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;
+            p.srcWidthMul2Sub1F[0] = p.srcWidthF[0] == 1.F ? 1.F : p.srcWidthSub1F[0] * 2.F;
+            p.wDenormCoefF[0] = (p.srcWidthF[0] - 1.F) / 2.F;
+            p.hDenormCoefF[0] = (p.srcHeightF[0] - 1.F) / 2.F;
         } else {
-            p.srcHeightMul2Sub1F[0] = p.srcHeightMul2F[0] - 1.f;
-            p.srcWidthMul2Sub1F[0] = p.srcWidthMul2F[0] - 1.f;
+            p.srcHeightMul2Sub1F[0] = p.srcHeightMul2F[0] - 1.F;
+            p.srcWidthMul2Sub1F[0] = p.srcWidthMul2F[0] - 1.F;
         }
         if (!x64::mayiuse(x64::avx512_core)) {
             std::fill(p.srcHeightF.begin(), p.srcHeightF.end(), p.srcHeightF[0]);
@@ -274,15 +293,15 @@ void GridSample::prepareParams() {
     });
 }
 
-void GridSample::execute(const dnnl::stream& strm) {
+void GridSample::execute([[maybe_unused]] const dnnl::stream& strm) {
     const void* srcData = getSrcDataAtPort(IN_DATA);
     const uint8_t* gridData = getSrcDataAtPortAs<uint8_t>(IN_GRID);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
-    auto threadBody = [&](const int ithr, const int nthr) {
+    auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
         const auto& p = execParamsPerThread[ithr];
         auto arg = kernel::GridSamplesKernelExecArgs();
-        if (p.workAmount == 0lu) {
+        if (p.workAmount == 0LU) {
             return;
         }
 

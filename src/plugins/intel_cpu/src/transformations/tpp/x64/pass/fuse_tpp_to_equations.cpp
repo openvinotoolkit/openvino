@@ -3,9 +3,26 @@
 //
 #include "fuse_tpp_to_equations.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/relu.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/shape_types.hpp"
+#include "transformations/tpp/x64/op/descriptor.hpp"
 #include "transformations/tpp/x64/op/eltwise.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
@@ -78,13 +95,25 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
 
     auto equation = std::make_shared<op::EquationTPP>(eq_ivals, op_descs);
 
-    for (auto& kv : node_replace_map)
+    for (auto& kv : node_replace_map) {
         kv.second = equation;
+    }
     replace_nodes(m, {}, node_replace_map);
     for (const auto& in : equation->inputs()) {
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, root_subtensor);
+        auto subtensor = root_subtensor;
+        if (in.get_partial_shape().size() < root_subtensor.size()) {
+            subtensor.erase(subtensor.begin(),
+                            subtensor.begin() + (root_subtensor.size() - in.get_partial_shape().size()));
+        }
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, subtensor);
     }
-    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), root_subtensor);
+    auto subtensor = root_subtensor;
+    const auto& out = equation->output(0);
+    if (out.get_partial_shape().size() < root_subtensor.size()) {
+        subtensor.erase(subtensor.begin(),
+                        subtensor.begin() + (root_subtensor.size() - out.get_partial_shape().size()));
+    }
+    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), subtensor);
     return true;
 }
 

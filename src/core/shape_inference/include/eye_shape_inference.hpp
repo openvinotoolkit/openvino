@@ -27,7 +27,7 @@ void check_1D_or_scalar_shape(const ov::op::v9::Eye* op, const T& input_shape, c
 }  // namespace util
 
 namespace eye {
-constexpr std::array<char const*, 4> shape_names{"'num_rows'", "'num_columns'", "'diagonal_index'", "'batch_shape'"};
+constexpr std::array<const char*, 4> shape_names{"'num_rows'", "'num_columns'", "'diagonal_index'", "'batch_shape'"};
 }
 
 namespace v9 {

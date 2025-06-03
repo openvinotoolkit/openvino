@@ -4,6 +4,24 @@
 
 #include "string_tensor_unpack.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/string_tensor_unpack.hpp"
 #include "openvino/reference/string_tensor_unpack.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
@@ -66,7 +84,7 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void StringTensorUnpack::execute(const dnnl::stream& strm) {
+void StringTensorUnpack::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
     ov::reference::string_tensor_unpack(getSrcDataAtPortAs<const std::string>(0),
                                         getDstDataAtPortAs<int32_t>(0),

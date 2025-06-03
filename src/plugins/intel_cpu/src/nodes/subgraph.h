@@ -4,8 +4,27 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "emitters/snippets/repacked_input.hpp"
 #include "executors/subgraph.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/manager.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -46,18 +65,20 @@ private:
     void initStartOffsets();
     void initPluginBlockedShapes() const;
     void optimizeIR();
+    void prepareWeights();
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
     uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+    std::set<size_t> getConstantInputIndexes() const;
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
 
     DataFlowPasses getDataFlowPasses();
-    ControlFlowPasses getControlFlowPasses() const;
+    ControlFlowPasses getControlFlowPasses();
 
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)
@@ -81,6 +102,11 @@ private:
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
+
+    RepackedInputConfig repacked_constant_input_config = {};
+    // Ptr indices which are not processed by the snippets kernel
+    // and used directly in the specific emitters (e.g. jit_brgemm_emitter)
+    std::set<size_t> external_ptrs_idces = {};
 
     bool is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation

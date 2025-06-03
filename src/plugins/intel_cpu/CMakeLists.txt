@@ -17,17 +17,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4334)
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
-elseif(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
-elseif(CMAKE_COMPILER_IS_GNUCXX)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        ov_add_compiler_flags(-Wno-array-bounds)
-    endif()
 elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
@@ -291,12 +280,18 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 endif()
+
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
     target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
+
+# TODO: XBYAK64 should be used only for x64. Have to enable it for all the architectures for now
+# since many files include x64 related headers unconditionally.
+add_definitions(-DXBYAK64)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation

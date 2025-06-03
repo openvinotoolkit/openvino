@@ -4,7 +4,11 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu {
 
@@ -48,6 +52,7 @@ enum class NodeFusingType : int64_t {
     FusedWithMatMulI8,
     FusedWithFCI8,
     FusedWithReduce,
+    FusedWithGather,
     FusedWithMisc
 };
 

@@ -4,14 +4,33 @@
 
 #include "istft.h"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/rdft.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/istft.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -86,11 +105,11 @@ bool ISTFT::created() const {
 }
 
 namespace {
-static void transpose_out4d(const uint8_t* in,
-                            uint8_t* out,
-                            const VectorDims& in_shape,
-                            const VectorDims& out_shape,
-                            size_t elem_size) {
+void transpose_out4d(const uint8_t* in,
+                     uint8_t* out,
+                     const VectorDims& in_shape,
+                     const VectorDims& out_shape,
+                     size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for3d(out_shape[0],
                    out_shape[1],
@@ -128,9 +147,9 @@ void istft_impl(const float* in_data,
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
     const int64_t final_signal_length =
         length > 0 ? length : (center ? (signal_length - (frame_size & ~1)) : signal_length);
-    std::fill(final_result, final_result + batch_size * final_signal_length, 0.f);
+    std::fill(final_result, final_result + batch_size * final_signal_length, 0.F);
 
-    std::vector<float> mid_result(batch_size * signal_length, 0.f);
+    std::vector<float> mid_result(batch_size * signal_length, 0.F);
 
     const auto fft_results_dim = data_shape[data_shape.size() - 3];
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
@@ -156,16 +175,16 @@ void istft_impl(const float* in_data,
 
     // Setting function for the result postprocessing
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
-        if (b != 0.f) {
+        if (b != 0.F) {
             return (a * sqrt_frame_size) / b;
         }
-        return 0.f;
+        return 0.F;
     };
     const auto window_div = [](float a, float b) {
-        if (b != 0.f) {
+        if (b != 0.F) {
             return a / b;
         }
-        return 0.f;
+        return 0.F;
     };
     std::function<float(float, float)> postprocess_func;
     if (normalized) {
@@ -217,13 +236,13 @@ void istft_impl(const float* in_data,
                        window_sum.begin() + batch * signal_length,
                        result,
                        postprocess_func);
-        const auto result_start = result + margin;
+        auto* const result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result + batch * final_signal_length);
     });
 }
 }  // namespace
 
-void ISTFT::execute(const dnnl::stream& strm) {
+void ISTFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto signal_length =
         m_has_signal_length_input ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
     istft_impl(getSrcDataAtPortAs<const float>(DATA_IDX),

@@ -6,12 +6,26 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
+#if defined(__clang__) || defined(__GNUC__)
+#    define OV_CPU_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#    define OV_CPU_FUNCTION_NAME __FUNCSIG__
+#else
+// Fallback
+#    define OV_CPU_FUNCTION_NAME __func__
+#endif
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
@@ -173,6 +187,18 @@ inline std::string join(const Container& strs, char delim) {
         result << delim << *it;
     }
     return result.str();
+}
+
+template <typename Container, typename T>
+inline bool any_of_values(const Container& container, const T& value) {
+    return std::find(container.begin(), container.end(), value) != container.end();
+}
+
+template <typename Container, typename T>
+inline bool all_of_values(const Container& container, const T& value) {
+    return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
+        return elem == value;
+    });
 }
 
 }  // namespace intel_cpu

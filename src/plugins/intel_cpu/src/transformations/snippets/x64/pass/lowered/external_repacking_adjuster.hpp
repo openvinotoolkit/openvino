@@ -4,12 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
-#include "snippets/runtime_configurator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
+
+class InitRepackedConstantInputs;
 
 /**
  * @class BrgemmExternalRepackingAdjuster
@@ -17,6 +28,8 @@ namespace ov::intel_cpu {
  * The generated memory descs are stored in the CPU runtime config.
  */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
+    friend class InitRepackedConstantInputs;
+
 public:
     OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
     BrgemmExternalRepackingAdjuster() = default;
@@ -33,15 +46,18 @@ private:
     static VectorDims get_blk_order(size_t shape_rank);
     static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc, bool is_transposed);
 
-    void update_kernel(const RepackExecutorPtr& executor,
-                       const VectorDims& shape,
-                       const VectorDims& layout,
-                       size_t N,
-                       size_t K,
-                       ov::element::Type prc);
+    static void update_kernel(const RepackExecutorPtr& executor,
+                              const VectorDims& shape,
+                              const VectorDims& layout,
+                              size_t N,
+                              size_t K,
+                              ov::element::Type prc);
+
+    static RepackExecutorPtr create_executor(const ov::snippets::lowered::ExpressionPtr& param,
+                                             const ov::intel_cpu::MultiCacheWeakPtr& cache);
 
     static const size_t brgemm_kernel_rank;
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

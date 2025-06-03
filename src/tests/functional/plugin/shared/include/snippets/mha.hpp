@@ -63,6 +63,11 @@ protected:
     bool m_with_mul = false;
 };
 
+class MHA2D : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHASelect : public MHA {
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
@@ -110,6 +115,11 @@ protected:
 };
 
 class MHAWithExtractedReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
+class MHARankUpgradeToReductionReshape : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };

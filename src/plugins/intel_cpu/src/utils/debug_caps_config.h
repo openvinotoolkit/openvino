@@ -3,6 +3,11 @@
 //
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
 #ifdef CPU_DEBUG_CAPS
 
 #    include <bitset>
@@ -45,7 +50,7 @@ public:
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
     std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
-    std::string summaryPerf = "";
+    bool summaryPerf = false;
     std::string memoryStatisticsDumpPath;
 
     struct TransformationFilter {

@@ -4,9 +4,28 @@
 
 #include "space_to_batch.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/space_to_batch.hpp>
+#include <set>
+#include <string>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -141,7 +160,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
     }
 
     const auto outBlkDims = dstMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const int64_t blockSize = blocked ? outBlkDims.back() : 1lu;
+    const int64_t blockSize = blocked ? outBlkDims.back() : 1LU;
     const int64_t blockCountInput = outBlkDims[1];
     const int64_t blockCountOutput = srcMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
     const int64_t blockRemainder = inShape5D[1] % blockSize;
@@ -160,7 +179,8 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const int64_t workAmount = inShape5D[0] * channels;
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        int64_t start(0lu), end(0lu);
+        int64_t start(0LU);
+        int64_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         std::vector<int64_t> indxStart(2, 0);
         std::vector<int64_t> indxEnd(2, 0);
@@ -180,7 +200,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
             bIdx /= blockShapeIn[dimsSize - 1];
             oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - padsBeginIn[dimsSize - 2];
             bIdx /= blockShapeIn[dimsSize - 2];
-            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
+            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0LU;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
             if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
@@ -195,8 +215,8 @@ void SpaceToBatch::SpaceToBatchKernel() {
             finish[3] = (outShape5D[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             finish[4] = (outShape5D[4] - 1 - oAdd[4]) / blockShape[4];
-            const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
-            const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
+            const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
+            const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
             indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
             const int64_t lastI1 = i0 == indxEnd[0] ? (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]) : finish[1];
             for (; indxStart[1] < lastI1 + 1; ++indxStart[1]) {
@@ -204,7 +224,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
                 const int64_t tmpOC = indxStart[1] * blockShape[1] + addTmpOC;
                 const int64_t srcIdx1 = srcIdx0 + tmpOC * outSpatialStep * blockSize;
                 const int64_t dstIdx1 = dstIdx0 + indxStart[1] * inSpatialStep * blockSize;
-                const int64_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
+                const int64_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0LU;
                 for (int64_t i2 = begin[2]; i2 < finish[2] + 1; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
                     const int64_t srcIdx2 = srcIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;
@@ -237,7 +257,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
                     }
                 }
             }
-            indxStart[1] = 0lu;
+            indxStart[1] = 0LU;
         }
     });
 }
@@ -246,7 +266,7 @@ void SpaceToBatch::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void SpaceToBatch::execute(const dnnl::stream& strm) {
+void SpaceToBatch::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
     case 1:
         SpaceToBatchKernel<element_type_traits<ov::element::u8>::value_type>();

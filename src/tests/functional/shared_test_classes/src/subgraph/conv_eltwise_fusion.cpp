@@ -11,6 +11,10 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {

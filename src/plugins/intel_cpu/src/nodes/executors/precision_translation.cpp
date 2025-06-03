@@ -4,11 +4,11 @@
 
 #include "precision_translation.hpp"
 
+#include <algorithm>
 #include <iterator>
 
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "precision_matcher.hpp"
 
 namespace ov::intel_cpu {

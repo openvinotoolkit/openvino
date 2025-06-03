@@ -18,6 +18,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;

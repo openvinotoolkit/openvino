@@ -4,7 +4,25 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <utility>
+#include <vector>
+
+#include "cpu_types.h"
+#include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace aarch64 {
@@ -29,7 +47,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
     static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);

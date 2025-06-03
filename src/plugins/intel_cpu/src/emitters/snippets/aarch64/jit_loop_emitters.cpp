@@ -4,8 +4,20 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <algorithm>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
-#include "jit_kernel_emitter.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/loop.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -41,13 +53,14 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
 
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                             const std::vector<size_t>& out,
-                                            const std::vector<size_t>& pool_vec_idxs,
-                                            const std::vector<size_t>& pool_gpr_idxs) const {
+                                            [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                            [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                       const std::vector<size_t>& out) const {
     auto reg_work_amount = XReg(out[0]);
     if (!evaluate_once) {
         h->mov(reg_work_amount, work_amount);
@@ -94,7 +107,7 @@ ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
 
 void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected ",
                               io_size + 1,
@@ -125,13 +138,14 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
 
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                           const std::vector<size_t>& out,
-                                          const std::vector<size_t>& pool_vec_idxs,
-                                          const std::vector<size_t>& pool_gpr_idxs) const {
+                                          [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                          [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
+                                     [[maybe_unused]] const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));

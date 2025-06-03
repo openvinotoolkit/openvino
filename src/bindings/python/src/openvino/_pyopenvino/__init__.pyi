@@ -1,20 +1,20 @@
 # type: ignore
-"""
-Package openvino._pyopenvino which wraps openvino C++ APIs
-"""
-from __future__ import annotations
+from . import _offline_transformations
 from . import experimental
 from . import frontend
 from . import layout_helpers
-from . import _offline_transformations
 from . import op
 from . import passes
 from . import preprocess
 from . import properties
 from . import util
+from __future__ import annotations
 import datetime
 import numpy
 import typing
+"""
+Package openvino._pyopenvino which wraps openvino C++ APIs
+"""
 __all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
@@ -719,6 +719,20 @@ class Core:
                     :type device_name: str
                     :return: Remote context instance.
                     :rtype: openvino.RemoteContext
+        """
+    @typing.overload
+    def get_property(self, device_name: str, name: str, arguments: dict[str, typing.Any]) -> typing.Any:
+        """
+                    Gets properties dedicated to device behaviour.
+        
+                    :param device_name: A name of a device to get a properties value.
+                    :type device_name: str
+                    :param name: Property or name of Property.
+                    :type name: str
+                    :param arguments: Additional arguments to get a property.
+                    :type arguments: dict[str, typing.Any]
+                    :return: Extracted information from property.
+                    :rtype: typing.Any
         """
     @typing.overload
     def get_property(self, device_name: str, property: str) -> typing.Any:
@@ -2277,16 +2291,28 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self, results: list[Node], parameters: list[op.Parameter], name: str = '') -> None:
+    def __init__(self, results: list[op.Result], parameters: list[op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of Nodes to be used as results.
-                            :type results: List[openvino.Node]
+                            :param results: List of results.
+                            :type results: List[op.Result]
                             :param parameters: List of parameters.
-                            :type parameters:  List[op.Parameter]
+                            :type parameters: List[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
+        """
+    @typing.overload
+    def __init__(self, results: list[Node], parameters: list[op.Parameter], name: str = '') -> None:
+        """
+                    Create user-defined Model which is a representation of a model.
+        
+                    :param results: List of Nodes to be used as results.
+                    :type results: List[openvino.Node]
+                    :param parameters: List of parameters.
+                    :type parameters:  List[op.Parameter]
+                    :param name: String to set as model's friendly name.
+                    :type name: str
         """
     @typing.overload
     def __init__(self, result: Node, parameters: list[op.Parameter], name: str = '') -> None:
@@ -4591,18 +4617,18 @@ class Tensor:
     @typing.overload
     def __init__(self, image: typing.Any) -> None:
         """
-                        Constructs Tensor from a Pillow Image.
+                    Constructs Tensor from a Pillow Image.
         
-                        :param image: Pillow Image to create the tensor from.
-                        :type image: PIL.Image.Image
-                        :Example:
-                        .. code-block:: python
+                    :param image: Pillow Image to create the tensor from.
+                    :type image: PIL.Image.Image
+                    :Example:
+                    .. code-block:: python
         
-                            from PIL import Image
-                            import openvino as ov
+                        from PIL import Image
+                        import openvino as ov
         
-                            img = Image.open("example.jpg")
-                            tensor = ov.Tensor(img)
+                        img = Image.open("example.jpg")
+                        tensor = ov.Tensor(img)
         """
     def __repr__(self) -> str:
         ...

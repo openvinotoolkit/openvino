@@ -4,8 +4,24 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/pass/runtime_optimizer.hpp"
+#include "snippets/runtime_configurator.hpp"
+#include "snippets/shape_types.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
@@ -48,6 +64,7 @@ CPURuntimeConfigurator::CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
 #ifdef OPENVINO_ARCH_X86_64
+    using namespace pass;
     RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
     RuntimeOptimizer::register_if_applicable<BrgemmExternalRepackingAdjuster>(m_final_optimizers, linear_ir, this);
 #endif
@@ -72,7 +89,8 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+    const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
+    const auto& loop_map = loop_manager->get_map();
     cpu_config->loop_args.resize(loop_map.size());
     for (const auto& loop : loop_map) {
         const auto& idx = loop.first;

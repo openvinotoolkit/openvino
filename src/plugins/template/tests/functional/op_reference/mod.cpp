@@ -67,7 +67,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto mod = std::make_shared<op::v1::Mod>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{mod}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{mod}, ParameterVector{in1, in2});
     }
 };
 
@@ -100,7 +100,7 @@ private:
         auto mod = std::make_shared<op::v1::Mod>(in1, in2);
         mod = std::make_shared<op::v1::Mod>(mod, mod);
 
-        return std::make_shared<Model>(NodeVector{mod}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{mod}, ParameterVector{in1, in2});
     }
 };
 

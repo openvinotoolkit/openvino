@@ -4,23 +4,33 @@
 
 #include "rms_norm.h"
 
-#include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "dnnl_extension_utils.h"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
+#include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
+#include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "kernels/x64/rms_kernel.hpp"
 #endif
 
-#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -95,8 +105,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         m_kernel = createJitKernel(jcp);
     }
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
-        auto src = inputs[0]->getDataAs<uint8_t>();
-        auto dst = output->getDataAs<uint8_t>();
+        auto* src = inputs[0]->getDataAs<uint8_t>();
+        auto* dst = output->getDataAs<uint8_t>();
         auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -157,7 +167,7 @@ void RMSNorm::createPrimitive() {
 
     RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
-    auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<Executor> {
+    auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
         return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
@@ -173,7 +183,7 @@ void RMSNorm::createPrimitive() {
     m_executor = result.first;
 }
 
-void RMSNorm::execute(const dnnl::stream& strm) {
+void RMSNorm::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
 

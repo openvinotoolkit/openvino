@@ -4,8 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
 #include "common/dnnl_executor.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -34,7 +44,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
     dnnl::algorithm alg;
     size_t size = 1;

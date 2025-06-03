@@ -56,7 +56,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
-        return std::make_shared<ov::Model>(NodeVector{Exp}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Exp}, ParameterVector{in});
     }
 };
 
@@ -84,7 +84,7 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
         const auto ExpInPlace = std::make_shared<op::v0::Exp>(Exp);
-        return std::make_shared<ov::Model>(NodeVector{ExpInPlace}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{ExpInPlace}, ParameterVector{in});
     }
 };
 

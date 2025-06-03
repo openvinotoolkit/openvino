@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/psroi_pooling.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 
 namespace ov {
 namespace test {

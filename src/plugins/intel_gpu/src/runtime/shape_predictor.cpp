@@ -83,6 +83,20 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     if (can_reuse_buffer)
         return {false, {}};
 
+    // Avoid preallocation if spatial padded
+    if (static_cast<bool>(layout.data_padding) && !layout.data_padding.is_dynamic()) {
+        bool spatial_padding = false;
+        for (size_t i = 0; i < layout.get_spatial_rank(); ++i) {
+            spatial_padding |= (layout.data_padding._lower_size[2 + i] != 0);
+        }
+        for (size_t i = 0; i < layout.get_spatial_rank(); ++i) {
+            spatial_padding |= (layout.data_padding._upper_size[2 + i] != 0);
+        }
+        if (spatial_padding) {
+            return {false, {}};
+        }
+    }
+
     // If both prealloc dim and prealloc count are specified, dont predict and just use the given info
     if (custom_prealloc_dim >= 0 && custom_next_iters_prealloc_count > 0) {
         auto new_shape = current_shape;

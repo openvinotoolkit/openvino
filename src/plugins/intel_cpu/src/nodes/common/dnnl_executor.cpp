@@ -3,11 +3,21 @@
 //
 
 #include "dnnl_executor.h"
+
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
+
+#include "dnnl_extension_utils.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 using namespace dnnl;
 
 namespace ov::intel_cpu {
 
-DnnlExecutor::DnnlExecutor(const dnnl::primitive_desc& pd) {
+DnnlExecutorLegacy::DnnlExecutorLegacy(const dnnl::primitive_desc& pd) {
     execPrim = dnnl::primitive(pd);
     src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
     dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
@@ -15,20 +25,20 @@ DnnlExecutor::DnnlExecutor(const dnnl::primitive_desc& pd) {
     scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
 }
 
-DnnlExecutor::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
-                                           const dnnl::memory::desc& descDst,
-                                           const dnnl::engine& engine)
+DnnlExecutorLegacy::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
+                                                 const dnnl::memory::desc& descDst,
+                                                 const dnnl::engine& engine)
     : m_descSrc(descSrc),
       m_descDst(descDst) {
     auto reorderPd = dnnl::reorder::primitive_desc(engine, descSrc, engine, descDst);
     m_reorder = dnnl::reorder(reorderPd);
 }
 
-void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm) {
+void DnnlExecutorLegacy::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm) {
     m_reorder.execute(strm, memSrc, memDst);
 }
 
-void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) {
+void DnnlExecutorLegacy::exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) {
     if (inputReorders.empty() && outputReorders.empty()) {
         execPrim.execute(strm, primArgs);
     } else {
@@ -36,7 +46,7 @@ void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, c
     }
 }
 
-void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) {
+void DnnlExecutorLegacy::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) {
     for (auto& inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
@@ -64,20 +74,20 @@ void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, 
     }
 }
 
-bool DnnlExecutor::needReordering() const {
+bool DnnlExecutorLegacy::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-dnnl::primitive DnnlExecutor::getExecPrim() const {
+dnnl::primitive DnnlExecutorLegacy::getExecPrim() const {
     return execPrim;
 }
 
-const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
+const_dnnl_primitive_desc_t DnnlExecutorLegacy::getPrimitiveDesc() const {
     return execPrim.get_primitive_desc();
 }
 
-impl_desc_type DnnlExecutor::getImplementationType() const {
-    auto pd = getPrimitiveDesc();
+impl_desc_type DnnlExecutorLegacy::getImplementationType() const {
+    const auto* pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 
